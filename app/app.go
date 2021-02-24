@@ -308,6 +308,9 @@ func (app *App) Refresh() {
 		t.LogList = make([]modbtypes.Log, len(tx.Logs))
 		for j, l := range tx.Logs {
 			copy(t.LogList[j].Address[:], l.Address[:])
+			if len(l.Topics) != 0 {
+				t.LogList[j].Topics = make([][32]byte, len(l.Topics))
+			}
 			for k, topic := range l.Topics {
 				copy(t.LogList[j].Topics[k][:], topic[:])
 			}

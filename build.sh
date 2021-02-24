@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-pushd ../MoeingEVM/evmwrap || return; make
+pushd ../MoeingEVM/evmwrap || return; make clean; make
 popd || return
 
 cp ../MoeingEVM/evmwrap/host_bridge/libevmwrap.so ../MoeingEVM
