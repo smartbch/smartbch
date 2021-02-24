@@ -16,10 +16,10 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	modbtypes "github.com/moeing-chain/MoeingDB/types"
+	"github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/api"
 	"github.com/moeing-chain/moeing-chain/app"
 	"github.com/moeing-chain/moeing-chain/internal/testutils"
-	"github.com/moeing-chain/MoeingEVM/types"
 )
 
 func TestNewFilter(t *testing.T) {
