@@ -219,6 +219,8 @@ func TestGetBlockByHash(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(123), block2["number"])
 	require.Equal(t, hexutil.Bytes(hash[:]), block2["hash"])
+	require.Equal(t, hexutil.Uint64(0), block2["gasLimit"])
+	require.Equal(t, hexutil.Uint64(0), block2["gasUsed"])
 	// TODO: check more fields
 }
 

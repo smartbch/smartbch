@@ -77,12 +77,12 @@ func blockToRpcResp(block *types.Block) map[string]interface{} {
 		"stateRoot":        hexutil.Bytes(block.StateRoot[:]),
 		"miner":            gethcmn.Address{},
 		"mixHash":          gethcmn.Hash{},
-		"difficulty":       0,
-		"totalDifficulty":  0,
+		"difficulty":       hexutil.Uint64(0),
+		"totalDifficulty":  hexutil.Uint64(0),
 		"extraData":        hexutil.Uint64(0),
 		"size":             hexutil.Uint64(block.Size),
-		"gasLimit":         0, // Static gas limit
-		"gasUsed":          bigutils.NewU256(block.GasUsed),
+		"gasLimit":         hexutil.Uint64(0), // Static gas limit
+		"gasUsed":          hexutil.Uint64(block.GasUsed),
 		"timestamp":        hexutil.Uint64(block.Timestamp),
 		"transactions":     types.ToGethHashes(block.Transactions),
 		"uncles":           []string{},
