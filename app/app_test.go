@@ -36,7 +36,7 @@ func TestGetBalance(t *testing.T) {
 	require.Equal(t, uint64(10000000), getBalance(_app, addr).Uint64())
 }
 
-func TestTransfer(t *testing.T) {
+func TestTransferOK(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := CreateTestApp(key1, key2)
@@ -69,6 +69,27 @@ func TestTransfer(t *testing.T) {
 	moeTx := getTx(_app, tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	require.Equal(t, uint64(1), moeTx.Status)
+}
+
+func TestTransferFailed(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(key1, key2)
+	defer DestroyTestApp(_app)
+	require.Equal(t, uint64(10000000), getBalance(_app, addr1).Uint64())
+	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
+
+	tx := gethtypes.NewTransaction(0, addr2, big.NewInt(10000001), 100000, big.NewInt(1), nil)
+	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	testutils.ExecTxInBlock(_app, 1, tx)
+
+	require.Equal(t, uint64(10000000-21000), getBalance(_app, addr1).Uint64())
+	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
+
+	// check tx status
+	moeTx := getTx(_app, tx.Hash())
+	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
+	require.Equal(t, uint64(0), moeTx.Status)
 }
 
 func TestBlock(t *testing.T) {
