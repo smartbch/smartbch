@@ -8,6 +8,7 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 
+	"github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/api"
 	"github.com/moeing-chain/moeing-chain/app"
 	"github.com/moeing-chain/moeing-chain/internal/testutils"
@@ -42,14 +43,31 @@ func TestQueryTxBySrcDst(t *testing.T) {
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 	time.Sleep(100 * time.Millisecond)
+	_app.SetCurrentBlock(&types.Block{Number: 2})
 
-	txs, err := _api.QueryTxBySrc(addr1, 1, 3)
+	txs, err := _api.QueryTxBySrc(addr1, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, txs, 2)
 
-	txs, err = _api.QueryTxByDst(addr2, 1, 3)
+	txs, err = _api.QueryTxByDst(addr2, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, txs, 2)
+
+	txs, err = _api.QueryTxBySrc(addr1, 1, -1)
+	require.NoError(t, err)
+	require.Len(t, txs, 2)
+
+	txs, err = _api.QueryTxByDst(addr2, 1, -1)
+	require.NoError(t, err)
+	require.Len(t, txs, 2)
+
+	txs, err = _api.QueryTxBySrc(addr1, -1, -1)
+	require.NoError(t, err)
+	require.Len(t, txs, 1)
+
+	txs, err = _api.QueryTxByDst(addr2, -1, -1)
+	require.NoError(t, err)
+	require.Len(t, txs, 1)
 }
 
 func createMoeAPI(_app *app.App) MoeAPI {

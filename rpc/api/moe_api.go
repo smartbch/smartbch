@@ -32,7 +32,14 @@ func (moe moeAPI) GetStandbyTxQueue() {
 func (moe moeAPI) QueryTxBySrc(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
-	txs, err := moe.backend.QueryTxBySrc(addr, uint32(startHeight), uint32(endHeight))
+	if startHeight == gethrpc.LatestBlockNumber {
+		startHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+	}
+	if endHeight == gethrpc.LatestBlockNumber {
+		endHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+	}
+
+	txs, err := moe.backend.QueryTxBySrc(addr, uint32(startHeight), uint32(endHeight)+1)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +49,14 @@ func (moe moeAPI) QueryTxBySrc(addr gethcmn.Address,
 func (moe moeAPI) QueryTxByDst(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
-	txs, err := moe.backend.QueryTxByDst(addr, uint32(startHeight), uint32(endHeight))
+	if startHeight == gethrpc.LatestBlockNumber {
+		startHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+	}
+	if endHeight == gethrpc.LatestBlockNumber {
+		endHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+	}
+
+	txs, err := moe.backend.QueryTxByDst(addr, uint32(startHeight), uint32(endHeight)+1)
 	if err != nil {
 		return nil, err
 	}
