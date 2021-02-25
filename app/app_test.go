@@ -120,6 +120,7 @@ func TestDeployContract(t *testing.T) {
 	_app := CreateTestApp(key)
 	defer DestroyTestApp(_app)
 
+	// testdata/test05_counter
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060cc8061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060325760003560e01c806361
@@ -146,6 +147,52 @@ c664736f6c634300060c0033
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
 	code := getCode(_app, contractAddr)
 	require.Equal(t, deployedBytecode, code)
+}
+
+func TestEmitLogs(t *testing.T) {
+	key, addr := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(key)
+	defer DestroyTestApp(_app)
+
+	// testdata/test06_events
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b506101b6806100206000396000f3fe
+608060405234801561001057600080fd5b50600436106100365760003560e01c
+8063990ee4121461003b578063fb584c3914610045575b600080fd5b61004361
+0061565b005b61005f600480360381019061005a919061010c565b6100a6565b
+005b3373ffffffffffffffffffffffffffffffffffffffff167fd1c6b99eac4e
+6a0f44c67915eb5195ecb58425668b0c7a46f58908541b5b2899604051604051
+80910390a2565b3373ffffffffffffffffffffffffffffffffffffffff167f7a
+2c2ad471d70e0a88640e6c3f4f5e975bcbccea7740c25631d0b74bb2c1cef482
+6040516100ec9190610144565b60405180910390a250565b6000813590506101
+0681610169565b92915050565b60006020828403121561011e57600080fd5b60
+0061012c848285016100f7565b91505092915050565b61013e8161015f565b82
+525050565b60006020820190506101596000830184610135565b92915050565b
+6000819050919050565b6101728161015f565b811461017d57600080fd5b5056
+fea2646970667358221220383eba178a868bbea24cfa4e229a163ffcf60cda8e
+e7686360ba62da573cfb4864736f6c63430008000033
+`)
+
+	tx1 := gethtypes.NewContractCreation(0,
+		big.NewInt(0), 10000000, big.NewInt(1), creationBytecode)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
+	code := getCode(_app, contractAddr)
+	require.True(t, len(code) > 0)
+
+	tx2 := gethtypes.NewTransaction(1, contractAddr,
+		big.NewInt(0), 10000000, big.NewInt(1), []byte("990ee412"))
+	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	testutils.ExecTxInBlock(_app, 2, tx2)
+
+	blk2 := getBlock(_app, 2)
+	require.Equal(t, int64(2), blk2.Number)
+	require.Len(t, blk2.Transactions, 1)
+	txInBlk := getTx(_app, blk2.Transactions[0])
+	require.Equal(t, uint64(1), txInBlk.Status)
+	require.Len(t, txInBlk.Logs, 1)
 }
 
 func TestCheckTx(t *testing.T) {
