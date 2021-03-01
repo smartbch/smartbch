@@ -21,3 +21,5 @@ data/
 rocksdb.db/
 rpc/api/testdbdata
 .DS_Store
+*.swp
+*.log
