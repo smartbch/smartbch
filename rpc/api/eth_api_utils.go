@@ -114,7 +114,7 @@ func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 }
 
 func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
-	return map[string]interface{}{
+	resp := map[string]interface{}{
 		"transactionHash":   gethcmn.Hash(tx.Hash),
 		"transactionIndex":  hexutil.Uint64(tx.TransactionIndex),
 		"blockHash":         gethcmn.Hash(tx.BlockHash),
@@ -123,11 +123,23 @@ func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
 		"to":                gethcmn.Address(tx.To),
 		"cumulativeGasUsed": hexutil.Uint64(tx.CumulativeGasUsed),
 		"gasUsed":           hexutil.Uint64(tx.GasUsed),
-		"contractAddress":   gethcmn.Address(tx.ContractAddress),
 		"logs":              types.ToGethLogs(tx.Logs),
 		"logsBloom":         hexutil.Bytes(tx.LogsBloom[:]),
 		"status":            hexutil.Uint(tx.Status),
 	}
+	if !isZeroAddress(tx.ContractAddress) {
+		resp["contractAddress"] = gethcmn.Address(tx.ContractAddress)
+	}
+	return resp
+}
+
+func isZeroAddress(addr [20]byte) bool {
+	for _, b := range addr {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func txsToRpcResp(txs []*types.Transaction) []*rpctypes.Transaction {
