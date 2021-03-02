@@ -15,11 +15,12 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
-	"github.com/moeing-chain/MoeingEVM/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/moeing-chain/MoeingEVM/types"
+	"github.com/moeing-chain/moeing-chain/internal/bigutils"
 	"github.com/moeing-chain/moeing-chain/internal/ethutils"
 	"github.com/moeing-chain/moeing-chain/internal/testutils"
 )
@@ -79,6 +80,7 @@ func TestTransferFailed(t *testing.T) {
 	require.Equal(t, uint64(10000000), getBalance(_app, addr1).Uint64())
 	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
 
+	// insufficient balance
 	tx := gethtypes.NewTransaction(0, addr2, big.NewInt(10000001), 100000, big.NewInt(1), nil)
 	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
 	testutils.ExecTxInBlock(_app, 1, tx)
@@ -87,6 +89,7 @@ func TestTransferFailed(t *testing.T) {
 	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
 
 	// check tx status
+	time.Sleep(100 * time.Millisecond)
 	moeTx := getTx(_app, tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	require.Equal(t, gethtypes.ReceiptStatusFailed, moeTx.Status)
@@ -152,7 +155,7 @@ c664736f6c634300060c0033
 
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(key)
+	_app := CreateTestApp0(bigutils.NewU256(1000000000), key)
 	defer DestroyTestApp(_app)
 
 	// testdata/test06_events
@@ -174,41 +177,37 @@ fea2646970667358221220383eba178a868bbea24cfa4e229a163ffcf60cda8e
 e7686360ba62da573cfb4864736f6c63430008000033
 `)
 
+	// deploy contract
 	tx1 := gethtypes.NewContractCreation(0,
 		big.NewInt(0), 10000000, big.NewInt(1), creationBytecode)
 	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
-
 	testutils.ExecTxInBlock(_app, 1, tx1)
-	fmt.Printf("here!!!!!!\n")
+
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	fmt.Printf("contractAddr %#v\n", contractAddr)
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
-	fmt.Printf("code %#v\n", code)
 
 	blk2 := getBlock(_app, 2)
 	require.Equal(t, int64(2), blk2.Number)
 	require.Len(t, blk2.Transactions, 1)
-	txInBlk := getTx(_app, blk2.Transactions[0])
-	fmt.Printf("Tx[0] %#v\n", txInBlk)
+	txInBlk2 := getTx(_app, blk2.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk2.Status)
+	require.Equal(t, tx1.Hash(), common.Hash(txInBlk2.Hash))
 
+	// call emitEvent1()
 	tx2 := gethtypes.NewTransaction(1, contractAddr,
-		big.NewInt(0), 10000000, big.NewInt(1), []byte("990ee412"))
+		big.NewInt(0), 10000000, big.NewInt(1), testutils.HexToBytes("990ee412"))
 	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
-	blk3 := getBlock(_app, 3)
-	require.Equal(t, int64(3), blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk = getTx(_app, blk3.Transactions[0])
-	require.Equal(t, "not enough balance to pay gasfee", txInBlk.StatusStr)
-
-	//blk4 := getBlock(_app, 4)
-	//require.Equal(t, int64(4), blk4.Number)
-	//require.Len(t, blk4.Transactions, 1)
-	//txInBlk = getTx(_app, blk4.Transactions[0])
-	//require.Equal(t, uint64(1), txInBlk.Status)
-	//require.Len(t, txInBlk.Logs, 1)
+	time.Sleep(100 * time.Millisecond)
+	blk4 := getBlock(_app, 4)
+	require.Equal(t, int64(4), blk4.Number)
+	require.Len(t, blk4.Transactions, 1)
+	txInBlk4 := getTx(_app, blk4.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk4.Status)
+	require.Equal(t, tx2.Hash(), common.Hash(txInBlk4.Hash))
+	require.Len(t, txInBlk4.Logs, 1)
 }
 
 func TestCheckTx(t *testing.T) {
