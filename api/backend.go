@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"errors"
 	"math/big"
 
@@ -12,8 +11,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/moeing-chain/MoeingEVM/types"
 
+	"github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/app"
 	"github.com/moeing-chain/moeing-chain/param"
 )
@@ -113,15 +112,10 @@ func (backend moeingAPIBackend) GetNonce(address common.Address) (uint64, error)
 func (backend moeingAPIBackend) GetTransaction(txHash common.Hash) (tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error) {
 	ctx := backend.App.GetContext(app.RpcMode)
 	defer ctx.Close(false)
-	ctx.Db.GetTxByHash(txHash, func(b []byte) bool {
-		tmp := &types.Transaction{}
-		_, err = tmp.UnmarshalMsg(b)
-		if err == nil && bytes.Equal(tmp.Hash[:], txHash[:]) {
-			tx = tmp
-			return true
-		}
-		return false
-	})
+
+	if tx, err = ctx.GetTxByHash(txHash); err != nil {
+		return
+	}
 	if tx != nil {
 		blockHash = tx.BlockHash
 		blockNumber = uint64(tx.BlockNumber)
