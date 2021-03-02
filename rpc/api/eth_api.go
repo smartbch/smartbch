@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -91,6 +92,17 @@ func (api *ethAPI) Accounts() ([]common.Address, error) {
 	for addr := range api.accounts {
 		addrs = append(addrs, addr)
 	}
+
+	sort.Slice(addrs, func(i, j int) bool {
+		for k := 0; k < common.AddressLength; k++ {
+			if addrs[i][k] < addrs[j][k] {
+				return true
+			} else if addrs[i][k] > addrs[j][k] {
+				return false
+			}
+		}
+		return false
+	})
 	return addrs, nil
 }
 
