@@ -373,7 +373,7 @@ func TestGetTxReceipt(t *testing.T) {
 		Tx(gethcmn.Hash{0x56}).
 		Tx(gethcmn.Hash{0x78},
 			types.Log{Address: gethcmn.Address{0xA1}, Topics: [][32]byte{{0xF1}, {0xF2}}},
-			types.Log{Address: gethcmn.Address{0xA2}, Topics: [][32]byte{{0xF3}, {0xF4}}}).
+			types.Log{Address: gethcmn.Address{0xA2}, Topics: [][32]byte{{0xF3}, {0xF4}}, Data: []byte{0xD1}}).
 		Tx(gethcmn.Hash{0x90}).
 		Tx(gethcmn.Hash{0xAB}).
 		Build()
@@ -387,6 +387,10 @@ func TestGetTxReceipt(t *testing.T) {
 	require.Equal(t, gethcmn.Hash{0x78}, receipt["transactionHash"])
 	require.Equal(t, hexutil.Uint(0x1), receipt["status"])
 	require.Len(t, receipt["logs"], 2)
+
+	gethLogs := receipt["logs"].([]*gethtypes.Log)
+	require.Equal(t, gethcmn.Address{0xA2}, gethLogs[1].Address)
+	require.Equal(t, []byte{0xD1}, gethLogs[1].Data)
 	// TODO: check more fields
 }
 

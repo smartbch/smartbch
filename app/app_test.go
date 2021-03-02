@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -208,6 +209,34 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk4.Status)
 	require.Equal(t, tx2.Hash(), common.Hash(txInBlk4.Hash))
 	require.Len(t, txInBlk4.Logs, 1)
+	require.Len(t, txInBlk4.Logs[0].Topics, 2)
+	require.Equal(t, "d1c6b99eac4e6a0f44c67915eb5195ecb58425668b0c7a46f58908541b5b2899",
+		hex.EncodeToString(txInBlk4.Logs[0].Topics[0][:]))
+	require.Equal(t, "000000000000000000000000"+hex.EncodeToString(addr[:]),
+		hex.EncodeToString(txInBlk4.Logs[0].Topics[1][:]))
+
+	// call emitEvent2()
+	tx3 := gethtypes.NewTransaction(2, contractAddr,
+		big.NewInt(0), 10000000, big.NewInt(1),
+		testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
+	tx3 = ethutils.MustSignTx(tx3, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	testutils.ExecTxInBlock(_app, 5, tx3)
+
+	time.Sleep(100 * time.Millisecond)
+	blk6 := getBlock(_app, 6)
+	require.Equal(t, int64(6), blk6.Number)
+	require.Len(t, blk6.Transactions, 1)
+	txInBlk6 := getTx(_app, blk6.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk6.Status)
+	require.Equal(t, tx3.Hash(), common.Hash(txInBlk6.Hash))
+	require.Len(t, txInBlk6.Logs, 1)
+	require.Len(t, txInBlk6.Logs[0].Topics, 2)
+	require.Equal(t, "7a2c2ad471d70e0a88640e6c3f4f5e975bcbccea7740c25631d0b74bb2c1cef4",
+		hex.EncodeToString(txInBlk6.Logs[0].Topics[0][:]))
+	require.Equal(t, "000000000000000000000000"+hex.EncodeToString(addr[:]),
+		hex.EncodeToString(txInBlk6.Logs[0].Topics[1][:]))
+	require.Equal(t, "000000000000000000000000000000000000000000000000000000000000007b",
+		hex.EncodeToString(txInBlk6.Logs[0].Data))
 }
 
 func TestCheckTx(t *testing.T) {
