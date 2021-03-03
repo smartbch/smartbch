@@ -5,10 +5,9 @@ go 1.15
 require (
 	github.com/ethereum/go-ethereum v1.9.25
 	github.com/holiman/uint256 v1.1.1
-	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/moeing-chain/MoeingADS v0.0.0-20210301000353-f63a7437981f
-	github.com/moeing-chain/MoeingDB v0.0.0-20210301213242-555118913112
-	github.com/moeing-chain/MoeingEVM v0.0.0-20210302152859-726bbf69f5c8
+	github.com/moeing-chain/MoeingDB v0.0.0-20210302075933-258595fa80a6
+	github.com/moeing-chain/MoeingEVM v0.0.0-20210303021830-84dca5919dc7
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0

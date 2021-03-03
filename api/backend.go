@@ -206,3 +206,9 @@ func (backend moeingAPIBackend) QueryTxByDst(addr common.Address, startHeight, e
 	defer ctx.Close(false)
 	return ctx.QueryTxByDst(addr, startHeight, endHeight)
 }
+
+func (backend moeingAPIBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
+	ctx := backend.App.GetContext(app.RpcMode)
+	defer ctx.Close(false)
+	return ctx.QueryTxByAddr(addr, startHeight, endHeight)
+}
