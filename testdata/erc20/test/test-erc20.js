@@ -212,27 +212,27 @@ contract('ERC20', (accounts) => {
   });
 
   /* eslint-disable no-underscore-dangle */
-  // it('events: should fire Transfer event properly', async () => {
-  //   const res = await token.transfer(accounts[1], '2666', { from: accounts[0] });
-  //   const transferLog = res.logs.find(element => element.event.match('Transfer'));
-  //   assert.strictEqual(transferLog.args._from, accounts[0]);
-  //   assert.strictEqual(transferLog.args._to, accounts[1]);
-  //   assert.strictEqual(transferLog.args._value.toString(), '2666');
-  // });
+  it('events: should fire Transfer event properly', async () => {
+    const res = await token.transfer(accounts[1], '2666', { from: accounts[0] });
+    const transferLog = res.logs.find(element => element.event.match('Transfer'));
+    assert.strictEqual(transferLog.args.from, accounts[0]);
+    assert.strictEqual(transferLog.args.to, accounts[1]);
+    assert.strictEqual(transferLog.args.value.toString(), '2666');
+  });
 
-  // it('events: should fire Transfer event normally on a zero transfer', async () => {
-  //   const res = await token.transfer(accounts[1], '0', { from: accounts[0] });
-  //   const transferLog = res.logs.find(element => element.event.match('Transfer'));
-  //   assert.strictEqual(transferLog.args._from, accounts[0]);
-  //   assert.strictEqual(transferLog.args._to, accounts[1]);
-  //   assert.strictEqual(transferLog.args._value.toString(), '0');
-  // });
+  it('events: should fire Transfer event normally on a zero transfer', async () => {
+    const res = await token.transfer(accounts[1], '0', { from: accounts[0] });
+    const transferLog = res.logs.find(element => element.event.match('Transfer'));
+    assert.strictEqual(transferLog.args.from, accounts[0]);
+    assert.strictEqual(transferLog.args.to, accounts[1]);
+    assert.strictEqual(transferLog.args.value.toString(), '0');
+  });
 
-  // it('events: should fire Approval event properly', async () => {
-  //   const res = await token.approve(accounts[1], '2666', { from: accounts[0] });
-  //   const approvalLog = res.logs.find(element => element.event.match('Approval'));
-  //   assert.strictEqual(approvalLog.args._owner, accounts[0]);
-  //   assert.strictEqual(approvalLog.args._spender, accounts[1]);
-  //   assert.strictEqual(approvalLog.args._value.toString(), '2666');
-  // });
+  it('events: should fire Approval event properly', async () => {
+    const res = await token.approve(accounts[1], '2666', { from: accounts[0] });
+    const approvalLog = res.logs.find(element => element.event.match('Approval'));
+    assert.strictEqual(approvalLog.args.owner, accounts[0]);
+    assert.strictEqual(approvalLog.args.spender, accounts[1]);
+    assert.strictEqual(approvalLog.args.value.toString(), '2666');
+  });
 });
