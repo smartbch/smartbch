@@ -2,8 +2,10 @@ package api
 
 import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
+	motypes "github.com/moeing-chain/MoeingEVM/types"
 	moeapi "github.com/moeing-chain/moeing-chain/api"
 	rpctypes "github.com/moeing-chain/moeing-chain/rpc/internal/ethapi"
 )
@@ -15,6 +17,7 @@ type MoeAPI interface {
 	QueryTxBySrc(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryTxByDst(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
+	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error)
 	// TODO: more methods
 }
 
@@ -79,4 +82,14 @@ func (moe moeAPI) QueryTxByAddr(addr gethcmn.Address,
 		return nil, err
 	}
 	return txsToRpcResp(txs), nil
+}
+
+func (moe moeAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
+	startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error) {
+
+	logs, err := moe.backend.MoeQueryLogs(addr, topics, uint32(startHeight), uint32(endHeight))
+	if err != nil {
+		return nil, err
+	}
+	return motypes.ToGethLogs(logs), nil
 }

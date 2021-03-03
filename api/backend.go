@@ -212,3 +212,10 @@ func (backend moeingAPIBackend) QueryTxByAddr(addr common.Address, startHeight, 
 	defer ctx.Close(false)
 	return ctx.QueryTxByAddr(addr, startHeight, endHeight)
 }
+
+func (backend moeingAPIBackend) MoeQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
+	ctx := backend.App.GetContext(app.RpcMode)
+	defer ctx.Close(false)
+
+	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight)
+}
