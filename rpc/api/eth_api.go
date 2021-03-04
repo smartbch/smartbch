@@ -293,7 +293,17 @@ func (api *ethAPI) ProtocolVersion() hexutil.Uint {
 
 // https://eth.wiki/json-rpc/API#eth_sendRawTransaction
 func (api *ethAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
-	return api.backend.SendTx2(data)
+	tx, err := ethutils.DecodeTx(data)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	tmTxHash, err := api.backend.SendRawTx(data)
+	if err != nil {
+		return tmTxHash, err
+	}
+
+	return tx.Hash(), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_sendTransaction
@@ -325,7 +335,7 @@ func (api *ethAPI) SendTransaction(args rpctypes.SendTxArgs) (common.Hash, error
 		return common.Hash{}, err
 	}
 
-	tmTxHash, err := api.backend.SendTx2(txBytes)
+	tmTxHash, err := api.backend.SendRawTx(txBytes)
 	if err != nil {
 		return tmTxHash, err
 	}

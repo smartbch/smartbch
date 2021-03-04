@@ -194,8 +194,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeliverTx {
 	app.logger.Debug("enter deliver tx!", "txlen", len(req.Tx))
 	app.block.Size += int64(req.Size())
-	tx := &gethtypes.Transaction{}
-	err := tx.DecodeRLP(rlp.NewStream(bytes.NewReader(req.Tx), 0))
+	tx, err := ethutils.DecodeTx(req.Tx)
 	if err == nil {
 		app.TxEngine.CollectTx(tx)
 	}

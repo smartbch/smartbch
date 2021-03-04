@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func MustEncodeTx(tx *types.Transaction) []byte {
@@ -23,6 +24,12 @@ func EncodeTx(tx *types.Transaction) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func DecodeTx(data []byte) (*types.Transaction, error) {
+	tx := &types.Transaction{}
+	err := tx.DecodeRLP(rlp.NewStream(bytes.NewReader(data), 0))
+	return tx, err
 }
 
 func MustSignTx(tx *types.Transaction,

@@ -158,7 +158,7 @@ func (backend moeingAPIBackend) SendTx(signedTx *types.Transaction) error {
 	panic("implement me")
 }
 
-func (backend moeingAPIBackend) SendTx2(signedTx []byte) (common.Hash, error) {
+func (backend moeingAPIBackend) SendRawTx(signedTx []byte) (common.Hash, error) {
 	return backend.broadcastTxSync(signedTx)
 }
 

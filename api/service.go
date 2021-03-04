@@ -40,7 +40,7 @@ type BackendService interface {
 
 	// Transaction pool API
 	SendTx(signedTx *types.Transaction) error
-	SendTx2(signedTx []byte) (common.Hash, error)
+	SendRawTx(signedTx []byte) (common.Hash, error)
 	GetTransaction(txHash common.Hash) (tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error)
 	//GetPoolTransactions() (types.Transactions, error)
 	//GetPoolTransaction(txHash common.Hash) *types.Transaction
