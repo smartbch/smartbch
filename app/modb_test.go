@@ -94,3 +94,39 @@ func TestQueryLogs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 }
+
+func TestGetLogsMaxResults(t *testing.T) {
+	_app := CreateTestApp()
+	defer DestroyTestApp(_app)
+
+	addr := gethcmn.Address{0xA1}
+	blk := testutils.NewMdbBlockBuilder().
+		Height(1).Hash(gethcmn.Hash{0xB1}).
+		Tx(gethcmn.Hash{0xC1}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC2}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC3}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC4}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC5}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC6}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC7}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC8}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC9}, types.Log{Address: addr}).
+		Tx(gethcmn.Hash{0xC0}, types.Log{Address: addr}).
+		Build()
+
+	_app.historyStore.AddBlock(blk, -1)
+	_app.historyStore.AddBlock(nil, -1)
+	time.Sleep(10 * time.Millisecond)
+
+	ctx := _app.GetContext(RpcMode)
+	defer ctx.Close(false)
+
+	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 1)
+	require.NoError(t, err)
+	require.Len(t, logs, 10)
+
+	_app.historyStore.SetMaxEntryCount(5)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 1)
+	require.NoError(t, err)
+	require.Len(t, logs, 5)
+}

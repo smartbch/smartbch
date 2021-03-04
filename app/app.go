@@ -114,6 +114,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	} else {
 		app.historyStore = modb.NewMoDB(modbDir)
 	}
+	app.historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
 
 	app.Trunk = app.root.GetTrunkStore().(*store.TrunkStore)
 	app.CheckTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)

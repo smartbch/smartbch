@@ -1,9 +1,14 @@
 package param
 
 import (
-	"github.com/tendermint/tendermint/config"
 	"os"
 	"path/filepath"
+
+	"github.com/tendermint/tendermint/config"
+)
+
+const (
+	DefaultRpcEthGetLogsMaxResults = 10000
 )
 
 type ChainConfig struct {
@@ -37,6 +42,9 @@ type ChainConfig struct {
 	//app config:
 	AppDataPath  string `json:"app_data_path,omitempty"`
 	ModbDataPath string `json:"modb_data_path,omitempty"`
+
+	// rpc config
+	RpcEthGetLogsMaxResults int
 }
 
 var (
@@ -48,8 +56,9 @@ var (
 func DefaultConfig() *ChainConfig {
 	os.LookupEnv("HOME")
 	return &ChainConfig{
-		NodeConfig:   config.DefaultConfig(),
-		AppDataPath:  defaultAppDataPath,
-		ModbDataPath: defaultModbDataPath,
+		NodeConfig:              config.DefaultConfig(),
+		AppDataPath:             defaultAppDataPath,
+		ModbDataPath:            defaultModbDataPath,
+		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 	}
 }
