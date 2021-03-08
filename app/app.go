@@ -229,26 +229,27 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 	}
 }
 
-func (app *App) postCommit() {
+func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("enter post commit!")
 	defer app.mtx.Unlock()
-	bi := types.BlockInfo{
-		Number:    app.block.Number,
-		Timestamp: app.block.Timestamp,
-	}
-	copy(bi.Hash[:], app.block.Hash[:])
-	copy(bi.Coinbase[:], app.block.Miner[:])
-	//app.chainId.FillBytes(bi.ChainId[:])
-	app.TxEngine.Execute(&bi)
+	app.TxEngine.Execute(bi)
 	app.logger.Debug("leave post commit!")
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("enter commit!", "txs", app.TxEngine.CollectTxsCount())
 	app.mtx.Lock()
-	app.TxEngine.Prepare(app.block)
+	app.TxEngine.Prepare()
 	app.Refresh()
-	go app.postCommit()
+	bi := types.BlockInfo{
+		Number:    app.block.Number,
+		Timestamp: app.block.Timestamp,
+	}
+	copy(bi.Hash[:], app.block.Hash[:])
+	copy(bi.Coinbase[:], app.block.Miner[:])
+	//bigEndian
+	copy(bi.ChainId[:], app.chainId.Bytes())
+	go app.postCommit(&bi)
 	app.logger.Debug("leave commit!")
 	return abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
@@ -331,7 +332,14 @@ func (app *App) reload() {
 	app.TxEngine.SetContext(app.GetContext(RunTxMode))
 	if app.block != nil {
 		app.mtx.Lock()
-		app.postCommit()
+		bi := types.BlockInfo{
+			Number:    app.block.Number,
+			Timestamp: app.block.Timestamp,
+		}
+		copy(bi.Hash[:], app.block.Hash[:])
+		copy(bi.Coinbase[:], app.block.Miner[:])
+		copy(bi.ChainId[:], app.chainId.Bytes())
+		app.postCommit(&bi)
 	}
 }
 

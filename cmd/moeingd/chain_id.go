@@ -2,17 +2,14 @@ package main
 
 import (
 	"errors"
-	"regexp"
 	"strconv"
 
 	"github.com/holiman/uint256"
 )
 
-var reChainID = regexp.MustCompile("moeing-(\\d+)")
-
 func parseChainID(chainID string) (*uint256.Int, error) {
-	if ss := reChainID.FindStringSubmatch(chainID); len(ss) == 2 {
-		idU64, err := strconv.ParseUint(ss[1], 10, 64)
+	if len(chainID) > 2 && chainID[:2] == "0x" {
+		idU64, err := strconv.ParseUint(chainID[2:], 16, 64)
 		if err == nil {
 			idU256 := uint256.NewInt()
 			idU256.SetUint64(idU64)
