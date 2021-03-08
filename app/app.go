@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -72,6 +73,7 @@ type App struct {
 	Trunk       *store.TrunkStore
 	CheckTrunk  *store.TrunkStore
 	block       *types.Block
+	blockInfo   atomic.Value // to store *types.BlockInfo
 
 	// feeds
 	chainFeed event.Feed
@@ -236,20 +238,25 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("leave post commit!")
 }
 
+func (app *App) SyncBlockInfo() *types.BlockInfo {
+	bi := &types.BlockInfo{
+		Coinbase:  app.block.Miner,
+		Number:    app.block.Number,
+		Timestamp: app.block.Timestamp,
+		ChainId:   app.chainId.Bytes32(),
+		Hash:      app.block.Hash,
+	}
+	app.blockInfo.Store(bi)
+	return bi
+}
+
 func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("enter commit!", "txs", app.TxEngine.CollectTxsCount())
 	app.mtx.Lock()
 	app.TxEngine.Prepare()
 	app.Refresh()
-	bi := types.BlockInfo{
-		Number:    app.block.Number,
-		Timestamp: app.block.Timestamp,
-	}
-	copy(bi.Hash[:], app.block.Hash[:])
-	copy(bi.Coinbase[:], app.block.Miner[:])
-	//bigEndian
-	bi.ChainId = app.chainId.Bytes32()
-	go app.postCommit(&bi)
+	bi := app.SyncBlockInfo()
+	go app.postCommit(bi)
 	app.logger.Debug("leave commit!")
 	return abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
@@ -332,14 +339,8 @@ func (app *App) reload() {
 	app.TxEngine.SetContext(app.GetContext(RunTxMode))
 	if app.block != nil {
 		app.mtx.Lock()
-		bi := types.BlockInfo{
-			Number:    app.block.Number,
-			Timestamp: app.block.Timestamp,
-		}
-		copy(bi.Hash[:], app.block.Hash[:])
-		copy(bi.Coinbase[:], app.block.Miner[:])
-		bi.ChainId = app.chainId.Bytes32()
-		app.postCommit(&bi)
+		bi := app.SyncBlockInfo()
+		app.postCommit(bi)
 	}
 }
 
@@ -548,12 +549,7 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender common.Address
 		Ctx: *ctx,
 		Tx:  txToRun,
 	}
-	bi := &types.BlockInfo{
-		Coinbase:  app.block.Miner,
-		Number:    app.block.Number,
-		Timestamp: app.block.Timestamp,
-	}
-	bi.ChainId = app.chainId.Bytes32()
+	bi := app.blockInfo.Load().(*types.BlockInfo)
 	estimateResult := ebp.RunTxForRpc(bi, estimateGas, runner)
 	return runner, estimateResult
 }
