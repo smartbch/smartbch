@@ -1,15 +1,19 @@
 package app
 
 import (
+	"math/big"
 	"os"
 
-	"github.com/holiman/uint256"
-	modbtypes "github.com/moeing-chain/MoeingDB/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
+
+	modbtypes "github.com/moeing-chain/MoeingDB/types"
+	motypes "github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/internal/bigutils"
 	"github.com/moeing-chain/moeing-chain/param"
 )
@@ -52,4 +56,44 @@ func AddBlockFotTest(_app *App, mdbBlock *modbtypes.Block) {
 	_app.historyStore.AddBlock(mdbBlock, -1)
 	_app.historyStore.AddBlock(nil, -1) // To Flush
 	_app.publishNewBlock(mdbBlock)
+}
+
+func getBalance(_app *App, addr common.Address) *big.Int {
+	ctx := _app.GetContext(RpcMode)
+	defer ctx.Close(false)
+	b, err := ctx.GetBalance(addr, -1)
+	if err != nil {
+		panic(err)
+	}
+	return b.ToBig()
+}
+
+func getCode(_app *App, addr common.Address) []byte {
+	ctx := _app.GetContext(RpcMode)
+	defer ctx.Close(false)
+	codeInfo := ctx.GetCode(addr)
+	if codeInfo == nil {
+		return nil
+	}
+	return codeInfo.BytecodeSlice()
+}
+
+func getBlock(_app *App, h uint64) *motypes.Block {
+	ctx := _app.GetContext(RpcMode)
+	defer ctx.Close(false)
+	b, err := ctx.GetBlockByHeight(h)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func getTx(_app *App, h common.Hash) *motypes.Transaction {
+	ctx := _app.GetContext(RpcMode)
+	defer ctx.Close(false)
+	tx, err := ctx.GetTxByHash(h)
+	if err != nil {
+		panic(err)
+	}
+	return tx
 }
