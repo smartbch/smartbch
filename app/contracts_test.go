@@ -85,10 +85,10 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 
-	blk2 := getBlock(_app, 2)
-	require.Equal(t, int64(2), blk2.Number)
-	require.Len(t, blk2.Transactions, 1)
-	txInBlk2 := getTx(_app, blk2.Transactions[0])
+	blk1 := getBlock(_app, 1)
+	require.Equal(t, int64(1), blk1.Number)
+	require.Len(t, blk1.Transactions, 1)
+	txInBlk2 := getTx(_app, blk1.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk2.Status)
 	require.Equal(t, tx1.Hash(), common.Hash(txInBlk2.Hash))
 
@@ -99,18 +99,18 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	time.Sleep(100 * time.Millisecond)
-	blk4 := getBlock(_app, 4)
-	require.Equal(t, int64(4), blk4.Number)
-	require.Len(t, blk4.Transactions, 1)
-	txInBlk4 := getTx(_app, blk4.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk4.Status)
-	require.Equal(t, tx2.Hash(), common.Hash(txInBlk4.Hash))
-	require.Len(t, txInBlk4.Logs, 1)
-	require.Len(t, txInBlk4.Logs[0].Topics, 2)
+	blk3 := getBlock(_app, 3)
+	require.Equal(t, int64(3), blk3.Number)
+	require.Len(t, blk3.Transactions, 1)
+	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
+	require.Equal(t, tx2.Hash(), common.Hash(txInBlk3.Hash))
+	require.Len(t, txInBlk3.Logs, 1)
+	require.Len(t, txInBlk3.Logs[0].Topics, 2)
 	require.Equal(t, "d1c6b99eac4e6a0f44c67915eb5195ecb58425668b0c7a46f58908541b5b2899",
-		hex.EncodeToString(txInBlk4.Logs[0].Topics[0][:]))
+		hex.EncodeToString(txInBlk3.Logs[0].Topics[0][:]))
 	require.Equal(t, "000000000000000000000000"+hex.EncodeToString(addr[:]),
-		hex.EncodeToString(txInBlk4.Logs[0].Topics[1][:]))
+		hex.EncodeToString(txInBlk3.Logs[0].Topics[1][:]))
 
 	// call emitEvent2()
 	tx3 := gethtypes.NewTransaction(2, contractAddr,
@@ -120,20 +120,20 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	testutils.ExecTxInBlock(_app, 5, tx3)
 
 	time.Sleep(100 * time.Millisecond)
-	blk6 := getBlock(_app, 6)
-	require.Equal(t, int64(6), blk6.Number)
-	require.Len(t, blk6.Transactions, 1)
-	txInBlk6 := getTx(_app, blk6.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk6.Status)
-	require.Equal(t, tx3.Hash(), common.Hash(txInBlk6.Hash))
-	require.Len(t, txInBlk6.Logs, 1)
-	require.Len(t, txInBlk6.Logs[0].Topics, 2)
+	blk5 := getBlock(_app, 5)
+	require.Equal(t, int64(5), blk5.Number)
+	require.Len(t, blk5.Transactions, 1)
+	txInBlk5 := getTx(_app, blk5.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk5.Status)
+	require.Equal(t, tx3.Hash(), common.Hash(txInBlk5.Hash))
+	require.Len(t, txInBlk5.Logs, 1)
+	require.Len(t, txInBlk5.Logs[0].Topics, 2)
 	require.Equal(t, "7a2c2ad471d70e0a88640e6c3f4f5e975bcbccea7740c25631d0b74bb2c1cef4",
-		hex.EncodeToString(txInBlk6.Logs[0].Topics[0][:]))
+		hex.EncodeToString(txInBlk5.Logs[0].Topics[0][:]))
 	require.Equal(t, "000000000000000000000000"+hex.EncodeToString(addr[:]),
-		hex.EncodeToString(txInBlk6.Logs[0].Topics[1][:]))
+		hex.EncodeToString(txInBlk5.Logs[0].Topics[1][:]))
 	require.Equal(t, "000000000000000000000000000000000000000000000000000000000000007b",
-		hex.EncodeToString(txInBlk6.Logs[0].Data))
+		hex.EncodeToString(txInBlk5.Logs[0].Data))
 }
 
 func TestChainID(t *testing.T) {

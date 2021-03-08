@@ -46,6 +46,7 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *App {
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
 	_app := NewApp(params, bigutils.NewU256(1), nopLogger,
 		testValidatorPubKey, keys, testInitAmt)
+	_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	_app.InitChain(abci.RequestInitChain{})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{}})

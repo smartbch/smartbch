@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/holiman/uint256"
+	types2 "github.com/moeing-chain/MoeingEVM/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -65,6 +67,20 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+	//todo: make sure this is the latest committed block
+	latestBlock := tmNode.BlockStore().LoadBlock(tmNode.BlockStore().Height())
+	fmt.Println("Load LatestBlock...")
+	if latestBlock != nil {
+		blk := types2.Block{}
+		fmt.Println(latestBlock.String())
+		copy(blk.Hash[:], latestBlock.Hash().Bytes())
+		copy(blk.Miner[:], latestBlock.Header.ProposerAddress)
+		blk.Number = latestBlock.Height
+		blk.Timestamp = latestBlock.Time.Unix()
+		moeingApp.Init(&blk)
+	} else {
+		moeingApp.Init(nil)
 	}
 
 	if err := tmNode.Start(); err != nil {

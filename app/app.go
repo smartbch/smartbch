@@ -127,19 +127,27 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	app.logger = logger.With("module", "app")
 
 	ctx := app.GetContext(RunTxMode)
-	app.block = ctx.GetCurrBlockBasicInfo()
+	prevBlk := ctx.GetCurrBlockBasicInfo()
+	app.block = &types.Block{}
+	if prevBlk != nil {
+		app.block.Number = prevBlk.Number + 1
+		app.currHeight = app.block.Number
+	}
 	app.Validators = ctx.GetCurrValidators()
 	for _, val := range app.Validators {
 		fmt.Printf("validator:%s\n", val.Address().String())
 	}
 	ctx.Close(false)
-	if app.block != nil {
+	app.testValidatorPubKey = testValidatorPubKey
+	app.testKeys = testKeys
+	app.testInitAmt = testInitAmt
+	return app
+}
+
+func (app *App) Init(blk *types.Block) {
+	if blk != nil {
+		app.block = blk
 		app.currHeight = app.block.Number
-	} else {
-		app.block = &types.Block{
-			Number: 0,
-			Hash:   [32]byte{},
-		}
 	}
 	fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
 	app.root.SetHeight(app.currHeight + 1)
@@ -148,11 +156,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	} else {
 		app.TxEngine.SetContext(app.GetContext(RunTxMode))
 	}
-
-	app.testValidatorPubKey = testValidatorPubKey
-	app.testKeys = testKeys
-	app.testInitAmt = testInitAmt
-	return app
 }
 
 func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
@@ -268,6 +271,7 @@ func (app *App) Refresh() {
 	app.CheckTrunk.Close(false)
 
 	ctx := app.GetContext(RunTxMode)
+	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
 	fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
 	ctx.SetCurrValidators(app.Validators)
@@ -286,48 +290,51 @@ func (app *App) Refresh() {
 	//app.Trunk.Close(true)
 
 	//write back current commit infos to history store
-	blk := modbtypes.Block{
-		Height: app.block.Number,
-	}
-	app.block.Transactions = make([][32]byte, len(app.TxEngine.CommittedTxs()))
-	for i, tx := range app.TxEngine.CommittedTxs() {
-		app.block.Transactions[i] = tx.Hash
-	}
-	blkInfo, err := app.block.MarshalMsg(nil)
-	if err != nil {
-		panic(err)
-	}
-	copy(blk.BlockHash[:], app.block.Hash[:])
-	blk.BlockInfo = blkInfo
-	blk.TxList = make([]modbtypes.Tx, len(app.TxEngine.CommittedTxs()))
-	var zeroValue [32]byte
-	for i, tx := range app.TxEngine.CommittedTxs() {
-		t := modbtypes.Tx{}
-		copy(t.HashId[:], tx.Hash[:])
-		copy(t.SrcAddr[:], tx.From[:])
-		if !bytes.Equal(tx.Value[:], zeroValue[:]) {
-			copy(t.DstAddr[:], tx.To[:])
+
+	//jump block which prev height = 0
+	if prevBlkInfo != nil {
+		blk := modbtypes.Block{
+			Height: prevBlkInfo.Number,
 		}
-		txContent, err := tx.MarshalMsg(nil)
+		prevBlkInfo.Transactions = make([][32]byte, len(app.TxEngine.CommittedTxs()))
+		for i, tx := range app.TxEngine.CommittedTxs() {
+			prevBlkInfo.Transactions[i] = tx.Hash
+		}
+		blkInfo, err := prevBlkInfo.MarshalMsg(nil)
 		if err != nil {
 			panic(err)
 		}
-		t.Content = txContent
-		t.LogList = make([]modbtypes.Log, len(tx.Logs))
-		for j, l := range tx.Logs {
-			copy(t.LogList[j].Address[:], l.Address[:])
-			if len(l.Topics) != 0 {
-				t.LogList[j].Topics = make([][32]byte, len(l.Topics))
+		copy(blk.BlockHash[:], prevBlkInfo.Hash[:])
+		blk.BlockInfo = blkInfo
+		blk.TxList = make([]modbtypes.Tx, len(app.TxEngine.CommittedTxs()))
+		var zeroValue [32]byte
+		for i, tx := range app.TxEngine.CommittedTxs() {
+			t := modbtypes.Tx{}
+			copy(t.HashId[:], tx.Hash[:])
+			copy(t.SrcAddr[:], tx.From[:])
+			if !bytes.Equal(tx.Value[:], zeroValue[:]) {
+				copy(t.DstAddr[:], tx.To[:])
 			}
-			for k, topic := range l.Topics {
-				copy(t.LogList[j].Topics[k][:], topic[:])
+			txContent, err := tx.MarshalMsg(nil)
+			if err != nil {
+				panic(err)
 			}
+			t.Content = txContent
+			t.LogList = make([]modbtypes.Log, len(tx.Logs))
+			for j, l := range tx.Logs {
+				copy(t.LogList[j].Address[:], l.Address[:])
+				if len(l.Topics) != 0 {
+					t.LogList[j].Topics = make([][32]byte, len(l.Topics))
+				}
+				for k, topic := range l.Topics {
+					copy(t.LogList[j].Topics[k][:], topic[:])
+				}
+			}
+			blk.TxList[i] = t
 		}
-		blk.TxList[i] = t
+		app.historyStore.AddBlock(&blk, -1)
+		app.publishNewBlock(&blk)
 	}
-	app.historyStore.AddBlock(&blk, -1)
-	app.publishNewBlock(&blk)
-
 	//make new
 	app.root.SetHeight(app.currHeight + 1)
 	app.Trunk = app.root.GetTrunkStore().(*store.TrunkStore)

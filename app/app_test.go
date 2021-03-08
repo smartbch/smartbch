@@ -57,11 +57,7 @@ func TestTransferOK(t *testing.T) {
 
 	blk1 := getBlock(_app, 1)
 	require.Equal(t, int64(1), blk1.Number)
-	require.Len(t, blk1.Transactions, 0)
-
-	blk2 := getBlock(_app, 2)
-	require.Equal(t, int64(2), blk2.Number)
-	require.Len(t, blk2.Transactions, 1)
+	require.Len(t, blk1.Transactions, 1)
 
 	// check tx status
 	moeTx := getTx(_app, tx.Hash())
@@ -104,16 +100,16 @@ func TestBlock(t *testing.T) {
 	testutils.ExecTxInBlock(_app, 1, tx)
 	time.Sleep(50 * time.Millisecond)
 
-	blk2 := getBlock(_app, 2)
-	require.Equal(t, int64(2), blk2.Number)
-	require.Len(t, blk2.Transactions, 1)
+	blk1 := getBlock(_app, 1)
+	require.Equal(t, int64(1), blk1.Number)
+	require.Len(t, blk1.Transactions, 1)
 
 	testutils.ExecTxInBlock(_app, 3, nil)
 	time.Sleep(50 * time.Millisecond)
 
-	blk4 := getBlock(_app, 4)
-	require.Equal(t, int64(4), blk4.Number)
-	require.Len(t, blk4.Transactions, 0)
+	blk3 := getBlock(_app, 3)
+	require.Equal(t, int64(3), blk3.Number)
+	require.Len(t, blk3.Transactions, 0)
 }
 
 func TestCheckTx(t *testing.T) {
