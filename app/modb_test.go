@@ -66,31 +66,31 @@ func TestQueryLogs(t *testing.T) {
 	ctx := _app.GetContext(RpcMode)
 	defer ctx.Close(false)
 
-	logs, err := ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{}, 1, 1)
+	logs, err := ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}}, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{}, {topic2}}, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{}, {topic2}}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}, {topic2}}, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}, {topic2}}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}}, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{}, {topic2, topic4}}, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{}, {topic2, topic4}}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}, {topic2, topic4}}, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}, {topic2, topic4}}, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 }
@@ -121,12 +121,12 @@ func TestGetLogsMaxResults(t *testing.T) {
 	ctx := _app.GetContext(RpcMode)
 	defer ctx.Close(false)
 
-	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 1)
+	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 10)
 
 	_app.historyStore.SetMaxEntryCount(5)
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 1)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 5)
 }
