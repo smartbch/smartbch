@@ -19,11 +19,10 @@ var _ tmservice.Service = (*Server)(nil)
 type Server struct {
 	tmservice.BaseService
 
-	rpcAddr  string // listen address of rest-server
-	wsAddr   string // listen address of ws server
-	logger   tmlog.Logger
-	backend  api.BackendService
-	backend2 *api.GethBackend
+	rpcAddr string // listen address of rest-server
+	wsAddr  string // listen address of ws server
+	logger  tmlog.Logger
+	backend api.BackendService
 
 	httpServer   *gethrpc.Server
 	httpListener net.Listener
@@ -34,14 +33,13 @@ type Server struct {
 }
 
 func NewServer(rpcAddr string, wsAddr string,
-	backend api.BackendService, backend2 *api.GethBackend,
+	backend api.BackendService,
 	logger tmlog.Logger, testKeys []string) tmservice.Service {
 
 	impl := &Server{
 		rpcAddr:  rpcAddr,
 		wsAddr:   wsAddr,
 		backend:  backend,
-		backend2: backend2,
 		logger:   logger,
 		testKeys: testKeys,
 	}
@@ -49,7 +47,7 @@ func NewServer(rpcAddr string, wsAddr string,
 }
 
 func (server *Server) OnStart() error {
-	apis := rpcapi.GetAPIs(server.backend, server.backend2,
+	apis := rpcapi.GetAPIs(server.backend,
 		server.logger, server.testKeys)
 	if err := server.startHTTP(apis); err != nil {
 		return err

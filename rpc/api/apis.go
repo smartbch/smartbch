@@ -20,11 +20,10 @@ const (
 
 // GetAPIs returns the list of all APIs from the Ethereum namespaces
 func GetAPIs(backend moeingapi.BackendService,
-	backend2 *moeingapi.GethBackend,
 	logger log.Logger, testKeys []string) []rpc.API {
 
 	_ethAPI := newEthAPI(backend, testKeys, logger)
-	filterAPI := filters.NewAPI(backend, backend2)
+	filterAPI := filters.NewAPI(backend)
 
 	_moeAPI := newMoeAPI(backend)
 

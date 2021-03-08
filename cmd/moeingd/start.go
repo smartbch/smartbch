@@ -72,12 +72,11 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	}
 
 	rpcBackend := api.NewBackend(tmNode, moeingApp)
-	gethBackend := api.NewGethBackend(moeingApp)
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
 	//rpcAddr = viper.GetString("")
 	rpcServer := rpc.NewServer(rpcAddr, wsAddr,
-		rpcBackend, gethBackend, ctx.Logger, moeingApp.TestKeys())
+		rpcBackend, ctx.Logger, moeingApp.TestKeys())
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err

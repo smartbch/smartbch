@@ -309,8 +309,7 @@ func TestGetLogs_addrFilter(t *testing.T) {
 
 func createFiltersAPI(_app *app.App) PublicFilterAPI {
 	backend := api.NewBackend(nil, _app)
-	backend2 := api.NewGethBackend(_app)
-	return NewAPI(backend, backend2)
+	return NewAPI(backend)
 }
 
 func addBlock(_app *app.App, block *modbtypes.Block) {

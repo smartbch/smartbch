@@ -33,7 +33,6 @@ type PublicFilterAPI interface {
 
 type filterAPI struct {
 	backend   mapi.BackendService
-	backend2  Backend
 	events    *EventSystem
 	filtersMu sync.Mutex
 	filters   map[rpc.ID]*filter
@@ -50,14 +49,11 @@ type filter struct {
 	s        *Subscription // associated subscription in event system
 }
 
-func NewAPI(backend mapi.BackendService,
-	backend2 Backend) PublicFilterAPI {
-
+func NewAPI(backend mapi.BackendService) PublicFilterAPI {
 	_api := &filterAPI{
-		backend:  backend,
-		backend2: backend2,
-		filters:  make(map[rpc.ID]*filter),
-		events:   NewEventSystem(backend2, false),
+		backend: backend,
+		filters: make(map[rpc.ID]*filter),
+		events:  NewEventSystem(backend, false),
 	}
 
 	go _api.timeoutLoop()
@@ -252,7 +248,7 @@ func (api *filterAPI) GetFilterLogs(id rpc.ID) ([]*gethtypes.Log, error) {
 func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log, error) {
 	if crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
-		filter := NewBlockFilter(api.backend2, *crit.BlockHash, crit.Addresses, crit.Topics)
+		filter := NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics)
 
 		// Run the filter and return all the logs
 		logs, err := filter.Logs(context.TODO())
@@ -278,7 +274,7 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 	}
 
 	//// Construct the range filter
-	//filter := NewRangeFilter(api.backend2, begin, end, crit.Addresses, crit.Topics)
+	//filter := NewRangeFilter(api.backend, begin, end, crit.Addresses, crit.Topics)
 	//
 	//// Run the filter and return all the logs
 	//logs, err := filter.Logs(context.TODO())

@@ -1,16 +1,40 @@
 package api
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/bloombits"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/moeing-chain/MoeingEVM/types"
+	motypes "github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/param"
 )
 
+type FilterService interface {
+	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*motypes.Header, error)
+	HeaderByHash(ctx context.Context, blockHash common.Hash) (*motypes.Header, error)
+	GetReceipts(ctx context.Context, blockHash common.Hash) (gethtypes.Receipts, error)
+	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*gethtypes.Log, error)
+
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
+	SubscribeChainEvent(ch chan<- motypes.ChainEvent) event.Subscription
+	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
+	SubscribeLogsEvent(ch chan<- []*gethtypes.Log) event.Subscription
+	//SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription
+
+	BloomStatus() (uint64, uint64)
+	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
+}
+
 type BackendService interface {
+	FilterService
+
 	// General Ethereum API
 	//Downloader() *downloader.Downloader
 	ProtocolVersion() int
@@ -50,7 +74,7 @@ type BackendService interface {
 
 	// Filter API
 	//BloomStatus() (uint64, uint64)
-	GetLogs(blockHash common.Hash) ([][]types.Log, error)
+	//GetLogs(blockHash common.Hash) ([][]types.Log, error)
 	//ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 	//SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
 	//SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription
