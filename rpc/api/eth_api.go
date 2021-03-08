@@ -232,7 +232,7 @@ func (api *ethAPI) getBlockByNum(blockNum gethrpc.BlockNumber) (*types.Block, er
 	height := blockNum.Int64()
 	if height <= 0 {
 		// get latest block height
-		height = api.backend.CurrentBlock().Number
+		height = api.backend.CurrentBlock().Number - 1
 	}
 	return api.backend.BlockByNumber(height)
 }
