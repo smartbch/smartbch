@@ -248,7 +248,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	copy(bi.Hash[:], app.block.Hash[:])
 	copy(bi.Coinbase[:], app.block.Miner[:])
 	//bigEndian
-	copy(bi.ChainId[:], app.chainId.Bytes())
+	bi.ChainId = app.chainId.Bytes32()
 	go app.postCommit(&bi)
 	app.logger.Debug("leave commit!")
 	return abcitypes.ResponseCommit{
@@ -338,7 +338,7 @@ func (app *App) reload() {
 		}
 		copy(bi.Hash[:], app.block.Hash[:])
 		copy(bi.Coinbase[:], app.block.Miner[:])
-		copy(bi.ChainId[:], app.chainId.Bytes())
+		bi.ChainId = app.chainId.Bytes32()
 		app.postCommit(&bi)
 	}
 }
@@ -553,6 +553,7 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender common.Address
 		Number:    app.block.Number,
 		Timestamp: app.block.Timestamp,
 	}
+	bi.ChainId = app.chainId.Bytes32()
 	estimateResult := ebp.RunTxForRpc(bi, estimateGas, runner)
 	return runner, estimateResult
 }
