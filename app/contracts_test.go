@@ -135,3 +135,37 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	require.Equal(t, "000000000000000000000000000000000000000000000000000000000000007b",
 		hex.EncodeToString(txInBlk6.Logs[0].Data))
 }
+
+func TestChainID(t *testing.T) {
+	key, addr := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(key)
+	defer DestroyTestApp(_app)
+
+	require.Equal(t, "0x1", _app.ChainID().String())
+
+	// testdata/test07_eip1344
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b5060b58061001f6000396000f3fe60
+80604052348015600f57600080fd5b506004361060285760003560e01c806356
+4b81ef14602d575b600080fd5b60336047565b604051603e9190605c565b6040
+5180910390f35b600046905090565b6056816075565b82525050565b60006020
+82019050606f6000830184604f565b92915050565b600081905091905056fea2
+64697066735822122071af38cd4ec3657373c5944f6d44becf841a91b5a85545
+7dfdabc41dd2e3b50064736f6c63430008000033
+`)
+
+	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
+	code := getCode(_app, contractAddr)
+	require.True(t, len(code) > 0)
+
+	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 100000, big.NewInt(1),
+		testutils.HexToBytes("564b81ef"))
+
+	output := call(_app, addr, tx2)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
+		hex.EncodeToString(output))
+}

@@ -10,6 +10,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 
 	modbtypes "github.com/moeing-chain/MoeingDB/types"
@@ -96,4 +97,9 @@ func getTx(_app *App, h common.Hash) *motypes.Transaction {
 		panic(err)
 	}
 	return tx
+}
+
+func call(_app *App, sender common.Address, tx *gethtypes.Transaction) []byte {
+	runner, _ := _app.RunTxForRpc(tx, sender, false)
+	return runner.OutData
 }

@@ -1,7 +1,7 @@
 export EVMWRAP=libevmwrap.so
 
 rm -rf ~/.moeingd/
-go run github.com/moeing-chain/moeing-chain/cmd/moeingd init m1 --chain-id moeing-1
+go run github.com/moeing-chain/moeing-chain/cmd/moeingd init m1 --chain-id 0x1
 
 
 export NODIASM=1 
