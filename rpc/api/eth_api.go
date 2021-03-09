@@ -384,8 +384,13 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
-	ret := api.backend.Call(tx, from)
-	return ret, nil
+
+	statusCode, statusStr, retData := api.backend.Call(tx, from)
+	if statusCode == int(gethtypes.ReceiptStatusSuccessful) {
+		return retData, nil
+	}
+
+	return nil, toCallErr(statusStr)
 }
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas
@@ -394,8 +399,13 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	ret := api.backend.EstimateGas(tx, from)
-	return hexutil.Uint64(ret), nil
+
+	statusCode, statusStr, gas := api.backend.EstimateGas(tx, from)
+	if statusCode == int(gethtypes.ReceiptStatusSuccessful) {
+		return hexutil.Uint64(gas), nil
+	}
+
+	return 0, toCallErr(statusStr)
 }
 
 func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,

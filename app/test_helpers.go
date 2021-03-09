@@ -14,6 +14,7 @@ import (
 	"github.com/holiman/uint256"
 
 	modbtypes "github.com/moeing-chain/MoeingDB/types"
+	"github.com/moeing-chain/MoeingEVM/ebp"
 	motypes "github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/internal/bigutils"
 	"github.com/moeing-chain/moeing-chain/param"
@@ -100,7 +101,7 @@ func getTx(_app *App, h common.Hash) *motypes.Transaction {
 	return tx
 }
 
-func call(_app *App, sender common.Address, tx *gethtypes.Transaction) []byte {
+func call(_app *App, sender common.Address, tx *gethtypes.Transaction) (int, string, []byte) {
 	runner, _ := _app.RunTxForRpc(tx, sender, false)
-	return runner.OutData
+	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }

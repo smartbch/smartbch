@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/moeing-chain/MoeingEVM/ebp"
 	"github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/app"
 	"github.com/moeing-chain/moeing-chain/param"
@@ -191,14 +192,14 @@ func (backend *moeingAPIBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, er
 	return common.BytesToHash(tx.Hash()), nil
 }
 
-func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.Address) []byte {
+func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, retData []byte) {
 	runner, _ := backend.app.RunTxForRpc(tx, sender, false)
-	return runner.OutData
+	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
 
-func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) int64 {
-	_, gas := backend.app.RunTxForRpc(tx, sender, true)
-	return gas
+func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, gas int64) {
+	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
+	return runner.Status, ebp.StatusToStr(runner.Status), gas
 }
 
 func (backend *moeingAPIBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {

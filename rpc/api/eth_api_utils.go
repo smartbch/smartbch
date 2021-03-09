@@ -149,3 +149,14 @@ func txsToRpcResp(txs []*types.Transaction) []*rpctypes.Transaction {
 	}
 	return rpcTxs
 }
+
+func toCallErr(statusStr string) callError {
+	callErr := callError{code: defaultErrorCode, msg: statusStr}
+	switch statusStr {
+	case "revert":
+		callErr.msg = "VM Exception while processing transaction: revert"
+	case "invalid-instruction":
+		callErr.msg = "VM Exception while processing transaction: invalid opcode,"
+	}
+	return callErr
+}

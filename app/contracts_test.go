@@ -165,7 +165,7 @@ func TestChainID(t *testing.T) {
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 100000, big.NewInt(1),
 		testutils.HexToBytes("564b81ef"))
 
-	output := call(_app, addr, tx2)
+	_, _, output := call(_app, addr, tx2)
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
 		hex.EncodeToString(output))
 }
@@ -214,6 +214,10 @@ b5007928aa64736f6c63430007000033
 	txInBlk3 := getTx(_app, blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
+
+	statusCode, statusStr, _ := call(_app, contractAddr, tx2)
+	require.Equal(t, 2, statusCode)
+	require.Equal(t, "revert", statusStr)
 }
 
 func TestInvalidOpcode(t *testing.T) {
@@ -260,4 +264,8 @@ b5007928aa64736f6c63430007000033
 	txInBlk3 := getTx(_app, blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "invalid-instruction", txInBlk3.StatusStr)
+
+	statusCode, statusStr, _ := call(_app, contractAddr, tx2)
+	require.Equal(t, 4, statusCode)
+	require.Equal(t, "invalid-instruction", statusStr)
 }

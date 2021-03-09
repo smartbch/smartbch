@@ -71,7 +71,7 @@ contract("Errors", async (accounts) => {
     it('invalid opcode', async () => {
         const contract = await Errors.new({ from: accounts[0] });
         try {
-            await await contract.setN_invalidOpcode(100);
+            await contract.setN_invalidOpcode(100);
             throw null;
         } catch (error) {
             assert(error, "Expected an error but did not get one");
@@ -111,7 +111,7 @@ contract("Errors", async (accounts) => {
     it('invalid opcode, estimateGas', async () => {
         const contract = await Errors.new({ from: accounts[0] });
         try {
-            await await contract.setN_invalidOpcode.estimateGas(100);
+            await contract.setN_invalidOpcode.estimateGas(100);
             throw null;
         } catch (error) {
             assert(error, "Expected an error but did not get one");

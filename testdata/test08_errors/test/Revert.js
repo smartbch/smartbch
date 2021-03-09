@@ -73,7 +73,7 @@ contract("Errors", async (accounts) => {
     it('revert', async () => {
         const contract = await Errors.new({ from: accounts[0] });
         try {
-            await await contract.setN_revert(100);
+            await contract.setN_revert(100);
             throw null;
         } catch (error) {
             assert(error, "Expected an error but did not get one");
@@ -113,7 +113,7 @@ contract("Errors", async (accounts) => {
     it('revert, estimateGas', async () => {
         const contract = await Errors.new({ from: accounts[0] });
         try {
-            await await contract.setN_revert.estimateGas(100);
+            await contract.setN_revert.estimateGas(100);
             throw null;
         } catch (error) {
             assert(error, "Expected an error but did not get one");

@@ -92,8 +92,8 @@ type BackendService interface {
 	GetBalance(address common.Address, height int64) (*big.Int, error)
 	GetCode(contract common.Address) (bytecode []byte, codeHash []byte)
 	GetStorageAt(address common.Address, key string, blockNumber uint64) []byte
-	Call(tx *gethtypes.Transaction, from common.Address) []byte
-	EstimateGas(tx *gethtypes.Transaction, from common.Address) int64
+	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, statusStr string, retData []byte)
+	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, statusStr string, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error)
 	QueryTxBySrc(address common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error)
 	QueryTxByDst(address common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error)
