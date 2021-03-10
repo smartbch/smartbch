@@ -3,7 +3,6 @@ package api
 import (
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
 	"math/big"
 	"sort"
 
@@ -387,8 +386,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 	}
 
 	statusCode, statusStr, retData := api.backend.Call(tx, from)
-	fmt.Printf("Why %#v %#v %#v\n", statusCode, statusStr, retData)
-	if statusCode == int(gethtypes.ReceiptStatusSuccessful) {
+	if statusCode == 0 {
 		return retData, nil
 	}
 
@@ -403,7 +401,7 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
 	}
 
 	statusCode, statusStr, gas := api.backend.EstimateGas(tx, from)
-	if statusCode == int(gethtypes.ReceiptStatusSuccessful) {
+	if statusCode == 0 {
 		return hexutil.Uint64(gas), nil
 	}
 

@@ -204,19 +204,19 @@ func (backend *moeingAPIBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, er
 
 func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, retData []byte) {
 	runner, _ := backend.app.RunTxForRpc(tx, sender, false)
-	statusCode = int(gethtypes.ReceiptStatusSuccessful)
-	if ebp.StatusIsFailure(runner.Status) {
-		statusCode = int(gethtypes.ReceiptStatusFailed)
-	}
+	//statusCode = int(gethtypes.ReceiptStatusSuccessful)
+	//if ebp.StatusIsFailure(runner.Status) {
+	//	statusCode = int(gethtypes.ReceiptStatusFailed)
+	//}
 	return statusCode, ebp.StatusToStr(runner.Status), runner.OutData
 }
 
 func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, gas int64) {
 	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
-	statusCode = int(gethtypes.ReceiptStatusSuccessful)
-	if ebp.StatusIsFailure(runner.Status) {
-		statusCode = int(gethtypes.ReceiptStatusFailed)
-	}
+	//statusCode = int(gethtypes.ReceiptStatusSuccessful)
+	//if ebp.StatusIsFailure(runner.Status) {
+	//	statusCode = int(gethtypes.ReceiptStatusFailed)
+	//}
 	return statusCode, ebp.StatusToStr(runner.Status), gas
 }
 

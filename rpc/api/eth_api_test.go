@@ -126,7 +126,10 @@ func TestBlockNum(t *testing.T) {
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
-	_app.SetCurrentBlock(&types.Block{Number: 0x100})
+	ctx := _app.GetContext(app.RunTxMode)
+	ctx.Db.AddBlock(&modbtypes.Block{Height: 0x100}, -1)
+	ctx.Close(true)
+
 	num, err := _api.BlockNumber()
 	require.NoError(t, err)
 	require.Equal(t, "0x100", num.String())
@@ -433,7 +436,7 @@ func TestCall_Transfer(t *testing.T) {
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),
 	}, 0)
-	require.NoError(t, err) //??
+	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 }
 
