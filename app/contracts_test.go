@@ -218,6 +218,7 @@ b5007928aa64736f6c63430007000033
 	statusCode, statusStr, _ := call(_app, contractAddr, tx2)
 	require.Equal(t, 2, statusCode)
 	require.Equal(t, "revert", statusStr)
+	//require.Equal(t, "n must be less than 10", string(retData))
 }
 
 func TestInvalidOpcode(t *testing.T) {

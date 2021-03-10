@@ -436,8 +436,8 @@ func TestCall_Transfer(t *testing.T) {
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),
 	}, 0)
-	require.NoError(t, err)
-	require.Equal(t, []byte{}, []byte(ret))
+	require.Error(t, err)
+	//require.Equal(t, []byte{}, []byte(ret))
 }
 
 func TestCall_DeployContract(t *testing.T) {

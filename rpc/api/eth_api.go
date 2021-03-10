@@ -15,6 +15,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmrpc "github.com/tendermint/tendermint/rpc/core"
 
+	"github.com/moeing-chain/MoeingEVM/ebp"
 	"github.com/moeing-chain/MoeingEVM/types"
 	moeingapi "github.com/moeing-chain/moeing-chain/api"
 	"github.com/moeing-chain/moeing-chain/internal/ethutils"
@@ -385,12 +386,12 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 		return hexutil.Bytes{}, err
 	}
 
-	statusCode, statusStr, retData := api.backend.Call(tx, from)
-	if statusCode == 0 {
+	statusCode, retData := api.backend.Call(tx, from)
+	if !ebp.StatusIsFailure(statusCode) {
 		return retData, nil
 	}
 
-	return nil, toCallErr(statusStr)
+	return nil, toCallErr(statusCode)
 }
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas
@@ -400,12 +401,12 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
 		return 0, err
 	}
 
-	statusCode, statusStr, gas := api.backend.EstimateGas(tx, from)
-	if statusCode == 0 {
+	statusCode, gas := api.backend.EstimateGas(tx, from)
+	if !ebp.StatusIsFailure(statusCode) {
 		return hexutil.Uint64(gas), nil
 	}
 
-	return 0, toCallErr(statusStr)
+	return 0, toCallErr(statusCode)
 }
 
 func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,

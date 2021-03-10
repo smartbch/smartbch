@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/moeing-chain/MoeingEVM/ebp"
 	"github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/app"
 	"github.com/moeing-chain/moeing-chain/param"
@@ -202,22 +201,14 @@ func (backend *moeingAPIBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, er
 	return common.BytesToHash(tx.Hash()), nil
 }
 
-func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, retData []byte) {
+func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, retData []byte) {
 	runner, _ := backend.app.RunTxForRpc(tx, sender, false)
-	//statusCode = int(gethtypes.ReceiptStatusSuccessful)
-	//if ebp.StatusIsFailure(runner.Status) {
-	//	statusCode = int(gethtypes.ReceiptStatusFailed)
-	//}
-	return statusCode, ebp.StatusToStr(runner.Status), runner.OutData
+	return runner.Status, runner.OutData
 }
 
-func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, gas int64) {
+func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, gas int64) {
 	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
-	//statusCode = int(gethtypes.ReceiptStatusSuccessful)
-	//if ebp.StatusIsFailure(runner.Status) {
-	//	statusCode = int(gethtypes.ReceiptStatusFailed)
-	//}
-	return statusCode, ebp.StatusToStr(runner.Status), gas
+	return runner.Status, gas
 }
 
 func (backend *moeingAPIBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {

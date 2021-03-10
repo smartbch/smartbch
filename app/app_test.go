@@ -46,14 +46,12 @@ func TestTransferOK(t *testing.T) {
 	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
 
 	testutils.ExecTxInBlock(_app, 1, tx)
+	time.Sleep(100 * time.Millisecond)
 	require.Equal(t, uint64(10000000-100-21000), getBalance(_app, addr1).Uint64())
 	require.Equal(t, uint64(10000000+100), getBalance(_app, addr2).Uint64())
 
 	n := _app.GetLatestBlockNum()
 	require.Equal(t, int64(2), n)
-
-	ctx := _app.GetContext(RpcMode)
-	defer ctx.Close(false)
 
 	blk1 := getBlock(_app, 1)
 	require.Equal(t, int64(1), blk1.Number)

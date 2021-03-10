@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/moeing-chain/MoeingEVM/ebp"
 	"github.com/moeing-chain/MoeingEVM/types"
 	"github.com/moeing-chain/moeing-chain/internal/bigutils"
 	rpctypes "github.com/moeing-chain/moeing-chain/rpc/internal/ethapi"
@@ -150,7 +151,9 @@ func txsToRpcResp(txs []*types.Transaction) []*rpctypes.Transaction {
 	return rpcTxs
 }
 
-func toCallErr(statusStr string) callError {
+func toCallErr(statusCode int) callError {
+	statusStr := ebp.StatusToStr(statusCode)
+
 	callErr := callError{code: defaultErrorCode, msg: statusStr}
 	switch statusStr {
 	case "revert":
