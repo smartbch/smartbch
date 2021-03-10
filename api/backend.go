@@ -54,7 +54,7 @@ func NewBackend(node *node.Node, app *app.App) BackendService {
 }
 
 //func (backend *moeingAPIBackend) GetLogs(blockHash common.Hash) (logs [][]types.Log, err error) {
-//	ctx := backend.app.GetContext(app.RpcMode)
+//	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 //	defer ctx.Close(false)
 //
 //	block, err := ctx.GetBlockByHash(blockHash)
@@ -124,7 +124,7 @@ func (backend *moeingAPIBackend) GetNonce(address common.Address) (uint64, error
 }
 
 func (backend *moeingAPIBackend) GetTransaction(txHash common.Hash) (tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 
 	if tx, err = ctx.GetTxByHash(txHash); err != nil {
@@ -141,7 +141,7 @@ func (backend *moeingAPIBackend) GetTransaction(txHash common.Hash) (tx *types.T
 }
 
 func (backend *moeingAPIBackend) BlockByHash(hash common.Hash) (*types.Block, error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 	block, err := ctx.GetBlockByHash(hash)
 	if err != nil {
@@ -151,7 +151,7 @@ func (backend *moeingAPIBackend) BlockByHash(hash common.Hash) (*types.Block, er
 }
 
 func (backend *moeingAPIBackend) BlockByNumber(number int64) (*types.Block, error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 	return ctx.GetBlockByHeight(uint64(number))
 }
@@ -160,8 +160,18 @@ func (backend *moeingAPIBackend) ProtocolVersion() int {
 	return protocolVersion
 }
 
-func (backend *moeingAPIBackend) CurrentBlock() *types.Block {
-	return backend.app.CurrentBlock()
+func (backend *moeingAPIBackend) LatestHeight() int64 {
+	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	return appCtx.GetLatestHeight()
+}
+
+func (backend *moeingAPIBackend) CurrentBlock() (*types.Block, error) {
+	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	block, err := appCtx.GetBlockByHeight(uint64(appCtx.GetLatestHeight()))
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
 func (backend *moeingAPIBackend) ChainConfig() *param.ChainConfig {
@@ -194,41 +204,49 @@ func (backend *moeingAPIBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, er
 
 func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, retData []byte) {
 	runner, _ := backend.app.RunTxForRpc(tx, sender, false)
-	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
+	statusCode = int(gethtypes.ReceiptStatusSuccessful)
+	if ebp.StatusIsFailure(runner.Status) {
+		statusCode = int(gethtypes.ReceiptStatusFailed)
+	}
+	return statusCode, ebp.StatusToStr(runner.Status), runner.OutData
 }
 
 func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, statusStr string, gas int64) {
 	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
-	return runner.Status, ebp.StatusToStr(runner.Status), gas
+	statusCode = int(gethtypes.ReceiptStatusSuccessful)
+	if ebp.StatusIsFailure(runner.Status) {
+		statusCode = int(gethtypes.ReceiptStatusFailed)
+	}
+	return statusCode, ebp.StatusToStr(runner.Status), gas
 }
 
 func (backend *moeingAPIBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 
 	return ctx.QueryLogs(addresses, topics, startHeight, endHeight)
 }
 
 func (backend *moeingAPIBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 	return ctx.QueryTxBySrc(addr, startHeight, endHeight)
 }
 
 func (backend *moeingAPIBackend) QueryTxByDst(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 	return ctx.QueryTxByDst(addr, startHeight, endHeight)
 }
 
 func (backend *moeingAPIBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 	return ctx.QueryTxByAddr(addr, startHeight, endHeight)
 }
 
 func (backend *moeingAPIBackend) MoeQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight)
@@ -239,7 +257,7 @@ func (backend *moeingAPIBackend) HeaderByNumber(ctx context.Context, blockNr rpc
 		blockNr = rpc.BlockNumber(backend.app.GetLatestBlockNum())
 	}
 
-	appCtx := backend.app.GetContext(app.RpcMode)
+	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer appCtx.Close(false)
 	block, err := appCtx.GetBlockByHeight(uint64(blockNr))
 	if err != nil {
@@ -253,7 +271,7 @@ func (backend *moeingAPIBackend) HeaderByNumber(ctx context.Context, blockNr rpc
 	}, nil
 }
 func (backend *moeingAPIBackend) HeaderByHash(ctx context.Context, blockHash common.Hash) (*types.Header, error) {
-	appCtx := backend.app.GetContext(app.RpcMode)
+	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer appCtx.Close(false)
 	block, err := appCtx.GetBlockByHash(blockHash)
 	if err != nil {
@@ -266,7 +284,7 @@ func (backend *moeingAPIBackend) HeaderByHash(ctx context.Context, blockHash com
 	}, nil
 }
 func (backend *moeingAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (gethtypes.Receipts, error) {
-	appCtx := backend.app.GetContext(app.RpcMode)
+	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer appCtx.Close(false)
 
 	receipts := make([]*gethtypes.Receipt, 0, 8)
@@ -291,7 +309,7 @@ func (backend *moeingAPIBackend) GetReceipts(ctx context.Context, blockHash comm
 //}
 
 func (backend *moeingAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*gethtypes.Log, error) {
-	appCtx := backend.app.GetContext(app.RpcMode)
+	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer appCtx.Close(false)
 
 	logs := make([][]*gethtypes.Log, 0, 8)

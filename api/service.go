@@ -52,7 +52,8 @@ type BackendService interface {
 	//HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	//HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
 	//CurrentHeader() *types.Header
-	CurrentBlock() *types.Block
+	LatestHeight() int64
+	CurrentBlock() (*types.Block, error)
 	BlockByNumber(number int64) (*types.Block, error)
 	BlockByHash(hash common.Hash) (*types.Block, error)
 	//BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)

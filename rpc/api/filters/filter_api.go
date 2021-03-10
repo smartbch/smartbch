@@ -260,7 +260,7 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 
 	var curHeight int64
 	if crit.FromBlock == nil || crit.ToBlock == nil {
-		curHeight = api.backend.CurrentBlock().Number
+		curHeight = api.backend.LatestHeight()
 	}
 
 	// Convert the RPC block numbers into internal representations

@@ -37,10 +37,10 @@ func (moe moeAPI) QueryTxBySrc(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
-		startHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+		startHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
 	if endHeight == gethrpc.LatestBlockNumber {
-		endHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+		endHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
 
 	txs, err := moe.backend.QueryTxBySrc(addr, uint32(startHeight), uint32(endHeight)+1)
@@ -54,10 +54,10 @@ func (moe moeAPI) QueryTxByDst(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
-		startHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+		startHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
 	if endHeight == gethrpc.LatestBlockNumber {
-		endHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+		endHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
 
 	txs, err := moe.backend.QueryTxByDst(addr, uint32(startHeight), uint32(endHeight)+1)
@@ -71,10 +71,10 @@ func (moe moeAPI) QueryTxByAddr(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
-		startHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+		startHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
 	if endHeight == gethrpc.LatestBlockNumber {
-		endHeight = gethrpc.BlockNumber(moe.backend.CurrentBlock().Number)
+		endHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
 
 	txs, err := moe.backend.QueryTxByAddr(addr, uint32(startHeight), uint32(endHeight)+1)

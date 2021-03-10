@@ -43,9 +43,10 @@ var (
 type ContextMode uint8
 
 const (
-	checkTxMode ContextMode = iota
-	RunTxMode   ContextMode = iota
-	RpcMode     ContextMode = iota
+	checkTxMode     ContextMode = iota
+	RunTxMode       ContextMode = iota
+	RpcMode         ContextMode = iota
+	HistoryOnlyMode ContextMode = iota
 )
 
 const (
@@ -522,6 +523,9 @@ func (app *App) GetContext(mode ContextMode) *types.Context {
 	} else if mode == RpcMode {
 		r := rabbit.NewReadOnlyRabbitStore(app.root)
 		c = c.WithRbt(&r)
+		c = c.WithDb(app.historyStore)
+	} else if mode == HistoryOnlyMode {
+		c = c.WithRbt(nil) // no need
 		c = c.WithDb(app.historyStore)
 	} else {
 		panic("MoeingError: invalid context mode")

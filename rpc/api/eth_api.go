@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 
@@ -108,7 +109,7 @@ func (api *ethAPI) Accounts() ([]common.Address, error) {
 
 // https://eth.wiki/json-rpc/API#eth_blockNumber
 func (api *ethAPI) BlockNumber() (hexutil.Uint64, error) {
-	return hexutil.Uint64(api.backend.CurrentBlock().Number), nil
+	return hexutil.Uint64(api.backend.LatestHeight()), nil
 }
 
 func (api *ethAPI) ChainId() hexutil.Uint64 {
@@ -232,7 +233,7 @@ func (api *ethAPI) getBlockByNum(blockNum gethrpc.BlockNumber) (*types.Block, er
 	height := blockNum.Int64()
 	if height <= 0 {
 		// get latest block height
-		height = api.backend.CurrentBlock().Number - 1
+		return api.backend.CurrentBlock()
 	}
 	return api.backend.BlockByNumber(height)
 }
@@ -386,6 +387,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 	}
 
 	statusCode, statusStr, retData := api.backend.Call(tx, from)
+	fmt.Printf("Why %#v %#v %#v\n", statusCode, statusStr, retData)
 	if statusCode == int(gethtypes.ReceiptStatusSuccessful) {
 		return retData, nil
 	}
