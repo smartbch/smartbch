@@ -128,6 +128,7 @@ func TestBlockNum(t *testing.T) {
 
 	ctx := _app.GetContext(app.RunTxMode)
 	ctx.Db.AddBlock(&modbtypes.Block{Height: 0x100}, -1)
+	ctx.Db.AddBlock(nil, -1) //To Flush
 	ctx.Close(true)
 
 	num, err := _api.BlockNumber()
