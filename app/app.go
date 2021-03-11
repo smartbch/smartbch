@@ -131,7 +131,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	prevBlk := ctx.GetCurrBlockBasicInfo()
 	app.block = &types.Block{}
 	if prevBlk != nil {
-		app.block.Number = prevBlk.Number + 1
+		app.block.Number = prevBlk.Number
 		app.currHeight = app.block.Number
 	}
 	app.Validators = ctx.GetCurrValidators()
