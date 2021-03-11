@@ -243,6 +243,13 @@ func (backend *moeingAPIBackend) MoeQueryLogs(addr common.Address, topics []comm
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight)
 }
 
+func (backend *moeingAPIBackend) GetTxListByHeight(height uint32) (tx []*types.Transaction, err error) {
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	defer ctx.Close(false)
+
+	return ctx.GetTxListByHeight(height)
+}
+
 func (backend *moeingAPIBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	if blockNr == rpc.LatestBlockNumber {
 		blockNr = rpc.BlockNumber(backend.app.GetLatestBlockNum())

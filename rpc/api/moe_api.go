@@ -18,6 +18,7 @@ type MoeAPI interface {
 	QueryTxByDst(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error)
+	GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	// TODO: more methods
 }
 
@@ -31,6 +32,17 @@ func newMoeAPI(backend moeapi.BackendService) MoeAPI {
 
 func (moe moeAPI) GetStandbyTxQueue() {
 	panic("implement me")
+}
+
+func (moe moeAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
+	if height == gethrpc.LatestBlockNumber {
+		height = gethrpc.BlockNumber(moe.backend.LatestHeight())
+	}
+	txs, err := moe.backend.GetTxListByHeight(uint32(height))
+	if err != nil {
+		return nil, err
+	}
+	return txsToRpcResp(txs), nil
 }
 
 func (moe moeAPI) QueryTxBySrc(addr gethcmn.Address,
