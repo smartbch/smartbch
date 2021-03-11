@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -215,10 +216,15 @@ b5007928aa64736f6c63430007000033
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
 
-	statusCode, statusStr, _ := call(_app, contractAddr, tx2)
+	statusCode, statusStr, retData := call(_app, contractAddr, tx2)
 	require.Equal(t, 2, statusCode)
 	require.Equal(t, "revert", statusStr)
-	//require.Equal(t, "n must be less than 10", string(retData))
+	require.Equal(t, "08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000166e206d757374206265206c657373207468616e20313000000000000000000000",
+		hex.EncodeToString(retData))
+
+	reason, errUnpack := abi.UnpackRevert(retData)
+	require.NoError(t, errUnpack)
+	require.Equal(t, "n must be less than 10", reason)
 }
 
 func TestInvalidOpcode(t *testing.T) {

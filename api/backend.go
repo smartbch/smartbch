@@ -206,9 +206,9 @@ func (backend *moeingAPIBackend) Call(tx *gethtypes.Transaction, sender common.A
 	return runner.Status, runner.OutData
 }
 
-func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, gas int64) {
+func (backend *moeingAPIBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, retData []byte, gas int64) {
 	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
-	return runner.Status, gas
+	return runner.Status, runner.OutData, gas
 }
 
 func (backend *moeingAPIBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {

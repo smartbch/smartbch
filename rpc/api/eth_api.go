@@ -391,7 +391,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 		return retData, nil
 	}
 
-	return nil, toCallErr(statusCode)
+	return nil, toCallErr(statusCode, retData)
 }
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas
@@ -401,12 +401,12 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
 		return 0, err
 	}
 
-	statusCode, gas := api.backend.EstimateGas(tx, from)
+	statusCode, retData, gas := api.backend.EstimateGas(tx, from)
 	if !ebp.StatusIsFailure(statusCode) {
 		return hexutil.Uint64(gas), nil
 	}
 
-	return 0, toCallErr(statusCode)
+	return 0, toCallErr(statusCode, retData)
 }
 
 func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
