@@ -9,11 +9,14 @@ import (
 
 //go:generate msgp
 
+// Currently the first Vout in a coinbase transaction can nominate one validator with one vote
+// In the future it maybe extented to nominate multiple validators with different weights
 type Nomination struct {
-	Pubkey         [32]byte
+	Pubkey         [32]byte // The validator's ED25519 pubkey used in tendermint
 	NominatedCount int
 }
 
+// This struct contains the useful information of a BCH block
 type BCHBlock struct {
 	Height      int64
 	Timestamp   int64
@@ -22,6 +25,7 @@ type BCHBlock struct {
 	Nominations []Nomination
 }
 
+// These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
 type RpcClient interface {
 	Dial()
 	Close()
@@ -30,11 +34,20 @@ type RpcClient interface {
 	GetBlockByHash(hash [32]byte) *BCHBlock
 }
 
+// An epoch elects several validators in NumBlocksInEpoch blocks
 type Epoch struct {
 	StartHeight    int64
 	EndTime        int64
 	Duration       int64
 	ValMapByPubkey map[[32]byte]*Nomination
+}
+
+// This struct is stored in the world state.
+// All the staking-related operations manipulate it.
+type StakingInfo struct {
+	CurrEpochNum   int64            `msgp:"curr_epoch_num"`
+	Validators     []*Validator     `msgp:"validators"`
+	PendingRewards []*PendingReward `msgp:"pending_rewards"`
 }
 
 type Validator struct {
@@ -47,16 +60,11 @@ type Validator struct {
 	IsUnbonding  bool     `msgp:"is_unbonding"` // whether this validator is in a unbonding process
 }
 
+// Because EpochCountBeforeRewardMature >= 1, some rewards will be pending for a while before mature
 type PendingReward struct {
 	Address  [20]byte `msgp:"address"`   // Validator's address in moeing chain
 	EpochNum int64    `msgp:"epoch_num"` // During which epoch were the rewards got?
 	Amount   [32]byte `msgp:"coins"`     // amount of rewards
-}
-
-type StakingInfo struct {
-	CurrEpochNum   int64            `msgp:"curr_epoch_num"`
-	Validators     []*Validator     `msgp:"validators"`
-	PendingRewards []*PendingReward `msgp:"pending_rewards"`
 }
 
 var (
@@ -64,6 +72,7 @@ var (
 	ValidatorPubkeyAlreadyExists  = errors.New("Validator's pubkey already exists")
 )
 
+// Change si.Validators into a map with pubkeys as keys
 func (si *StakingInfo) GetValMapByPubkey() map[[32]byte]*Validator {
 	res := make(map[[32]byte]*Validator)
 	for _, val := range si.Validators {
@@ -72,6 +81,7 @@ func (si *StakingInfo) GetValMapByPubkey() map[[32]byte]*Validator {
 	return res
 }
 
+// Change si.Validators into a map with addresses as keys
 func (si *StakingInfo) GetValMapByAddr() map[[20]byte]*Validator {
 	res := make(map[[20]byte]*Validator)
 	for _, val := range si.Validators {
@@ -80,6 +90,7 @@ func (si *StakingInfo) GetValMapByAddr() map[[20]byte]*Validator {
 	return res
 }
 
+// Get the pending rewards which are got in current epoch
 func (si *StakingInfo) GetCurrRewardMapByAddr() map[[20]byte]*PendingReward {
 	res := make(map[[20]byte]*PendingReward)
 	for _, pr := range si.PendingRewards {
@@ -96,7 +107,7 @@ func (si *StakingInfo) AddValidator(addr [20]byte, pubkey [32]byte, intro string
 		if bytes.Equal(addr[:], val.Address[:]) {
 			return ValidatorAddressAlreadyExists
 		}
-		if bytes.Equal(addr[:], val.Pubkey[:]) {
+		if bytes.Equal(pubkey[:], val.Pubkey[:]) {
 			return ValidatorPubkeyAlreadyExists
 		}
 	}
@@ -113,6 +124,7 @@ func (si *StakingInfo) AddValidator(addr [20]byte, pubkey [32]byte, intro string
 	return nil
 }
 
+// Find a validator with matching address
 func (si *StakingInfo) GetValidatorByAddr(addr [20]byte) *Validator {
 	for _, val := range si.Validators {
 		if bytes.Equal(addr[:], val.Address[:]) {
@@ -122,6 +134,7 @@ func (si *StakingInfo) GetValidatorByAddr(addr [20]byte) *Validator {
 	return nil
 }
 
+// Find a validator with matching pubkey
 func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 	for _, val := range si.Validators {
 		if bytes.Equal(pubkey[:], val.Pubkey[:]) {
@@ -131,7 +144,7 @@ func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 	return nil
 }
 
-// Get useless validators who have no voting power and no pending rewards
+// Get useless validators who have zero voting power and no pending reward entries
 func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 	res := make(map[[20]byte]struct{})
 	for _, val := range si.Validators {
@@ -140,7 +153,7 @@ func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 		}
 	}
 	for _, pr := range si.PendingRewards {
-		delete(res, pr.Address)
+		delete(res, pr.Address) // remove the ones with pending reward entries
 	}
 	return res
 }
@@ -151,15 +164,15 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 	rwdList := make([]*PendingReward, len(si.PendingRewards), 0)
 	var bz32Zero [32]byte
 	for _, rwd := range si.PendingRewards {
-		if !bytes.Equal(rwd.Address[:], addr[:]) {
-			rwdList = append(rwdList, rwd)
-		} else {
+		if bytes.Equal(rwd.Address[:], addr[:]) {
 			coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
 			totalCleared.Add(totalCleared, coins)
 			if rwd.EpochNum == si.CurrEpochNum { // we still need this entry
-				rwd.Amount = bz32Zero
-				rwdList = append(rwdList, rwd)
+				rwd.Amount = bz32Zero          // just clear the amount
+				rwdList = append(rwdList, rwd) // the entry is kept
 			}
+		} else { // rewards of other validators
+			rwdList = append(rwdList, rwd)
 		}
 	}
 	si.PendingRewards = rwdList

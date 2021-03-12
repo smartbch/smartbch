@@ -10,6 +10,8 @@ const (
 	NumBlocksInEpoch int64 = 2016
 )
 
+// A watcher watches the new blocks generated on bitcoin cash's mainnet, and
+// outputs epoch information through a channel
 type Watcher struct {
 	lastEpochEndHeight     int64
 	latestFinalizedHeight  int64
@@ -20,6 +22,7 @@ type Watcher struct {
 	EpochChan              chan *types.Epoch
 }
 
+// A new watch will start watching from lastHeight+1, using rpcClient
 func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
 	return &Watcher{
 		lastEpochEndHeight:     lastHeight,
@@ -32,35 +35,38 @@ func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
 	}
 }
 
+// The main function to do a watcher's job. It must be run as a goroutine
 func (watcher *Watcher) Run(blk *types.BCHBlock) {
-	height := watcher.lastEpochEndHeight + 1
+	height := watcher.lastEpochEndHeight
 	watcher.rpcClient.Dial()
 	latestHeight := watcher.rpcClient.GetLatestHeight()
 	for {
-		if height > latestHeight {
+		if height > latestHeight { // wait for a while when querying new blocks
 			watcher.rpcClient.Close()
 			time.Sleep(30 * time.Second)
 			watcher.rpcClient.Dial()
 		}
+		height++ // to fetch the next block
 		blk := watcher.rpcClient.GetBlockByHeight(height)
 		missingBlockHash := watcher.addBlock(blk)
-		for missingBlockHash != nil {
+		for missingBlockHash != nil { // if chain reorg happens, we trace the new tip
 			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
 			missingBlockHash = watcher.addBlock(blk)
 		}
-		height++
 	}
 }
 
+// Record new block and if the blocks for a new epoch is all ready, output the new epoch
 func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byte) {
 	parent, ok := watcher.hashToBlock[blk.ParentBlk]
 	if !ok {
 		return &blk.ParentBlk
 	}
+	// On BCH mainnet, a block need 10 confirmation to finalize
 	for confirmCount := 1; confirmCount < 10; confirmCount++ {
 		parent, ok = watcher.hashToBlock[parent.ParentBlk]
 		if !ok {
-			panic("Blocken Chain")
+			return &parent.ParentBlk // actually impossible to reach here
 		}
 	}
 	finalizedBlk, ok := watcher.heightToFinalizedBlock[parent.Height]
@@ -71,18 +77,21 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 			panic("Deep Reorganization")
 		}
 	}
+	// A new block is finalized
 	watcher.heightToFinalizedBlock[parent.Height] = parent
 	if watcher.latestFinalizedHeight+1 != parent.Height {
 		panic("Height Skipped")
 	}
-	watcher.latestFinalizedHeight = parent.Height
+	watcher.latestFinalizedHeight++
+	// All the blocks for an epoch is ready
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == NumBlocksInEpoch {
-		watcher.analyzeNewEpoch()
+		watcher.generateNewEpoch()
 	}
 	return nil
 }
 
-func (watcher *Watcher) analyzeNewEpoch() {
+// Generate a new block's information
+func (watcher *Watcher) generateNewEpoch() {
 	epoch := &types.Epoch{
 		StartHeight:    watcher.lastEpochEndHeight + 1,
 		ValMapByPubkey: make(map[[32]byte]*types.Nomination),
