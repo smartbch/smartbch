@@ -1,49 +1,69 @@
 package staking
 
-type ValidatorInfo struct {
-	Pubkey         [32]byte
-	NominatedCount int
-}
+import (
+	"time"
+
+	"github.com/moeing-chain/moeing-chain/staking/types"
+)
 
 const (
 	NumBlocksInEpoch int64 = 2016
 )
 
-type BCHBlock struct {
-	Height    int64
-	Timestamp int64
-	HashId    [32]byte
-	ParentBlk [32]byte
-	Validator *ValidatorInfo
+type Watcher struct {
+	lastEpochEndHeight     int64
+	latestFinalizedHeight  int64
+	hashToBlock            map[[32]byte]*types.BCHBlock
+	heightToFinalizedBlock map[int64]*types.BCHBlock
+	epochList              []*types.Epoch
+	rpcClient              types.RpcClient
+	EpochChan              chan *types.Epoch
 }
 
-type Epoch struct {
-	StartHeight    int64
-	EndTime        int64
-	Duration       int64
-	ValMapByPubkey map[[32]byte]*ValidatorInfo
+func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
+	return &Watcher {
+		lastEpochEndHeight:     lastHeight,
+		latestFinalizedHeight:  lastHeight,
+		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
+		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
+		epochList:              make([]*types.Epoch, 0, 10),
+		rpcClient:              rpcClient,
+		EpochChan:              make(chan *types.Epoch, 2),
+	}
 }
 
-type StakingStatus struct {
-	LastEpochEndHeight     int64
-	LatestFinalizedHeight  int64
-	HashToBlock            map[[32]byte]*BCHBlock
-	HeightToFinalizedBlock map[int64]*BCHBlock
-	EpochList              []*Epoch
+func (watcher *Watcher) Run(blk *types.BCHBlock) {
+	height := watcher.lastEpochEndHeight + 1
+	watcher.rpcClient.Dial()
+	latestHeight := watcher.rpcClient.GetLatestHeight()
+	for {
+		if height > latestHeight {
+			watcher.rpcClient.Close()
+			time.Sleep(30 * time.Second)
+			watcher.rpcClient.Dial()
+		}
+		blk := watcher.rpcClient.GetBlockByHeight(height)
+		missingBlockHash := watcher.addBlock(blk)
+		for missingBlockHash != nil {
+			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
+			missingBlockHash = watcher.addBlock(blk)
+		}
+		height++
+	}
 }
 
-func (ss *StakingStatus) AddBlock(blk *BCHBlock) (missingBlockHash *[32]byte) {
-	parent, ok := ss.HashToBlock[blk.ParentBlk]
+func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byte) {
+	parent, ok := watcher.hashToBlock[blk.ParentBlk]
 	if !ok {
 		return &blk.ParentBlk
 	}
 	for confirmCount := 1; confirmCount < 10; confirmCount++ {
-		parent, ok = ss.HashToBlock[parent.ParentBlk]
+		parent, ok = watcher.hashToBlock[parent.ParentBlk]
 		if !ok {
 			panic("Blocken Chain")
 		}
 	}
-	finalizedBlk, ok := ss.HeightToFinalizedBlock[parent.Height]
+	finalizedBlk, ok := watcher.heightToFinalizedBlock[parent.Height]
 	if ok {
 		if finalizedBlk == parent {
 			return nil //nothing to do
@@ -51,25 +71,25 @@ func (ss *StakingStatus) AddBlock(blk *BCHBlock) (missingBlockHash *[32]byte) {
 			panic("Deep Reorganization")
 		}
 	}
-	ss.HeightToFinalizedBlock[parent.Height] = parent
-	if ss.LatestFinalizedHeight+1 != parent.Height {
+	watcher.heightToFinalizedBlock[parent.Height] = parent
+	if watcher.latestFinalizedHeight+1 != parent.Height {
 		panic("Height Skipped")
 	}
-	ss.LatestFinalizedHeight = parent.Height
-	if ss.LatestFinalizedHeight-ss.LastEpochEndHeight == NumBlocksInEpoch {
-		ss.AnalyzeNewEpoch()
+	watcher.latestFinalizedHeight = parent.Height
+	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == NumBlocksInEpoch {
+		watcher.analyzeNewEpoch()
 	}
 	return nil
 }
 
-func (ss *StakingStatus) AnalyzeNewEpoch() {
-	epoch := &Epoch{
-		StartHeight:    ss.LastEpochEndHeight + 1,
-		ValMapByPubkey: make(map[[32]byte]*ValidatorInfo),
+func (watcher *Watcher) analyzeNewEpoch() {
+	epoch := &types.Epoch{
+		StartHeight:    watcher.lastEpochEndHeight + 1,
+		ValMapByPubkey: make(map[[32]byte]*types.Nomination),
 	}
 	startTime := int64(1 << 62)
-	for i := epoch.StartHeight; i <= ss.LatestFinalizedHeight; i++ {
-		blk, ok := ss.HeightToFinalizedBlock[i]
+	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
+		blk, ok := watcher.heightToFinalizedBlock[i]
 		if !ok {
 			panic("Missing Block")
 		}
@@ -79,37 +99,37 @@ func (ss *StakingStatus) AnalyzeNewEpoch() {
 		if startTime > blk.Timestamp {
 			startTime = blk.Timestamp
 		}
-		if blk.Validator == nil {
-			continue
+		for _, nomination := range blk.Nominations {
+			if _, ok := epoch.ValMapByPubkey[nomination.Pubkey]; !ok {
+				epoch.ValMapByPubkey[nomination.Pubkey] = &nomination
+			}
+			epoch.ValMapByPubkey[nomination.Pubkey].NominatedCount++
 		}
-		if _, ok := epoch.ValMapByPubkey[blk.Validator.Pubkey]; !ok {
-			epoch.ValMapByPubkey[blk.Validator.Pubkey] = blk.Validator
-		}
-		epoch.ValMapByPubkey[blk.Validator.Pubkey].NominatedCount++
 	}
 	epoch.Duration = epoch.EndTime - startTime
-	if len(ss.EpochList) != 0 {
-		lastEpoch := ss.EpochList[len(ss.EpochList)-1]
+	if len(watcher.epochList) != 0 {
+		lastEpoch := watcher.epochList[len(watcher.epochList)-1]
 		epoch.Duration = epoch.EndTime - lastEpoch.EndTime
 	}
-	ss.EpochList = append(ss.EpochList, epoch)
-	ss.LastEpochEndHeight = ss.LatestFinalizedHeight
+	watcher.epochList = append(watcher.epochList, epoch)
+	watcher.EpochChan <- epoch
+	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 }
 
-func (ss *StakingStatus) ClearOldData() {
-	elLen := len(ss.EpochList)
+func (watcher *Watcher) ClearOldData() {
+	elLen := len(watcher.epochList)
 	if elLen == 0 {
 		return
 	}
-	height := ss.EpochList[elLen-1].StartHeight
+	height := watcher.epochList[elLen-1].StartHeight
 	height -= 5 * NumBlocksInEpoch
 	for {
-		blk, ok := ss.HeightToFinalizedBlock[height]
+		blk, ok := watcher.heightToFinalizedBlock[height]
 		if !ok {
 			break
 		}
-		delete(ss.HeightToFinalizedBlock, height)
-		delete(ss.HashToBlock, blk.HashId)
+		delete(watcher.heightToFinalizedBlock, height)
+		delete(watcher.hashToBlock, blk.HashId)
 		height--
 	}
 }

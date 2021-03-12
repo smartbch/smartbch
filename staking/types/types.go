@@ -9,6 +9,34 @@ import (
 
 //go:generate msgp
 
+type Nomination struct {
+	Pubkey         [32]byte
+	NominatedCount int
+}
+
+type BCHBlock struct {
+	Height      int64
+	Timestamp   int64
+	HashId      [32]byte
+	ParentBlk   [32]byte
+	Nominations []Nomination
+}
+
+type RpcClient interface {
+	Dial()
+	Close()
+	GetLatestHeight() int64
+	GetBlockByHeight(height int64) *BCHBlock
+	GetBlockByHash(hash [32]byte) *BCHBlock
+}
+
+type Epoch struct {
+	StartHeight    int64
+	EndTime        int64
+	Duration       int64
+	ValMapByPubkey map[[32]byte]*Nomination
+}
+
 type Validator struct {
 	Address      [20]byte `msgp:"address"`   // Validator's address in moeing chain
 	Pubkey       [32]byte `msgp:"pubkey"`    // Validator's pubkey for tendermint
