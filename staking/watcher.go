@@ -21,7 +21,7 @@ type Watcher struct {
 }
 
 func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
-	return &Watcher {
+	return &Watcher{
 		lastEpochEndHeight:     lastHeight,
 		latestFinalizedHeight:  lastHeight,
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),

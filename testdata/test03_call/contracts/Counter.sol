@@ -9,4 +9,8 @@ contract Counter {
     counter += n;
   }
 
+  function getCaller() external view returns (address) {
+    return msg.sender;
+  }
+
 }

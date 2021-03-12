@@ -415,8 +415,6 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 	var from, to common.Address
 	if args.From != nil {
 		from = *args.From
-	} else {
-		return nil, from, types.ErrNoFromAddr
 	}
 	if args.To != nil {
 		to = *args.To
@@ -446,11 +444,11 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 		data = *args.Data
 	}
 
-	nonce, err := api.GetTransactionCount(from, blockNr)
-	if err != nil {
-		return nil, from, err
-	}
+	//nonce, err := api.GetTransactionCount(from, blockNr)
+	//if err != nil {
+	//	return nil, from, err
+	//}
 
-	tx := gethtypes.NewTransaction(uint64(*nonce), to, val, gasLimit, gasPrice, data)
+	tx := gethtypes.NewTransaction(0, to, val, gasLimit, gasPrice, data)
 	return tx, from, nil
 }

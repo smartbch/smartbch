@@ -406,15 +406,15 @@ func TestSendTx(t *testing.T) {
 	// TODO
 }
 
-func TestCall_NoFromAddr(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
-	_api := createEthAPI(_app)
-
-	_, err := _api.Call(ethapi.CallArgs{}, 0)
-	require.Error(t, err)
-	require.Equal(t, "missing from address", err.Error())
-}
+//func TestCall_NoFromAddr(t *testing.T) {
+//	_app := app.CreateTestApp()
+//	defer app.DestroyTestApp(_app)
+//	_api := createEthAPI(_app)
+//
+//	_, err := _api.Call(ethapi.CallArgs{}, 0)
+//	require.Error(t, err)
+//	require.Equal(t, "missing from address", err.Error())
+//}
 
 func TestCall_Transfer(t *testing.T) {
 	fromKey, fromAddr := testutils.GenKeyAndAddr()
@@ -477,7 +477,7 @@ func TestCall_RunGetter(t *testing.T) {
 	data, err := counterContractABI.Pack("counter")
 	require.NoError(t, err)
 	results, err := _api.Call(ethapi.CallArgs{
-		From: &fromAddr,
+		//From: &fromAddr,
 		To:   &contractAddr,
 		Data: testutils.ToHexutilBytes(data),
 	}, 0)
