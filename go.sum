@@ -420,6 +420,10 @@ github.com/moeing-chain/MoeingDB v0.0.0-20210311084312-d20387daca58 h1:mG2Cjy2w3
 github.com/moeing-chain/MoeingDB v0.0.0-20210311084312-d20387daca58/go.mod h1:4DST9h/x8bJD79VhFqjuMpsBzIH6IH9mUe7QcHI+CQk=
 github.com/moeing-chain/MoeingEVM v0.0.0-20210311070029-70038dfdd71b h1:WqVKvVBH+F4sX617OJPdmEAUhUABoaAzlcAYwD8RoI0=
 github.com/moeing-chain/MoeingEVM v0.0.0-20210311070029-70038dfdd71b/go.mod h1:zEffLVIwrEvCp5p/CF7lPhG+c0EKbF8bcgrS2UGd5zY=
+github.com/moeing-chain/MoeingEVM v0.0.0-20210311083554-5ae10ca0321c h1:9K5JDkKPaozPrPniPG6Y1wB/QRxKw4n93o5NPpI8z/U=
+github.com/moeing-chain/MoeingEVM v0.0.0-20210311083554-5ae10ca0321c/go.mod h1:75RMLzsruy4QaGlD/rekJll+0dk6mi74AqiVL4GOB5M=
+github.com/moeing-chain/MoeingEVM v0.0.0-20210312085121-631cec76fff8 h1:HDkSGu7Jn0QGH+Et41tHkj8dlbjZd8lLiIsUOj5NQFI=
+github.com/moeing-chain/MoeingEVM v0.0.0-20210312085121-631cec76fff8/go.mod h1:75RMLzsruy4QaGlD/rekJll+0dk6mi74AqiVL4GOB5M=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/naoina/go-stringutil v0.1.0/go.mod h1:XJ2SJL9jCtBh+P9q5btrd/Ylo8XwT/h1USek5+NqSA0=
