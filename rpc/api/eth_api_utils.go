@@ -76,7 +76,7 @@ func blockToRpcResp(block *types.Block) map[string]interface{} {
 		"logsBloom":        gethtypes.Bloom{},
 		"transactionsRoot": hexutil.Bytes(block.TransactionsRoot[:]),
 		"stateRoot":        hexutil.Bytes(block.StateRoot[:]),
-		"miner":            gethcmn.Address{},
+		"miner":            hexutil.Bytes(block.Miner[:]),
 		"mixHash":          gethcmn.Hash{},
 		"difficulty":       hexutil.Uint64(0),
 		"totalDifficulty":  hexutil.Uint64(0),

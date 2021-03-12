@@ -294,6 +294,8 @@ func (app *App) Refresh() {
 
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
+		//use current block commit app hash as prev history block stateRoot
+		prevBlkInfo.StateRoot = app.block.StateRoot
 		blk := modbtypes.Block{
 			Height: prevBlkInfo.Number,
 		}
