@@ -3,6 +3,7 @@ package app
 import (
 	"math/big"
 	"os"
+	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -84,6 +85,9 @@ func getCode(_app *App, addr common.Address) []byte {
 func getBlock(_app *App, h uint64) *motypes.Block {
 	ctx := _app.GetContext(RpcMode)
 	defer ctx.Close(false)
+	if ctx.GetLatestHeight() != int64(h) {
+		time.Sleep(500 * time.Millisecond)
+	}
 	b, err := ctx.GetBlockByHeight(h)
 	if err != nil {
 		panic(err)
