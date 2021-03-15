@@ -12,18 +12,26 @@ ERC20.setProvider(web3._provider);
 
 contract("UniswapV2Pair", async (accounts) => {
 
+    // it('deploy ERC20', async () => {
+    //     const tokenA = await ERC20.new(100000000, { from: accounts[0] });
+    // });
+
     it('deploy UniswapV2', async () => {
         const tokenA = await ERC20.new(100000000, { from: accounts[0] });
         const tokenB = await ERC20.new(100000000, { from: accounts[0] });
 
         const uniFactory = await UniswapV2Factory.new(accounts[0], { from: accounts[0] });
-        console.log(await uniFactory.feeToSetter(), accounts[0]);
+        // console.log(await uniFactory.feeToSetter(), accounts[0]);
 
         await uniFactory.createPair(tokenA.address, tokenB.address, { from: accounts[0] });
         const pairAddr = await uniFactory.getPair(tokenA.address, tokenB.address);
         const uniPair = await UniswapV2Pair.at(pairAddr);
 
-        // console.log("pair address:", pairAddr);
+        console.log("pair address:", pairAddr);
+        console.log("tokenA address:", tokenA.address);
+        console.log("tokenB address:", tokenB.address);
+        console.log("token0 address:", await uniPair.token0());
+        console.log("token1 address:", await uniPair.token1());
         assert.equal(await uniPair.token0(), tokenA.address);
         assert.equal(await uniPair.token1(), tokenB.address);
     });

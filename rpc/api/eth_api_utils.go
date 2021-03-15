@@ -16,6 +16,10 @@ import (
 	rpctypes "github.com/moeing-chain/moeing-chain/rpc/internal/ethapi"
 )
 
+const (
+	blockGasLimit = 200000000 // TODO
+)
+
 func createGethTxFromSendTxArgs(args rpctypes.SendTxArgs) (*gethtypes.Transaction, error) {
 	var (
 		nonce    uint64
@@ -82,7 +86,7 @@ func blockToRpcResp(block *types.Block) map[string]interface{} {
 		"totalDifficulty":  hexutil.Uint64(0),
 		"extraData":        hexutil.Uint64(0),
 		"size":             hexutil.Uint64(block.Size),
-		"gasLimit":         hexutil.Uint64(0), // Static gas limit
+		"gasLimit":         hexutil.Uint64(blockGasLimit), // Static gas limit
 		"gasUsed":          hexutil.Uint64(block.GasUsed),
 		"timestamp":        hexutil.Uint64(block.Timestamp),
 		"transactions":     types.ToGethHashes(block.Transactions),
