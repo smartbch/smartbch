@@ -231,6 +231,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 		Build()
 	ctx := _app.GetContext(app.RunTxMode)
 	ctx.StoreBlock(block1)
+	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 
 	b2Hash := gethcmn.Hash{0xB2}
