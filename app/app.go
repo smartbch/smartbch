@@ -407,10 +407,10 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
 	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce"}
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
 	}
-	gasprice, _ := uint256.FromBig(tx.GasPrice())
-	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasprice)
+	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
 	}
