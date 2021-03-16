@@ -8,8 +8,8 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 
-	"github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	"github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestGetBlock(t *testing.T) {

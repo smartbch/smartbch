@@ -15,11 +15,11 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmrpc "github.com/tendermint/tendermint/rpc/core"
 
-	"github.com/moeing-chain/MoeingEVM/ebp"
-	"github.com/moeing-chain/MoeingEVM/types"
-	moeingapi "github.com/moeing-chain/moeing-chain/api"
-	"github.com/moeing-chain/moeing-chain/internal/ethutils"
-	rpctypes "github.com/moeing-chain/moeing-chain/rpc/internal/ethapi"
+	"github.com/smartbch/moeingevm/ebp"
+	"github.com/smartbch/moeingevm/types"
+	moeingapi "github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/internal/ethutils"
+	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
 const (

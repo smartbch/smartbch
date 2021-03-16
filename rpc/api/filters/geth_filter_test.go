@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth/filters"
 
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestFilterCriteria1(t *testing.T) {

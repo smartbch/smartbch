@@ -13,9 +13,9 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/moeing-chain/moeing-chain/internal/bigutils"
-	"github.com/moeing-chain/moeing-chain/internal/ethutils"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestDeployContract(t *testing.T) {

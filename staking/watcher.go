@@ -3,7 +3,7 @@ package staking
 import (
 	"time"
 
-	"github.com/moeing-chain/moeing-chain/staking/types"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 const (

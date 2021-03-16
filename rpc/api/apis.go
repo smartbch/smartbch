@@ -4,8 +4,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tendermint/tendermint/libs/log"
 
-	moeingapi "github.com/moeing-chain/moeing-chain/api"
-	"github.com/moeing-chain/moeing-chain/rpc/api/filters"
+	moeingapi "github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/rpc/api/filters"
 )
 
 const (

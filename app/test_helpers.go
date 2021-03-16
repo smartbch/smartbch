@@ -14,11 +14,11 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 
-	modbtypes "github.com/moeing-chain/MoeingDB/types"
-	"github.com/moeing-chain/MoeingEVM/ebp"
-	motypes "github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/internal/bigutils"
-	"github.com/moeing-chain/moeing-chain/param"
+	modbtypes "github.com/smartbch/moeingdb/types"
+	"github.com/smartbch/moeingevm/ebp"
+	motypes "github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/param"
 )
 
 const (

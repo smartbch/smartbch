@@ -4,8 +4,8 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
-	modbtypes "github.com/moeing-chain/MoeingDB/types"
-	"github.com/moeing-chain/MoeingEVM/types"
+	modbtypes "github.com/smartbch/moeingdb/types"
+	"github.com/smartbch/moeingevm/types"
 )
 
 type MdbBlockBuilder struct {

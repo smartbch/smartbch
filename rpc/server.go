@@ -9,8 +9,8 @@ import (
 
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/moeing-chain/moeing-chain/api"
-	rpcapi "github.com/moeing-chain/moeing-chain/rpc/api"
+	"github.com/smartbch/smartbch/api"
+	rpcapi "github.com/smartbch/smartbch/rpc/api"
 )
 
 var _ tmservice.Service = (*Server)(nil)

@@ -18,8 +18,8 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/moeing-chain/moeing-chain/internal/ethutils"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 //func TestMain(m *testing.M) {

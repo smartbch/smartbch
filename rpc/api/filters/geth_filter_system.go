@@ -32,7 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	motypes "github.com/moeing-chain/MoeingEVM/types"
+	motypes "github.com/smartbch/moeingevm/types"
 )
 
 // Type determines the kind of filter and is used to put the filter in to

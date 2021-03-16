@@ -1,13 +1,13 @@
-module github.com/moeing-chain/moeing-chain
+module github.com/smartbch/smartbch
 
 go 1.15
 
 require (
 	github.com/ethereum/go-ethereum v1.9.25
 	github.com/holiman/uint256 v1.1.1
-	github.com/moeing-chain/MoeingADS v0.0.0-20210315072356-91d2f0d3d13c
-	github.com/moeing-chain/MoeingDB v0.0.0-20210315083919-2a0bacc5c997
-	github.com/moeing-chain/MoeingEVM v0.0.0-20210316032844-bdefd37eb831
+	github.com/smartbch/moeingads v0.0.0-20210316094340-d5789723dcbb
+	github.com/smartbch/moeingdb v0.0.0-20210316094718-eaee2770fd57
+	github.com/smartbch/moeingevm v0.0.0-20210316095116-4e0a01554d1c
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0

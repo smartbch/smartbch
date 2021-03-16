@@ -9,10 +9,10 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/api"
-	"github.com/moeing-chain/moeing-chain/app"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	"github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestQueryTxBySrcDst(t *testing.T) {

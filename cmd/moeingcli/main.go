@@ -6,7 +6,7 @@ import (
 
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
-	"github.com/moeing-chain/moeing-chain/app"
+	"github.com/smartbch/smartbch/app"
 )
 
 func main() {

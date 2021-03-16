@@ -15,14 +15,14 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 
-	modbtypes "github.com/moeing-chain/MoeingDB/types"
-	"github.com/moeing-chain/MoeingEVM/types"
+	modbtypes "github.com/smartbch/moeingdb/types"
+	"github.com/smartbch/moeingevm/types"
 
-	"github.com/moeing-chain/moeing-chain/api"
-	"github.com/moeing-chain/moeing-chain/app"
-	"github.com/moeing-chain/moeing-chain/internal/ethutils"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
-	"github.com/moeing-chain/moeing-chain/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/ethutils"
+	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
 const counterContract = `

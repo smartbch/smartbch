@@ -17,9 +17,9 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/app"
-	"github.com/moeing-chain/moeing-chain/param"
+	"github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/param"
 )
 
 var _ BackendService = &moeingAPIBackend{}

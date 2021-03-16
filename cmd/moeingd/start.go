@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/holiman/uint256"
-	types2 "github.com/moeing-chain/MoeingEVM/types"
+	types2 "github.com/smartbch/moeingevm/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -14,9 +14,9 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/moeing-chain/moeing-chain/api"
-	"github.com/moeing-chain/moeing-chain/app"
-	"github.com/moeing-chain/moeing-chain/rpc"
+	"github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/rpc"
 )
 
 const (

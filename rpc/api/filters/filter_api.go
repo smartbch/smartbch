@@ -12,8 +12,8 @@ import (
 	gethfilters "github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	motypes "github.com/moeing-chain/MoeingEVM/types"
-	mapi "github.com/moeing-chain/moeing-chain/api"
+	motypes "github.com/smartbch/moeingevm/types"
+	mapi "github.com/smartbch/smartbch/api"
 )
 
 var _ PublicFilterAPI = (*filterAPI)(nil)

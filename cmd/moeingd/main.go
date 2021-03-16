@@ -14,10 +14,10 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/privval"
 
-	"github.com/moeing-chain/moeing-chain/app"
-	"github.com/moeing-chain/moeing-chain/internal/bigutils"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
-	"github.com/moeing-chain/moeing-chain/param"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 )
 
 type AppCreator func(logger log.Logger, chainId *uint256.Int) abci.Application

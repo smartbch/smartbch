@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
-	mevmtypes "github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/staking/types"
+	mevmtypes "github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 var (

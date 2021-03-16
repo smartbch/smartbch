@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestTxSig(t *testing.T) {

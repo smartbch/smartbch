@@ -15,11 +15,11 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	modbtypes "github.com/moeing-chain/MoeingDB/types"
-	"github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/api"
-	"github.com/moeing-chain/moeing-chain/app"
-	"github.com/moeing-chain/moeing-chain/internal/testutils"
+	modbtypes "github.com/smartbch/moeingdb/types"
+	"github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestNewFilter(t *testing.T) {

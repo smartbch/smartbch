@@ -5,9 +5,9 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
-	motypes "github.com/moeing-chain/MoeingEVM/types"
-	moeapi "github.com/moeing-chain/moeing-chain/api"
-	rpctypes "github.com/moeing-chain/moeing-chain/rpc/internal/ethapi"
+	motypes "github.com/smartbch/moeingevm/types"
+	moeapi "github.com/smartbch/smartbch/api"
+	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
 var _ MoeAPI = (*moeAPI)(nil)

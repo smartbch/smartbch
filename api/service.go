@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/moeing-chain/MoeingEVM/types"
-	motypes "github.com/moeing-chain/MoeingEVM/types"
-	"github.com/moeing-chain/moeing-chain/param"
+	"github.com/smartbch/moeingevm/types"
+	motypes "github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/param"
 )
 
 type FilterService interface {
