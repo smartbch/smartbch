@@ -13,7 +13,8 @@ const (
 	namespaceNet      = "net"
 	namespaceWeb3     = "web3"
 	namespacePersonal = "personal"
-	namespaceMoe      = "moe"
+	namespaceEVM      = "evm"
+	namespaceSBCH     = "sbch"
 
 	apiVersion = "1.0"
 )
@@ -25,6 +26,7 @@ func GetAPIs(backend sbchapi.BackendService,
 	_ethAPI := newEthAPI(backend, testKeys, logger)
 	filterAPI := filters.NewAPI(backend)
 	_sbchAPI := newSbchAPI(backend)
+	_evmAPI := newEvmAPI(backend)
 
 	return []rpc.API{
 		{
@@ -52,9 +54,15 @@ func GetAPIs(backend sbchapi.BackendService,
 			Public:    true,
 		},
 		{
-			Namespace: namespaceMoe,
+			Namespace: namespaceSBCH,
 			Version:   apiVersion,
 			Service:   _sbchAPI,
+			Public:    true,
+		},
+		{
+			Namespace: namespaceEVM,
+			Version:   apiVersion,
+			Service:   _evmAPI,
 			Public:    true,
 		},
 		// TODO: more apis
