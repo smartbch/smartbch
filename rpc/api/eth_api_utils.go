@@ -84,7 +84,7 @@ func blockToRpcResp(block *types.Block) map[string]interface{} {
 		"mixHash":          gethcmn.Hash{},
 		"difficulty":       hexutil.Uint64(0),
 		"totalDifficulty":  hexutil.Uint64(0),
-		"extraData":        hexutil.Uint64(0),
+		"extraData":        hexutil.Bytes(nil),
 		"size":             hexutil.Uint64(block.Size),
 		"gasLimit":         hexutil.Uint64(blockGasLimit), // Static gas limit
 		"gasUsed":          hexutil.Uint64(block.GasUsed),
