@@ -24,8 +24,7 @@ func GetAPIs(backend sbchapi.BackendService,
 
 	_ethAPI := newEthAPI(backend, testKeys, logger)
 	filterAPI := filters.NewAPI(backend)
-
-	_moeAPI := newMoeAPI(backend)
+	_sbchAPI := newSbchAPI(backend)
 
 	return []rpc.API{
 		{
@@ -55,7 +54,7 @@ func GetAPIs(backend sbchapi.BackendService,
 		{
 			Namespace: namespaceMoe,
 			Version:   apiVersion,
-			Service:   _moeAPI,
+			Service:   _sbchAPI,
 			Public:    true,
 		},
 		// TODO: more apis

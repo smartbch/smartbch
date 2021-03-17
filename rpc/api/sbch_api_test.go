@@ -18,7 +18,7 @@ import (
 func TestQueryTxBySrcDst(t *testing.T) {
 	_app := app.CreateTestApp()
 	defer app.DestroyTestApp(_app)
-	_api := createMoeAPI(_app)
+	_api := createSbchAPI(_app)
 
 	addr1 := gethcmn.Address{0xAD, 0x01}
 	addr2 := gethcmn.Address{0xAD, 0x02}
@@ -94,7 +94,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 func TestQueryTxByAddr(t *testing.T) {
 	_app := app.CreateTestApp()
 	defer app.DestroyTestApp(_app)
-	_api := createMoeAPI(_app)
+	_api := createSbchAPI(_app)
 
 	addr1 := gethcmn.Address{0xAD, 0x01}
 	addr2 := gethcmn.Address{0xAD, 0x02}
@@ -126,7 +126,7 @@ func TestQueryTxByAddr(t *testing.T) {
 func TestGetTxListByHeight(t *testing.T) {
 	_app := app.CreateTestApp()
 	defer app.DestroyTestApp(_app)
-	_api := createMoeAPI(_app)
+	_api := createSbchAPI(_app)
 
 	addr1 := gethcmn.Address{0xAD, 0x01}
 	addr2 := gethcmn.Address{0xAD, 0x02}
@@ -172,7 +172,7 @@ func TestGetTxListByHeight(t *testing.T) {
 	require.Len(t, txs, 1)
 }
 
-func createMoeAPI(_app *app.App) MoeAPI {
+func createSbchAPI(_app *app.App) SbchAPI {
 	backend := api.NewBackend(nil, _app)
-	return newMoeAPI(backend)
+	return newSbchAPI(backend)
 }

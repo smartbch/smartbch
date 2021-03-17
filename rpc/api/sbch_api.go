@@ -6,13 +6,13 @@ import (
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
-	moeapi "github.com/smartbch/smartbch/api"
+	sbchapi "github.com/smartbch/smartbch/api"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
-var _ MoeAPI = (*moeAPI)(nil)
+var _ SbchAPI = (*sbchAPI)(nil)
 
-type MoeAPI interface {
+type SbchAPI interface {
 	GetStandbyTxQueue()
 	QueryTxBySrc(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryTxByDst(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
@@ -22,19 +22,19 @@ type MoeAPI interface {
 	// TODO: more methods
 }
 
-type moeAPI struct {
-	backend moeapi.BackendService
+type sbchAPI struct {
+	backend sbchapi.BackendService
 }
 
-func newMoeAPI(backend moeapi.BackendService) MoeAPI {
-	return moeAPI{backend: backend}
+func newSbchAPI(backend sbchapi.BackendService) SbchAPI {
+	return sbchAPI{backend: backend}
 }
 
-func (moe moeAPI) GetStandbyTxQueue() {
+func (moe sbchAPI) GetStandbyTxQueue() {
 	panic("implement me")
 }
 
-func (moe moeAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
+func (moe sbchAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 	if height == gethrpc.LatestBlockNumber {
 		height = gethrpc.BlockNumber(moe.backend.LatestHeight())
 	}
@@ -45,7 +45,7 @@ func (moe moeAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Tra
 	return txsToRpcResp(txs), nil
 }
 
-func (moe moeAPI) QueryTxBySrc(addr gethcmn.Address,
+func (moe sbchAPI) QueryTxBySrc(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
@@ -62,7 +62,7 @@ func (moe moeAPI) QueryTxBySrc(addr gethcmn.Address,
 	return txsToRpcResp(txs), nil
 }
 
-func (moe moeAPI) QueryTxByDst(addr gethcmn.Address,
+func (moe sbchAPI) QueryTxByDst(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
@@ -79,7 +79,7 @@ func (moe moeAPI) QueryTxByDst(addr gethcmn.Address,
 	return txsToRpcResp(txs), nil
 }
 
-func (moe moeAPI) QueryTxByAddr(addr gethcmn.Address,
+func (moe sbchAPI) QueryTxByAddr(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
@@ -96,7 +96,7 @@ func (moe moeAPI) QueryTxByAddr(addr gethcmn.Address,
 	return txsToRpcResp(txs), nil
 }
 
-func (moe moeAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
+func (moe sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error) {
 
 	logs, err := moe.backend.MoeQueryLogs(addr, topics, uint32(startHeight), uint32(endHeight))
