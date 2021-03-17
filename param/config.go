@@ -48,7 +48,7 @@ type ChainConfig struct {
 }
 
 var (
-	home                = os.ExpandEnv("$HOME/.moeingd")
+	home                = os.ExpandEnv("$HOME/.smartbchd")
 	defaultAppDataPath  = filepath.Join(home, "data", "app")
 	defaultModbDataPath = filepath.Join(home, "data", "modb")
 )

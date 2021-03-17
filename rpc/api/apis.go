@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tendermint/tendermint/libs/log"
 
-	moeingapi "github.com/smartbch/smartbch/api"
+	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/rpc/api/filters"
 )
 
@@ -19,7 +19,7 @@ const (
 )
 
 // GetAPIs returns the list of all APIs from the Ethereum namespaces
-func GetAPIs(backend moeingapi.BackendService,
+func GetAPIs(backend sbchapi.BackendService,
 	logger log.Logger, testKeys []string) []rpc.API {
 
 	_ethAPI := newEthAPI(backend, testKeys, logger)

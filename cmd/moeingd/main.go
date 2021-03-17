@@ -36,8 +36,8 @@ func createMoeingdCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 	ctx := NewDefaultContext()
 	rootCmd := &cobra.Command{
-		Use:               "moeingd",
-		Short:             "Moeing Chain Daemon (server)",
+		Use:               "smartbchd",
+		Short:             "SmartBCH Chain Daemon (server)",
 		PersistentPreRunE: PersistentPreRunEFn(ctx),
 	}
 	addInitCommands(ctx, rootCmd)

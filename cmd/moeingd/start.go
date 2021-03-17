@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/holiman/uint256"
-	types2 "github.com/smartbch/moeingevm/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
+	moetypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/rpc"
@@ -30,7 +31,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 		Short: "Run the full node",
 
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx.Logger.Info("starting MoeingChain with Tendermint")
+			ctx.Logger.Info("starting SmartBCH Chain with Tendermint")
 			_, err := startInProcess(ctx, appCreator)
 			return err
 		},
@@ -49,7 +50,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 		return nil, err
 	}
 	_app := appCreator(ctx.Logger, chainID)
-	moeingApp := _app.(*app.App)
+	appImpl := _app.(*app.App)
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
 	if err != nil {
@@ -72,27 +73,27 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	latestBlock := tmNode.BlockStore().LoadBlock(tmNode.BlockStore().Height())
 	fmt.Println("Load LatestBlock...")
 	if latestBlock != nil {
-		blk := types2.Block{}
+		blk := moetypes.Block{}
 		fmt.Println(latestBlock.String())
 		copy(blk.Hash[:], latestBlock.Hash().Bytes())
 		copy(blk.Miner[:], latestBlock.Header.ProposerAddress)
 		blk.Number = latestBlock.Height
 		blk.Timestamp = latestBlock.Time.Unix()
-		moeingApp.Init(&blk)
+		appImpl.Init(&blk)
 	} else {
-		moeingApp.Init(nil)
+		appImpl.Init(nil)
 	}
 
 	if err := tmNode.Start(); err != nil {
 		return nil, err
 	}
 
-	rpcBackend := api.NewBackend(tmNode, moeingApp)
+	rpcBackend := api.NewBackend(tmNode, appImpl)
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
 	//rpcAddr = viper.GetString("")
 	rpcServer := rpc.NewServer(rpcAddr, wsAddr,
-		rpcBackend, ctx.Logger, moeingApp.TestKeys())
+		rpcBackend, ctx.Logger, appImpl.TestKeys())
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
@@ -102,7 +103,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 		if tmNode.IsRunning() {
 			_ = rpcServer.Stop()
 			_ = tmNode.Stop()
-			moeingApp.Stop()
+			appImpl.Stop()
 		}
 		ctx.Logger.Info("exiting...")
 	})

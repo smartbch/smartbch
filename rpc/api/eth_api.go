@@ -17,7 +17,7 @@ import (
 
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
-	moeingapi "github.com/smartbch/smartbch/api"
+	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
@@ -62,12 +62,12 @@ type PublicEthAPI interface {
 }
 
 type ethAPI struct {
-	backend  moeingapi.BackendService
+	backend  sbchapi.BackendService
 	accounts map[common.Address]*ecdsa.PrivateKey // only for test
 	logger   log.Logger
 }
 
-func newEthAPI(backend moeingapi.BackendService, testKeys []string, logger log.Logger) *ethAPI {
+func newEthAPI(backend sbchapi.BackendService, testKeys []string, logger log.Logger) *ethAPI {
 	return &ethAPI{
 		backend:  backend,
 		accounts: loadTestAccounts(testKeys, logger),

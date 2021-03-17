@@ -1,4 +1,4 @@
-rm -rf ~/.moeingd
-./build/moeingd init bear --chain-id=moeing-2
-./build/moeingd start
+rm -rf ~/.smartbchd
+./build/smartbchd init bear --chain-id=smartbch-2
+./build/smartbchd start
 

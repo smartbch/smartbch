@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/smartbch/moeingevm/types"
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/param"
 )
@@ -53,9 +52,9 @@ type BackendService interface {
 	//HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
 	//CurrentHeader() *types.Header
 	LatestHeight() int64
-	CurrentBlock() (*types.Block, error)
-	BlockByNumber(number int64) (*types.Block, error)
-	BlockByHash(hash common.Hash) (*types.Block, error)
+	CurrentBlock() (*motypes.Block, error)
+	BlockByNumber(number int64) (*motypes.Block, error)
+	BlockByHash(hash common.Hash) (*motypes.Block, error)
 	//BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
 	//StateAndHeaderByNumber(ctx context.Context, number int64) (*state.StateDB, error)
 	//StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
@@ -64,9 +63,9 @@ type BackendService interface {
 	//GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header) (*vm.EVM, func() error, error)
 
 	// Transaction pool API
-	SendTx(signedTx *types.Transaction) error
+	SendTx(signedTx *motypes.Transaction) error
 	SendRawTx(signedTx []byte) (common.Hash, error)
-	GetTransaction(txHash common.Hash) (tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error)
+	GetTransaction(txHash common.Hash) (tx *motypes.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error)
 	//GetPoolTransactions() (types.Transactions, error)
 	//GetPoolTransaction(txHash common.Hash) *types.Transaction
 	//GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
@@ -95,10 +94,10 @@ type BackendService interface {
 	GetStorageAt(address common.Address, key string, blockNumber uint64) []byte
 	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
 	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
-	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error)
-	QueryTxBySrc(address common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error)
-	QueryTxByDst(address common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error)
-	QueryTxByAddr(address common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error)
-	MoeQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error)
-	GetTxListByHeight(height uint32) (tx []*types.Transaction, err error)
+	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
+	QueryTxBySrc(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
+	QueryTxByDst(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
+	QueryTxByAddr(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
+	MoeQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
+	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
 }

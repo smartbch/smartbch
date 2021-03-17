@@ -4,11 +4,11 @@
 
 ## start node
 
-注意：chain ID目前必须是`moeing-(\d+)`这种模式。
+注意：chain ID目前必须是`smartbch-(\d+)`这种模式。
 
 ```bash
-$ go run github.com/moeing-chain/moeing-chain/cmd/moeingd init m1 --chain-id moeing-1
-$ go run github.com/moeing-chain/moeing-chain/cmd/moeingd start
+$ go run github.com/smartbch/smartbch/cmd/moeingd init m1 --chain-id moeing-1
+$ go run github.com/smartbch/smartbch/cmd/moeingd start
 ```
 
 

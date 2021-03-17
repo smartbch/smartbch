@@ -13,8 +13,8 @@ func main() {
 	cobra.EnableCommandSorting = false
 
 	rootCmd := &cobra.Command{
-		Use:   "moeingcli",
-		Short: "Command line interface for interacting with moeingd",
+		Use:   "smartbchcli",
+		Short: "Command line interface for interacting with smartbchd",
 	}
 
 	//rootCmd.PersistentFlags().String(sdkflags.FlagChainID, "", "Chain ID of moeing node")

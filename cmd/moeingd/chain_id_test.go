@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseChainID(t *testing.T) {
-	_, err := parseChainID("moeing-1")
+	_, err := parseChainID("smartbch-1")
 	require.Error(t, err)
 
 	_, err = parseChainID("123")

@@ -21,7 +21,7 @@ import (
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	"github.com/tendermint/tendermint/libs/log"
 
-	moeingads "github.com/smartbch/moeingads"
+	"github.com/smartbch/moeingads"
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	"github.com/smartbch/moeingdb/modb"
@@ -36,8 +36,8 @@ import (
 var _ abcitypes.Application = (*App)(nil)
 
 var (
-	DefaultNodeHome = os.ExpandEnv("$HOME/.moeingd")
-	DefaultCLIHome  = os.ExpandEnv("$HOME/.moeingcli")
+	DefaultNodeHome = os.ExpandEnv("$HOME/.smartbchd")
+	DefaultCLIHome  = os.ExpandEnv("$HOME/.smartbchcli")
 )
 
 type ContextMode uint8
