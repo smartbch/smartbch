@@ -1,9 +1,8 @@
 package staking
 
 import (
-	"time"
-
 	"github.com/smartbch/smartbch/staking/types"
+	"time"
 )
 
 const (
@@ -37,27 +36,34 @@ func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
 
 // The main function to do a watcher's job. It must be run as a goroutine
 func (watcher *Watcher) Run(blk *types.BCHBlock) {
-	height := watcher.lastEpochEndHeight
+	height := watcher.latestFinalizedHeight
 	watcher.rpcClient.Dial()
-	latestHeight := watcher.rpcClient.GetLatestHeight()
 	for {
-		if height > latestHeight { // wait for a while when querying new blocks
-			watcher.rpcClient.Close()
-			time.Sleep(30 * time.Second)
-			watcher.rpcClient.Dial()
-		}
 		height++ // to fetch the next block
 		blk := watcher.rpcClient.GetBlockByHeight(height)
+		if blk == nil { //make sure connected BCH mainnet node not pruning history blocks, so this case only means height is latest block
+			watcher.suspended(5 * time.Minute) //delay half of bch mainnet block intervals
+		}
 		missingBlockHash := watcher.addBlock(blk)
 		for missingBlockHash != nil { // if chain reorg happens, we trace the new tip
 			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
+			if blk == nil {
+				panic("BCH mainnet tip should has its parent block")
+			}
 			missingBlockHash = watcher.addBlock(blk)
 		}
 	}
 }
 
+func (watcher *Watcher) suspended(delayDuration time.Duration) {
+	watcher.rpcClient.Close()
+	time.Sleep(delayDuration)
+	watcher.rpcClient.Dial()
+}
+
 // Record new block and if the blocks for a new epoch is all ready, output the new epoch
 func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byte) {
+	watcher.hashToBlock[blk.HashId] = blk
 	parent, ok := watcher.hashToBlock[blk.ParentBlk]
 	if !ok {
 		return &blk.ParentBlk
