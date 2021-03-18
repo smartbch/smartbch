@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/smartbch/smartbch/staking"
 	"os"
 	"path"
 	"sync"
@@ -134,6 +135,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 		app.block.Number = prevBlk.Number
 		app.currHeight = app.block.Number
 	}
+	//init PredefinedSystemContractExecutors before tx execute
+	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
+	ebp.PredefinedSystemContractExecutor.Init(ctx)
+
 	app.Validators = ctx.GetCurrValidators()
 	for _, val := range app.Validators {
 		fmt.Printf("validator:%s\n", val.Address().String())

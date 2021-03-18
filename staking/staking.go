@@ -46,10 +46,17 @@ const (
 	MaxIntroLength int = 31
 )
 
-type StakingContractExecutor struct {
-}
+type StakingContractExecutor struct{}
 
 var _ mevmtypes.SystemContractExecutor = &StakingContractExecutor{}
+
+func (_ *StakingContractExecutor) Init(ctx *mevmtypes.Context) {
+	stakingAcc := ctx.GetAccount(StakingContractAddress)
+	if stakingAcc == nil {
+		stakingAcc = mevmtypes.ZeroAccountInfo()
+		ctx.SetAccount(StakingContractAddress, stakingAcc)
+	}
+}
 
 func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 	return bytes.Equal(addr[:], StakingContractAddress[:])
