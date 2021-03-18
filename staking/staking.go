@@ -63,10 +63,13 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 	}
 	selector := tx.Data[:4]
 	if bytes.Equal(selector, SelectorCreateValidator[:]) {
+		//createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey)
 		return externalOp(ctx, tx, true, false)
 	} else if bytes.Equal(selector, SelectorEditValidator[:]) {
+		//editValidator(address rewardTo, bytes32 introduction)
 		return externalOp(ctx, tx, false, false)
 	} else if bytes.Equal(selector, SelectorUnbond[:]) {
+		//unbound()
 		return externalOp(ctx, tx, false, true)
 	} else {
 		status = int(mevmtypes.ReceiptStatusFailed)
