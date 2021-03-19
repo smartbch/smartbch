@@ -84,7 +84,7 @@ func TestTransferFailed(t *testing.T) {
 	moeTx := getTx(_app, tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	require.Equal(t, gethtypes.ReceiptStatusFailed, moeTx.Status)
-	require.Equal(t, "failure", moeTx.StatusStr)
+	require.Equal(t, "balance-not-enough", moeTx.StatusStr)
 }
 
 func TestBlock(t *testing.T) {
