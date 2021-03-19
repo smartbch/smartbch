@@ -3,11 +3,14 @@ package types
 import (
 	"bytes"
 	"errors"
+	"sort"
 
 	"github.com/holiman/uint256"
 )
 
 //go:generate msgp
+
+var MaxActiveValidatorNum = 30
 
 // Currently the first Vout in a coinbase transaction can nominate one validator with one vote
 // In the future it maybe extented to nominate multiple validators with different weights
@@ -23,6 +26,12 @@ type BCHBlock struct {
 	HashId      [32]byte
 	ParentBlk   [32]byte
 	Nominations []Nomination
+}
+
+//not check Nominations
+func (b *BCHBlock) Equal(o *BCHBlock) bool {
+	return b.Height == o.Height && b.Timestamp == o.Timestamp &&
+		b.HashId == o.HashId && b.ParentBlk == o.ParentBlk
 }
 
 // These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
@@ -184,9 +193,16 @@ func (si *StakingInfo) GetValidatorsOnDuty(minStakedCoins *uint256.Int) []*Valid
 	res := make([]*Validator, len(si.Validators), 0)
 	for _, val := range si.Validators {
 		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
-		if coins.Cmp(minStakedCoins) >= 0 && !val.IsUnbonding {
+		if coins.Cmp(minStakedCoins) >= 0 && !val.IsUnbonding && val.VotingPower > 0 {
 			res = append(res, val)
 		}
+	}
+	//sort: 1.voting power; 2.create validator time
+	sort.SliceStable(res, func(i, j int) bool {
+		return res[i].VotingPower > res[j].VotingPower
+	})
+	if len(res) > MaxActiveValidatorNum {
+		res = res[:MaxActiveValidatorNum]
 	}
 	return res
 }

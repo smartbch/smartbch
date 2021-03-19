@@ -77,7 +77,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	}
 	finalizedBlk, ok := watcher.heightToFinalizedBlock[parent.Height]
 	if ok {
-		if finalizedBlk == parent {
+		if finalizedBlk.Equal(parent) {
 			return nil //nothing to do
 		} else {
 			panic("Deep Reorganization")
