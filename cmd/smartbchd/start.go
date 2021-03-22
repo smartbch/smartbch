@@ -98,7 +98,6 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
 	}
-
 	TrapSignal(func() {
 		if tmNode.IsRunning() {
 			_ = rpcServer.Stop()

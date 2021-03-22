@@ -30,13 +30,17 @@ func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*types.Epoch, 0, 10),
 		rpcClient:              rpcClient,
-		EpochChan:              make(chan *types.Epoch, 2),
+		EpochChan:              make(chan *types.Epoch, 1),
 	}
 }
 
 // The main function to do a watcher's job. It must be run as a goroutine
-func (watcher *Watcher) Run(blk *types.BCHBlock) {
+func (watcher *Watcher) Run() {
 	height := watcher.latestFinalizedHeight
+	//todo: for debug temp
+	if watcher.rpcClient == nil {
+		return
+	}
 	watcher.rpcClient.Dial()
 	for {
 		height++ // to fetch the next block

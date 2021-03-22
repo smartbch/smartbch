@@ -51,7 +51,9 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *App {
 	_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	_app.InitChain(abci.RequestInitChain{})
-	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{}})
+	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ProposerAddress: _app.testValidatorPubKey.Address(),
+	}})
 	_app.Commit()
 	return _app
 }

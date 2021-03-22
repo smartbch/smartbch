@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/smartbch/smartbch/staking"
 	"os"
 	"path"
 	"sync"
@@ -32,6 +31,8 @@ import (
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 var _ abcitypes.Application = (*App)(nil)
@@ -70,12 +71,14 @@ type App struct {
 	historyStore modbtypes.DB
 
 	//refresh with block
-	currHeight  int64
-	checkHeight int64
-	Trunk       *store.TrunkStore
-	CheckTrunk  *store.TrunkStore
-	block       *types.Block
-	blockInfo   atomic.Value // to store *types.BlockInfo
+	currHeight     int64
+	checkHeight    int64
+	Trunk          *store.TrunkStore
+	CheckTrunk     *store.TrunkStore
+	block          *types.Block
+	blockInfo      atomic.Value // to store *types.BlockInfo
+	LastCommitInfo [][]byte
+	LastProposer   [20]byte
 
 	// feeds
 	chainFeed event.Feed
@@ -85,12 +88,16 @@ type App struct {
 	//engine
 	TxEngine ebp.TxExecutor
 
+	//watcher
+	Watcher *staking.Watcher
+
 	//util
 	signer gethtypes.Signer
 	logger log.Logger
 
 	//genesis data
-	Validators []ed25519.PubKey
+	CurrValidators []*stakingtypes.Validator
+	Validators     []ed25519.PubKey
 
 	//test
 	testValidatorPubKey crypto.PubKey
@@ -127,6 +134,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	app.TxEngine = ebp.NewEbpTxExec(10, 100, 32, 100, app.signer)
 	app.Config = config
 	app.logger = logger.With("module", "app")
+	//todo: lastHeight = latest previous bch mainnet 2016x blocks
+	app.Watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
+	go app.Watcher.Run()
 
 	ctx := app.GetContext(RunTxMode)
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -139,11 +149,12 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
-	app.Validators = ctx.GetCurrValidators()
-	for _, val := range app.Validators {
-		fmt.Printf("validator:%s\n", val.Address().String())
+	_, stakingInfo := staking.LoadStakingAcc(*ctx)
+	app.CurrValidators = stakingInfo.GetValidatorsOnDuty(staking.MinimumStakingAmount)
+	for _, val := range app.CurrValidators {
+		fmt.Printf("validator:%v\n", val.Address)
 	}
-	ctx.Close(false)
+	ctx.Close(true)
 	app.testValidatorPubKey = testValidatorPubKey
 	app.testKeys = testKeys
 	app.testInitAmt = testInitAmt
@@ -186,6 +197,12 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Timestamp: req.Header.Time.Unix(),
 		Size:      int64(req.Size()),
 	}
+	copy(app.LastProposer[:], req.Header.ProposerAddress)
+	for _, v := range req.LastCommitInfo.GetVotes() {
+		if v.SignedLastBlock {
+			app.LastCommitInfo = append(app.LastCommitInfo, v.Validator.Address) //this is validator consensus address
+		}
+	}
 	copy(app.block.ParentHash[:], req.Header.LastBlockId.Hash)
 	copy(app.block.TransactionsRoot[:], req.Header.DataHash) //TODO changed to committed tx hash
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
@@ -216,17 +233,25 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	app.logger.Debug("enter end block!")
-	app.logger.Debug("leave end block!")
-
-	vals := make([]abcitypes.ValidatorUpdate, len(app.Validators))
-	if len(app.Validators) != 0 {
-		for i, v := range app.Validators {
-			p, _ := cryptoenc.PubKeyToProto(v)
+	select {
+	case epoch := <-app.Watcher.EpochChan:
+		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
+		if app.block.Timestamp > epoch.EndTime+100*10*60 /*100 * 10min*/ {
+			ctx := app.GetContext(RunTxMode)
+			staking.SwitchEpoch(ctx, epoch)
+		}
+	default:
+		fmt.Println("no new epoch")
+	}
+	vals := make([]abcitypes.ValidatorUpdate, len(app.CurrValidators))
+	if len(app.CurrValidators) != 0 {
+		for i, v := range app.CurrValidators {
+			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 			vals[i] = abcitypes.ValidatorUpdate{
 				PubKey: p,
 				Power:  1,
 			}
-			fmt.Printf("endblock validator:%s\n", v.Address().String())
+			fmt.Printf("endblock validator:%v\n", v.Address)
 		}
 	} else {
 		pk, _ := cryptoenc.PubKeyToProto(app.testValidatorPubKey)
@@ -235,6 +260,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			Power:  1,
 		})
 	}
+	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{
 		ValidatorUpdates: vals,
 	}
@@ -262,6 +288,23 @@ func (app *App) SyncBlockInfo() *types.BlockInfo {
 func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("enter commit!", "txs", app.TxEngine.CollectTxsCount())
 	app.mtx.Lock()
+
+	//distribute previous block gas gee
+	ctx := app.GetContext(RunTxMode)
+	_, info := staking.LoadStakingAcc(*ctx)
+	pubkeyMapByAddr := make(map[[20]byte][32]byte)
+	for _, v := range info.Validators {
+		pubkeyMapByAddr[v.Address] = v.Pubkey
+	}
+	voters := make([][32]byte, len(app.LastCommitInfo))
+	var tmpAddr [20]byte
+	for i, c := range app.LastCommitInfo {
+		copy(tmpAddr[:], c)
+		voters[i] = pubkeyMapByAddr[tmpAddr]
+	}
+	staking.DistributeFee(*ctx, uint256.NewInt() /*todo: get collectedFee*/, pubkeyMapByAddr[app.LastProposer], voters)
+	ctx.Close(true)
+
 	app.TxEngine.Prepare()
 	app.Refresh()
 	bi := app.SyncBlockInfo()
@@ -344,6 +387,8 @@ func (app *App) Refresh() {
 		app.publishNewBlock(&blk)
 	}
 	//make new
+	app.LastProposer = app.block.Miner
+	app.LastCommitInfo = app.LastCommitInfo[:0]
 	app.root.SetHeight(app.currHeight + 1)
 	app.Trunk = app.root.GetTrunkStore().(*store.TrunkStore)
 	app.CheckTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
@@ -433,24 +478,56 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	app.createTestAccs()
 	app.logger.Debug("leave init chain!")
-
 	if len(req.AppStateBytes) != 0 {
 		fmt.Printf("appstate:%s\n", req.AppStateBytes)
-		err := json.Unmarshal(req.AppStateBytes, &app.Validators)
+		err := json.Unmarshal(req.AppStateBytes, &app.CurrValidators)
 		if err != nil {
 			panic(err)
 		}
+		ctx := app.GetContext(RunTxMode)
+		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
+		if stakingAcc == nil {
+			panic("Cannot find staking contract")
+		}
+		info := stakingtypes.StakingInfo{
+			CurrEpochNum:   0,
+			Validators:     app.CurrValidators,
+			PendingRewards: make([]*stakingtypes.PendingReward, len(app.CurrValidators)),
+		}
+		for i := range info.PendingRewards {
+			info.PendingRewards[i] = &stakingtypes.PendingReward{}
+		}
+		staking.SaveStakingInfo(*ctx, stakingAcc, info)
+		ctx.Close(true)
+	} else /*todo: for single node test*/ {
+		ctx := app.GetContext(RunTxMode)
+		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
+		if stakingAcc == nil {
+			panic("Cannot find staking contract")
+		}
+		info := stakingtypes.StakingInfo{
+			CurrEpochNum:   0,
+			Validators:     make([]*stakingtypes.Validator, 1),
+			PendingRewards: make([]*stakingtypes.PendingReward, 1),
+		}
+		info.Validators[0] = &stakingtypes.Validator{}
+		copy(info.Validators[0].Address[:], app.testValidatorPubKey.Address())
+		copy(info.Validators[0].Pubkey[:], app.testValidatorPubKey.Bytes())
+		info.PendingRewards[0] = &stakingtypes.PendingReward{}
+		copy(info.PendingRewards[0].Address[:], app.testValidatorPubKey.Address())
+		staking.SaveStakingInfo(*ctx, stakingAcc, info)
+		ctx.Close(true)
 	}
 
-	vals := make([]abcitypes.ValidatorUpdate, len(app.Validators))
-	if len(app.Validators) != 0 {
-		for i, v := range app.Validators {
-			p, _ := cryptoenc.PubKeyToProto(v)
+	vals := make([]abcitypes.ValidatorUpdate, len(app.CurrValidators))
+	if len(app.CurrValidators) != 0 {
+		for i, v := range app.CurrValidators {
+			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 			vals[i] = abcitypes.ValidatorUpdate{
 				PubKey: p,
 				Power:  1,
 			}
-			fmt.Printf("inichain validator:%s\n", v.Address().String())
+			fmt.Printf("inichain validator:%s\n", p.String())
 		}
 	} else {
 		pk, _ := cryptoenc.PubKeyToProto(app.testValidatorPubKey)
@@ -575,6 +652,10 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender common.Address
 func (app *App) WaitLock() {
 	app.mtx.Lock()
 	app.mtx.Unlock()
+}
+
+func (app *App) TestValidatorPubkey() crypto.PubKey {
+	return app.testValidatorPubKey
 }
 
 func (app *App) TestKeys() []string {

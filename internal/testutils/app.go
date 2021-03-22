@@ -6,17 +6,22 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type App interface {
 	abci.Application
 	WaitLock()
+	TestValidatorPubkey() crypto.PubKey
 }
 
 func ExecTxInBlock(_app App, height int64, tx *gethtypes.Transaction) {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{Height: height},
+		Header: tmproto.Header{
+			Height:          height,
+			ProposerAddress: _app.TestValidatorPubkey().Address(),
+		},
 	})
 	if tx != nil {
 		_app.DeliverTx(abci.RequestDeliverTx{

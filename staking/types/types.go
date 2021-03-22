@@ -16,7 +16,7 @@ var MaxActiveValidatorNum = 30
 // In the future it maybe extented to nominate multiple validators with different weights
 type Nomination struct {
 	Pubkey         [32]byte // The validator's ED25519 pubkey used in tendermint
-	NominatedCount int
+	NominatedCount int64
 }
 
 // This struct contains the useful information of a BCH block
@@ -71,7 +71,7 @@ type Validator struct {
 
 // Because EpochCountBeforeRewardMature >= 1, some rewards will be pending for a while before mature
 type PendingReward struct {
-	Address  [20]byte `msgp:"address"`   // Validator's address in moeing chain
+	Address  [20]byte `msgp:"address"`   // Validator's operator address in moeing chain
 	EpochNum int64    `msgp:"epoch_num"` // During which epoch were the rewards got?
 	Amount   [32]byte `msgp:"coins"`     // amount of rewards
 }
@@ -190,7 +190,7 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 
 // Returns current validators on duty, who must have enough coins staked and be not in a unbonding process
 func (si *StakingInfo) GetValidatorsOnDuty(minStakedCoins *uint256.Int) []*Validator {
-	res := make([]*Validator, len(si.Validators), 0)
+	res := make([]*Validator, 0, len(si.Validators))
 	for _, val := range si.Validators {
 		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
 		if coins.Cmp(minStakedCoins) >= 0 && !val.IsUnbonding && val.VotingPower > 0 {

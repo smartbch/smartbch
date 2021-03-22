@@ -202,7 +202,10 @@ func TestJson(t *testing.T) {
 func execRandomTxs(_app *App, txLists [][]*gethtypes.Transaction, from1, from2 common.Address) []uint64 {
 	for i, txList := range txLists {
 		_app.BeginBlock(abci.RequestBeginBlock{
-			Header: tmproto.Header{Height: int64(i + 1)},
+			Header: tmproto.Header{
+				Height: int64(i + 1),
+				ProposerAddress: _app.testValidatorPubKey.Address(),
+			},
 		})
 		for _, tx := range txList {
 			_app.DeliverTx(abci.RequestDeliverTx{
