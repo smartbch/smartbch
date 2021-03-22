@@ -109,3 +109,7 @@ func call(_app *App, sender common.Address, tx *gethtypes.Transaction) (int, str
 	runner, _ := _app.RunTxForRpc(tx, sender, false)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
+func estimateGas(_app *App, sender common.Address, tx *gethtypes.Transaction) (int, string, int64) {
+	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true)
+	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
+}
