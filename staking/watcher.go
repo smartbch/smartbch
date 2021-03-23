@@ -1,12 +1,14 @@
 package staking
 
 import (
+	"fmt"
 	"github.com/smartbch/smartbch/staking/types"
 	"time"
 )
 
 var (
-	NumBlocksInEpoch int64 = 2016
+	NumBlocksInEpoch       int64 = 2016
+	NumBlocksToClearMemory int64 = 100000
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
@@ -46,10 +48,20 @@ func (watcher *Watcher) Run() {
 		height++ // to fetch the next block
 		blk := watcher.rpcClient.GetBlockByHeight(height)
 		if blk == nil { //make sure connected BCH mainnet node not pruning history blocks, so this case only means height is latest block
+			fmt.Println("wait new block...")
 			watcher.suspended(5 * time.Minute) //delay half of bch mainnet block intervals
 		}
 		missingBlockHash := watcher.addBlock(blk)
-		for missingBlockHash != nil { // if chain reorg happens, we trace the new tip
+		//get fork height again to avoid finalize block empty hole
+		if missingBlockHash != nil {
+			height--
+		}else {
+			// release blocks left as of BCH mainnet fork
+			if height%NumBlocksToClearMemory == 0 {
+				watcher.hashToBlock = make(map[[32]byte]*types.BCHBlock)
+			}
+		}
+		for i := 10; missingBlockHash != nil && i > 0; i-- { // if chain reorg happens, we trace the new tip
 			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
 			if blk == nil {
 				panic("BCH mainnet tip should has its parent block")
@@ -81,6 +93,9 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	for confirmCount := 1; confirmCount < 10; confirmCount++ {
 		grandpa, ok = watcher.hashToBlock[parent.ParentBlk]
 		if !ok {
+			if parent.ParentBlk == [32]byte{} {
+				return nil
+			}
 			return &parent.ParentBlk // actually impossible to reach here
 		}
 		parent = grandpa
