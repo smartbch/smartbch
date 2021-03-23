@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const (
+var (
 	NumBlocksInEpoch int64 = 2016
 )
 
@@ -70,14 +70,20 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	watcher.hashToBlock[blk.HashId] = blk
 	parent, ok := watcher.hashToBlock[blk.ParentBlk]
 	if !ok {
+		// If parent is init block, return directly
+		if blk.ParentBlk == [32]byte{} {
+			return nil
+		}
 		return &blk.ParentBlk
 	}
 	// On BCH mainnet, a block need 10 confirmation to finalize
+	var grandpa *types.BCHBlock
 	for confirmCount := 1; confirmCount < 10; confirmCount++ {
-		parent, ok = watcher.hashToBlock[parent.ParentBlk]
+		grandpa, ok = watcher.hashToBlock[parent.ParentBlk]
 		if !ok {
 			return &parent.ParentBlk // actually impossible to reach here
 		}
+		parent = grandpa
 	}
 	finalizedBlk, ok := watcher.heightToFinalizedBlock[parent.Height]
 	if ok {
@@ -88,7 +94,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		}
 	}
 	// A new block is finalized
-	watcher.heightToFinalizedBlock[parent.Height] = parent
+	watcher.heightToFinalizedBlock[parent.Height] = grandpa
 	if watcher.latestFinalizedHeight+1 != parent.Height {
 		panic("Height Skipped")
 	}
@@ -133,6 +139,7 @@ func (watcher *Watcher) generateNewEpoch() {
 	watcher.epochList = append(watcher.epochList, epoch)
 	watcher.EpochChan <- epoch
 	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
+	watcher.ClearOldData()
 }
 
 func (watcher *Watcher) ClearOldData() {
@@ -150,5 +157,8 @@ func (watcher *Watcher) ClearOldData() {
 		delete(watcher.heightToFinalizedBlock, height)
 		delete(watcher.hashToBlock, blk.HashId)
 		height--
+	}
+	if elLen > 5 /*param it*/ {
+		watcher.epochList = watcher.epochList[elLen-5:]
 	}
 }
