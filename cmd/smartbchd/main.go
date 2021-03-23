@@ -62,7 +62,9 @@ func newApp(logger log.Logger, chainId *uint256.Int) abci.Application {
 	}
 	bz, _ := json.Marshal(testValidators)
 	fmt.Printf("testValidator:%s\n", bz)
+	initAmt := bigutils.NewU256(1e18)
+	//initAmt.Mul(initAmt, bigutils.NewU256(500))
 	cetChainApp := app.NewApp(param.DefaultConfig(), chainId, logger,
-		pv.Key.PubKey, testutils.TestKeys, bigutils.NewU256(1e18))
+		pv.Key.PubKey, testutils.TestKeys, initAmt)
 	return cetChainApp
 }

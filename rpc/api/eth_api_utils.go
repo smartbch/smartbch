@@ -135,6 +135,9 @@ func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
 	if !isZeroAddress(tx.ContractAddress) {
 		resp["contractAddress"] = gethcmn.Address(tx.ContractAddress)
 	}
+	if tx.Status == gethtypes.ReceiptStatusFailed {
+		resp["statusStr"] = tx.StatusStr
+	}
 	return resp
 }
 

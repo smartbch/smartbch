@@ -203,7 +203,7 @@ func execRandomTxs(_app *App, txLists [][]*gethtypes.Transaction, from1, from2 c
 	for i, txList := range txLists {
 		_app.BeginBlock(abci.RequestBeginBlock{
 			Header: tmproto.Header{
-				Height: int64(i + 1),
+				Height:          int64(i + 1),
 				ProposerAddress: _app.testValidatorPubKey.Address(),
 			},
 		})
