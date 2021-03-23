@@ -38,8 +38,8 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	}
 	tcmd.AddNodeFlags(cmd)
 	cmd.PersistentFlags().String("log_level", ctx.Config.LogLevel, "Log level")
-	cmd.Flags().String(flagRpcAddr, "tcp://127.0.0.1:8545", "HTTP-RPC server listening address")
-	cmd.Flags().String(flagWsAddr, "tcp://127.0.0.1:8546", "WS-RPC server listening address")
+	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
+	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
 	return cmd
 }
 
