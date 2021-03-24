@@ -36,8 +36,6 @@ func (b *BCHBlock) Equal(o *BCHBlock) bool {
 
 // These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
 type RpcClient interface {
-	Dial()
-	Close()
 	GetLatestHeight() int64
 	GetBlockByHeight(height int64) *BCHBlock
 	GetBlockByHash(hash [32]byte) *BCHBlock

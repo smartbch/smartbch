@@ -25,3 +25,4 @@ rpc/api/testdbdata
 *.log
 
 node_modules/
+staking/showopreturn/showopreturn

@@ -43,7 +43,6 @@ func (watcher *Watcher) Run() {
 	if watcher.rpcClient == nil {
 		return
 	}
-	watcher.rpcClient.Dial()
 	for {
 		height++ // to fetch the next block
 		blk := watcher.rpcClient.GetBlockByHeight(height)
@@ -55,7 +54,7 @@ func (watcher *Watcher) Run() {
 		//get fork height again to avoid finalize block empty hole
 		if missingBlockHash != nil {
 			height--
-		}else {
+		} else {
 			// release blocks left as of BCH mainnet fork
 			if height%NumBlocksToClearMemory == 0 {
 				watcher.hashToBlock = make(map[[32]byte]*types.BCHBlock)
@@ -72,9 +71,7 @@ func (watcher *Watcher) Run() {
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {
-	watcher.rpcClient.Close()
 	time.Sleep(delayDuration)
-	watcher.rpcClient.Dial()
 }
 
 // Record new block and if the blocks for a new epoch is all ready, output the new epoch
