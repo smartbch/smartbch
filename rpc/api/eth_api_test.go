@@ -521,3 +521,21 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 	}
 	return b.Build()
 }
+
+func TestCall_Transfer_Random(t *testing.T) {
+	fromKey, fromAddr := testutils.GenKeyAndAddr()
+	toKey, toAddr := testutils.GenKeyAndAddr()
+
+	_app := app.CreateTestApp(fromKey, toKey)
+	defer app.DestroyTestApp(_app)
+	_api := createEthAPI(_app)
+	for i:= 0; i< 1000; i++ {
+		go func() {
+			_, _ = _api.Call(ethapi.CallArgs{
+				From:  &fromAddr,
+				To:    &toAddr,
+				Value: testutils.ToHexutilBig(10),
+			}, 0)
+		}()
+	}
+}
