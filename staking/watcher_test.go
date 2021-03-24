@@ -156,6 +156,7 @@ func TestRunWithFork(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
 	w := NewWatcher(0, client)
 	NumBlocksToClearMemory = 100
+	NumBlocksInEpoch = 1000
 	go w.Run()
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))
