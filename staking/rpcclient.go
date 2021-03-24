@@ -276,7 +276,7 @@ func (client *RpcClient) PrintAllOpReturn(startHeight, endHeight int64) {
 		}
 		bi, err := client.getBlock(hash)
 		if err != nil {
-			fmt.Printf("Error when getBlock %s\n", h, err.Error())
+			fmt.Printf("Error when getBlock %d %s\n", h, err.Error())
 			continue
 		}
 		for _, txid := range bi.Tx {
