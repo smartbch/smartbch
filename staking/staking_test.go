@@ -1,11 +1,12 @@
 package staking_test
 
 import (
-	"testing"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingevm/types"
+	types2 "github.com/smartbch/smartbch/staking/types"
 	"github.com/stretchr/testify/require"
+	"testing"
 
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -104,4 +105,33 @@ func TestStaking(t *testing.T) {
 	// test unbound validator
 	c = buildUnboundValCallEntry(sender)
 	e.Execute(*ctx, nil, c.Tx)
+}
+
+func TestSwitchEpoch(t *testing.T) {
+	key, _ := testutils.GenKeyAndAddr()
+	//key, addr1 := testutils.GenKeyAndAddr()
+	//key, addr2 := testutils.GenKeyAndAddr()
+	//key, addr3 := testutils.GenKeyAndAddr()
+
+	_app := app.CreateTestApp(key)
+	defer app.DestroyTestApp(_app)
+
+	ctx := _app.GetContext(app.RunTxMode)
+	e := &types2.Epoch{
+		StartHeight:    100,
+		EndTime:        2000,
+		Duration:       1000,
+		ValMapByPubkey: make(map[[32]byte]*types2.Nomination),
+	}
+	staking.SwitchEpoch(ctx, e)
+}
+
+func TestSlash(t *testing.T) {
+	key, _ := testutils.GenKeyAndAddr()
+	_app := app.CreateTestApp(key)
+	defer app.DestroyTestApp(_app)
+	ctx := _app.GetContext(app.RunTxMode)
+	var slashedPubkey [32]byte
+	copy(slashedPubkey[:], _app.TestValidatorPubkey().Bytes())
+	staking.Slash(*ctx, slashedPubkey, uint256.NewInt().SetBytes([]byte{1}))
 }

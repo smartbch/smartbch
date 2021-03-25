@@ -198,7 +198,7 @@ func SaveStakingInfo(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, i
 // Staking functions which cannot be invoked through smart contract calls
 
 // Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
-func slash(ctx mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
+func Slash(ctx mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
 	stakingAcc, info := LoadStakingAcc(ctx)
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
@@ -323,7 +323,7 @@ func endEpoch(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info t
 	info.CurrEpochNum++
 	stakingAccBalance := stakingAcc.Balance()
 
-	newPRList := make([]*types.PendingReward, len(info.PendingRewards), 0)
+	newPRList := make([]*types.PendingReward, 0, len(info.PendingRewards))
 	valMapByAddr := info.GetValMapByAddr()
 	rewardMap := make(map[[20]byte]*uint256.Int)
 	// summarize all the mature rewards

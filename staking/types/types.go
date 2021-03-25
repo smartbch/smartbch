@@ -168,7 +168,7 @@ func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 // Clear all the pending rewards belonging to an validator. Return the accumulated cleared amount.
 func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int) {
 	totalCleared = uint256.NewInt()
-	rwdList := make([]*PendingReward, len(si.PendingRewards), 0)
+	rwdList := make([]*PendingReward, 0, len(si.PendingRewards))
 	var bz32Zero [32]byte
 	for _, rwd := range si.PendingRewards {
 		if bytes.Equal(rwd.Address[:], addr[:]) {
