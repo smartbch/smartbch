@@ -166,7 +166,7 @@ func (app *App) Init(blk *types.Block) {
 		app.block = blk
 		app.currHeight = app.block.Number
 	}
-	fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
+	//fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
 	app.root.SetHeight(app.currHeight + 1)
 	if app.currHeight != 0 {
 		app.reload()
@@ -208,7 +208,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash[:])
-	fmt.Printf("!!!!!!app block hash:%v\n", app.block.StateRoot)
+	//fmt.Printf("!!!!!!app block hash:%v\n", app.block.StateRoot)
 	//TODO: slash req.ByzantineValidators
 	app.currHeight = req.Header.Height
 	//if app.currHeight == 1 {
@@ -322,7 +322,7 @@ func (app *App) Refresh() {
 	ctx := app.GetContext(RunTxMode)
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
-	fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
+	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
 	ctx.SetCurrValidators(app.Validators)
 	ctx.Close(true)
 	app.Trunk.Close(true)

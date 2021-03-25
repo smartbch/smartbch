@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -523,19 +524,30 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 }
 
 func TestCall_Transfer_Random(t *testing.T) {
+	for i:=0; i< 50; i++ {
+		testRandomTransfer()
+	}
+}
+
+func testRandomTransfer() {
 	fromKey, fromAddr := testutils.GenKeyAndAddr()
 	toKey, toAddr := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(fromKey, toKey)
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
-	for i:= 0; i< 1000; i++ {
+
+	w := sync.WaitGroup{}
+	w.Add(1000)
+	for i := 0; i < 1000; i++ {
 		go func() {
 			_, _ = _api.Call(ethapi.CallArgs{
 				From:  &fromAddr,
 				To:    &toAddr,
 				Value: testutils.ToHexutilBig(10),
 			}, 0)
+			w.Done()
 		}()
 	}
+	w.Wait()
 }
