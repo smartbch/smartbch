@@ -9,7 +9,6 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -44,7 +43,6 @@ func TestQueryTxBySrcDst(t *testing.T) {
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 	time.Sleep(100 * time.Millisecond)
-	_app.SetCurrentBlock(&types.Block{Number: 2})
 
 	testCases := []struct {
 		queryBy string
@@ -113,7 +111,6 @@ func TestQueryTxByAddr(t *testing.T) {
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 	time.Sleep(100 * time.Millisecond)
-	_app.SetCurrentBlock(&types.Block{Number: 1})
 
 	txs, err := _api.QueryTxByAddr(addr4, 1, 1)
 	require.NoError(t, err)
