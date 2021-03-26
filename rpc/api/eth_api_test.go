@@ -524,7 +524,7 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 }
 
 func TestCall_Transfer_Random(t *testing.T) {
-	for i:=0; i< 50; i++ {
+	for i := 0; i < 50; i++ {
 		testRandomTransfer()
 	}
 }

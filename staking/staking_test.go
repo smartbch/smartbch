@@ -25,8 +25,8 @@ func buildCreateValCallEntry(sender common.Address, rewardTo byte, introduction 
 	}
 	c.Tx = &types.TxToRun{
 		BasicTx: types.BasicTx{
-			From:     sender,
-			To:       c.Address,
+			From: sender,
+			To:   c.Address,
 		},
 	}
 	c.Tx.Value[31] = 100
@@ -51,8 +51,8 @@ func buildEditValCallEntry(sender common.Address, rewardTo byte, introduction by
 	}
 	c.Tx = &types.TxToRun{
 		BasicTx: types.BasicTx{
-			From:     sender,
-			To:       c.Address,
+			From: sender,
+			To:   c.Address,
 		},
 	}
 	c.Tx.Value[31] = 100
@@ -75,8 +75,8 @@ func buildUnboundValCallEntry(sender common.Address) *callEntry {
 	}
 	c.Tx = &types.TxToRun{
 		BasicTx: types.BasicTx{
-			From:     sender,
-			To:       c.Address,
+			From: sender,
+			To:   c.Address,
 		},
 	}
 	c.Tx.Value[31] = 100
