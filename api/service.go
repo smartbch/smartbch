@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/param"
 )
 
 type FilterService interface {
@@ -84,7 +83,6 @@ type BackendService interface {
 	//SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
 	//SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
 
-	ChainConfig() *param.ChainConfig
 	//Engine() consensus.Engine
 
 	//Below is added in moeing chain only

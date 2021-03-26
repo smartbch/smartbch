@@ -64,7 +64,6 @@ type App struct {
 
 	//config
 	chainId *uint256.Int
-	Config  *param.ChainConfig
 
 	//store
 	root         *store.RootStore
@@ -73,12 +72,12 @@ type App struct {
 	//refresh with block
 	currHeight     int64
 	checkHeight    int64
-	Trunk          *store.TrunkStore
-	CheckTrunk     *store.TrunkStore
+	trunk          *store.TrunkStore
+	checkTrunk     *store.TrunkStore
 	block          *types.Block
 	blockInfo      atomic.Value // to store *types.BlockInfo
-	LastCommitInfo [][]byte
-	LastProposer   [20]byte
+	lastCommitInfo [][]byte
+	lastProposer   [20]byte
 
 	// feeds
 	chainFeed event.Feed
@@ -86,18 +85,18 @@ type App struct {
 	scope     event.SubscriptionScope
 
 	//engine
-	TxEngine ebp.TxExecutor
+	txEngine ebp.TxExecutor
 
 	//watcher
-	Watcher *staking.Watcher
+	watcher *staking.Watcher
 
 	//util
 	signer gethtypes.Signer
 	logger log.Logger
 
 	//genesis data
-	CurrValidators []*stakingtypes.Validator
-	Validators     []ed25519.PubKey
+	currValidators []*stakingtypes.Validator
+	validators     []ed25519.PubKey
 
 	//test
 	testValidatorPubKey crypto.PubKey
@@ -127,16 +126,15 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	}
 	app.historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
 
-	app.Trunk = app.root.GetTrunkStore().(*store.TrunkStore)
-	app.CheckTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
+	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
 	app.chainId = chainId
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
-	app.TxEngine = ebp.NewEbpTxExec(10, 100, 32, 100, app.signer)
-	app.Config = config
+	app.txEngine = ebp.NewEbpTxExec(10, 100, 32, 100, app.signer)
 	app.logger = logger.With("module", "app")
 	//todo: lastHeight = latest previous bch mainnet 2016x blocks
-	app.Watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
-	go app.Watcher.Run()
+	app.watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
+	go app.watcher.Run()
 
 	ctx := app.GetContext(RunTxMode)
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -150,8 +148,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
 	_, stakingInfo := staking.LoadStakingAcc(*ctx)
-	app.CurrValidators = stakingInfo.GetValidatorsOnDuty(staking.MinimumStakingAmount)
-	for _, val := range app.CurrValidators {
+	app.currValidators = stakingInfo.GetValidatorsOnDuty(staking.MinimumStakingAmount)
+	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
 	ctx.Close(true)
@@ -171,12 +169,12 @@ func (app *App) Init(blk *types.Block) {
 	if app.currHeight != 0 {
 		app.reload()
 	} else {
-		app.TxEngine.SetContext(app.GetContext(RunTxMode))
+		app.txEngine.SetContext(app.GetContext(RunTxMode))
 	}
 }
 
 func (app *App) reload() {
-	app.TxEngine.SetContext(app.GetContext(RunTxMode))
+	app.txEngine.SetContext(app.GetContext(RunTxMode))
 	if app.block != nil {
 		app.mtx.Lock()
 		bi := app.syncBlockInfo()
@@ -230,14 +228,14 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	return abcitypes.ResponseCheckTx{Code: abcitypes.CodeTypeOK}
 }
 
-//TODO: if the last height is not 0, we must run app.TxEngine.Execute(&bi) here!!
+//TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	app.createTestAccs()
 	app.logger.Debug("leave init chain!")
 	if len(req.AppStateBytes) != 0 {
 		fmt.Printf("appstate:%s\n", req.AppStateBytes)
-		err := json.Unmarshal(req.AppStateBytes, &app.CurrValidators)
+		err := json.Unmarshal(req.AppStateBytes, &app.currValidators)
 		if err != nil {
 			panic(err)
 		}
@@ -248,8 +246,8 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		}
 		info := stakingtypes.StakingInfo{
 			CurrEpochNum:   0,
-			Validators:     app.CurrValidators,
-			PendingRewards: make([]*stakingtypes.PendingReward, len(app.CurrValidators)),
+			Validators:     app.currValidators,
+			PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
 		}
 		for i := range info.PendingRewards {
 			info.PendingRewards[i] = &stakingtypes.PendingReward{}
@@ -276,9 +274,9 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		ctx.Close(true)
 	}
 
-	vals := make([]abcitypes.ValidatorUpdate, len(app.CurrValidators))
-	if len(app.CurrValidators) != 0 {
-		for i, v := range app.CurrValidators {
+	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
+	if len(app.currValidators) != 0 {
+		for i, v := range app.currValidators {
 			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 			vals[i] = abcitypes.ValidatorUpdate{
 				PubKey: p,
@@ -303,7 +301,7 @@ func (app *App) createTestAccs() {
 		return
 	}
 
-	rbt := rabbit.NewRabbitStore(app.Trunk)
+	rbt := rabbit.NewRabbitStore(app.trunk)
 	amt := app.testInitAmt
 
 	for _, keyHex := range app.testKeys {
@@ -329,10 +327,10 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Timestamp: req.Header.Time.Unix(),
 		Size:      int64(req.Size()),
 	}
-	copy(app.LastProposer[:], req.Header.ProposerAddress)
+	copy(app.lastProposer[:], req.Header.ProposerAddress)
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
-			app.LastCommitInfo = append(app.LastCommitInfo, v.Validator.Address) //this is validator consensus address
+			app.lastCommitInfo = append(app.lastCommitInfo, v.Validator.Address) //this is validator consensus address
 		}
 	}
 	copy(app.block.ParentHash[:], req.Header.LastBlockId.Hash)
@@ -345,8 +343,8 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	app.currHeight = req.Header.Height
 	//if app.currHeight == 1 {
 	//	app.root.SetHeight(app.currHeight)
-	//	app.Trunk = app.root.GetTrunkStore().(*store.TrunkStore)
-	//	app.CheckTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
+	//	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
+	//	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
 	//}
 	app.logger.Debug("leave begin block!")
 	return abcitypes.ResponseBeginBlock{}
@@ -357,7 +355,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 	app.block.Size += int64(req.Size())
 	tx, err := ethutils.DecodeTx(req.Tx)
 	if err == nil {
-		app.TxEngine.CollectTx(tx)
+		app.txEngine.CollectTx(tx)
 	}
 	app.logger.Debug("leave deliver tx!")
 	return abcitypes.ResponseDeliverTx{Code: abcitypes.CodeTypeOK}
@@ -366,7 +364,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	app.logger.Debug("enter end block!")
 	select {
-	case epoch := <-app.Watcher.EpochChan:
+	case epoch := <-app.watcher.EpochChan:
 		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
 		if app.block.Timestamp > epoch.EndTime+100*10*60 /*100 * 10min*/ {
 			ctx := app.GetContext(RunTxMode)
@@ -375,9 +373,9 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 	default:
 		fmt.Println("no new epoch")
 	}
-	vals := make([]abcitypes.ValidatorUpdate, len(app.CurrValidators))
-	if len(app.CurrValidators) != 0 {
-		for i, v := range app.CurrValidators {
+	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
+	if len(app.currValidators) != 0 {
+		for i, v := range app.currValidators {
 			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 			vals[i] = abcitypes.ValidatorUpdate{
 				PubKey: p,
@@ -399,7 +397,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
-	app.logger.Debug("enter commit!", "txs", app.TxEngine.CollectTxsCount())
+	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
 	//distribute previous block gas gee
@@ -409,16 +407,16 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	for _, v := range info.Validators {
 		pubkeyMapByAddr[v.Address] = v.Pubkey
 	}
-	voters := make([][32]byte, len(app.LastCommitInfo))
+	voters := make([][32]byte, len(app.lastCommitInfo))
 	var tmpAddr [20]byte
-	for i, c := range app.LastCommitInfo {
+	for i, c := range app.lastCommitInfo {
 		copy(tmpAddr[:], c)
 		voters[i] = pubkeyMapByAddr[tmpAddr]
 	}
-	staking.DistributeFee(*ctx, uint256.NewInt() /*todo: get collectedFee*/, pubkeyMapByAddr[app.LastProposer], voters)
+	staking.DistributeFee(*ctx, uint256.NewInt() /*todo: get collectedFee*/, pubkeyMapByAddr[app.lastProposer], voters)
 	ctx.Close(true)
 
-	app.TxEngine.Prepare()
+	app.txEngine.Prepare()
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
@@ -443,21 +441,21 @@ func (app *App) syncBlockInfo() *types.BlockInfo {
 func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("enter post commit!")
 	defer app.mtx.Unlock()
-	app.TxEngine.Execute(bi)
+	app.txEngine.Execute(bi)
 	app.logger.Debug("leave post commit!")
 }
 
 func (app *App) refresh() {
 	//close old
-	app.CheckTrunk.Close(false)
+	app.checkTrunk.Close(false)
 
 	ctx := app.GetContext(RunTxMode)
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
 	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
-	ctx.SetCurrValidators(app.Validators)
+	ctx.SetCurrValidators(app.validators)
 	ctx.Close(true)
-	app.Trunk.Close(true)
+	app.trunk.Close(true)
 
 	appHash := app.root.GetRootHash()
 	copy(app.block.StateRoot[:], appHash)
@@ -468,7 +466,7 @@ func (app *App) refresh() {
 	//ctx.SetCurrBlockBasicInfo(app.block)
 	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
 	//ctx.Close(true)
-	//app.Trunk.Close(true)
+	//app.trunk.Close(true)
 
 	//write back current commit infos to history store
 
@@ -479,8 +477,8 @@ func (app *App) refresh() {
 		blk := modbtypes.Block{
 			Height: prevBlkInfo.Number,
 		}
-		prevBlkInfo.Transactions = make([][32]byte, len(app.TxEngine.CommittedTxs()))
-		for i, tx := range app.TxEngine.CommittedTxs() {
+		prevBlkInfo.Transactions = make([][32]byte, len(app.txEngine.CommittedTxs()))
+		for i, tx := range app.txEngine.CommittedTxs() {
 			prevBlkInfo.Transactions[i] = tx.Hash
 		}
 		blkInfo, err := prevBlkInfo.MarshalMsg(nil)
@@ -489,9 +487,9 @@ func (app *App) refresh() {
 		}
 		copy(blk.BlockHash[:], prevBlkInfo.Hash[:])
 		blk.BlockInfo = blkInfo
-		blk.TxList = make([]modbtypes.Tx, len(app.TxEngine.CommittedTxs()))
+		blk.TxList = make([]modbtypes.Tx, len(app.txEngine.CommittedTxs()))
 		var zeroValue [32]byte
-		for i, tx := range app.TxEngine.CommittedTxs() {
+		for i, tx := range app.txEngine.CommittedTxs() {
 			t := modbtypes.Tx{}
 			copy(t.HashId[:], tx.Hash[:])
 			copy(t.SrcAddr[:], tx.From[:])
@@ -519,12 +517,12 @@ func (app *App) refresh() {
 		app.publishNewBlock(&blk)
 	}
 	//make new
-	app.LastProposer = app.block.Miner
-	app.LastCommitInfo = app.LastCommitInfo[:0]
+	app.lastProposer = app.block.Miner
+	app.lastCommitInfo = app.lastCommitInfo[:0]
 	app.root.SetHeight(app.currHeight + 1)
-	app.Trunk = app.root.GetTrunkStore().(*store.TrunkStore)
-	app.CheckTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
-	app.TxEngine.SetContext(app.GetContext(RunTxMode))
+	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
+	app.txEngine.SetContext(app.GetContext(RunTxMode))
 }
 
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
@@ -586,10 +584,10 @@ func (app *App) Stop() {
 func (app *App) GetContext(mode ContextMode) *types.Context {
 	c := types.NewContext(uint64(app.currHeight), nil, nil)
 	if mode == checkTxMode {
-		r := rabbit.NewRabbitStore(app.CheckTrunk)
+		r := rabbit.NewRabbitStore(app.checkTrunk)
 		c = c.WithRbt(&r)
 	} else if mode == RunTxMode {
-		r := rabbit.NewRabbitStore(app.Trunk)
+		r := rabbit.NewRabbitStore(app.trunk)
 		c = c.WithRbt(&r)
 		c = c.WithDb(app.historyStore)
 	} else if mode == RpcMode {
@@ -637,6 +635,19 @@ func (app *App) ChainID() *uint256.Int {
 	return app.chainId
 }
 
+func (app *App) TestKeys() []string {
+	return app.testKeys
+}
+
+// used by unit tests
+
+func (app *App) CloseTrunk() {
+	app.trunk.Close(true)
+}
+func (app *App) CloseTxEngineContext() {
+	app.txEngine.Context().Close(false)
+}
+
 func (app *App) Logger() log.Logger {
 	return app.logger
 }
@@ -648,8 +659,4 @@ func (app *App) WaitLock() {
 
 func (app *App) TestValidatorPubkey() crypto.PubKey {
 	return app.testValidatorPubKey
-}
-
-func (app *App) TestKeys() []string {
-	return app.testKeys
 }

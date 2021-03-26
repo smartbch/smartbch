@@ -159,8 +159,8 @@ func TestGetTxCount(t *testing.T) {
 	ctx := _app.GetContext(app.RunTxMode)
 	ctx.SetAccount(addr, acc)
 	ctx.Close(true)
-	_app.TxEngine.Context().Close(false)
-	_app.Trunk.Close(true)
+	_app.CloseTxEngineContext()
+	_app.CloseTrunk()
 
 	nonce, err := _api.GetTransactionCount(addr, 0)
 	require.NoError(t, err)
@@ -178,8 +178,8 @@ func TestGetCode(t *testing.T) {
 	code = append(code, 0x12, 0x34)
 	ctx.SetCode(addr, types.NewBytecodeInfo(code))
 	ctx.Close(true)
-	_app.TxEngine.Context().Close(false)
-	_app.Trunk.Close(true)
+	_app.CloseTxEngineContext()
+	_app.CloseTrunk()
 
 	c, err := _api.GetCode(addr, 0)
 	require.NoError(t, err)
@@ -200,8 +200,8 @@ func TestGetStorageAt(t *testing.T) {
 	sKey := strings.Repeat("abcd", 8)
 	ctx.SetStorageAt(seq, sKey, []byte{0x12, 0x34})
 	ctx.Close(true)
-	_app.TxEngine.Context().Close(false)
-	_app.Trunk.Close(true)
+	_app.CloseTxEngineContext()
+	_app.CloseTrunk()
 
 	sVal, err := _api.GetStorageAt(addr, sKey, 0)
 	require.NoError(t, err)

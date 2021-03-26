@@ -19,7 +19,6 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/param"
 )
 
 var _ BackendService = &apiBackend{}
@@ -171,10 +170,6 @@ func (backend *apiBackend) CurrentBlock() (*types.Block, error) {
 		return nil, err
 	}
 	return block, nil
-}
-
-func (backend *apiBackend) ChainConfig() *param.ChainConfig {
-	return backend.app.Config
 }
 
 func (backend *apiBackend) SendTx(signedTx *types.Transaction) error {
