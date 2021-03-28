@@ -212,7 +212,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	}
 	sender, err := app.signer.Sender(tx)
 	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "bad sig"}
+		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender"}
 	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
 	if err != nil {

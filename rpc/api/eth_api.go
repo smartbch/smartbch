@@ -309,6 +309,11 @@ func (api *ethAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 
 // https://eth.wiki/json-rpc/API#eth_sendTransaction
 func (api *ethAPI) SendTransaction(args rpctypes.SendTxArgs) (common.Hash, error) {
+	privKey, found := api.accounts[args.From]
+	if !found {
+		return common.Hash{}, errors.New("unknown account: " + args.From.Hex())
+	}
+
 	if args.Nonce == nil {
 		if nonce, err := api.backend.GetNonce(args.From); err == nil {
 			args.Nonce = (*hexutil.Uint64)(&nonce)
@@ -318,11 +323,6 @@ func (api *ethAPI) SendTransaction(args rpctypes.SendTxArgs) (common.Hash, error
 	tx, err := createGethTxFromSendTxArgs(args)
 	if err != nil {
 		return common.Hash{}, err
-	}
-
-	privKey, found := api.accounts[args.From]
-	if !found {
-		return common.Hash{}, errors.New("private key not found for " + args.From.Hex())
 	}
 
 	chainID := api.backend.ChainId()
