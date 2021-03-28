@@ -172,10 +172,6 @@ func (backend *apiBackend) CurrentBlock() (*types.Block, error) {
 	return block, nil
 }
 
-func (backend *apiBackend) SendTx(signedTx *types.Transaction) error {
-	panic("implement me")
-}
-
 func (backend *apiBackend) SendRawTx(signedTx []byte) (common.Hash, error) {
 	return backend.broadcastTxSync(signedTx)
 }

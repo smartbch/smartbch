@@ -62,7 +62,6 @@ type BackendService interface {
 	//GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header) (*vm.EVM, func() error, error)
 
 	// Transaction pool API
-	SendTx(signedTx *motypes.Transaction) error
 	SendRawTx(signedTx []byte) (common.Hash, error)
 	GetTransaction(txHash common.Hash) (tx *motypes.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error)
 	//GetPoolTransactions() (types.Transactions, error)
