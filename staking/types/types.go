@@ -152,6 +152,9 @@ func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 }
 
 // Get useless validators who have zero voting power and no pending reward entries
+// there has two scenario one validator may be useless:
+// 1. unbound itself with no pending reward
+// 2. inactive validator with no vote power and pending reward in prev epoch, maybe there should have more epoch not one.
 func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 	res := make(map[[20]byte]struct{})
 	for _, val := range si.Validators {

@@ -100,13 +100,8 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, unbon
 		// First argument: rewardTo
 		copy(rewardTo[:], callData[12:])
 		callData = callData[32:]
-		// Second argument: introduction
-		introLen := int(callData[0])
-		if introLen > MaxIntroLength {
-			outData = []byte(ValidatorIntroToolong.Error())
-			return
-		}
-		intro = string(callData[1 : 1+introLen])
+		// Second argument: introduction, byte32, limited to 32 byte
+		intro = string(callData[:32])
 		if create {
 			// Third argument: pubkey (only createValidator has it)
 			callData = callData[32:]
@@ -240,7 +235,7 @@ func incrAllBurnt(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amou
 }
 
 // distribute the collected gas fee to validators who voted for current block
-func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [32]byte, voters [][32]byte) {
+func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
 	// the collected fee is saved as stakingAcc's balance, just as the staked coins
 	stakingAcc, info := LoadStakingAcc(ctx)
 	stakingAccBalance := stakingAcc.Balance()
@@ -278,8 +273,15 @@ func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [3
 		rwdCoins := uint256.NewInt().Mul(collectedFee, uint256.NewInt().SetUint64(uint64(val.VotingPower)))
 		rwdCoins.Div(rwdCoins, uint256.NewInt().SetUint64(uint64(votedPower)))
 		remainedFee.Sub(remainedFee, rwdCoins)
-
 		rwd := rwdMapByAddr[val.Address]
+		if rwd == nil {
+			rwd = &types.PendingReward{
+				Address:  val.Address,
+				EpochNum: info.CurrEpochNum,
+				Amount:   [32]byte{},
+			}
+			info.PendingRewards = append(info.PendingRewards, rwd)
+		}
 		coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
 		coins.Add(coins, rwdCoins)
 		rwd.Amount = coins.Bytes32()
@@ -305,7 +307,7 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) {
 	}
 	stakingAcc, info := endEpoch(ctx)
 	updateVotingPower(&info, pubkey2power)
-	clearUp(ctx, stakingAcc, info)
+	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
 	for _, val := range info.GetValidatorsOnDuty(MinimumStakingAmount) {
 		pr := &types.PendingReward{
@@ -330,6 +332,7 @@ func endEpoch(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info t
 	for _, pr := range info.PendingRewards {
 		if pr.EpochNum >= info.CurrEpochNum-EpochCountBeforeRewardMature {
 			newPRList = append(newPRList, pr) //not mature yet
+			continue
 		}
 		val := valMapByAddr[pr.Address]
 		if _, ok := rewardMap[val.RewardTo]; !ok {
@@ -351,6 +354,7 @@ func endEpoch(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info t
 		ctx.SetAccount(addr, acc)
 	}
 	stakingAcc.UpdateBalance(stakingAccBalance)
+	info.PendingRewards = newPRList
 	return
 }
 
@@ -372,7 +376,7 @@ func updateVotingPower(info *types.StakingInfo, pubkey2power map[[32]byte]int64)
 }
 
 // Remove the useless validators from info and return StakedCoins to them
-func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
+func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo) {
 	uselessValMap := info.GetUselessValidators()
 	valMapByAddr := info.GetValMapByAddr()
 	stakingAccBalance := stakingAcc.Balance()
@@ -387,8 +391,16 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info typ
 		balance := acc.Balance()
 		balance.Add(balance, coins)
 		acc.UpdateBalance(balance)
-		ctx.SetAccount(addr, acc)
+		ctx.SetAccount(val.RewardTo, acc)
+	}
+	//delete useless validator
+	for i, v := range info.Validators {
+		if _, ok := uselessValMap[v.Address]; ok {
+			info.Validators = append(info.Validators[:i], info.Validators[i+1:]...)
+		}
 	}
 	stakingAcc.UpdateBalance(stakingAccBalance)
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
+	//save info out here
+	//SaveStakingInfo(*ctx, stakingAcc, *info)
 }
