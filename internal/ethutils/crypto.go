@@ -18,6 +18,7 @@ func MustHexToPrivKey(key string) *ecdsa.PrivateKey {
 }
 
 func HexToPrivKey(key string) (*ecdsa.PrivateKey, []byte, error) {
+	key = strings.TrimSpace(key)
 	if strings.HasPrefix(key, "0x") {
 		key = key[2:]
 	}

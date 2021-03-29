@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,10 +18,6 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
-)
-
-const (
-	flagOverwrite = "overwrite"
 )
 
 type printInfo struct {
@@ -63,7 +61,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 			}
 			config.Moniker = args[0]
 			genFile := config.GenesisFile()
-			if !viper.GetBool(flagOverwrite) && FileExists(genFile) {
+			if !viper.GetBool(FlagOverwrite) && FileExists(genFile) {
 				return fmt.Errorf("genesis.json file already exists: %v", genFile)
 			}
 			genDoc := &types.GenesisDoc{}
@@ -78,15 +76,11 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 				}
 			}
 			genDoc.ChainID = chainID
-			genData := app.GenesisData{
-				Alloc: testutils.KeysToGenesisAlloc(bigutils.NewU256(1e18), testutils.TestKeys),
-			}
-			appState, err := json.Marshal(genData)
+			genDoc.AppState, err = getAppState()
 			if err != nil {
 				return err
 			}
 
-			genDoc.AppState = appState
 			if err := ExportGenesisFile(genDoc, genFile); err != nil {
 				return err
 			}
@@ -96,7 +90,32 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 		},
 	}
 	cmd.Flags().String(cli.HomeFlag, defaultNodeHome, "node's home directory")
-	cmd.Flags().BoolP(flagOverwrite, "o", false, "overwrite the genesis.json file")
+	cmd.Flags().BoolP(FlagOverwrite, "o", false, "overwrite the genesis.json file")
 	cmd.Flags().String(FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
+	cmd.Flags().String(FlagTestKeys, "", "comma separated list of hex private keys used for test")
+	cmd.Flags().String(FlagInitBal, "1000000000000000000", "initial balance for test accounts")
 	return cmd
+}
+
+func getAppState() ([]byte, error) {
+	testKeysCSV := viper.GetString(FlagTestKeys)
+	initBalance := viper.GetString(FlagInitBal)
+
+	initBal, ok := bigutils.ParseU256(initBalance)
+	if !ok {
+		return nil, errors.New("invalid init balance")
+	}
+
+	testKeys := testutils.TestKeys
+	if testKeysCSV != "" {
+		testKeys = strings.Split(testKeysCSV, ",")
+	}
+
+	alloc := testutils.KeysToGenesisAlloc(initBal, testKeys)
+	genData := app.GenesisData{Alloc: alloc}
+	appState, err := json.Marshal(genData)
+	if err != nil {
+		return nil, err
+	}
+	return appState, nil
 }
