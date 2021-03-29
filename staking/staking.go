@@ -244,7 +244,7 @@ func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [3
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
 
 	totalVotingPower, votedPower := int64(0), int64(0)
-	for _, val := range info.GetValidatorsOnDuty(MinimumStakingAmount) {
+	for _, val := range info.GetActiveValidators(MinimumStakingAmount) {
 		totalVotingPower += val.VotingPower
 	}
 	valMapByPubkey := info.GetValMapByPubkey()
@@ -300,16 +300,21 @@ func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [3
 }
 
 // switch to a new epoch
-func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) {
+func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator {
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.ValMapByPubkey {
 		pubkey2power[v.Pubkey] = v.NominatedCount
 	}
+	// distribute mature pending reward to rewardTo
 	stakingAcc, info := endEpoch(ctx)
+	// someone who call createValidator before switchEpoch can enjoy the voting power update
+	// someone who call unBound() before switchEpoch missed this update
 	updateVotingPower(&info, pubkey2power)
+	// payback staking coins to rewardTo of useless validators and delete these validators
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
-	for _, val := range info.GetValidatorsOnDuty(MinimumStakingAmount) {
+	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	for _, val := range activeValidators{
 		pr := &types.PendingReward{
 			Address:  val.Address,
 			EpochNum: info.CurrEpochNum,
@@ -317,9 +322,10 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) {
 		info.PendingRewards = append(info.PendingRewards, pr)
 	}
 	SaveStakingInfo(*ctx, stakingAcc, info)
+	return activeValidators
 }
 
-// deliver pending rewards which are mature now
+// deliver pending rewards which are mature now to rewardTo
 func endEpoch(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	stakingAcc, info = LoadStakingAcc(*ctx)
 	info.CurrEpochNum++

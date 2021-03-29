@@ -147,7 +147,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
 	_, stakingInfo := staking.LoadStakingAcc(*ctx)
-	app.currValidators = stakingInfo.GetValidatorsOnDuty(staking.MinimumStakingAmount)
+	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
@@ -370,7 +370,8 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
 		if app.block.Timestamp > epoch.EndTime+100*10*60 /*100 * 10min*/ {
 			ctx := app.GetContext(RunTxMode)
-			staking.SwitchEpoch(ctx, epoch)
+			app.currValidators = staking.SwitchEpoch(ctx, epoch)
+			ctx.Close(true)
 		}
 	default:
 		fmt.Println("no new epoch")

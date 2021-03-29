@@ -154,7 +154,9 @@ func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 // Get useless validators who have zero voting power and no pending reward entries
 // there has two scenario one validator may be useless:
 // 1. unbound itself with no pending reward
-// 2. inactive validator with no vote power and pending reward in prev epoch, maybe there should have more epoch not one.
+// 2. inactive validator with no vote power and pending reward in prev epoch,
+//    which may escape slash if it vote nothing after double sign !!!
+//    maybe there should have more epoch not one.
 func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 	res := make(map[[20]byte]struct{})
 	for _, val := range si.Validators {
@@ -190,7 +192,8 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 }
 
 // Returns current validators on duty, who must have enough coins staked and be not in a unbonding process
-func (si *StakingInfo) GetValidatorsOnDuty(minStakedCoins *uint256.Int) []*Validator {
+// only update validator voting power on switchEpoch
+func (si *StakingInfo) GetActiveValidators(minStakedCoins *uint256.Int) []*Validator {
 	res := make([]*Validator, 0, len(si.Validators))
 	for _, val := range si.Validators {
 		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])

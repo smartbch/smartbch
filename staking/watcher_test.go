@@ -1,10 +1,12 @@
 package staking
 
 import (
-	"github.com/smartbch/smartbch/staking/types"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 type MockBCHNode struct {
