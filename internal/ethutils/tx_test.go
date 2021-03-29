@@ -1,4 +1,4 @@
-package ethutils
+package ethutils_test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -21,14 +22,14 @@ func TestTxSig(t *testing.T) {
 	chainIDEpoch := big.NewInt(1)
 
 	tx := types.NewTransaction(123, addr2, big.NewInt(100), 100000, big.NewInt(1), nil)
-	tx = MustSignTx(tx, chainIDEpoch, MustHexToPrivKey(key1))
+	tx = ethutils.MustSignTx(tx, chainIDEpoch, ethutils.MustHexToPrivKey(key1))
 
 	signer := types.NewEIP155Signer(chainIDEpoch)
 	sender, err := signer.Sender(tx)
 	require.NoError(t, err)
 	require.Equal(t, addr1, sender)
 
-	txBytes, err := EncodeTx(tx)
+	txBytes, err := ethutils.EncodeTx(tx)
 	require.NoError(t, err)
 
 	tx2 := &types.Transaction{}

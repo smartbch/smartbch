@@ -2,12 +2,13 @@ package testutils
 
 import (
 	"encoding/hex"
-	"encoding/json"
-	"io/ioutil"
-	"os"
+
+	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/common"
+	gethcore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
 var TestKeys = []string{
@@ -30,35 +31,18 @@ func GenKeyAndAddr() (string, common.Address) {
 	return keyHex, addr
 }
 
-func LoadOrGenKeys(keysFile string) ([]string, error) {
-	keys, err := LoadKeys(keysFile)
-	if err != nil && os.IsNotExist(err) {
-		keys, err = GenKeysAndSaveToFile(keysFile, 10)
+func KeysToGenesisAlloc(balance *uint256.Int, keys []string) gethcore.GenesisAlloc {
+	alloc := gethcore.GenesisAlloc{}
+	for _, hexKey := range keys {
+		privKey, data, err := ethutils.HexToPrivKey(hexKey)
+		if err != nil {
+			panic(err)
+		}
+		addr := ethutils.PrivKeyToAddr(privKey)
+		alloc[addr] = gethcore.GenesisAccount{
+			PrivateKey: data,
+			Balance:    balance.ToBig(),
+		}
 	}
-	return keys, err
-}
-
-func LoadKeys(keysFile string) ([]string, error) {
-	accData, err := ioutil.ReadFile(keysFile)
-	if err != nil {
-		return nil, err
-	}
-
-	var keys []string
-	err = json.Unmarshal(accData, &keys)
-	return keys, err
-}
-
-func GenKeysAndSaveToFile(keysFile string, n int) ([]string, error) {
-	keys := make([]string, n)
-	for i := 0; i < n; i++ {
-		key, _ := crypto.GenerateKey()
-		keys[i] = hex.EncodeToString(crypto.FromECDSA(key))
-	}
-	bytes, err := json.Marshal(keys)
-	if err != nil {
-		return nil, err
-	}
-	err = ioutil.WriteFile(keysFile, bytes, 0644)
-	return keys, err
+	return alloc
 }

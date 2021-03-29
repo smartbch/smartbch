@@ -10,22 +10,23 @@ import (
 )
 
 func MustHexToPrivKey(key string) *ecdsa.PrivateKey {
-	if k, err := HexToPrivKey(key); err == nil {
+	if k, _, err := HexToPrivKey(key); err == nil {
 		return k
 	} else {
 		panic(err)
 	}
 }
 
-func HexToPrivKey(key string) (*ecdsa.PrivateKey, error) {
+func HexToPrivKey(key string) (*ecdsa.PrivateKey, []byte, error) {
 	if strings.HasPrefix(key, "0x") {
 		key = key[2:]
 	}
 	data, err := hex.DecodeString(key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return crypto.ToECDSA(data)
+	privKey, err := crypto.ToECDSA(data)
+	return privKey, data, err
 }
 
 func PrivKeyToAddr(key *ecdsa.PrivateKey) common.Address {

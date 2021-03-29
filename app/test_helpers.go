@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"math/big"
 	"os"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
 )
 
@@ -47,10 +49,15 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *App {
 	params.ModbDataPath = modbDir
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
 	_app := NewApp(params, bigutils.NewU256(1), nopLogger,
-		testValidatorPubKey, keys, testInitAmt)
+		testValidatorPubKey)
 	_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
-	_app.InitChain(abci.RequestInitChain{})
+	genesisData := GenesisData{
+		Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
+	}
+	appStateBytes, _ := json.Marshal(genesisData)
+
+	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		ProposerAddress: _app.testValidatorPubKey.Address(),
 	}})

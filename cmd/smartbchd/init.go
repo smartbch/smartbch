@@ -12,6 +12,10 @@ import (
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 const (
@@ -74,6 +78,15 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 				}
 			}
 			genDoc.ChainID = chainID
+			genData := app.GenesisData{
+				Alloc: testutils.KeysToGenesisAlloc(bigutils.NewU256(1e18), testutils.TestKeys),
+			}
+			appState, err := json.Marshal(genData)
+			if err != nil {
+				return err
+			}
+
+			genDoc.AppState = appState
 			if err := ExportGenesisFile(genDoc, genFile); err != nil {
 				return err
 			}

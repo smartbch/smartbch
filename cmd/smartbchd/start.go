@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/holiman/uint256"
@@ -45,7 +47,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 
 func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	cfg := ctx.Config
-	chainID, err := getChainID(ctx)
+	chainID, testKeys, err := getChainIDAndTestKeys(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +95,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	wsAddr := viper.GetString(flagWsAddr)
 	//rpcAddr = viper.GetString("")
 	rpcServer := rpc.NewServer(rpcAddr, wsAddr,
-		rpcBackend, ctx.Logger, appImpl.TestKeys())
+		rpcBackend, ctx.Logger, testKeys)
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
@@ -111,10 +113,31 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	select {}
 }
 
-func getChainID(ctx *Context) (*uint256.Int, error) {
+func getChainIDAndTestKeys(ctx *Context) (*uint256.Int, []string, error) {
 	gDoc, err := tmtypes.GenesisDocFromFile(ctx.Config.GenesisFile())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return parseChainID(gDoc.ChainID)
+
+	chainID, err := parseChainID(gDoc.ChainID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	gData := app.GenesisData{}
+	if len(gDoc.AppState) > 0 {
+		err = json.Unmarshal(gDoc.AppState, &gData)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	testKeys := make([]string, 0, len(gData.Alloc))
+	for _, acc := range gData.Alloc {
+		if len(acc.PrivateKey) > 0 {
+			testKeys = append(testKeys, hex.EncodeToString(acc.PrivateKey))
+		}
+	}
+
+	return chainID, testKeys, nil
 }

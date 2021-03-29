@@ -9,7 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ethereum/go-ethereum/common"
+	gethcmn "github.com/ethereum/go-ethereum/common"
+	gethcore "github.com/ethereum/go-ethereum/core"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -100,12 +101,10 @@ type App struct {
 
 	//test
 	testValidatorPubKey crypto.PubKey
-	testKeys            []string
-	testInitAmt         *uint256.Int
 }
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
-	testValidatorPubKey crypto.PubKey, testKeys []string, testInitAmt *uint256.Int) *App {
+	testValidatorPubKey crypto.PubKey) *App {
 
 	app := &App{}
 	first := []byte{0, 0, 0, 0, 0, 0, 0, 0}
@@ -154,8 +153,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	}
 	ctx.Close(true)
 	app.testValidatorPubKey = testValidatorPubKey
-	app.testKeys = testKeys
-	app.testInitAmt = testInitAmt
 	return app
 }
 
@@ -231,14 +228,23 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 //TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
-	app.createTestAccs()
 	app.logger.Debug("leave init chain!")
+
+	var genesisValidators []*stakingtypes.Validator
 	if len(req.AppStateBytes) != 0 {
 		fmt.Printf("appstate:%s\n", req.AppStateBytes)
-		err := json.Unmarshal(req.AppStateBytes, &app.currValidators)
+		genesisData := GenesisData{}
+		err := json.Unmarshal(req.AppStateBytes, &genesisData)
 		if err != nil {
 			panic(err)
 		}
+
+		app.createGenesisAccs(genesisData.Alloc)
+		genesisValidators = genesisData.Validators
+	}
+
+	if len(genesisValidators) != 0 {
+		app.currValidators = genesisValidators
 		ctx := app.GetContext(RunTxMode)
 		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 		if stakingAcc == nil {
@@ -296,24 +302,20 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	}
 }
 
-func (app *App) createTestAccs() {
-	if len(app.testKeys) == 0 {
+func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
+	if len(alloc) == 0 {
 		return
 	}
 
 	rbt := rabbit.NewRabbitStore(app.trunk)
-	amt := app.testInitAmt
 
-	for _, keyHex := range app.testKeys {
-		if key, err := ethutils.HexToPrivKey(keyHex); err == nil {
-			addr := ethutils.PrivKeyToAddr(key)
-			k := types.GetAccountKey(addr)
-			v := types.ZeroAccountInfo()
-			v.UpdateBalance(amt)
-			rbt.Set(k, v.Bytes())
-
-			app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
-		}
+	for addr, acc := range alloc {
+		amt, _ := uint256.FromBig(acc.Balance)
+		k := types.GetAccountKey(addr)
+		v := types.ZeroAccountInfo()
+		v.UpdateBalance(amt)
+		rbt.Set(k, v.Bytes())
+		app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
 	}
 
 	rbt.Close()
@@ -603,7 +605,7 @@ func (app *App) GetContext(mode ContextMode) *types.Context {
 	return c
 }
 
-func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender common.Address, estimateGas bool) (*ebp.TxRunner, int64) {
+func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool) (*ebp.TxRunner, int64) {
 	txToRun := &types.TxToRun{}
 	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
 	ctx := app.GetContext(RpcMode)
@@ -633,10 +635,6 @@ func (app *App) GetLatestBlockNum() int64 {
 
 func (app *App) ChainID() *uint256.Int {
 	return app.chainId
-}
-
-func (app *App) TestKeys() []string {
-	return app.testKeys
 }
 
 // used by unit tests

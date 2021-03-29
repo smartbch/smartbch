@@ -78,7 +78,7 @@ func newEthAPI(backend sbchapi.BackendService, testKeys []string, logger log.Log
 func loadTestAccounts(testKeys []string, logger log.Logger) map[common.Address]*ecdsa.PrivateKey {
 	accs := make(map[common.Address]*ecdsa.PrivateKey, len(testKeys))
 	for _, testKey := range testKeys {
-		if key, err := ethutils.HexToPrivKey(testKey); err == nil {
+		if key, _, err := ethutils.HexToPrivKey(testKey); err == nil {
 			addr := crypto.PubkeyToAddress(key.PublicKey)
 			accs[addr] = key
 		} else {

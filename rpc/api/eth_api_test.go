@@ -96,7 +96,7 @@ func TestAccounts(t *testing.T) {
 
 	_app := app.CreateTestApp(key1, key2)
 	defer app.DestroyTestApp(_app)
-	_api := createEthAPI(_app)
+	_api := createEthAPI(_app, key1, key2)
 
 	addrs, err := _api.Accounts()
 	require.NoError(t, err)
@@ -506,9 +506,9 @@ func TestEstimateGas(t *testing.T) {
 	require.Equal(t, 96908, int(ret))
 }
 
-func createEthAPI(_app *app.App) *ethAPI {
+func createEthAPI(_app *app.App, testKeys ...string) *ethAPI {
 	backend := api.NewBackend(nil, _app)
-	return newEthAPI(backend, _app.TestKeys(), _app.Logger())
+	return newEthAPI(backend, testKeys, _app.Logger())
 }
 
 func newMdbBlock(hash gethcmn.Hash, height int64,
