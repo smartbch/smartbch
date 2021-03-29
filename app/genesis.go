@@ -7,6 +7,6 @@ import (
 )
 
 type GenesisData struct {
-	Validators []*stakingtypes.Validator `json:validators`
+	Validators []*stakingtypes.Validator `json:"validators"`
 	Alloc      gethcore.GenesisAlloc     `json:"alloc"`
 }

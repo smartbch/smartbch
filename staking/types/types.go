@@ -71,7 +71,7 @@ type Validator struct {
 type PendingReward struct {
 	Address  [20]byte `msgp:"address"`   // Validator's operator address in moeing chain
 	EpochNum int64    `msgp:"epoch_num"` // During which epoch were the rewards got?
-	Amount   [32]byte `msgp:"amount"`     // amount of rewards
+	Amount   [32]byte `msgp:"amount"`    // amount of rewards
 }
 
 var (
