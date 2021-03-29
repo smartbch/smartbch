@@ -68,7 +68,7 @@ func buildEditValCallEntry(sender common.Address, rewardTo byte, introduction by
 	return c
 }
 
-func buildUnboundValCallEntry(sender common.Address) *callEntry {
+func buildRetireValCallEntry(sender common.Address) *callEntry {
 	c := &callEntry{
 		Address: staking.StakingContractAddress,
 		Tx:      nil,
@@ -79,10 +79,10 @@ func buildUnboundValCallEntry(sender common.Address) *callEntry {
 			To:   c.Address,
 		},
 	}
-	// unbound()
+	// retire()
 	// data: (4B selector)
 	c.Tx.Data = make([]byte, 0, 100)
-	c.Tx.Data = append(c.Tx.Data, staking.SelectorUnbond[:]...)
+	c.Tx.Data = append(c.Tx.Data, staking.SelectorRetire[:]...)
 	return c
 }
 
@@ -122,11 +122,11 @@ func TestStaking(t *testing.T) {
 	require.Equal(t, 12, int(info.Validators[1].Introduction[0]))
 	require.Equal(t, 200, int(info.Validators[1].StakedCoins[31]))
 
-	// test unbound validator
-	c = buildUnboundValCallEntry(sender)
+	// test retire validator
+	c = buildRetireValCallEntry(sender)
 	e.Execute(*ctx, nil, c.Tx)
 	_, info = staking.LoadStakingAcc(*ctx)
-	require.True(t, info.Validators[1].IsUnbonding)
+	require.True(t, info.Validators[1].IsRetiring)
 }
 
 func TestSwitchEpoch(t *testing.T) {
@@ -159,8 +159,8 @@ func TestSwitchEpoch(t *testing.T) {
 	require.True(t, bytes.Equal(sender.Bytes(), info.Validators[1].Address[:]))
 	acc := ctx.GetAccount(sender)
 	require.Equal(t, uint64(9999900), acc.Balance().Uint64())
-	//unbound it for clear
-	c = buildUnboundValCallEntry(sender)
+	//retire it for clear
+	c = buildRetireValCallEntry(sender)
 	exe.Execute(*ctx, nil, c.Tx)
 	//test distribute
 	info.Validators[0].VotingPower = 1
@@ -183,7 +183,7 @@ func TestSwitchEpoch(t *testing.T) {
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	require.Equal(t, uint64(10000 /*pending reward not transfer to validator as of EpochCountBeforeRewardMature*/), stakingAcc.Balance().Uint64())
 	acc = ctx.GetAccount(sender)
-	//if validator unBound in current epoch,
+	//if validator retire in current epoch,
 	//he can only exit on next epoch when there has no pending reward on his address,
 	//otherwise exit on next next epoch, and staking coins return back to rewardTo acc
 	require.Equal(t, uint64(9999900), acc.Balance().Uint64())

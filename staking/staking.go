@@ -22,9 +22,17 @@ var (
 		uint256.NewInt().SetUint64(800),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
 
-	SelectorCreateValidator [4]byte = [4]byte{0, 0, 0, 1} //TODO
-	SelectorEditValidator   [4]byte = [4]byte{0, 0, 0, 2} //TODO
-	SelectorUnbond          [4]byte = [4]byte{0, 0, 0, 3} //TODO
+	/*interface Staking {
+	    //0x24d1ed5d
+	    function createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey) external;
+	    //0x9dc159b6
+	    function editValidator(address rewardTo, bytes32 introduction) external;
+	    //0xa4874d77
+	    function retire() external;
+	}*/
+	SelectorCreateValidator [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
+	SelectorEditValidator   [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
+	SelectorRetire          [4]byte = [4]byte{0xa4, 0x87, 0x4d, 0x77}
 
 	SlotStakingInfo string = strings.Repeat(string([]byte{0}), 32)
 	SlotAllBurnt    string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
@@ -75,8 +83,8 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 	} else if bytes.Equal(selector, SelectorEditValidator[:]) {
 		//editValidator(address rewardTo, bytes32 introduction)
 		return externalOp(ctx, tx, false, false)
-	} else if bytes.Equal(selector, SelectorUnbond[:]) {
-		//unbound()
+	} else if bytes.Equal(selector, SelectorRetire[:]) {
+		//retire()
 		return externalOp(ctx, tx, false, true)
 	} else {
 		status = int(mevmtypes.ReceiptStatusFailed)
@@ -84,14 +92,14 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 	return
 }
 
-// This function implements the underlying logic for three external functions: createValidator, editValidator and unbond
-func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, unbond bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+// This function implements the underlying logic for three external functions: createValidator, editValidator and retire
+func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retire bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = int(mevmtypes.ReceiptStatusFailed)
 	gasUsed = GasOfStakingExternalOp
 	var pubkey [32]byte
 	var intro string
 	var rewardTo [20]byte
-	if !unbond { // unbond has no arguments
+	if !retire { // retire has no arguments
 		callData := tx.Data[4:]
 		if !((create && len(callData) >= 96) || (!create && len(callData) >= 64)) {
 			outData = []byte(InvalidCallData.Error())
@@ -125,7 +133,7 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, unbon
 			outData = []byte(err.Error())
 			return
 		}
-	} else { // unbond or editValidator
+	} else { // retire or editValidator
 		val := info.GetValidatorByAddr(tx.From)
 		if val == nil {
 			outData = []byte(NoSuchValidator.Error())
@@ -143,8 +151,8 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, unbon
 			stakedCoins.Add(stakedCoins, coins4staking)
 			val.StakedCoins = stakedCoins.Bytes32()
 		}
-		if unbond {
-			val.IsUnbonding = true
+		if retire {
+			val.IsRetiring = true
 		}
 	}
 
@@ -308,13 +316,13 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	// distribute mature pending reward to rewardTo
 	stakingAcc, info := endEpoch(ctx)
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
-	// someone who call unBound() before switchEpoch missed this update
+	// someone who call retire() before switchEpoch missed this update
 	updateVotingPower(&info, pubkey2power)
 	// payback staking coins to rewardTo of useless validators and delete these validators
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	for _, val := range activeValidators{
+	for _, val := range activeValidators {
 		pr := &types.PendingReward{
 			Address:  val.Address,
 			EpochNum: info.CurrEpochNum,
@@ -372,7 +380,7 @@ func updateVotingPower(info *types.StakingInfo, pubkey2power map[[32]byte]int64)
 	valMapByPubkey := info.GetValMapByPubkey()
 	for pubkey, power := range pubkey2power {
 		val, ok := valMapByPubkey[pubkey]
-		if !ok || val.IsUnbonding {
+		if !ok || val.IsRetiring {
 			continue
 		}
 		if uint256.NewInt().SetBytes32(val.StakedCoins[:]).Cmp(MinimumStakingAmount) >= 0 {

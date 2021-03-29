@@ -61,17 +61,17 @@ type Validator struct {
 	Address      [20]byte `msgp:"address"`   // Validator's address in moeing chain
 	Pubkey       [32]byte `msgp:"pubkey"`    // Validator's pubkey for tendermint
 	RewardTo     [20]byte `msgp:"reward_to"` // where validator's reward goes into
-	VotingPower  int64    `msgp:"votingpower"`
+	VotingPower  int64    `msgp:"voting_power"`
 	Introduction string   `msgp:"introduction"` // a short introduction
 	StakedCoins  [32]byte `msgp:"staked_coins"`
-	IsUnbonding  bool     `msgp:"is_unbonding"` // whether this validator is in a unbonding process
+	IsRetiring   bool     `msgp:"is_retiring"` // whether this validator is in a retiring process
 }
 
 // Because EpochCountBeforeRewardMature >= 1, some rewards will be pending for a while before mature
 type PendingReward struct {
 	Address  [20]byte `msgp:"address"`   // Validator's operator address in moeing chain
 	EpochNum int64    `msgp:"epoch_num"` // During which epoch were the rewards got?
-	Amount   [32]byte `msgp:"coins"`     // amount of rewards
+	Amount   [32]byte `msgp:"amount"`     // amount of rewards
 }
 
 var (
@@ -125,7 +125,7 @@ func (si *StakingInfo) AddValidator(addr [20]byte, pubkey [32]byte, intro string
 		VotingPower:  0,
 		Introduction: intro,
 		StakedCoins:  stakedCoins,
-		IsUnbonding:  false,
+		IsRetiring:   false,
 	}
 	si.Validators = append(si.Validators, val)
 	return nil
@@ -153,7 +153,7 @@ func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 
 // Get useless validators who have zero voting power and no pending reward entries
 // there has two scenario one validator may be useless:
-// 1. unbound itself with no pending reward
+// 1. retire itself with no pending reward
 // 2. inactive validator with no vote power and pending reward in prev epoch,
 //    which may escape slash if it vote nothing after double sign !!!
 //    maybe there should have more epoch not one.
@@ -191,13 +191,13 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 	return totalCleared
 }
 
-// Returns current validators on duty, who must have enough coins staked and be not in a unbonding process
+// Returns current validators on duty, who must have enough coins staked and be not in a retiring process
 // only update validator voting power on switchEpoch
 func (si *StakingInfo) GetActiveValidators(minStakedCoins *uint256.Int) []*Validator {
 	res := make([]*Validator, 0, len(si.Validators))
 	for _, val := range si.Validators {
 		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
-		if coins.Cmp(minStakedCoins) >= 0 && !val.IsUnbonding && val.VotingPower > 0 {
+		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
 			res = append(res, val)
 		}
 	}
