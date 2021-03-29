@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -14,13 +15,13 @@ import (
 	"github.com/smartbch/smartbch/staking"
 )
 
-type BlockInfoList []*staking.BlockInfo
-type TxInfoList []*staking.TxInfo
+type BlockInfoRespList []*staking.BlockInfoResp
+type TxInfoRespList []*staking.TxInfoResp
 
 var Blockcount int64
 var BlockHeight2Hash map[int64]string
-var BlockHash2Content map[string]*staking.BlockInfo
-var TxHash2Content map[string]*staking.TxInfo
+var BlockHash2Content map[string]*staking.BlockInfoResp
+var TxHash2Content map[string]*staking.TxInfoResp
 
 type BlockcountService struct{}
 
@@ -47,7 +48,7 @@ func (_ *BlockService) Call(r *http.Request, args *string, result *staking.Block
 	if !ok {
 		return errors.New("No such block hash")
 	}
-	*result = *info
+	*result = info.Result
 	return nil
 }
 
@@ -58,7 +59,7 @@ func (_ *TxService) Call(r *http.Request, args *string, result *staking.TxInfo) 
 	if !ok {
 		return errors.New("No such tx hash")
 	}
-	*result = *info
+	*result = info.Result
 	return nil
 }
 
@@ -77,33 +78,39 @@ func readBytes(fname string) []byte {
 
 func readBlockInfoList() {
 	byteValue := readBytes("block.json")
-	var biList BlockInfoList
+	var biList BlockInfoRespList
 	err := json.Unmarshal(byteValue, &biList)
 	if err != nil {
 		panic(err)
 	}
 	for _, bi := range biList {
-		if Blockcount < bi.Height {
-			Blockcount = bi.Height
+		if Blockcount < bi.Result.Height {
+			Blockcount = bi.Result.Height
 		}
-		BlockHeight2Hash[bi.Height] = bi.Hash
-		BlockHash2Content[bi.Hash] = bi
+		BlockHeight2Hash[bi.Result.Height] = bi.Result.Hash
+		BlockHash2Content[bi.Result.Hash] = bi
 	}
 }
 
 func readTxInfoList() {
 	byteValue := readBytes("tx.json")
-	var txList TxInfoList
+	var txList TxInfoRespList
 	err := json.Unmarshal(byteValue, &txList)
 	if err != nil {
 		panic(err)
 	}
 	for _, tx := range txList {
-		TxHash2Content[tx.Hash] = tx
+		TxHash2Content[tx.Result.Hash] = tx
 	}
 }
 
 func main() {
+	BlockHeight2Hash = make(map[int64]string)
+	BlockHash2Content = make(map[string]*staking.BlockInfoResp)
+	TxHash2Content = make(map[string]*staking.TxInfoResp)
+	readBlockInfoList()
+	readTxInfoList()
+	fmt.Println("Load finished")
 	s := rpc.NewServer()
 	s.RegisterCodec(rpcjson.NewCodec(), "text/plain")
 	s.RegisterService(new(BlockcountService), "getblockcount")

@@ -245,6 +245,7 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Printf("BLOCK %s\n", string(respData))
 	var blockInfoResp BlockInfoResp
 	err = json.Unmarshal(respData, &blockInfoResp)
 	if err != nil {
@@ -258,6 +259,7 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Printf("TX %s\n", string(respData))
 	var txInfoResp TxInfoResp
 	err = json.Unmarshal(respData, &txInfoResp)
 	if err != nil {
