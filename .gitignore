@@ -26,3 +26,4 @@ rpc/api/testdbdata
 
 node_modules/
 staking/showopreturn/showopreturn
+staking/mocknode/mocknode

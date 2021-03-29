@@ -4,6 +4,8 @@ go 1.15
 
 require (
 	github.com/ethereum/go-ethereum v1.9.25
+	github.com/gorilla/mux v1.7.3
+	github.com/gorilla/rpc v1.2.0
 	github.com/holiman/uint256 v1.1.1
 	github.com/klauspost/cpuid/v2 v2.0.5 // indirect
 	github.com/smartbch/moeingads v0.0.0-20210320012728-ec462c5fe727
