@@ -1,10 +1,10 @@
 package main
 
 import (
-	"errors"
 	"encoding/json"
-	"net/http"
+	"errors"
 	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
@@ -114,4 +114,3 @@ func main() {
 	r.Handle("/", s)
 	http.ListenAndServe(":1234", r)
 }
-
