@@ -560,19 +560,19 @@ func collectAllGethLogs(mdbBlock *modbtypes.Block) []*gethtypes.Log {
 }
 
 func (app *App) ListSnapshots(snapshots abcitypes.RequestListSnapshots) abcitypes.ResponseListSnapshots {
-	panic("implement me")
+	return abcitypes.ResponseListSnapshots{}
 }
 
 func (app *App) OfferSnapshot(snapshot abcitypes.RequestOfferSnapshot) abcitypes.ResponseOfferSnapshot {
-	panic("implement me")
+	return abcitypes.ResponseOfferSnapshot{}
 }
 
 func (app *App) LoadSnapshotChunk(chunk abcitypes.RequestLoadSnapshotChunk) abcitypes.ResponseLoadSnapshotChunk {
-	panic("implement me")
+	return abcitypes.ResponseLoadSnapshotChunk{}
 }
 
 func (app *App) ApplySnapshotChunk(chunk abcitypes.RequestApplySnapshotChunk) abcitypes.ResponseApplySnapshotChunk {
-	panic("implement me")
+	return abcitypes.ResponseApplySnapshotChunk{}
 }
 
 func (app *App) Stop() {
