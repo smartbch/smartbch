@@ -44,9 +44,9 @@ var (
 	BaseProposerPercentage  *uint256.Int = uint256.NewInt().SetUint64(15)
 	ExtraProposerPercentage *uint256.Int = uint256.NewInt().SetUint64(15)
 
-	InvalidCallData       = errors.New("Invalid call data")
-	BalanceNotEnough      = errors.New("Balance is not enough")
-	NoSuchValidator       = errors.New("No such validator")
+	InvalidCallData  = errors.New("Invalid call data")
+	BalanceNotEnough = errors.New("Balance is not enough")
+	NoSuchValidator  = errors.New("No such validator")
 )
 
 type StakingContractExecutor struct{}
@@ -123,7 +123,7 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retir
 	stakingAcc, info := LoadStakingAcc(ctx)
 
 	if create { //createValidator
-		if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <=0 {
+		if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
 			outData = []byte(types.CreateValidatorCoinLtInitAmount.Error())
 			return
 		}

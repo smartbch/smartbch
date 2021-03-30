@@ -76,8 +76,8 @@ type PendingReward struct {
 
 var (
 	CreateValidatorCoinLtInitAmount = errors.New("Validator's staking coin less than init amount")
-	ValidatorAddressAlreadyExists = errors.New("Validator's address already exists")
-	ValidatorPubkeyAlreadyExists  = errors.New("Validator's pubkey already exists")
+	ValidatorAddressAlreadyExists   = errors.New("Validator's address already exists")
+	ValidatorPubkeyAlreadyExists    = errors.New("Validator's pubkey already exists")
 )
 
 // Change si.Validators into a map with pubkeys as keys
