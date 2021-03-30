@@ -44,14 +44,9 @@ var (
 	BaseProposerPercentage  *uint256.Int = uint256.NewInt().SetUint64(15)
 	ExtraProposerPercentage *uint256.Int = uint256.NewInt().SetUint64(15)
 
-	ValidatorIntroToolong = errors.New("Validator's introduction is too long")
 	InvalidCallData       = errors.New("Invalid call data")
 	BalanceNotEnough      = errors.New("Balance is not enough")
 	NoSuchValidator       = errors.New("No such validator")
-)
-
-const (
-	MaxIntroLength int = 31
 )
 
 type StakingContractExecutor struct{}
@@ -128,6 +123,10 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retir
 	stakingAcc, info := LoadStakingAcc(ctx)
 
 	if create { //createValidator
+		if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <=0 {
+			outData = []byte(types.CreateValidatorCoinLtInitAmount.Error())
+			return
+		}
 		err := info.AddValidator(tx.From, pubkey, intro, tx.Value, rewardTo)
 		if err != nil {
 			outData = []byte(err.Error())
@@ -298,6 +297,14 @@ func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [3
 	//distribute to the proposer
 	proposerVal := valMapByPubkey[proposer]
 	rwd := rwdMapByAddr[proposerVal.Address]
+	if rwd == nil {
+		rwd = &types.PendingReward{
+			Address:  proposerVal.Address,
+			EpochNum: info.CurrEpochNum,
+			Amount:   [32]byte{},
+		}
+		info.PendingRewards = append(info.PendingRewards, rwd)
+	}
 	coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
 	coins.Add(coins, proposerBaseFee)
 	coins.Add(coins, proposerExtraFee)

@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bytes"
+	"time"
 
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
@@ -20,6 +21,7 @@ func ExecTxInBlock(_app App, height int64, tx *gethtypes.Transaction) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
+			Time:            time.Now(),
 			ProposerAddress: _app.TestValidatorPubkey().Address(),
 		},
 	})

@@ -90,10 +90,12 @@ func TestStaking(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
 	defer app.DestroyTestApp(_app)
-
 	ctx := _app.GetContext(app.RunTxMode)
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
+
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+
 	// test create validator
 	c := buildCreateValCallEntry(sender, 101, 11, 1)
 	require.True(t, e.IsSystemContract(c.Address))
@@ -134,6 +136,7 @@ func TestSwitchEpoch(t *testing.T) {
 	//key, addr1 := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
 	defer app.DestroyTestApp(_app)
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
 	ctx := _app.GetContext(app.RunTxMode)
 	//build new epoch
 	e := &types2.Epoch{

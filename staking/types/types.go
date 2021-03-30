@@ -13,7 +13,7 @@ import (
 var MaxActiveValidatorNum = 30
 
 // Currently the first Vout in a coinbase transaction can nominate one validator with one vote
-// In the future it maybe extented to nominate multiple validators with different weights
+// In the future it maybe extend to nominate multiple validators with different weights
 type Nomination struct {
 	Pubkey         [32]byte // The validator's ED25519 pubkey used in tendermint
 	NominatedCount int64
@@ -75,6 +75,7 @@ type PendingReward struct {
 }
 
 var (
+	CreateValidatorCoinLtInitAmount = errors.New("Validator's staking coin less than init amount")
 	ValidatorAddressAlreadyExists = errors.New("Validator's address already exists")
 	ValidatorPubkeyAlreadyExists  = errors.New("Validator's pubkey already exists")
 )

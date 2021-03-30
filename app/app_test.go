@@ -1,8 +1,11 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/smartbch/smartbch/staking"
+	"github.com/smartbch/smartbch/staking/types"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -197,6 +200,67 @@ func TestJson(t *testing.T) {
 	v := Val{}
 	err := json.Unmarshal(bz, &v.Validators)
 	fmt.Println(v, err)
+}
+
+func TestStaking(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, _ := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(key1, key2)
+	defer DestroyTestApp(_app)
+
+	//config test param
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(1)
+	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
+
+	//test create validator through deliver tx
+	var data [100]byte
+	copy(data[:4], staking.SelectorCreateValidator[:])
+	data[35] = 1 //rewardTo: address(1)
+	data[67] = 2 //introduction: 2
+	data[99] = 1 //pubkey: 1
+	tx := gethtypes.NewTransaction(0, staking.StakingContractAddress, big.NewInt(100), 0, big.NewInt(1), data[:])
+	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	testutils.ExecTxInBlock(_app, 1, tx)
+	time.Sleep(50 * time.Millisecond)
+	ctx := _app.GetContext(RunTxMode)
+	stakingAcc, info := staking.LoadStakingAcc(*ctx)
+	ctx.Close(false)
+	require.Equal(t, uint64(100), stakingAcc.Balance().Uint64())
+	require.Equal(t, 2, len(info.Validators))
+	require.True(t, bytes.Equal(addr1[:], info.Validators[1].Address[:]))
+	require.Equal(t, uint8(1), info.Validators[1].Pubkey[31])
+	require.Equal(t, uint64(100), uint256.NewInt().SetBytes(info.Validators[1].StakedCoins[:]).Uint64())
+
+	//test edit validator
+	copy(data[:4], staking.SelectorEditValidator[:])
+	data[67] = 3 //change introduction
+	tx = gethtypes.NewTransaction(1, staking.StakingContractAddress, big.NewInt(0), 0, big.NewInt(1), data[:])
+	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	testutils.ExecTxInBlock(_app, 3, tx)
+	time.Sleep(50 * time.Millisecond)
+	ctx = _app.GetContext(RunTxMode)
+	stakingAcc, info = staking.LoadStakingAcc(*ctx)
+	ctx.Close(false)
+	require.Equal(t, 2, len(info.Validators))
+	require.Equal(t, uint8(3), info.Validators[1].Introduction[31])
+
+	// test switchEpoch
+	e := &types.Epoch{
+		ValMapByPubkey: make(map[[32]byte]*types.Nomination),
+	}
+	var pubkey [32]byte
+	copy(pubkey[:], _app.testValidatorPubKey.Bytes())
+	e.ValMapByPubkey[pubkey] = &types.Nomination{
+		Pubkey:         pubkey,
+		NominatedCount: 2,
+	}
+	_app.watcher.EpochChan <- e
+	testutils.ExecTxInBlock(_app, 5, nil)
+	ctx = _app.GetContext(RunTxMode)
+	stakingAcc, info = staking.LoadStakingAcc(*ctx)
+	ctx.Close(false)
+	require.Equal(t, 1, len(info.Validators))
+	require.Equal(t, int64(2), info.Validators[0].VotingPower)
 }
 
 func execRandomTxs(_app *App, txLists [][]*gethtypes.Transaction, from1, from2 common.Address) []uint64 {
