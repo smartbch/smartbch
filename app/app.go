@@ -79,6 +79,8 @@ type App struct {
 	blockInfo      atomic.Value // to store *types.BlockInfo
 	lastCommitInfo [][]byte
 	lastProposer   [20]byte
+	lastGasUsed    uint64
+	lastGasFee     uint256.Int
 
 	// feeds
 	chainFeed event.Feed
@@ -374,7 +376,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			ctx.Close(true)
 		}
 	default:
-		fmt.Println("no new epoch")
+		//fmt.Println("no new epoch")
 	}
 	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	if len(app.currValidators) != 0 {
@@ -416,7 +418,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		copy(tmpAddr[:], c)
 		voters[i] = pubkeyMapByAddr[tmpAddr]
 	}
-	staking.DistributeFee(*ctx, uint256.NewInt() /*todo: get collectedFee*/, pubkeyMapByAddr[app.lastProposer], voters)
+	staking.DistributeFee(*ctx, &app.lastGasFee, pubkeyMapByAddr[app.lastProposer], voters)
 	ctx.Close(true)
 
 	app.txEngine.Prepare()
@@ -445,6 +447,7 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("enter post commit!")
 	defer app.mtx.Unlock()
 	app.txEngine.Execute(bi)
+	app.lastGasUsed, app.lastGasFee = app.txEngine.GasUsedInfo()
 	app.logger.Debug("leave post commit!")
 }
 
@@ -456,27 +459,17 @@ func (app *App) refresh() {
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
 	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
-	ctx.SetCurrValidators(app.validators)
 	ctx.Close(true)
 	app.trunk.Close(true)
 
 	appHash := app.root.GetRootHash()
 	copy(app.block.StateRoot[:], appHash)
 
-	//todo: store current block here in root.db directly
-	//app.root.Set([]byte{types.CURR_BLOCK_KEY}, app.block.SerializeBasicInfo())
-	//ctx := app.GetContext(RunTxMode)
-	//ctx.SetCurrBlockBasicInfo(app.block)
-	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
-	//ctx.Close(true)
-	//app.trunk.Close(true)
-
-	//write back current commit infos to history store
-
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
+		prevBlkInfo.GasUsed = app.lastGasUsed
 		blk := modbtypes.Block{
 			Height: prevBlkInfo.Number,
 		}

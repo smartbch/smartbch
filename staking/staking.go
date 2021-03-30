@@ -243,6 +243,10 @@ func incrAllBurnt(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amou
 
 // distribute the collected gas fee to validators who voted for current block
 func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
+	if collectedFee == nil {
+		return
+	}
+
 	// the collected fee is saved as stakingAcc's balance, just as the staked coins
 	stakingAcc, info := LoadStakingAcc(ctx)
 	stakingAccBalance := stakingAcc.Balance()

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/smartbch/smartbch/staking"
-	"github.com/smartbch/smartbch/staking/types"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -23,6 +21,8 @@ import (
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/staking"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 //func TestMain(m *testing.M) {
@@ -225,7 +225,7 @@ func TestStaking(t *testing.T) {
 	ctx := _app.GetContext(RunTxMode)
 	stakingAcc, info := staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
-	require.Equal(t, uint64(100), stakingAcc.Balance().Uint64())
+	require.Equal(t, uint64(100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/), stakingAcc.Balance().Uint64())
 	require.Equal(t, 2, len(info.Validators))
 	require.True(t, bytes.Equal(addr1[:], info.Validators[1].Address[:]))
 	require.Equal(t, uint8(1), info.Validators[1].Pubkey[31])
