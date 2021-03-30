@@ -21,7 +21,7 @@ import (
 type AppCreator func(logger log.Logger, chainId *uint256.Int) abci.Application
 
 func main() {
-	rootCmd := createMoeingdCmd()
+	rootCmd := createSmartbchdCmd()
 	executor := cli.PrepareBaseCmd(rootCmd, "GA", app.DefaultNodeHome)
 	err := executor.Execute()
 	if err != nil {
@@ -30,7 +30,7 @@ func main() {
 	}
 }
 
-func createMoeingdCmd() *cobra.Command {
+func createSmartbchdCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 	ctx := NewDefaultContext()
 	rootCmd := &cobra.Command{
@@ -45,7 +45,8 @@ func createMoeingdCmd() *cobra.Command {
 
 func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
 	initCmd := InitCmd(ctx, app.DefaultNodeHome)
-	rootCmd.AddCommand(initCmd)
+	genTestKeysCmd := GenTestKeysCmd(ctx)
+	rootCmd.AddCommand(initCmd, genTestKeysCmd)
 }
 
 func newApp(logger log.Logger, chainId *uint256.Int) abci.Application {
@@ -60,7 +61,6 @@ func newApp(logger log.Logger, chainId *uint256.Int) abci.Application {
 	}
 	bz, _ := json.Marshal(testValidators)
 	fmt.Printf("testValidator:%s\n", bz)
-	//initAmt.Mul(initAmt, bigutils.NewU256(500))
 	cetChainApp := app.NewApp(param.DefaultConfig(), chainId, logger,
 		pv.Key.PubKey)
 	return cetChainApp

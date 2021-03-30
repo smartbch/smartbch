@@ -106,7 +106,7 @@ func getAppState() ([]byte, error) {
 		return nil, errors.New("invalid init balance")
 	}
 
-	testKeys := testutils.TestKeys
+	var testKeys []string
 	if testKeysCSV != "" {
 		testKeys = strings.Split(testKeysCSV, ",")
 	}
