@@ -2,8 +2,9 @@ package staking
 
 import (
 	"fmt"
-	"github.com/smartbch/smartbch/staking/types"
 	"time"
+
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 var (
