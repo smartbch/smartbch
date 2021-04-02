@@ -130,7 +130,8 @@ func (api *ethAPI) GasPrice() *hexutil.Big {
 
 // https://eth.wiki/json-rpc/API#eth_getBalance
 func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Big, error) {
-	b, err := api.backend.GetBalance(addr, int64(blockNum))
+	// ignore blockNumber temporary
+	b, err := api.backend.GetBalance(addr, int64(gethrpc.LatestBlockNumber))
 	if err != nil {
 		return nil, err
 	}
@@ -139,13 +140,15 @@ func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber)
 
 // https://eth.wiki/json-rpc/API#eth_getCode
 func (api *ethAPI) GetCode(addr common.Address, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
+	// ignore blockNumber temporary
 	code, _ := api.backend.GetCode(addr)
 	return code, nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getStorageAt
 func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
-	return api.backend.GetStorageAt(addr, key, uint64(blockNum)), nil
+	// ignore blockNumber temporary
+	return api.backend.GetStorageAt(addr, key, int64(gethrpc.LatestBlockNumber)), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByHash

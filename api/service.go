@@ -88,7 +88,7 @@ type BackendService interface {
 	GetNonce(address common.Address) (uint64, error)
 	GetBalance(address common.Address, height int64) (*big.Int, error)
 	GetCode(contract common.Address) (bytecode []byte, codeHash []byte)
-	GetStorageAt(address common.Address, key string, blockNumber uint64) []byte
+	GetStorageAt(address common.Address, key string, blockNumber int64) []byte
 	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
 	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)

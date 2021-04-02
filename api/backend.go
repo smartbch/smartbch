@@ -55,7 +55,7 @@ func (backend *apiBackend) ChainId() *big.Int {
 	return backend.app.ChainID().ToBig()
 }
 
-func (backend *apiBackend) GetStorageAt(address common.Address, key string, blockNumber uint64) []byte {
+func (backend *apiBackend) GetStorageAt(address common.Address, key string, blockNumber int64) []byte {
 	ctx := backend.app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 
@@ -63,7 +63,7 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string, bloc
 	if acc == nil {
 		return nil
 	}
-	if blockNumber == 0 {
+	if blockNumber == int64(rpc.LatestBlockNumber) {
 		return ctx.GetStorageAt(acc.Sequence(), key)
 	}
 	return nil
