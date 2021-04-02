@@ -23,7 +23,7 @@ func TestDeployContract(t *testing.T) {
 	_app := CreateTestApp(key)
 	defer DestroyTestApp(_app)
 
-	// testdata/test05_counter
+	// see testdata/counter/contracts/Counter.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060cc8061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060325760003560e01c806361
@@ -57,7 +57,7 @@ func TestEmitLogs(t *testing.T) {
 	_app := CreateTestApp0(bigutils.NewU256(1000000000), key)
 	defer DestroyTestApp(_app)
 
-	// testdata/test06_events
+	// see testdata/basic/contracts/Events.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b506101b6806100206000396000f3fe
 608060405234801561001057600080fd5b50600436106100365760003560e01c
@@ -144,7 +144,7 @@ func TestChainID(t *testing.T) {
 
 	require.Equal(t, "0x1", _app.ChainID().String())
 
-	// testdata/test07_eip1344
+	// see testdata/basic/contracts/ChainID.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060b58061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060285760003560e01c806356
@@ -176,7 +176,7 @@ func TestRevert(t *testing.T) {
 	_app := CreateTestApp(key)
 	defer DestroyTestApp(_app)
 
-	// testdata/test08_errors
+	// see testdata/basic/contracts/Errors.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b50610190806100206000396000f3fe
 608060405234801561001057600080fd5b50600436106100415760003560e01c
@@ -232,7 +232,7 @@ func TestInvalidOpcode(t *testing.T) {
 	_app := CreateTestApp(key)
 	defer DestroyTestApp(_app)
 
-	// testdata/test08_errors
+	// see testdata/basic/contracts/Errors.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b50610190806100206000396000f3fe
 608060405234801561001057600080fd5b50600436106100415760003560e01c
@@ -284,7 +284,7 @@ func TestEstimateGas(t *testing.T) {
 
 	require.Equal(t, "0x1", _app.ChainID().String())
 
-	// testdata/test07_eip1344
+	// see testdata/basic/contracts/ChainID.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060b58061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060285760003560e01c806356

@@ -10,4 +10,13 @@ contract("Transfer", async (accounts) => {
         assert.equal(await web3.eth.getBalance(acc1), BigInt(bal1) + BigInt(10000));
     });
 
+    it('transfer eth to new account', async () => {
+        const acc0 = accounts[0];
+        const acc1 = "0x1111111111111111111111111111111111111111";
+        const bal0 = await web3.eth.getBalance(acc0);
+        await web3.eth.sendTransaction({from: acc0, to: acc1, value: 10000});
+        assert.equal(await web3.eth.getBalance(acc0), BigInt(bal0) - BigInt(10000));
+        assert.equal(await web3.eth.getBalance(acc1), 10000);
+    });
+
 });

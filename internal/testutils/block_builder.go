@@ -40,7 +40,6 @@ func (bb *MdbBlockBuilder) Tx(txHash gethcmn.Hash, logs ...types.Log) *MdbBlockB
 		Hash:        txHash,
 		Logs:        logs,
 		Status:      1,
-		// TODO: fill more fields
 	}
 	bb.txs = append(bb.txs, tx)
 	return bb
@@ -55,7 +54,6 @@ func (bb *MdbBlockBuilder) TxWithAddr(txHash gethcmn.Hash, fromAddr, toAddr geth
 		Hash:        txHash,
 		From:        fromAddr,
 		To:          toAddr,
-		// TODO: fill more fields
 	}
 	bb.txs = append(bb.txs, tx)
 	return bb
@@ -69,7 +67,6 @@ func (bb *MdbBlockBuilder) Build() *modbtypes.Block {
 			HashId:  tx.Hash,
 			Content: txBytes,
 			LogList: toMdbLogs(tx.Logs),
-			// TODO: fill more fields
 		}
 		copy(mdbTxList[i].SrcAddr[:], tx.From[:])
 		copy(mdbTxList[i].DstAddr[:], tx.To[:])

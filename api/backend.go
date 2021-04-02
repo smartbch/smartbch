@@ -51,27 +51,6 @@ func NewBackend(node *node.Node, app *app.App) BackendService {
 	}
 }
 
-//func (backend *apiBackend) GetLogs(blockHash common.Hash) (logs [][]types.Log, err error) {
-//	ctx := backend.app.GetContext(app.HistoryOnlyMode)
-//	defer ctx.Close(false)
-//
-//	block, err := ctx.GetBlockByHash(blockHash)
-//	if err == nil && block != nil {
-//		for _, txHash := range block.Transactions {
-//			tx, err := ctx.GetTxByHash(txHash)
-//			if err == nil && tx != nil {
-//				logs = append(logs, tx.Logs)
-//			}
-//		}
-//	}
-//	return
-//}
-
-//func (m apiBackend) GetReceipts(hash common.Hash) (*types.Transaction, error) {
-//	tx, _, _, _, err := m.GetTransaction(hash)
-//	return tx, err
-//}
-
 func (backend *apiBackend) ChainId() *big.Int {
 	return backend.app.ChainID().ToBig()
 }
@@ -256,7 +235,6 @@ func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.Block
 		Number:    uint64(block.Number),
 		BlockHash: block.Hash,
 		Bloom:     block.LogsBloom,
-		// TODO: fill more fields
 	}, nil
 }
 func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Hash) (*types.Header, error) {
@@ -269,7 +247,6 @@ func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Ha
 	return &types.Header{
 		Number:    uint64(block.Number),
 		BlockHash: block.Hash,
-		// TODO: fill more fields
 	}, nil
 }
 func (backend *apiBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (gethtypes.Receipts, error) {
@@ -290,12 +267,6 @@ func (backend *apiBackend) GetReceipts(ctx context.Context, blockHash common.Has
 	//}
 	return receipts, nil
 }
-
-//func toGethReceipt(tx *types.Transaction) *gethtypes.Receipt {
-//	return &gethtypes.Receipt{
-//		// TODO
-//	}
-//}
 
 func (backend *apiBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*gethtypes.Log, error) {
 	appCtx := backend.app.GetContext(app.HistoryOnlyMode)

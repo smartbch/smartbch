@@ -530,7 +530,6 @@ func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
 		BlockHeader: &types.Header{
 			Number:    uint64(mdbBlock.Height),
 			BlockHash: mdbBlock.BlockHash,
-			// TODO: fill more fields
 		},
 		Block: mdbBlock,
 		Logs:  collectAllGethLogs(mdbBlock),
@@ -548,7 +547,6 @@ func collectAllGethLogs(mdbBlock *modbtypes.Block) []*gethtypes.Log {
 			logs = append(logs, &gethtypes.Log{
 				Address: mdbLog.Address,
 				Topics:  types.ToGethHashes(mdbLog.Topics),
-				// TODO: fill more fields
 			})
 		}
 	}

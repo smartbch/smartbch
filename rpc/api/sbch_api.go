@@ -19,7 +19,6 @@ type SbchAPI interface {
 	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error)
 	GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
-	// TODO: more methods
 }
 
 type sbchAPI struct {

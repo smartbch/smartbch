@@ -81,7 +81,6 @@ func TestGetFilterChanges_addrFilter(t *testing.T) {
 	logs, err = _api.GetFilterChanges(id)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
-	// TODO: check more fields
 }
 
 /*
@@ -186,7 +185,6 @@ func TestGetFilterLogs_addrFilter(t *testing.T) {
 	logs, err = _api.GetFilterLogs(id)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(logs))
-	// TODO: check more fields
 }
 
 func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
@@ -215,8 +213,6 @@ func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
 	require.NoError(t, err)
 	// Why test it this way? if no address nor topics specified, modb returns nothing...
 	require.Equal(t, 0, len(logs))
-
-	// TODO: check more fields
 }
 
 func TestGetLogs_blockHashFilter(t *testing.T) {
@@ -252,11 +248,6 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 	require.Equal(t, gethcmn.Address{0xA2}, logs[0].Address)
-
-	// TODO: check more fields
-	//logs, err = _api.GetLogs(testutils.NewBlockHashFilter(&gethcmn.Hash{0xB3}))
-	//require.NoError(t, err)
-	//require.Len(t, logs, 0)
 }
 
 func TestGetLogs_addrFilter(t *testing.T) {
@@ -304,8 +295,6 @@ func TestGetLogs_addrFilter(t *testing.T) {
 	logs, err = _api.GetLogs(f3)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
-
-	// TODO: check more fields
 }
 
 func createFiltersAPI(_app *app.App) PublicFilterAPI {

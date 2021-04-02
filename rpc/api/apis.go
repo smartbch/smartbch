@@ -65,6 +65,5 @@ func GetAPIs(backend sbchapi.BackendService,
 			Service:   _evmAPI,
 			Public:    true,
 		},
-		// TODO: more apis
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
 

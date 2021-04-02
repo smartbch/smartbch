@@ -341,22 +341,7 @@ func (api *ethAPI) SendTransaction(args rpctypes.SendTxArgs) (common.Hash, error
 		return tmTxHash, err
 	}
 
-	//if api.backend.GetTransaction()
-	//if err == nil && args.To == nil {
-	//	addr := crypto.CreateAddress(args.From, tx.Nonce())
-	//	api.logger.Debug("Submitted contract creation,",
-	//		"tx hash", tmTxHash.Hex(), "contract addr", addr.Hex())
-	//}
-
-	// give tx-engine a few seconds to execute the tx
 	txHash := tx.Hash()
-	//for i := 0; i < 10; i++ {
-	//	time.Sleep(3 * time.Second)
-	//	if _, err := api.GetTransactionReceipt(txHash); err == nil {
-	//		break
-	//	}
-	//}
-
 	return txHash, err
 }
 

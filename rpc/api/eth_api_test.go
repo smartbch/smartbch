@@ -114,14 +114,6 @@ func TestChainId(t *testing.T) {
 	require.Equal(t, "0x1", id.String())
 }
 
-func TestCoinbase(t *testing.T) {
-	// TODO
-}
-
-func TestGasPrice(t *testing.T) {
-	// TODO
-}
-
 func TestBlockNum(t *testing.T) {
 	_app := app.CreateTestApp()
 	defer app.DestroyTestApp(_app)
@@ -227,7 +219,6 @@ func TestGetBlockByHash(t *testing.T) {
 	require.Equal(t, hexutil.Uint64(200000000), block2["gasLimit"])
 	require.Equal(t, hexutil.Uint64(0), block2["gasUsed"])
 	require.Equal(t, hexutil.Bytes(nil), block2["extraData"])
-	// TODO: check more fields
 }
 
 func TestGetBlockByHash_notFound(t *testing.T) {
@@ -262,7 +253,6 @@ func TestGetBlockByNum(t *testing.T) {
 	require.Equal(t, hexutil.Uint64(0), block2["gasUsed"])
 	require.Equal(t, hexutil.Bytes(nil), block2["extraData"])
 	require.Len(t, block2["transactions"], 3)
-	// TODO: check more fields
 }
 
 func TestGetBlockByNum_notFound(t *testing.T) {
@@ -328,7 +318,6 @@ func TestGetTxByBlockHashAndIdx(t *testing.T) {
 	tx, err := _api.GetTransactionByBlockHashAndIndex(blkHash, 2)
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x90}, tx.Hash)
-	// TODO: check more fields
 }
 
 func TestGetTxByBlockNumAndIdx(t *testing.T) {
@@ -348,7 +337,6 @@ func TestGetTxByBlockNumAndIdx(t *testing.T) {
 	tx, err := _api.GetTransactionByBlockNumberAndIndex(123, 1)
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x78}, tx.Hash)
-	// TODO: check more fields
 }
 
 func TestGetTxByHash(t *testing.T) {
@@ -368,7 +356,6 @@ func TestGetTxByHash(t *testing.T) {
 	tx, err := _api.GetTransactionByHash(gethcmn.Hash{0x78})
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x78}, tx.Hash)
-	// TODO: check more fields
 }
 
 func TestGetTxReceipt(t *testing.T) {
@@ -400,26 +387,16 @@ func TestGetTxReceipt(t *testing.T) {
 	gethLogs := receipt["logs"].([]*gethtypes.Log)
 	require.Equal(t, gethcmn.Address{0xA2}, gethLogs[1].Address)
 	require.Equal(t, []byte{0xD1}, gethLogs[1].Data)
-	// TODO: check more fields
 }
 
-func TestSendRawTx(t *testing.T) {
-	// TODO
-}
+func TestCall_NoFromAddr(t *testing.T) {
+	_app := app.CreateTestApp()
+	defer app.DestroyTestApp(_app)
+	_api := createEthAPI(_app)
 
-func TestSendTx(t *testing.T) {
-	// TODO
+	_, err := _api.Call(ethapi.CallArgs{}, 0)
+	require.NoError(t, err)
 }
-
-//func TestCall_NoFromAddr(t *testing.T) {
-//	_app := app.CreateTestApp()
-//	defer app.DestroyTestApp(_app)
-//	_api := createEthAPI(_app)
-//
-//	_, err := _api.Call(ethapi.CallArgs{}, 0)
-//	require.Error(t, err)
-//	require.Equal(t, "missing from address", err.Error())
-//}
 
 func TestCall_Transfer(t *testing.T) {
 	fromKey, fromAddr := testutils.GenKeyAndAddr()
