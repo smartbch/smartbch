@@ -1,5 +1,9 @@
 package api
 
+import (
+	"fmt"
+)
+
 var _ PublicNetAPI = (*netAPI)(nil)
 
 type PublicNetAPI interface {
@@ -9,11 +13,18 @@ type PublicNetAPI interface {
 }
 
 type netAPI struct {
+	networkID uint64
+}
+
+func newNetAPI(networkID uint64) PublicNetAPI {
+	return netAPI{
+		networkID: networkID,
+	}
 }
 
 // https://eth.wiki/json-rpc/API#net_version
 func (n netAPI) Version() string {
-	return "1" // TODO: 1 is Ethereum Mainnet
+	return fmt.Sprintf("%d", n.networkID)
 }
 
 func (n netAPI) Listening() bool {

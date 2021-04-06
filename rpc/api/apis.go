@@ -24,7 +24,9 @@ func GetAPIs(backend sbchapi.BackendService,
 	logger log.Logger, testKeys []string) []rpc.API {
 
 	_ethAPI := newEthAPI(backend, testKeys, logger)
-	filterAPI := filters.NewAPI(backend)
+	_netAPI := newNetAPI(backend.ChainId().Uint64())
+	_web3API := web3API{}
+	_filterAPI := filters.NewAPI(backend)
 	_sbchAPI := newSbchAPI(backend)
 	_evmAPI := newEvmAPI(backend)
 
@@ -38,19 +40,19 @@ func GetAPIs(backend sbchapi.BackendService,
 		{
 			Namespace: namespaceEth,
 			Version:   apiVersion,
-			Service:   filterAPI,
+			Service:   _filterAPI,
 			Public:    true,
 		},
 		{
 			Namespace: namespaceWeb3,
 			Version:   apiVersion,
-			Service:   web3API{},
+			Service:   _web3API,
 			Public:    true,
 		},
 		{
 			Namespace: namespaceNet,
 			Version:   apiVersion,
-			Service:   netAPI{},
+			Service:   _netAPI,
 			Public:    true,
 		},
 		{

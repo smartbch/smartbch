@@ -112,6 +112,7 @@ func (api *ethAPI) BlockNumber() (hexutil.Uint64, error) {
 	return hexutil.Uint64(api.backend.LatestHeight()), nil
 }
 
+// https://eips.ethereum.org/EIPS/eip-695
 func (api *ethAPI) ChainId() hexutil.Uint64 {
 	chainID := api.backend.ChainId()
 	return hexutil.Uint64(chainID.Uint64())
