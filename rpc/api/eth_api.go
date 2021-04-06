@@ -141,7 +141,7 @@ func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber)
 // https://eth.wiki/json-rpc/API#eth_getCode
 func (api *ethAPI) GetCode(addr common.Address, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
 	// ignore blockNumber temporary
-	code, _ := api.backend.GetCode(addr)
+	code, _ := api.backend.GetCode(addr, int64(gethrpc.LatestBlockNumber))
 	return code, nil
 }
 
@@ -224,6 +224,7 @@ func (api *ethAPI) GetTransactionByHash(hash common.Hash) (*rpctypes.Transaction
 
 // https://eth.wiki/json-rpc/API#eth_getTransactionCount
 func (api *ethAPI) GetTransactionCount(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Uint64, error) {
+	// ignore blockNumber temporary
 	nonce, err := api.backend.GetNonce(addr)
 	if err != nil {
 		return nil, err
@@ -369,7 +370,8 @@ func (api *ethAPI) Syncing() (interface{}, error) {
 
 // https://eth.wiki/json-rpc/API#eth_call
 func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error) {
-	tx, from, err := api.createGethTxFromCallArgs(args, blockNr)
+	// ignore blockNumber temporary
+	tx, from, err := api.createGethTxFromCallArgs(args)
 	if err != nil {
 		return hexutil.Bytes{}, err
 	}
@@ -384,7 +386,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas
 func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
-	tx, from, err := api.createGethTxFromCallArgs(args, 0)
+	tx, from, err := api.createGethTxFromCallArgs(args)
 	if err != nil {
 		return 0, err
 	}
@@ -398,7 +400,7 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
 }
 
 func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
-	blockNr gethrpc.BlockNumber) (*gethtypes.Transaction, common.Address, error) {
+) (*gethtypes.Transaction, common.Address, error) {
 
 	var from, to common.Address
 	if args.From != nil {

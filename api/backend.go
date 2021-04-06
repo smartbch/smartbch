@@ -56,6 +56,11 @@ func (backend *apiBackend) ChainId() *big.Int {
 }
 
 func (backend *apiBackend) GetStorageAt(address common.Address, key string, blockNumber int64) []byte {
+	if blockNumber != int64(rpc.LatestBlockNumber) {
+		// TODO: not supported yet
+		return nil
+	}
+
 	ctx := backend.app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 
@@ -63,15 +68,18 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string, bloc
 	if acc == nil {
 		return nil
 	}
-	if blockNumber == int64(rpc.LatestBlockNumber) {
-		return ctx.GetStorageAt(acc.Sequence(), key)
-	}
-	return nil
+	return ctx.GetStorageAt(acc.Sequence(), key)
 }
 
-func (backend *apiBackend) GetCode(contract common.Address) (bytecode []byte, codeHash []byte) {
+func (backend *apiBackend) GetCode(contract common.Address, blockNumber int64) (bytecode []byte, codeHash []byte) {
+	if blockNumber != int64(rpc.LatestBlockNumber) {
+		// TODO: not supported yet
+		return
+	}
+
 	ctx := backend.app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
+
 	info := ctx.GetCode(contract)
 	if info != nil {
 		bytecode = info.BytecodeSlice()
