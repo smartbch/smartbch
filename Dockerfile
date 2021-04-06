@@ -39,6 +39,7 @@ ENV EVMWRAP=/smart_bch/moeingevm/evmwrap/host_bridge/libevmwrap.so
 
 WORKDIR /smart_bch/smartbch
 RUN go install github.com/smartbch/smartbch/cmd/smartbchd
+RUN smartbchd init smart1 --chain-id 0x1 --home /root/.smartbchd
 
 VOLUME ["/root/.smartbchd"]
 
