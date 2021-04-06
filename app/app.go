@@ -80,6 +80,7 @@ type App struct {
 	lastCommitInfo [][]byte
 	lastProposer   [20]byte
 	lastGasUsed    uint64
+	lastGasRefund  uint256.Int
 	lastGasFee     uint256.Int
 
 	// feeds
@@ -418,7 +419,36 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		copy(tmpAddr[:], c)
 		voters[i] = pubkeyMapByAddr[tmpAddr]
 	}
-	staking.DistributeFee(*ctx, &app.lastGasFee, pubkeyMapByAddr[app.lastProposer], voters)
+	var blockReward = app.lastGasFee
+	if !app.lastGasFee.IsZero() {
+		if !app.lastGasRefund.IsZero() {
+			err := ebp.SubSystemAccBalance(ctx, &app.lastGasRefund)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+	//invariant check for fund safe
+	sysB := ebp.GetSystemBalance(ctx)
+	if app.txEngine.StandbyQLen() != 0 {
+		if sysB.Cmp(uint256.NewInt()) <= 0 {
+			panic("system account balance should have some pending gas fee")
+		}
+	} else {
+		if sysB.Cmp(&app.lastGasFee) < 0 {
+			panic("system balance not enough!")
+		}
+		// distribute extra balance to validators
+		blockReward = *sysB
+	}
+	if !blockReward.IsZero() {
+		err := ebp.TransferFromSystemAccToBlackHoleAcc(ctx, &blockReward)
+		if err != nil {
+			//todo: be careful
+			panic(err)
+		}
+	}
+	staking.DistributeFee(*ctx, &blockReward, pubkeyMapByAddr[app.lastProposer], voters)
 	ctx.Close(true)
 
 	app.txEngine.Prepare()
@@ -447,7 +477,7 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("enter post commit!")
 	defer app.mtx.Unlock()
 	app.txEngine.Execute(bi)
-	app.lastGasUsed, app.lastGasFee = app.txEngine.GasUsedInfo()
+	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
 	app.logger.Debug("leave post commit!")
 }
 

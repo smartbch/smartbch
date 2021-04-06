@@ -66,6 +66,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 }
 
 // Staking functions which can be invoked through smart contract calls
+// The extra gas fee distribute to the miners, not refund
 func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = int(mevmtypes.ReceiptStatusFailed)
