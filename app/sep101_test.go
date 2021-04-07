@@ -14,7 +14,7 @@ import (
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
-var _abi = testutils.MustParseABI(`
+var _sep101ABI = testutils.MustParseABI(`
 [
 {
   "inputs": [
@@ -66,7 +66,7 @@ func TestSEP101(t *testing.T) {
 	val := bytes.Repeat([]byte{0x12, 0x34}, 500)
 
 	// call set()
-	data, err := _abi.Pack("set", key, val)
+	data, err := _sep101ABI.Pack("set", key, val)
 	require.NoError(t, err)
 	tx1 := gethtypes.NewTransaction(0, contractAddr,
 		big.NewInt(0), 10000000, big.NewInt(1), data)
@@ -81,10 +81,12 @@ func TestSEP101(t *testing.T) {
 	require.Equal(t, tx1.Hash(), gethcmn.Hash(txInBlk1.Hash))
 
 	// call get()
-	data, err = _abi.Pack("get", key)
+	data, err = _sep101ABI.Pack("get", key)
 	require.NoError(t, err)
 	tx2 := gethtypes.NewTransaction(0, contractAddr,
 		big.NewInt(0), 10000000, big.NewInt(1), data)
-	_, _, output := call(_app, addr, tx2)
+	statusCode, statusStr, output := call(_app, addr, tx2)
+	require.Equal(t, 0, statusCode)
+	require.Equal(t, "success", statusStr)
 	require.Equal(t, val, output)
 }
