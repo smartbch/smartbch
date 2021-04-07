@@ -89,9 +89,9 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	blk1 := getBlock(_app, 1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
-	txInBlk2 := getTx(_app, blk1.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk2.Status)
-	require.Equal(t, tx1.Hash(), common.Hash(txInBlk2.Hash))
+	txInBlk1 := getTx(_app, blk1.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
+	require.Equal(t, tx1.Hash(), common.Hash(txInBlk1.Hash))
 
 	// call emitEvent1()
 	tx2 := gethtypes.NewTransaction(1, contractAddr,
