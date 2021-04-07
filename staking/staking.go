@@ -3,6 +3,7 @@ package staking
 import (
 	"bytes"
 	"errors"
+	"github.com/smartbch/moeingevm/ebp"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,6 +21,9 @@ var (
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
 	MinimumStakingAmount *uint256.Int = uint256.NewInt().Mul(
 		uint256.NewInt().SetUint64(800),
+		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
+	SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
+		uint256.NewInt().SetUint64(10),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
 
 	/*interface Staking {
@@ -201,8 +205,8 @@ func SaveStakingInfo(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, i
 // Staking functions which cannot be invoked through smart contract calls
 
 // Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
-func Slash(ctx mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
-	stakingAcc, info := LoadStakingAcc(ctx)
+func Slash(ctx *mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
+	stakingAcc, info := LoadStakingAcc(*ctx)
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
 		return // If tendermint works fine, we'll never reach here
@@ -220,18 +224,14 @@ func Slash(ctx mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSl
 	totalCleared := info.ClearRewardsOf(val.Address)
 	totalSlashed.Add(totalSlashed, totalCleared)
 
-	// deduct the totalSlashed from stakingAcc and burn them
-	balance := stakingAcc.Balance()
-	balance.Sub(balance, totalSlashed)
-	stakingAcc.UpdateBalance(balance)
-	ctx.SetAccount(StakingContractAddress, stakingAcc)
-
+	// deduct the totalSlashed from stakingAcc and burn them, must no error, not check
+	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
 	incrAllBurnt(ctx, stakingAcc, totalSlashed)
 	return
 }
 
 // Increase the slot of 'all burnt' inside stakingAcc
-func incrAllBurnt(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amount *uint256.Int) {
+func incrAllBurnt(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amount *uint256.Int) {
 	allBurnt := uint256.NewInt()
 	bz := ctx.GetStorageAt(stakingAcc.Sequence(), SlotAllBurnt)
 	if len(bz) != 0 {
