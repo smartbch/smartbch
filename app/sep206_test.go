@@ -345,8 +345,7 @@ func TestFakeERC20(t *testing.T) {
 }
 
 func TestTokenInfo(t *testing.T) {
-	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
+	_app := CreateTestApp()
 	defer DestroyTestApp(_app)
 
 	testCases := []struct {
@@ -361,12 +360,8 @@ func TestTokenInfo(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		data := _sep206ABI.MustPack(testCase.getter)
-		tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
-		statusCode, statusStr, output := call(_app, addr, tx)
-		require.Equal(t, 0, statusCode, testCase.getter)
-		require.Equal(t, "success", statusStr, testCase.getter)
-		require.Equal(t, []interface{}{testCase.result}, _sep206ABI.MustUnpack(testCase.getter, output))
+		ret := callViewMethod(t, _app, testCase.getter)
+		require.Equal(t, testCase.result, ret)
 	}
 }
 
@@ -377,7 +372,7 @@ func TestTransfer(t *testing.T) {
 	defer DestroyTestApp(_app)
 
 	b1 := getBalance(_app, addr1)
-	require.Equal(t, b1, callBalanceOf(t, _app, addr1))
+	require.Equal(t, b1, callViewMethod(t, _app, "balanceOf", addr1))
 
 	// transfer
 	data := _sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
@@ -385,16 +380,27 @@ func TestTransfer(t *testing.T) {
 	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
 	testutils.ExecTxInBlock(_app, 1, tx1)
 
-	require.Equal(t, b1.Sub(b1, big.NewInt(10)), callBalanceOf(t, _app, addr1))
+	require.Equal(t, b1.Sub(b1, big.NewInt(10)), callViewMethod(t, _app, "balanceOf", addr1))
 }
 
-func callBalanceOf(t *testing.T, _app *App, sender gethcmn.Address) interface{} {
-	data := _sep206ABI.MustPack("balanceOf", sender)
+func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{}) interface{} {
+	data := _sep206ABI.MustPack(selector, args...)
 	tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, sender, tx)
-	require.Equal(t, 0, statusCode)
-	require.Equal(t, "success", statusStr)
-	result := _sep206ABI.MustUnpack("balanceOf", output)
-	require.Len(t, result, 1)
+	statusCode, statusStr, output := call(_app, gethcmn.Address{}, tx)
+	require.Equal(t, 0, statusCode, selector)
+	require.Equal(t, "success", statusStr, selector)
+	result := _sep206ABI.MustUnpack(selector, output)
+	require.Len(t, result, 1, selector)
 	return result[0]
+}
+
+func TestTransferFrom(t *testing.T) {
+	privKey1, addr1 := testutils.GenKeyAndAddr()
+	privKey2, addr2 := testutils.GenKeyAndAddr()
+	privKey3, _ := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey1, privKey2, privKey3)
+	defer DestroyTestApp(_app)
+
+	a1 := callViewMethod(t, _app, "allowance", addr1, addr2)
+	require.Equal(t, uint64(0), a1.(*big.Int).Uint64())
 }
