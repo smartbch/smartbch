@@ -146,7 +146,7 @@ ffffffffffff8211156104d5576104d461058c565b5b601f19601f8301169050
 	data = _sep101ABI.MustPack("get", key)
 	tx4 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
 	statusCode, statusStr, output := call(_app, addr, tx4)
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, statusCode)
+	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, val, output)
 }

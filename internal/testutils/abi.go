@@ -21,6 +21,14 @@ func (a ABI4Test) MustPack(name string, args ...interface{}) []byte {
 	return bytes
 }
 
+func (a ABI4Test) MustUnpack(name string, data []byte) []interface{} {
+	ret, err := a._abi.Unpack(name, data)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
 func MustParseABI(abiJSON string) ABI4Test {
 	_abi, err := abi.JSON(strings.NewReader(abiJSON))
 	if err != nil {
