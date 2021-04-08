@@ -14,7 +14,7 @@ import (
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
-var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002712")
+var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
 
 var _sep206ABI = testutils.MustParseABI(`
 [
@@ -357,7 +357,7 @@ func TestTokenInfo(t *testing.T) {
 		{"symbol", "BCH"},
 		{"decimals", uint8(18)},
 		{"totalSupply", big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil))},
-		{"owner", gethcmn.Address{}},
+		//{"owner", gethcmn.Address{}},
 	}
 
 	for _, testCase := range testCases {
