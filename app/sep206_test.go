@@ -307,6 +307,7 @@ func TestFakeERC20(t *testing.T) {
 	_app := CreateTestApp(privKey)
 	defer DestroyTestApp(_app)
 
+	// see testdata/seps/contracts/FakeERC20.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b5061017c806100206000396000f3fe
 608060405234801561001057600080fd5b506004361061002b5760003560e01c
@@ -348,19 +349,22 @@ func TestTokenInfo(t *testing.T) {
 
 	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002712")
 
-	// call name()
-	data := _sep206ABI.MustPack("name")
-	tx1 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, addr, tx1)
-	require.Equal(t, 0, statusCode)
-	require.Equal(t, "success", statusStr)
-	require.Equal(t, []interface{}{"BCH"}, _sep206ABI.MustUnpack("name", output))
+	testCases := []struct {
+		getter string
+		result interface{}
+	}{
+		{"name", "BCH"},
+		{"symbol", "BCH"},
+		//{"decimals", 18},
+		//{"totalSupply", big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil))},
+	}
 
-	// call symbol()
-	data = _sep206ABI.MustPack("symbol")
-	tx1 = gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output = call(_app, addr, tx1)
-	require.Equal(t, 0, statusCode)
-	require.Equal(t, "success", statusStr)
-	require.Equal(t, []interface{}{"BCH"}, _sep206ABI.MustUnpack("symbol", output))
+	for _, testCase := range testCases {
+		data := _sep206ABI.MustPack(testCase.getter)
+		tx := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
+		statusCode, statusStr, output := call(_app, addr, tx)
+		require.Equal(t, 0, statusCode, testCase.getter)
+		require.Equal(t, "success", statusStr)
+		require.Equal(t, []interface{}{testCase.result}, _sep206ABI.MustUnpack(testCase.getter, output))
+	}
 }
