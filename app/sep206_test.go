@@ -14,6 +14,8 @@ import (
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
+var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002712")
+
 var _sep206ABI = testutils.MustParseABI(`
 [
 {
@@ -347,8 +349,6 @@ func TestTokenInfo(t *testing.T) {
 	_app := CreateTestApp(privKey)
 	defer DestroyTestApp(_app)
 
-	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002712")
-
 	testCases := []struct {
 		getter string
 		result interface{}
@@ -362,10 +362,39 @@ func TestTokenInfo(t *testing.T) {
 
 	for _, testCase := range testCases {
 		data := _sep206ABI.MustPack(testCase.getter)
-		tx := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
+		tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
 		statusCode, statusStr, output := call(_app, addr, tx)
 		require.Equal(t, 0, statusCode, testCase.getter)
 		require.Equal(t, "success", statusStr, testCase.getter)
 		require.Equal(t, []interface{}{testCase.result}, _sep206ABI.MustUnpack(testCase.getter, output))
 	}
+}
+
+func TestTransfer(t *testing.T) {
+	privKey1, addr1 := testutils.GenKeyAndAddr()
+	privKey2, addr2 := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey1, privKey2)
+	defer DestroyTestApp(_app)
+
+	b1 := getBalance(_app, addr1)
+	require.Equal(t, b1, callBalanceOf(t, _app, addr1))
+
+	// transfer
+	data := _sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
+	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(1), data)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
+	testutils.ExecTxInBlock(_app, 1, tx1)
+
+	require.Equal(t, b1.Sub(b1, big.NewInt(10)), callBalanceOf(t, _app, addr1))
+}
+
+func callBalanceOf(t *testing.T, _app *App, sender gethcmn.Address) interface{} {
+	data := _sep206ABI.MustPack("balanceOf", sender)
+	tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
+	statusCode, statusStr, output := call(_app, sender, tx)
+	require.Equal(t, 0, statusCode)
+	require.Equal(t, "success", statusStr)
+	result := _sep206ABI.MustUnpack("balanceOf", output)
+	require.Len(t, result, 1)
+	return result[0]
 }
