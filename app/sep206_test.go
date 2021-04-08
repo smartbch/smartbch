@@ -120,7 +120,7 @@ var _sep206ABI = testutils.MustParseABI(`
 },
 {
   "inputs": [],
-  "name": "getOwner",
+  "name": "owner",
   "outputs": [
 	{
 	  "internalType": "address",
@@ -357,6 +357,7 @@ func TestTokenInfo(t *testing.T) {
 		{"symbol", "BCH"},
 		{"decimals", uint8(18)},
 		{"totalSupply", big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil))},
+		{"owner", gethcmn.Address{}},
 	}
 
 	for _, testCase := range testCases {
@@ -364,7 +365,7 @@ func TestTokenInfo(t *testing.T) {
 		tx := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
 		statusCode, statusStr, output := call(_app, addr, tx)
 		require.Equal(t, 0, statusCode, testCase.getter)
-		require.Equal(t, "success", statusStr)
+		require.Equal(t, "success", statusStr, testCase.getter)
 		require.Equal(t, []interface{}{testCase.result}, _sep206ABI.MustUnpack(testCase.getter, output))
 	}
 }
