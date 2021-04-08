@@ -9,6 +9,7 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -19,9 +20,9 @@ var _sep101ABI = testutils.MustParseABI(`
 {
   "inputs": [
 	{
-	  "internalType": "uint256",
+	  "internalType": "bytes",
 	  "name": "key",
-	  "type": "uint256"
+	  "type": "bytes"
 	},
 	{
 	  "internalType": "bytes",
@@ -37,9 +38,9 @@ var _sep101ABI = testutils.MustParseABI(`
 {
   "inputs": [
 	{
-	  "internalType": "uint256",
+	  "internalType": "bytes",
 	  "name": "key",
-	  "type": "uint256"
+	  "type": "bytes"
 	}
   ],
   "name": "get",
@@ -61,32 +62,93 @@ func TestSEP101(t *testing.T) {
 	_app := CreateTestApp(privKey)
 	defer DestroyTestApp(_app)
 
-	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000010002")
-	key := big.NewInt(0x789)
+	// see testdata/seps/contracts/SEP101Proxy.sol
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b50610605806100206000396000f3fe
+608060405234801561001057600080fd5b50600436106100415760003560e01c
+8063a18c751e14610046578063d6d7d52514610062578063f5ff5c7614610092
+575b600080fd5b610060600480360381019061005b91906102c5565b6100b056
+5b005b61007c60048036038101906100779190610280565b61012a565b604051
+610089919061044f565b60405180910390f35b61009a6101c7565b6040516100
+a79190610471565b60405180910390f35b6201000273ffffffffffffffffffff
+ffffffffffffffffffff1663a18c751e858585856040518563ffffffff1660e0
+1b81526004016100f29493929190610414565b60006040518083038160008780
+3b15801561010c57600080fd5b505af1158015610120573d6000803e3d6000fd
+5b5050505050505050565b60606201000273ffffffffffffffffffffffffffff
+ffffffffffff1663d6d7d52584846040518363ffffffff1660e01b8152600401
+61016a9291906103f0565b60006040518083038186803b158015610182576000
+80fd5b505afa158015610196573d6000803e3d6000fd5b505050506040513d60
+00823e3d601f19601f820116820180604052508101906101bf919061033a565b
+905092915050565b6201000281565b60006101e16101dc846104bd565b61048c
+565b9050828152602081018484840111156101f957600080fd5b610204848285
+61055c565b509392505050565b60008083601f84011261021e57600080fd5b82
+35905067ffffffffffffffff81111561023757600080fd5b6020830191508360
+0182028301111561024f57600080fd5b9250929050565b600082601f83011261
+026757600080fd5b81516102778482602086016101ce565b9150509291505056
+5b6000806020838503121561029357600080fd5b600083013567ffffffffffff
+ffff8111156102ad57600080fd5b6102b98582860161020c565b925092505092
+50929050565b600080600080604085870312156102db57600080fd5b60008501
+3567ffffffffffffffff8111156102f557600080fd5b6103018782880161020c
+565b9450945050602085013567ffffffffffffffff81111561032057600080fd
+5b61032c8782880161020c565b925092505092959194509250565b6000602082
+8403121561034c57600080fd5b600082015167ffffffffffffffff8111156103
+6657600080fd5b61037284828501610256565b91505092915050565b60006103
+8783856104f8565b935061039483858461054d565b61039d836105be565b8401
+90509392505050565b60006103b3826104ed565b6103bd81856104f8565b9350
+6103cd81856020860161055c565b6103d6816105be565b840191505092915050
+565b6103ea81610529565b82525050565b600060208201905081810360008301
+5261040b81848661037b565b90509392505050565b6000604082019050818103
+600083015261042f81868861037b565b90508181036020830152610444818486
+61037b565b905095945050505050565b60006020820190508181036000830152
+61046981846103a8565b905092915050565b6000602082019050610486600083
+01846103e1565b92915050565b6000604051905081810181811067ffffffffff
+ffffff821117156104b3576104b261058f565b5b8060405250919050565b6000
+67ffffffffffffffff8211156104d8576104d761058f565b5b601f19601f8301
+169050602081019050919050565b600081519050919050565b60008282526020
+8201905092915050565b600073ffffffffffffffffffffffffffffffffffffff
+ff82169050919050565b60006105348261053b565b9050919050565b60006105
+4682610509565b9050919050565b82818337600083830152505050565b60005b
+8381101561057a57808201518184015260208101905061055f565b8381111561
+0589576000848401525b50505050565b7f4e487b710000000000000000000000
+0000000000000000000000000000000000600052604160045260246000fd5b60
+00601f19601f830116905091905056fea264697066735822122002d699276985
+a7a9f6c1d50c76a9f2beea7b88129ae96b43157a3f063e6df02964736f6c6343
+0008000033
+`)
+
+	// deploy proxy
+	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
+	code := getCode(_app, contractAddr)
+	require.True(t, len(code) > 0)
+
+	key := []byte{0xAB, 0xCD}
 	val := bytes.Repeat([]byte{0x12, 0x34}, 500)
 
 	// call set()
 	data, err := _sep101ABI.Pack("set", key, val)
 	require.NoError(t, err)
-	tx1 := gethtypes.NewTransaction(0, contractAddr,
-		big.NewInt(0), 10000000, big.NewInt(1), data)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
+	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	testutils.ExecTxInBlock(_app, 3, tx2)
 
-	blk1 := getBlock(_app, 1)
-	require.Equal(t, int64(1), blk1.Number)
-	require.Len(t, blk1.Transactions, 1)
-	txInBlk1 := getTx(_app, blk1.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
-	require.Equal(t, tx1.Hash(), gethcmn.Hash(txInBlk1.Hash))
+	blk3 := getBlock(_app, 3)
+	require.Equal(t, int64(3), blk3.Number)
+	require.Len(t, blk3.Transactions, 1)
+	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
+	require.Equal(t, "success", txInBlk3.StatusStr)
+	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
 
 	// call get()
 	data, err = _sep101ABI.Pack("get", key)
 	require.NoError(t, err)
-	tx2 := gethtypes.NewTransaction(0, contractAddr,
-		big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, addr, tx2)
-	require.Equal(t, 0, statusCode)
+	tx4 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
+	statusCode, statusStr, output := call(_app, addr, tx4)
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, val, output)
 }
