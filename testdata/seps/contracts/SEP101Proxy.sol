@@ -5,7 +5,7 @@ import "./interfaces/SEP101.sol";
 
 contract SEP101Proxy is SEP101 {
 
-    SEP101 constant public agent = SEP101(address(0x2711));
+    SEP101 constant public agent = SEP101(address(0x2712));
 
     function set(bytes calldata key, bytes calldata value) override external {
         agent.set(key, value);
