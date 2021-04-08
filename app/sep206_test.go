@@ -305,7 +305,7 @@ func TestTokenInfo(t *testing.T) {
 	_app := CreateTestApp(privKey)
 	defer DestroyTestApp(_app)
 
-	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000010001")
+	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
 
 	// call name()
 	data, err := _sep206ABI.Pack("name")
