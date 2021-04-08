@@ -346,7 +346,7 @@ func TestTokenInfo(t *testing.T) {
 	_app := CreateTestApp(privKey)
 	defer DestroyTestApp(_app)
 
-	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
+	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002712")
 
 	// call name()
 	data := _sep206ABI.MustPack("name")
@@ -355,4 +355,12 @@ func TestTokenInfo(t *testing.T) {
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, []interface{}{"BCH"}, _sep206ABI.MustUnpack("name", output))
+
+	// call symbol()
+	data = _sep206ABI.MustPack("symbol")
+	tx1 = gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
+	statusCode, statusStr, output = call(_app, addr, tx1)
+	require.Equal(t, 0, statusCode)
+	require.Equal(t, "success", statusStr)
+	require.Equal(t, []interface{}{"BCH"}, _sep206ABI.MustUnpack("symbol", output))
 }
