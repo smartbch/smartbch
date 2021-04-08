@@ -355,8 +355,8 @@ func TestTokenInfo(t *testing.T) {
 	}{
 		{"name", "BCH"},
 		{"symbol", "BCH"},
-		//{"decimals", 18},
-		//{"totalSupply", big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil))},
+		{"decimals", uint8(18)},
+		{"totalSupply", big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil))},
 	}
 
 	for _, testCase := range testCases {
