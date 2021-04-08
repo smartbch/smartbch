@@ -308,8 +308,7 @@ func TestTokenInfo(t *testing.T) {
 	contractAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
 
 	// call name()
-	data, err := _sep206ABI.Pack("name")
-	require.NoError(t, err)
+	data := _sep206ABI.MustPack("name")
 	tx1 := gethtypes.NewTransaction(0, contractAddr,
 		big.NewInt(0), 10000000, big.NewInt(1), data)
 	statusCode, statusStr, output := call(_app, addr, tx1)

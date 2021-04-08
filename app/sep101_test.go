@@ -129,8 +129,7 @@ ffffffffffff8211156104d5576104d461058c565b5b601f19601f8301169050
 	val := bytes.Repeat([]byte{0x12, 0x34}, 500)
 
 	// call set()
-	data, err := _sep101ABI.Pack("set", key, val)
-	require.NoError(t, err)
+	data := _sep101ABI.MustPack("set", key, val)
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
 	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
 	testutils.ExecTxInBlock(_app, 3, tx2)
@@ -144,8 +143,7 @@ ffffffffffff8211156104d5576104d461058c565b5b601f19601f8301169050
 	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
 
 	// call get()
-	data, err = _sep101ABI.Pack("get", key)
-	require.NoError(t, err)
+	data = _sep101ABI.MustPack("get", key)
 	tx4 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
 	statusCode, statusStr, output := call(_app, addr, tx4)
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, statusCode)
