@@ -160,5 +160,5 @@ ffffffffffffffffffffff82169050919050565b828183376000838301525050
 	statusCode, statusStr, output := call(_app, addr, tx4)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
-	require.Equal(t, val, output)
+	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
 }
