@@ -380,7 +380,7 @@ func TestTransfer(t *testing.T) {
 	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
 	testutils.ExecTxInBlock(_app, 1, tx1)
 
-	require.Equal(t, b1.Sub(b1, big.NewInt(10)), callViewMethod(t, _app, "balanceOf", addr1))
+	require.Equal(t, b1.Sub(b1, big.NewInt(100+21572/*gas*/)), callViewMethod(t, _app, "balanceOf", addr1))
 }
 
 func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{}) interface{} {
