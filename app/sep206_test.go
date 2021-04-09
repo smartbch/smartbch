@@ -8,15 +8,16 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-	gethcrypto "github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
-var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
+var (
+	sep206Addr        = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
+	sep206TotalSupply = big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil)) // 21*10^24
+)
 
-var _sep206ABI = testutils.MustParseABI(`
+var sep206ABI = testutils.MustParseABI(`
 [
 {
   "anonymous": false,
@@ -304,46 +305,6 @@ var _sep206ABI = testutils.MustParseABI(`
 ]
 `)
 
-func TestFakeERC20(t *testing.T) {
-	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
-	defer DestroyTestApp(_app)
-
-	// see testdata/seps/contracts/FakeERC20.sol
-	creationBytecode := testutils.HexToBytes(`
-608060405234801561001057600080fd5b5061017c806100206000396000f3fe
-608060405234801561001057600080fd5b506004361061002b5760003560e01c
-806306fdde0314610030575b600080fd5b61003861004e565b60405161004591
-906100c4565b60405180910390f35b6060604051806040016040528060038152
-6020017f42434800000000000000000000000000000000000000000000000000
-00000000815250905090565b6000610096826100e6565b6100a081856100f156
-5b93506100b0818560208601610102565b6100b981610135565b840191505092
-915050565b600060208201905081810360008301526100de818461008b565b90
-5092915050565b600081519050919050565b6000828252602082019050929150
-50565b60005b8381101561012057808201518184015260208101905061010556
-5b8381111561012f576000848401525b50505050565b6000601f19601f830116
-905091905056fea2646970667358221220a5eecc856d49e4ae8faff58b8fe5ae
-09c6b3e07d3b8f8c85fc2e328e8253a39664736f6c63430008000033
-`)
-
-	// deploy contract
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
-	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := getCode(_app, contractAddr)
-	require.True(t, len(code) > 0)
-
-	// call name()
-	data := _sep206ABI.MustPack("name")
-	tx2 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, addr, tx2)
-	require.Equal(t, 0, statusCode)
-	require.Equal(t, "success", statusStr)
-	require.Equal(t, []interface{}{"BCH"}, _sep206ABI.MustUnpack("name", output))
-}
-
 func TestTokenInfo(t *testing.T) {
 	_app := CreateTestApp()
 	defer DestroyTestApp(_app)
@@ -355,7 +316,7 @@ func TestTokenInfo(t *testing.T) {
 		{"name", "BCH"},
 		{"symbol", "BCH"},
 		{"decimals", uint8(18)},
-		{"totalSupply", big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil))},
+		{"totalSupply", sep206TotalSupply},
 		//{"owner", gethcmn.Address{}},
 	}
 
@@ -365,33 +326,42 @@ func TestTokenInfo(t *testing.T) {
 	}
 }
 
-func TestTransfer(t *testing.T) {
+func TestTransferToExistAddr(t *testing.T) {
 	privKey1, addr1 := testutils.GenKeyAndAddr()
 	privKey2, addr2 := testutils.GenKeyAndAddr()
 	_app := CreateTestApp(privKey1, privKey2)
 	defer DestroyTestApp(_app)
 
 	b1 := getBalance(_app, addr1)
+	b2 := getBalance(_app, addr2)
 	require.Equal(t, b1, callViewMethod(t, _app, "balanceOf", addr1))
 
-	// transfer
-	data := _sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
-	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(1), data)
+	amt := big.NewInt(100)
+	data1 := sep206ABI.MustPack("transfer", addr2, amt)
+	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data1)
 	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
 	testutils.ExecTxInBlock(_app, 1, tx1)
-
-	require.Equal(t, b1.Sub(b1, big.NewInt(100+21572/*gas*/)), callViewMethod(t, _app, "balanceOf", addr1))
+	require.Equal(t, b1.Sub(b1, amt), callViewMethod(t, _app, "balanceOf", addr1))
+	require.Equal(t, b2.Add(b2, amt), callViewMethod(t, _app, "balanceOf", addr2))
 }
 
-func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{}) interface{} {
-	data := _sep206ABI.MustPack(selector, args...)
-	tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, gethcmn.Address{}, tx)
-	require.Equal(t, 0, statusCode, selector)
-	require.Equal(t, "success", statusStr, selector)
-	result := _sep206ABI.MustUnpack(selector, output)
-	require.Len(t, result, 1, selector)
-	return result[0]
+func TestTransferToNonExistAddr(t *testing.T) {
+	privKey1, addr1 := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey1)
+	defer DestroyTestApp(_app)
+
+	b1 := getBalance(_app, addr1)
+	require.Equal(t, b1, callViewMethod(t, _app, "balanceOf", addr1))
+	require.Equal(t, uint64(0), callViewMethod(t, _app, "balanceOf", addr2).(*big.Int).Uint64())
+
+	amt := big.NewInt(100)
+	data1 := sep206ABI.MustPack("transfer", addr2, amt)
+	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data1)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	require.Equal(t, b1.Sub(b1, amt), callViewMethod(t, _app, "balanceOf", addr1))
+	require.Equal(t, amt, callViewMethod(t, _app, "balanceOf", addr2))
 }
 
 func TestTransferFrom(t *testing.T) {
@@ -403,4 +373,15 @@ func TestTransferFrom(t *testing.T) {
 
 	a1 := callViewMethod(t, _app, "allowance", addr1, addr2)
 	require.Equal(t, uint64(0), a1.(*big.Int).Uint64())
+}
+
+func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{}) interface{} {
+	data := sep206ABI.MustPack(selector, args...)
+	tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
+	statusCode, statusStr, output := call(_app, gethcmn.Address{}, tx)
+	require.Equal(t, 0, statusCode, selector)
+	require.Equal(t, "success", statusStr, selector)
+	result := sep206ABI.MustUnpack(selector, output)
+	require.Len(t, result, 1, selector)
+	return result[0]
 }
