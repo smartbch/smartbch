@@ -5,13 +5,17 @@ import "./interfaces/SEP101.sol";
 
 contract SEP101Proxy is SEP101 {
 
-    SEP101 constant public agent = SEP101(address(0x2712));
+    bytes4 private constant _SELECTOR_SET = bytes4(keccak256(bytes("set(bytes,bytes)")));
+    bytes4 private constant _SELECTOR_GET = bytes4(keccak256(bytes("get(bytes)")));
+
+    address constant public agent = address(0x2712);
 
     function set(bytes calldata key, bytes calldata value) override external {
-        agent.set(key, value);
+        agent.call(abi.encodeWithSelector(_SELECTOR_SET, key, value));
     }
     function get(bytes calldata key) override external view returns (bytes memory) {
-        return agent.get(key);
+        (bool success, bytes memory data) = agent.staticcall(abi.encodeWithSelector(_SELECTOR_GET, key));
+        return abi.decode(data, (bytes));
     }
 
 }

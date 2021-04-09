@@ -10,7 +10,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
 	github.com/smartbch/moeingads v0.0.0-20210323144848-442253e10b4a
 	github.com/smartbch/moeingdb v0.0.0-20210316094718-eaee2770fd57
-	github.com/smartbch/moeingevm v0.0.0-20210408093346-54f9a104393e
+	github.com/smartbch/moeingevm v0.0.0-20210409011355-3e53a6b6da78
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
