@@ -93,7 +93,8 @@ type App struct {
 	txEngine ebp.TxExecutor
 
 	//watcher
-	watcher *staking.Watcher
+	watcher   *staking.Watcher
+	epochList []*stakingtypes.Epoch
 
 	//util
 	signer gethtypes.Signer
@@ -375,13 +376,17 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 	select {
 	case epoch := <-app.watcher.EpochChan:
 		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
-		if app.block.Timestamp > epoch.EndTime+100*10*60 /*100 * 10min*/ {
-			ctx := app.GetContext(RunTxMode)
-			app.currValidators = staking.SwitchEpoch(ctx, epoch)
-			ctx.Close(true)
-		}
+		app.epochList = append(app.epochList, epoch)
 	default:
 		//fmt.Println("no new epoch")
+	}
+	if len(app.epochList) != 0 {
+		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+			ctx := app.GetContext(RunTxMode)
+			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			ctx.Close(true)
+			app.epochList = app.epochList[1:]
+		}
 	}
 	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	if len(app.currValidators) != 0 {
