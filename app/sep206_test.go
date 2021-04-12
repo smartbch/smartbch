@@ -410,16 +410,16 @@ func TestTransferFrom(t *testing.T) {
 	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(ownerKey))
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	checkTx(t, _app, 1, tx1.Hash())
-	//a1 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
-	//require.Equal(t, uint64(12345), a1.(*big.Int).Uint64())
+	a1 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
+	require.Equal(t, uint64(12345), a1.(*big.Int).Uint64())
 
 	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, big.NewInt(345))
 	tx2 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data2)
 	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(spenderKey))
 	testutils.ExecTxInBlock(_app, 3, tx2)
 	checkTx(t, _app, 3, tx2.Hash())
-	//a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
-	//require.Equal(t, uint64(12468), a2.(*big.Int).Uint64())
+	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
+	require.Equal(t, uint64(12000), a2.(*big.Int).Uint64())
 }
 
 func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{}) interface{} {
