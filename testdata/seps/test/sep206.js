@@ -7,6 +7,7 @@ contract("SEP206", async (accounts) => {
         assert.equal(await sep206.name(), "BCH");
         assert.equal(await sep206.symbol(), "BCH");
         assert.equal(await sep206.decimals(), 18);
+        assert.equal((await sep206.totalSupply()).toString(), "21000000000000000000000000");
     });
 
 });
