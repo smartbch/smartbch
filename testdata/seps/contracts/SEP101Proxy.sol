@@ -11,10 +11,10 @@ contract SEP101Proxy is SEP101 {
     address constant public agent = address(0x2712);
 
     function set(bytes calldata key, bytes calldata value) override external {
-        agent.call(abi.encodeWithSelector(_SELECTOR_SET, key, value));
+        agent.delegatecall(abi.encodeWithSelector(_SELECTOR_SET, key, value));
     }
-    function get(bytes calldata key) override external view returns (bytes memory) {
-        (bool success, bytes memory data) = agent.staticcall(abi.encodeWithSelector(_SELECTOR_GET, key));
+    function get(bytes calldata key) override external returns (bytes memory) {
+        (bool success, bytes memory data) = agent.delegatecall(abi.encodeWithSelector(_SELECTOR_GET, key));
         return abi.decode(data, (bytes));
     }
 
