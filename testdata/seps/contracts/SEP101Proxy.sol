@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import "./interfaces/SEP101.sol";
+import "./interfaces/ISEP101.sol";
 
-contract SEP101Proxy is SEP101 {
+contract SEP101Proxy is ISEP101 {
 
     bytes4 private constant _SELECTOR_SET = bytes4(keccak256(bytes("set(bytes,bytes)")));
     bytes4 private constant _SELECTOR_GET = bytes4(keccak256(bytes("get(bytes)")));
