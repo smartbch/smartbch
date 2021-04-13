@@ -57,13 +57,8 @@ var _sep101ABI = testutils.MustParseABI(`
 ]
 `)
 
-func TestSEP101(t *testing.T) {
-	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
-	defer DestroyTestApp(_app)
-
-	// see testdata/seps/contracts/SEP101Proxy.sol
-	creationBytecode := testutils.HexToBytes(`
+// see testdata/seps/contracts/SEP101Proxy.sol
+var _sep101ProxyCreationBytecode = testutils.HexToBytes(`
 608060405234801561001057600080fd5b50610789806100206000396000f3fe
 608060405234801561001057600080fd5b50600436106100415760003560e01c
 8063a18c751e14610046578063d6d7d52514610062578063f5ff5c7614610092
@@ -128,8 +123,14 @@ e5de781849eed8012fcec370be5db5d6a1c9ad988f9fc8d3b49cde95ffe36473
 6f6c63430008000033
 `)
 
+func TestSEP101(t *testing.T) {
+	privKey, addr := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey)
+	defer DestroyTestApp(_app)
+
 	// deploy proxy
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
+	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
+		_sep101ProxyCreationBytecode)
 	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
@@ -161,4 +162,12 @@ e5de781849eed8012fcec370be5db5d6a1c9ad988f9fc8d3b49cde95ffe36473
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
+
+	// get non-existing key
+	data = _sep101ABI.MustPack("get", []byte{9, 9, 9})
+	tx5 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
+	statusCode, statusStr, output = call(_app, addr, tx5)
+	require.Equal(t, "success", statusStr)
+	require.Equal(t, 0, statusCode)
+	require.Equal(t, []interface{}{[]byte{}}, _sep101ABI.MustUnpack("get", output))
 }
