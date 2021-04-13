@@ -12,13 +12,13 @@ contract("SEP101", async (accounts) => {
     it('get/set: from EOA', async () => {
         const sep101 = new ISEP101("0x0000000000000000000000000000000000002712");
         try {
-            await sep101.set_call(shortKey, shortVal);
+            await sep101.set(shortKey, shortVal);
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
         }
         try {
-            await sep101.get_call(shortKey);
+            await sep101.get(shortKey);
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");

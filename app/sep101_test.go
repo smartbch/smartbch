@@ -159,8 +159,8 @@ func TestSEP101(t *testing.T) {
 	data = _sep101ABI.MustPack("get", key)
 	tx4 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
 	statusCode, statusStr, output := call(_app, addr, tx4)
-	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
+	require.Equal(t, "success", statusStr)
 	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
 
 	// get non-existing key
@@ -170,4 +170,34 @@ func TestSEP101(t *testing.T) {
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, []interface{}{[]byte{}}, _sep101ABI.MustUnpack("get", output))
+}
+
+func TestSEP101_setZeroLenKey(t *testing.T) {
+	privKey, addr := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey)
+	defer DestroyTestApp(_app)
+
+	// deploy proxy
+	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
+		_sep101ProxyCreationBytecode)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
+	code := getCode(_app, contractAddr)
+	require.True(t, len(code) > 0)
+
+	// set() with zero-len key
+	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
+	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
+	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	testutils.ExecTxInBlock(_app, 3, tx2)
+
+	blk3 := getBlock(_app, 3)
+	require.Equal(t, int64(3), blk3.Number)
+	require.Len(t, blk3.Transactions, 1)
+	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	//require.Equal(t, 2, txInBlk3.Status)
+	require.Equal(t, "precompile-failure", txInBlk3.StatusStr)
+	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
 }
