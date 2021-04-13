@@ -5,13 +5,8 @@ import "./SEP101Proxy.sol";
 
 contract SEP101Proxy2 is SEP101Proxy {
 
-    function set_zero_len_key(bytes calldata value) external {
-        agent.staticcall(abi.encodeWithSelector(_SELECTOR_SET, new bytes(0), value));
-    }
-    function get_zero_len_key() external returns (bytes memory) {
-        (bool success, bytes memory data) = agent.staticcall(abi.encodeWithSelector(_SELECTOR_GET, new bytes(0)));
-        resultOfGet = abi.decode(data, (bytes));
-        return resultOfGet;
+    function set_zero_len_val(bytes calldata key) external {
+        agent.delegatecall(abi.encodeWithSelector(_SELECTOR_SET, key, new bytes(0)));
     }
 
     // CompileError: TypeError: "callcode" has been deprecated in favour of "delegatecall".
