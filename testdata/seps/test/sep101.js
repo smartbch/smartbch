@@ -23,4 +23,36 @@ contract("SEP101", async (accounts) => {
         assert.equal(await sep101Proxy.resultOfGet(), longVal);
     });
 
+    // it('get/set call_code', async () => {
+    //     await sep101Proxy.set_callcode(shortKey, shortVal);
+    //     await sep101Proxy.get_callcode(shortKey);
+    //     assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+
+    //     await sep101Proxy.set_callcode(longKey, longVal);
+    //     await sep101Proxy.get_callcode(longKey);
+    //     assert.equal(await sep101Proxy.resultOfGet(), longVal);
+    // });
+
+    it('get/set call', async () => {
+        try {
+            await sep101Proxy.set_call(shortKey, shortVal);
+            fail("error expected");
+        } catch (e) {}
+        try {
+            await sep101Proxy.get_call(shortKey);
+            fail("error expected");
+        } catch (e) {}
+    });
+
+    it('get/set staticcall', async () => {
+        try {
+            await sep101Proxy.set_staticcall(shortKey, shortVal);
+            fail("error expected");
+        } catch (e) {}
+        try {
+            await sep101Proxy.get_staticcall(shortKey);
+            fail("error expected");
+        } catch (e) {}
+    });
+
 });

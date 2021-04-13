@@ -20,4 +20,32 @@ contract SEP101Proxy is ISEP101 {
         return resultOfGet;
     }
 
+    // CompileError: TypeError: "callcode" has been deprecated in favour of "delegatecall".
+    // function set_callcode(bytes calldata key, bytes calldata value) external {
+    //     agent.callcode(abi.encodeWithSelector(_SELECTOR_SET, key, value));
+    // }
+    // function get_callcode(bytes calldata key) external returns (bytes memory) {
+    //     (bool success, bytes memory data) = agent.callcode(abi.encodeWithSelector(_SELECTOR_GET, key));
+    //     resultOfGet = abi.decode(data, (bytes));
+    //     return resultOfGet;
+    // }
+
+    function set_call(bytes calldata key, bytes calldata value) external {
+        agent.call(abi.encodeWithSelector(_SELECTOR_SET, key, value));
+    }
+    function get_call(bytes calldata key) external returns (bytes memory) {
+        (bool success, bytes memory data) = agent.call(abi.encodeWithSelector(_SELECTOR_GET, key));
+        resultOfGet = abi.decode(data, (bytes));
+        return resultOfGet;
+    }
+
+    function set_staticcall(bytes calldata key, bytes calldata value) external {
+        agent.staticcall(abi.encodeWithSelector(_SELECTOR_SET, key, value));
+    }
+    function get_staticcall(bytes calldata key) external returns (bytes memory) {
+        (bool success, bytes memory data) = agent.staticcall(abi.encodeWithSelector(_SELECTOR_GET, key));
+        resultOfGet = abi.decode(data, (bytes));
+        return resultOfGet;
+    }
+
 }
