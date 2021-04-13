@@ -13,12 +13,16 @@ contract("SEP101", async (accounts) => {
         const sep101 = new ISEP101("0x0000000000000000000000000000000000002712");
         try {
             await sep101.set_call(shortKey, shortVal);
-            fail("error expected");
-        } catch (e) {}
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
         try {
             await sep101.get_call(shortKey);
-            fail("error expected");
-        } catch (e) {}
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
     });
 
 });
@@ -60,38 +64,87 @@ contract("SEP101Proxy2", async (accounts) => {
         await sep101Proxy.set_zero_len_val(shortKey);
         await sep101Proxy.get(shortKey);
         assert.equal(await sep101Proxy.resultOfGet(), null);
+
+        await sep101Proxy.set(shortKey, []);
+        await sep101Proxy.get(shortKey);
+        assert.equal(await sep101Proxy.resultOfGet(), null);
     });
 
-    // it('get/set: call_code', async () => {
-    // //     await sep101Proxy.set_callcode(shortKey, shortVal);
-    // //     await sep101Proxy.get_callcode(shortKey);
-    // //     assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+    it('set: zero-length key', async () => {
+        try {
+            await sep101Proxy.set([], shortVal);
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
+    });
 
-    // //     await sep101Proxy.set_callcode(longKey, longVal);
-    // //     await sep101Proxy.get_callcode(longKey);
-    // //     assert.equal(await sep101Proxy.resultOfGet(), longVal);
-    // });
+    it('set: key too large', async () => {
+        const maxLenKey = "0x" + "ab".repeat(256);
+        await sep101Proxy.set(maxLenKey, shortVal);
+        await sep101Proxy.get(maxLenKey);
+        assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+
+        try {
+            await sep101Proxy.set(maxLenKey + "0", shortVal);
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
+    });
+
+    it('set: val too large', async () => {
+        const maxLenVal = "0x" + "cd".repeat(24576);
+        await sep101Proxy.set(shortKey, maxLenVal);
+        await sep101Proxy.get(shortKey);
+        assert.equal(await sep101Proxy.resultOfGet(), maxLenVal);
+
+        try {
+            await sep101Proxy.set(shortKey, maxLenVal + "0");
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
+    });
+
+    it('get/set: call_code', async () => {
+    //     await sep101Proxy.set_callcode(shortKey, shortVal);
+    //     await sep101Proxy.get_callcode(shortKey);
+    //     assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+
+    //     await sep101Proxy.set_callcode(longKey, longVal);
+    //     await sep101Proxy.get_callcode(longKey);
+    //     assert.equal(await sep101Proxy.resultOfGet(), longVal);
+    });
 
     it('get/set: call', async () => {
         try {
             await sep101Proxy.set_call(shortKey, shortVal);
-            fail("error expected");
-        } catch (e) {}
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
         try {
             await sep101Proxy.get_call(shortKey);
-            fail("error expected");
-        } catch (e) {}
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
     });
 
     it('get/set: staticcall', async () => {
         try {
             await sep101Proxy.set_staticcall(shortKey, shortVal);
-            fail("error expected");
-        } catch (e) {}
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
         try {
             await sep101Proxy.get_staticcall(shortKey);
-            fail("error expected");
-        } catch (e) {}
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
     });
 
 });
