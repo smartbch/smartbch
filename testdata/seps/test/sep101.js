@@ -94,7 +94,7 @@ contract("SEP101Proxy2", async (accounts) => {
     });
 
     it('set: val too large', async () => {
-        const maxLenVal = "0x" + "cd".repeat(24576);
+        const maxLenVal = "0x" + "cd".repeat(24*1024);
         await sep101Proxy.set(shortKey, maxLenVal);
         await sep101Proxy.get(shortKey);
         assert.equal(await sep101Proxy.resultOfGet(), maxLenVal);
