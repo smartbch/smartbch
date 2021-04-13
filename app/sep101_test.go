@@ -123,20 +123,25 @@ e5de781849eed8012fcec370be5db5d6a1c9ad988f9fc8d3b49cde95ffe36473
 6f6c63430008000033
 `)
 
+func deploySEP101Proxy(t *testing.T, _app *App, privKey string, senderAddr gethcmn.Address) gethcmn.Address {
+	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
+		_sep101ProxyCreationBytecode)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	contractAddr := gethcrypto.CreateAddress(senderAddr, tx1.Nonce())
+	code := getCode(_app, contractAddr)
+	require.True(t, len(code) > 0)
+	return contractAddr
+}
+
 func TestSEP101(t *testing.T) {
 	privKey, addr := testutils.GenKeyAndAddr()
 	_app := CreateTestApp(privKey)
 	defer DestroyTestApp(_app)
 
 	// deploy proxy
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
-		_sep101ProxyCreationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
-	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := getCode(_app, contractAddr)
-	require.True(t, len(code) > 0)
+	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
 
 	key := []byte{0xAB, 0xCD}
 	val := bytes.Repeat([]byte{0x12, 0x34}, 500)
@@ -178,17 +183,56 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 	defer DestroyTestApp(_app)
 
 	// deploy proxy
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
-		_sep101ProxyCreationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
-	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := getCode(_app, contractAddr)
-	require.True(t, len(code) > 0)
+	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
 
 	// set() with zero-len key
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
+	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
+	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	testutils.ExecTxInBlock(_app, 3, tx2)
+
+	blk3 := getBlock(_app, 3)
+	require.Equal(t, int64(3), blk3.Number)
+	require.Len(t, blk3.Transactions, 1)
+	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	//require.Equal(t, 2, txInBlk3.Status)
+	require.Equal(t, "precompile-failure", txInBlk3.StatusStr)
+	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
+}
+
+func TestSEP101_setKeyTooLong(t *testing.T) {
+	privKey, addr := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey)
+	defer DestroyTestApp(_app)
+
+	// deploy proxy
+	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
+
+	// set() with looooong key
+	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
+	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
+	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	testutils.ExecTxInBlock(_app, 3, tx2)
+
+	blk3 := getBlock(_app, 3)
+	require.Equal(t, int64(3), blk3.Number)
+	require.Len(t, blk3.Transactions, 1)
+	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	//require.Equal(t, 2, txInBlk3.Status)
+	require.Equal(t, "precompile-failure", txInBlk3.StatusStr)
+	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
+}
+
+func TestSEP101_setValTooLong(t *testing.T) {
+	privKey, addr := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey)
+	defer DestroyTestApp(_app)
+
+	// deploy proxy
+	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
+
+	// set() with looooong val
+	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
 	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
 	testutils.ExecTxInBlock(_app, 3, tx2)
