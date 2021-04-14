@@ -38,11 +38,3 @@ func CompileSolStr(s string) (code, rtCode string, _abi abi.ABI, err error) {
 
 	panic("unreachable")
 }
-
-func MustParseABI(abiJSON string) abi.ABI {
-	_abi, err := abi.JSON(strings.NewReader(abiJSON))
-	if err != nil {
-		panic(err)
-	}
-	return _abi
-}

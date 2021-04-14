@@ -456,8 +456,7 @@ func TestCall_RunGetter(t *testing.T) {
 	require.True(t, len(rtCode) > 0)
 
 	// call contract
-	data, err := counterContractABI.Pack("counter")
-	require.NoError(t, err)
+	data := counterContractABI.MustPack("counter")
 	results, err := _api.Call(ethapi.CallArgs{
 		//From: &fromAddr,
 		To:   &contractAddr,

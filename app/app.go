@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path"
@@ -93,7 +94,8 @@ type App struct {
 	scope     event.SubscriptionScope
 
 	//engine
-	txEngine ebp.TxExecutor
+	txEngine    ebp.TxExecutor
+	reorderSeed int64
 
 	//watcher
 	watcher   *staking.Watcher
@@ -353,6 +355,10 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	}
 	copy(app.block.ParentHash[:], req.Header.LastBlockId.Hash)
 	copy(app.block.TransactionsRoot[:], req.Header.DataHash) //TODO changed to committed tx hash
+	app.reorderSeed = 0
+	if len(req.Header.DataHash) >= 8 {
+		app.reorderSeed = int64(binary.LittleEndian.Uint64(req.Header.DataHash[0:7]))
+	}
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash[:])
@@ -476,7 +482,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	staking.DistributeFee(*ctx, &blockReward, pubkeyMapByAddr[app.lastProposer], voters)
 	ctx.Close(true)
 
-	app.txEngine.Prepare(app.lastMinGasPrice)
+	app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
+
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
