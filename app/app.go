@@ -59,6 +59,8 @@ const (
 	SenderNotFound       uint32 = 103
 	AccountNonceMismatch uint32 = 104
 	CannotPayGasFee      uint32 = 105
+	GasLimitInvalid      uint32 = 106
+	InvalidMinGasPrice   uint32 = 107
 )
 
 type App struct {
@@ -72,17 +74,19 @@ type App struct {
 	historyStore modbtypes.DB
 
 	//refresh with block
-	currHeight     int64
-	checkHeight    int64
-	trunk          *store.TrunkStore
-	checkTrunk     *store.TrunkStore
-	block          *types.Block
-	blockInfo      atomic.Value // to store *types.BlockInfo
-	lastCommitInfo [][]byte
-	lastProposer   [20]byte
-	lastGasUsed    uint64
-	lastGasRefund  uint256.Int
-	lastGasFee     uint256.Int
+	currHeight      int64
+	checkHeight     int64
+	trunk           *store.TrunkStore
+	checkTrunk      *store.TrunkStore
+	block           *types.Block
+	blockInfo       atomic.Value // to store *types.BlockInfo
+	slashValidators [][20]byte
+	lastCommitInfo  [][]byte
+	lastProposer    [20]byte
+	lastGasUsed     uint64
+	lastGasRefund   uint256.Int
+	lastGasFee      uint256.Int
+	lastMinGasPrice uint64
 
 	// feeds
 	chainFeed event.Feed
@@ -94,7 +98,8 @@ type App struct {
 	reorderSeed int64
 
 	//watcher
-	watcher *staking.Watcher
+	watcher   *staking.Watcher
+	epochList []*stakingtypes.Epoch
 
 	//util
 	signer gethtypes.Signer
@@ -156,6 +161,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
+	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
 	app.testValidatorPubKey = testValidatorPubKey
 	return app
@@ -216,11 +222,18 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender"}
 	}
+	//todo: replace with engine param
+	if tx.Gas() > uint64(ebp.MaxTxGasLimit) {
+		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	if gasPrice.Cmp(uint256.NewInt().SetUint64(app.lastMinGasPrice)) < 0 {
+		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
+	}
 	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
@@ -349,14 +362,17 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash[:])
-	//fmt.Printf("!!!!!!app block hash:%v\n", app.block.StateRoot)
 	//TODO: slash req.ByzantineValidators
 	app.currHeight = req.Header.Height
-	//if app.currHeight == 1 {
-	//	app.root.SetHeight(app.currHeight)
-	//	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
-	//	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
-	//}
+	// collect slash info, only double sign
+	var addr [20]byte
+	for _, val := range req.ByzantineValidators {
+		//not check time, always slash
+		if val.Type == abcitypes.EvidenceType_DUPLICATE_VOTE {
+			copy(addr[:], val.Validator.Address)
+			app.slashValidators = append(app.slashValidators, addr)
+		}
+	}
 	app.logger.Debug("leave begin block!")
 	return abcitypes.ResponseBeginBlock{}
 }
@@ -377,13 +393,17 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 	select {
 	case epoch := <-app.watcher.EpochChan:
 		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
-		if app.block.Timestamp > epoch.EndTime+100*10*60 /*100 * 10min*/ {
-			ctx := app.GetContext(RunTxMode)
-			app.currValidators = staking.SwitchEpoch(ctx, epoch)
-			ctx.Close(true)
-		}
+		app.epochList = append(app.epochList, epoch)
 	default:
 		//fmt.Println("no new epoch")
+	}
+	if len(app.epochList) != 0 {
+		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+			ctx := app.GetContext(RunTxMode)
+			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			ctx.Close(true)
+			app.epochList = app.epochList[1:]
+		}
 	}
 	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	if len(app.currValidators) != 0 {
@@ -412,13 +432,18 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
-	//distribute previous block gas gee
 	ctx := app.GetContext(RunTxMode)
 	_, info := staking.LoadStakingAcc(*ctx)
 	pubkeyMapByAddr := make(map[[20]byte][32]byte)
 	for _, v := range info.Validators {
 		pubkeyMapByAddr[v.Address] = v.Pubkey
 	}
+	//slash first
+	for _, v := range app.slashValidators {
+		staking.Slash(ctx, pubkeyMapByAddr[v], staking.SlashedStakingAmount)
+	}
+	app.slashValidators = nil
+	//distribute previous block gas gee
 	voters := make([][32]byte, len(app.lastCommitInfo))
 	var tmpAddr [20]byte
 	for i, c := range app.lastCommitInfo {
@@ -436,19 +461,19 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	}
 	//invariant check for fund safe
 	sysB := ebp.GetSystemBalance(ctx)
+	if sysB.Cmp(&app.lastGasFee) < 0 {
+		panic("system balance not enough!")
+	}
 	if app.txEngine.StandbyQLen() != 0 {
 		if sysB.Cmp(uint256.NewInt()) <= 0 {
 			panic("system account balance should have some pending gas fee")
 		}
 	} else {
-		if sysB.Cmp(&app.lastGasFee) < 0 {
-			panic("system balance not enough!")
-		}
 		// distribute extra balance to validators
 		blockReward = *sysB
 	}
 	if !blockReward.IsZero() {
-		err := ebp.TransferFromSystemAccToBlackHoleAcc(ctx, &blockReward)
+		err := ebp.SubSystemAccBalance(ctx, &blockReward)
 		if err != nil {
 			//todo: be careful
 			panic(err)
@@ -457,7 +482,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	staking.DistributeFee(*ctx, &blockReward, pubkeyMapByAddr[app.lastProposer], voters)
 	ctx.Close(true)
 
-	app.txEngine.Prepare(app.reorderSeed)
+	app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
+
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
@@ -494,7 +520,10 @@ func (app *App) refresh() {
 	ctx := app.GetContext(RunTxMode)
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
-	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
+	//refresh lastMinGasPrice
+	mGP := staking.LoadMinGasPrice(ctx, false)
+	staking.SaveMinGasPrice(ctx, mGP, true)
+	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	app.trunk.Close(true)
 

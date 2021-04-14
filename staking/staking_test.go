@@ -212,7 +212,7 @@ func TestSlash(t *testing.T) {
 	stakingAcc, info := staking.LoadStakingAcc(*ctx)
 	info.Validators[0].StakedCoins[31] = 100
 	staking.SaveStakingInfo(*ctx, stakingAcc, info)
-	totalSlashed := staking.Slash(*ctx, slashedPubkey, uint256.NewInt().SetUint64(1))
+	totalSlashed := staking.Slash(ctx, slashedPubkey, uint256.NewInt().SetUint64(1))
 	require.Equal(t, uint64(1), totalSlashed.Uint64())
 	allBurnt := uint256.NewInt()
 	acc := ctx.GetAccount(stakingAddr)

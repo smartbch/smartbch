@@ -90,7 +90,7 @@ func TestTransferFailed(t *testing.T) {
 	moeTx := getTx(_app, tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	require.Equal(t, gethtypes.ReceiptStatusFailed, moeTx.Status)
-	//require.Equal(t, "balance-not-enough", moeTx.StatusStr)
+	require.Equal(t, "balance-not-enough", moeTx.StatusStr)
 }
 
 func TestBlock(t *testing.T) {
@@ -149,7 +149,7 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, AccountNonceMismatch, res.Code)
 
 	//gas fee not pay
-	tx = gethtypes.NewTransaction(0, addr1, big.NewInt(100), 1000000000, big.NewInt(1), nil)
+	tx = gethtypes.NewTransaction(0, addr1, big.NewInt(100), 900_0000, big.NewInt(10), nil)
 	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
 	res = _app.CheckTx(abci.RequestCheckTx{
 		Tx:   ethutils.MustEncodeTx(tx),
@@ -158,7 +158,7 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, CannotPayGasFee, res.Code)
 
 	//ok
-	tx = gethtypes.NewTransaction(0, addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
+	tx = gethtypes.NewTransaction(0, addr1, big.NewInt(100), 100000, big.NewInt(10), nil)
 	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
 	res = _app.CheckTx(abci.RequestCheckTx{
 		Tx:   ethutils.MustEncodeTx(tx),
