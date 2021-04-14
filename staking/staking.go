@@ -2,6 +2,7 @@ package staking
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"github.com/smartbch/moeingevm/ebp"
 	"strings"
@@ -14,8 +15,37 @@ import (
 )
 
 var (
+	//contract address
 	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		byte('s'), byte('t'), byte('a'), byte('k'), byte('i'), byte('n'), byte('g')}
+
+	/*------selector------*/
+	/*interface Staking {
+	    //0x24d1ed5d
+	    function createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey) external;
+	    //0x9dc159b6
+	    function editValidator(address rewardTo, bytes32 introduction) external;
+	    //0xa4874d77
+	    function retire() external;
+		//0xf2016e8e
+		function increaseMinGasPrice() external;
+		//0x696e6ad2
+		function decreaseMinGasPrice() external;
+	}*/
+	SelectorCreateValidator     [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
+	SelectorEditValidator       [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
+	SelectorRetire              [4]byte = [4]byte{0xa4, 0x87, 0x4d, 0x77}
+	SelectorIncreaseMinGasPrice [4]byte = [4]byte{0xf2, 0x01, 0x6e, 0x8e}
+	SelectorDecreaseMinGasPrice [4]byte = [4]byte{0x69, 0x6e, 0x6a, 0xd2}
+
+	//slot
+	SlotStakingInfo     string = strings.Repeat(string([]byte{0}), 32)
+	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
+	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
+	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+
+	/*------param------*/
+	//staking
 	InitialStakingAmount *uint256.Int = uint256.NewInt().Mul(
 		uint256.NewInt().SetUint64(1000),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
@@ -25,32 +55,27 @@ var (
 	SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
 		uint256.NewInt().SetUint64(10),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
-
-	/*interface Staking {
-	    //0x24d1ed5d
-	    function createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey) external;
-	    //0x9dc159b6
-	    function editValidator(address rewardTo, bytes32 introduction) external;
-	    //0xa4874d77
-	    function retire() external;
-	}*/
-	SelectorCreateValidator [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
-	SelectorEditValidator   [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
-	SelectorRetire          [4]byte = [4]byte{0xa4, 0x87, 0x4d, 0x77}
-
-	SlotStakingInfo string = strings.Repeat(string([]byte{0}), 32)
-	SlotAllBurnt    string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
-
-	EpochCountBeforeRewardMature int64 = 1
-
 	GasOfStakingExternalOp uint64 = 400_000
+	//reward
+	EpochCountBeforeRewardMature int64        = 1
+	BaseProposerPercentage       *uint256.Int = uint256.NewInt().SetUint64(15)
+	ExtraProposerPercentage      *uint256.Int = uint256.NewInt().SetUint64(15)
+	//minGasPrice
+	//todo: set to 0 for test, change it for product
+	DefaultMinGasPrice  uint64 = 0 //unit like gwei
+	MaxMinGasPriceDelta uint64 = 10
+	MinGasPriceStep     uint64 = 2 //gas delta every tx can change
+	MaxMinGasPrice      uint64 = 500
+	//todo: set to 0 for test, change it for product
+	MinMinGasPrice      uint64 = 0
 
-	BaseProposerPercentage  *uint256.Int = uint256.NewInt().SetUint64(15)
-	ExtraProposerPercentage *uint256.Int = uint256.NewInt().SetUint64(15)
-
-	InvalidCallData  = errors.New("Invalid call data")
-	BalanceNotEnough = errors.New("Balance is not enough")
-	NoSuchValidator  = errors.New("No such validator")
+	/*------error info------*/
+	InvalidCallData                   = errors.New("Invalid call data")
+	BalanceNotEnough                  = errors.New("Balance is not enough")
+	NoSuchValidator                   = errors.New("No such validator")
+	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than max")
+	MinGasPriceTooSmall               = errors.New("minGasPrice smaller than max")
+	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
 )
 
 type StakingContractExecutor struct{}
@@ -76,20 +101,28 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 		status = int(mevmtypes.ReceiptStatusFailed)
 		return
 	}
-	selector := tx.Data[:4]
-	if bytes.Equal(selector, SelectorCreateValidator[:]) {
+	var selector [4]byte
+	copy(selector[:], tx.Data[:4])
+	switch selector {
+	case SelectorCreateValidator:
 		//createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey)
 		return externalOp(ctx, tx, true, false)
-	} else if bytes.Equal(selector, SelectorEditValidator[:]) {
+	case SelectorEditValidator:
 		//editValidator(address rewardTo, bytes32 introduction)
 		return externalOp(ctx, tx, false, false)
-	} else if bytes.Equal(selector, SelectorRetire[:]) {
+	case SelectorRetire:
 		//retire()
 		return externalOp(ctx, tx, false, true)
-	} else {
+	case SelectorIncreaseMinGasPrice:
+		//function increaseMinGasPrice() external;
+		return handleMinGasPrice(&ctx, true)
+	case SelectorDecreaseMinGasPrice:
+		//function decreaseMinGasPrice() external;
+		return handleMinGasPrice(&ctx, false)
+	default:
 		status = int(mevmtypes.ReceiptStatusFailed)
+		return
 	}
-	return
 }
 
 // This function implements the underlying logic for three external functions: createValidator, editValidator and retire
@@ -177,6 +210,33 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retir
 	return
 }
 
+func handleMinGasPrice(ctx *mevmtypes.Context, isIncrease bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	mGP := LoadMinGasPrice(ctx, false)
+	lastMGP := LoadMinGasPrice(ctx, true)
+	gasUsed = GasOfStakingExternalOp
+	if isIncrease {
+		mGP += MinGasPriceStep
+	} else {
+		mGP -= MinGasPriceStep
+	}
+	if mGP < MinMinGasPrice {
+		outData = []byte(MinGasPriceTooSmall.Error())
+		return
+	}
+	if mGP > MaxMinGasPrice {
+		outData = []byte(MinGasPriceTooBig.Error())
+		return
+	}
+	if (mGP > lastMGP && mGP-lastMGP > MaxMinGasPriceDelta) ||
+		(mGP < lastMGP && lastMGP-mGP > MaxMinGasPriceDelta) {
+		outData = []byte(MinGasPriceExceedBlockChangeDelta.Error())
+		return
+	}
+	SaveMinGasPrice(ctx, mGP, false)
+	status = int(mevmtypes.ReceiptStatusSuccessful)
+	return
+}
+
 func LoadStakingAcc(ctx mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	stakingAcc = ctx.GetAccount(StakingContractAddress)
 	if stakingAcc == nil {
@@ -199,6 +259,37 @@ func SaveStakingInfo(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, i
 		panic(err)
 	}
 	ctx.SetStorageAt(stakingAcc.Sequence(), SlotStakingInfo, bz)
+}
+
+func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
+	stakingAcc := ctx.GetAccount(StakingContractAddress)
+	if stakingAcc == nil {
+		panic("Cannot find staking contract")
+	}
+	var bz []byte
+	if isLast {
+		bz = ctx.GetStorageAt(stakingAcc.Sequence(), SlotLastMinGasPrice)
+	} else {
+		bz = ctx.GetStorageAt(stakingAcc.Sequence(), SlotMinGasPrice)
+	}
+	if bz == nil {
+		return DefaultMinGasPrice
+	}
+	return binary.BigEndian.Uint64(bz)
+}
+
+func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
+	stakingAcc := ctx.GetAccount(StakingContractAddress)
+	if stakingAcc == nil {
+		panic("Cannot find staking contract")
+	}
+	var b [8]byte
+	binary.BigEndian.PutUint64(b[:], minGP)
+	if isLast {
+		ctx.SetStorageAt(stakingAcc.Sequence(), SlotLastMinGasPrice, b[:])
+	} else {
+		ctx.SetStorageAt(stakingAcc.Sequence(), SlotMinGasPrice, b[:])
+	}
 }
 
 // =========================================================================================

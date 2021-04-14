@@ -58,6 +58,8 @@ const (
 	SenderNotFound       uint32 = 103
 	AccountNonceMismatch uint32 = 104
 	CannotPayGasFee      uint32 = 105
+	GasLimitInvalid      uint32 = 106
+	InvalidMinGasPrice   uint32 = 107
 )
 
 type App struct {
@@ -83,6 +85,7 @@ type App struct {
 	lastGasUsed     uint64
 	lastGasRefund   uint256.Int
 	lastGasFee      uint256.Int
+	lastMinGasPrice uint64
 
 	// feeds
 	chainFeed event.Feed
@@ -156,6 +159,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
+	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
 	app.testValidatorPubKey = testValidatorPubKey
 	return app
@@ -216,11 +220,18 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender"}
 	}
+	//todo: replace with engine param
+	if tx.Gas() > uint64(ebp.MaxTxGasLimit) {
+		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	if gasPrice.Cmp(uint256.NewInt().SetUint64(app.lastMinGasPrice)) < 0 {
+		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
+	}
 	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
@@ -465,7 +476,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	staking.DistributeFee(*ctx, &blockReward, pubkeyMapByAddr[app.lastProposer], voters)
 	ctx.Close(true)
 
-	app.txEngine.Prepare()
+	app.txEngine.Prepare(app.lastMinGasPrice)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
@@ -502,7 +513,10 @@ func (app *App) refresh() {
 	ctx := app.GetContext(RunTxMode)
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
-	//fmt.Printf("!!!!!!set block in refresh:%v,%d\n", app.block.StateRoot, app.block.Number)
+	//refresh lastMinGasPrice
+	mGP := staking.LoadMinGasPrice(ctx, false)
+	staking.SaveMinGasPrice(ctx, mGP, true)
+	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	app.trunk.Close(true)
 
