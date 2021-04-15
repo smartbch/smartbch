@@ -205,6 +205,73 @@ func TestJson(t *testing.T) {
 	fmt.Println(v, err)
 }
 
+var stakingABI = testutils.MustParseABI(`
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "rewardTo",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "introduction",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "pubkey",
+				"type": "bytes32"
+			}
+		],
+		"name": "createValidator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "decreaseMinGasPrice",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "rewardTo",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "introduction",
+				"type": "bytes32"
+			}
+		],
+		"name": "editValidator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "increaseMinGasPrice",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "retire",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
+`)
+
 func TestStaking(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, _ := testutils.GenKeyAndAddr()
@@ -225,7 +292,8 @@ func TestStaking(t *testing.T) {
 	stakingAcc, info := staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
-	tx := gethtypes.NewTransaction(0, staking.StakingContractAddress, big.NewInt(100), 1000000, big.NewInt(1), data[:])
+	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'b'})
+	tx := gethtypes.NewTransaction(0, staking.StakingContractAddress, big.NewInt(100), 1000000, big.NewInt(1), dataEncode)
 	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
 	testutils.ExecTxInBlock(_app, 1, tx)
 	time.Sleep(50 * time.Millisecond)
@@ -235,7 +303,7 @@ func TestStaking(t *testing.T) {
 	require.Equal(t, uint64(100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/ +600000 /*extra gas*/), stakingAcc.Balance().Uint64())
 	require.Equal(t, 2, len(info.Validators))
 	require.True(t, bytes.Equal(addr1[:], info.Validators[1].Address[:]))
-	require.Equal(t, uint8(1), info.Validators[1].Pubkey[31])
+	require.Equal(t, [32]byte{'b'}, info.Validators[1].Pubkey)
 	require.Equal(t, uint64(100), uint256.NewInt().SetBytes(info.Validators[1].StakedCoins[:]).Uint64())
 
 	//test edit validator

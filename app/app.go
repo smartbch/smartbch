@@ -357,7 +357,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.TransactionsRoot[:], req.Header.DataHash) //TODO changed to committed tx hash
 	app.reorderSeed = 0
 	if len(req.Header.DataHash) >= 8 {
-		app.reorderSeed = int64(binary.LittleEndian.Uint64(req.Header.DataHash[0:7]))
+		app.reorderSeed = int64(binary.LittleEndian.Uint64(req.Header.DataHash[0:8]))
 	}
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash

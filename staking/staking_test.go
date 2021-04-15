@@ -87,6 +87,26 @@ func buildRetireValCallEntry(sender common.Address) *callEntry {
 	return c
 }
 
+func buildChangeMinGasPriceCallEntry(sender common.Address, isIncrease bool) *callEntry {
+	c := &callEntry{
+		Address: staking.StakingContractAddress,
+		Tx:      nil,
+	}
+	c.Tx = &types.TxToRun{
+		BasicTx: types.BasicTx{
+			From: sender,
+			To:   c.Address,
+		},
+	}
+	c.Tx.Data = make([]byte, 0, 100)
+	if isIncrease {
+		c.Tx.Data = append(c.Tx.Data, staking.SelectorIncreaseMinGasPrice[:]...)
+	} else {
+		c.Tx.Data = append(c.Tx.Data, staking.SelectorDecreaseMinGasPrice[:]...)
+	}
+	return c
+}
+
 func TestStaking(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
@@ -222,3 +242,49 @@ func TestSlash(t *testing.T) {
 	}
 	require.Equal(t, uint64(1), allBurnt.Uint64())
 }
+
+//func TestGasPriceAdjustment(t *testing.T) {
+	//staking.DefaultMinGasPrice = 100
+	//key, sender := testutils.GenKeyAndAddr()
+	//_app := app.CreateTestApp(key)
+	//defer app.DestroyTestApp(_app)
+	//ctx := _app.GetContext(app.RunTxMode)
+	//e := &staking.StakingContractExecutor{}
+	//e.Init(ctx)
+	//
+	//staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+	//
+	////create validator
+	//c := buildCreateValCallEntry(sender, 101, 11, 1)
+	//require.True(t, e.IsSystemContract(c.Address))
+	//e.Execute(*ctx, nil, c.Tx)
+	//
+	////increase gasPrice
+	//c = buildChangeMinGasPriceCallEntry(sender, true)
+	//e.Execute(*ctx, nil, c.Tx)
+	//p := staking.LoadMinGasPrice(ctx, false)
+	//require.Equal(t, 105, int(p))
+	//
+	////increase gasPrice
+	//e.Execute(*ctx, nil, c.Tx)
+	//p = staking.LoadMinGasPrice(ctx, false)
+	//require.Equal(t, 110, int(p))
+	//
+	////increase gasPrice
+	//e.Execute(*ctx, nil, c.Tx)
+	//p = staking.LoadMinGasPrice(ctx, false)
+	//require.Equal(t, 115, int(p))
+	//
+	////increase gasPrice failed because out of range
+	//e.Execute(*ctx, nil, c.Tx)
+	//p = staking.LoadMinGasPrice(ctx, false)
+	//pLast := staking.LoadMinGasPrice(ctx, true)
+	//require.Equal(t, 100, int(pLast))
+	//require.Equal(t, 115, int(p))
+	//
+	////decrease gasPrice
+	//c = buildChangeMinGasPriceCallEntry(sender, false)
+	//e.Execute(*ctx, nil, c.Tx)
+	//p = staking.LoadMinGasPrice(ctx, false)
+	//require.Equal(t, 110, int(p))
+//}

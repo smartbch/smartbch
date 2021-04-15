@@ -77,6 +77,7 @@ var (
 	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than max")
 	MinGasPriceTooSmall               = errors.New("minGasPrice smaller than max")
 	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
+	OperatorNotValidator              = errors.New("minGasPrice operator not validator")
 )
 
 type StakingContractExecutor struct{}
@@ -116,10 +117,10 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 		return externalOp(ctx, tx, false, true)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
-		return handleMinGasPrice(&ctx, true)
+		return handleMinGasPrice(&ctx, tx.From, true)
 	case SelectorDecreaseMinGasPrice:
 		//function decreaseMinGasPrice() external;
-		return handleMinGasPrice(&ctx, false)
+		return handleMinGasPrice(&ctx, tx.From, false)
 	default:
 		status = int(mevmtypes.ReceiptStatusFailed)
 		return
@@ -211,9 +212,21 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retir
 	return
 }
 
-func handleMinGasPrice(ctx *mevmtypes.Context, isIncrease bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	mGP := LoadMinGasPrice(ctx, false)
 	lastMGP := LoadMinGasPrice(ctx, true)
+	_, info := LoadStakingAcc(*ctx)
+	isValidator := false
+	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	for _, v := range activeValidators {
+		if v.Address == sender {
+			isValidator = true
+		}
+	}
+	if !isValidator {
+		outData = []byte(OperatorNotValidator.Error())
+		return
+	}
 	gasUsed = GasOfStakingExternalOp
 	if isIncrease {
 		mGP += MinGasPriceDeltaRate * mGP / 100
@@ -228,8 +241,8 @@ func handleMinGasPrice(ctx *mevmtypes.Context, isIncrease bool) (status int, log
 		outData = []byte(MinGasPriceTooBig.Error())
 		return
 	}
-	if (mGP > lastMGP && (mGP-lastMGP) > MaxMinGasPriceDeltaRate*lastMGP) ||
-		(mGP < lastMGP && lastMGP-mGP > MaxMinGasPriceDeltaRate*lastMGP) {
+	if (mGP > lastMGP && 100*(mGP-lastMGP) > MaxMinGasPriceDeltaRate*lastMGP) ||
+		(mGP < lastMGP && 100*(lastMGP-mGP) > MaxMinGasPriceDeltaRate*lastMGP) {
 		outData = []byte(MinGasPriceExceedBlockChangeDelta.Error())
 		return
 	}
