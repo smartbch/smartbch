@@ -63,12 +63,12 @@ var (
 	ExtraProposerPercentage      *uint256.Int = uint256.NewInt().SetUint64(15)
 	//minGasPrice
 	//todo: set to 0 for test, change it for product
-	DefaultMinGasPrice  uint64 = 0 //unit like gwei
-	MaxMinGasPriceDelta uint64 = 10
-	MinGasPriceStep     uint64 = 2 //gas delta every tx can change
-	MaxMinGasPrice      uint64 = 500
+	DefaultMinGasPrice      uint64 = 0 //unit like gwei
+	MaxMinGasPriceDeltaRate uint64 = 16
+	MinGasPriceDeltaRate    uint64 = 5 //gas delta rate every tx can change
+	MaxMinGasPrice          uint64 = 500
 	//todo: set to 0 for test, change it for product
-	MinMinGasPrice      uint64 = 0
+	MinMinGasPrice uint64 = 0
 
 	/*------error info------*/
 	InvalidCallData                   = errors.New("Invalid call data")
@@ -216,9 +216,9 @@ func handleMinGasPrice(ctx *mevmtypes.Context, isIncrease bool) (status int, log
 	lastMGP := LoadMinGasPrice(ctx, true)
 	gasUsed = GasOfStakingExternalOp
 	if isIncrease {
-		mGP += MinGasPriceStep
+		mGP += MinGasPriceDeltaRate * mGP / 100
 	} else {
-		mGP -= MinGasPriceStep
+		mGP -= MinGasPriceDeltaRate * mGP / 100
 	}
 	if mGP < MinMinGasPrice {
 		outData = []byte(MinGasPriceTooSmall.Error())
@@ -228,8 +228,8 @@ func handleMinGasPrice(ctx *mevmtypes.Context, isIncrease bool) (status int, log
 		outData = []byte(MinGasPriceTooBig.Error())
 		return
 	}
-	if (mGP > lastMGP && mGP-lastMGP > MaxMinGasPriceDelta) ||
-		(mGP < lastMGP && lastMGP-mGP > MaxMinGasPriceDelta) {
+	if (mGP > lastMGP && (mGP-lastMGP) > MaxMinGasPriceDeltaRate*lastMGP) ||
+		(mGP < lastMGP && lastMGP-mGP > MaxMinGasPriceDeltaRate*lastMGP) {
 		outData = []byte(MinGasPriceExceedBlockChangeDelta.Error())
 		return
 	}
