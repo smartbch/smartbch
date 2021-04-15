@@ -27,10 +27,12 @@ func (n netAPI) Version() string {
 	return fmt.Sprintf("%d", n.networkID)
 }
 
+// https://eth.wiki/json-rpc/API#net_listening
 func (n netAPI) Listening() bool {
-	panic("implement me")
+	return true
 }
 
+// https://eth.wiki/json-rpc/API#net_peerCount
 func (n netAPI) PeerCount() int {
-	panic("implement me")
+	return 0
 }
