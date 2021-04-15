@@ -2,12 +2,14 @@ package rpc
 
 import (
 	"net"
+	"net/http"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmservice "github.com/tendermint/tendermint/libs/service"
 	tmrpcserver "github.com/tendermint/tendermint/rpc/jsonrpc/server"
 
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/rs/cors"
 
 	"github.com/smartbch/smartbch/api"
 	rpcapi "github.com/smartbch/smartbch/rpc/api"
@@ -67,7 +69,9 @@ func (server *Server) startHTTP(apis []gethrpc.API) (err error) {
 		return err
 	}
 
-	go tmrpcserver.Serve(server.httpListener, server.httpServer, server.logger,
+	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
+	handler := newCorsHandler(server.httpServer, allowedOrigins)
+	go tmrpcserver.Serve(server.httpListener, handler, server.logger,
 		tmrpcserver.DefaultConfig()) // TODO: get config from config file
 	return nil
 }
@@ -121,4 +125,18 @@ func registerApis(rpcServer *gethrpc.Server, apis []gethrpc.API) error {
 		}
 	}
 	return nil
+}
+
+func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
+	// disable CORS support if user has not specified a custom CORS configuration
+	if len(allowedOrigins) == 0 {
+		return srv
+	}
+	c := cors.New(cors.Options{
+		AllowedOrigins: allowedOrigins,
+		AllowedMethods: []string{http.MethodPost, http.MethodGet},
+		AllowedHeaders: []string{"*"},
+		MaxAge:         600,
+	})
+	return c.Handler(srv)
 }

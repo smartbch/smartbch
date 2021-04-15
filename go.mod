@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/rpc v1.2.0
 	github.com/holiman/uint256 v1.1.1
 	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
+	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.0.0-20210323144848-442253e10b4a
 	github.com/smartbch/moeingdb v0.0.0-20210316094718-eaee2770fd57
 	github.com/smartbch/moeingevm v0.1.1-0.20210414095612-6c4d9d7aa032

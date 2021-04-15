@@ -2,8 +2,8 @@ package app
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
