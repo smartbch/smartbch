@@ -243,48 +243,62 @@ func TestSlash(t *testing.T) {
 	require.Equal(t, uint64(1), allBurnt.Uint64())
 }
 
-//func TestGasPriceAdjustment(t *testing.T) {
-	//staking.DefaultMinGasPrice = 100
-	//key, sender := testutils.GenKeyAndAddr()
-	//_app := app.CreateTestApp(key)
-	//defer app.DestroyTestApp(_app)
-	//ctx := _app.GetContext(app.RunTxMode)
-	//e := &staking.StakingContractExecutor{}
-	//e.Init(ctx)
-	//
-	//staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
-	//
-	////create validator
-	//c := buildCreateValCallEntry(sender, 101, 11, 1)
-	//require.True(t, e.IsSystemContract(c.Address))
-	//e.Execute(*ctx, nil, c.Tx)
-	//
-	////increase gasPrice
-	//c = buildChangeMinGasPriceCallEntry(sender, true)
-	//e.Execute(*ctx, nil, c.Tx)
-	//p := staking.LoadMinGasPrice(ctx, false)
-	//require.Equal(t, 105, int(p))
-	//
-	////increase gasPrice
-	//e.Execute(*ctx, nil, c.Tx)
-	//p = staking.LoadMinGasPrice(ctx, false)
-	//require.Equal(t, 110, int(p))
-	//
-	////increase gasPrice
-	//e.Execute(*ctx, nil, c.Tx)
-	//p = staking.LoadMinGasPrice(ctx, false)
-	//require.Equal(t, 115, int(p))
-	//
-	////increase gasPrice failed because out of range
-	//e.Execute(*ctx, nil, c.Tx)
-	//p = staking.LoadMinGasPrice(ctx, false)
-	//pLast := staking.LoadMinGasPrice(ctx, true)
-	//require.Equal(t, 100, int(pLast))
-	//require.Equal(t, 115, int(p))
-	//
-	////decrease gasPrice
-	//c = buildChangeMinGasPriceCallEntry(sender, false)
-	//e.Execute(*ctx, nil, c.Tx)
-	//p = staking.LoadMinGasPrice(ctx, false)
-	//require.Equal(t, 110, int(p))
-//}
+func TestGasPriceAdjustment(t *testing.T) {
+	staking.DefaultMinGasPrice = 100
+	key, sender := testutils.GenKeyAndAddr()
+	_app := app.CreateTestApp(key)
+	defer app.DestroyTestApp(_app)
+	ctx := _app.GetContext(app.RunTxMode)
+	e := &staking.StakingContractExecutor{}
+	e.Init(ctx)
+
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+
+	//create validator
+	c := buildCreateValCallEntry(sender, 101, 11, 1)
+	require.True(t, e.IsSystemContract(c.Address))
+	e.Execute(*ctx, nil, c.Tx)
+
+	//increase gasPrice failed as of validator not active
+	c = buildChangeMinGasPriceCallEntry(sender, true)
+	_, _, _, out := e.Execute(*ctx, nil, c.Tx)
+	p := staking.LoadMinGasPrice(ctx, false)
+	require.Equal(t, 100, int(p))
+	require.True(t, bytes.Equal([]byte(staking.OperatorNotValidator.Error()), out))
+
+	//make validator active
+	acc, info := staking.LoadStakingAcc(*ctx)
+	info.Validators[1].StakedCoins = staking.MinimumStakingAmount.Bytes32()
+	info.Validators[1].VotingPower = 1000
+	staking.SaveStakingInfo(*ctx, acc, info)
+
+	//increase gasPrice
+	c = buildChangeMinGasPriceCallEntry(sender, true)
+	e.Execute(*ctx, nil, c.Tx)
+	p = staking.LoadMinGasPrice(ctx, false)
+	require.Equal(t, 105, int(p))
+
+	//increase gasPrice
+	e.Execute(*ctx, nil, c.Tx)
+	p = staking.LoadMinGasPrice(ctx, false)
+	require.Equal(t, 110, int(p))
+
+	//increase gasPrice
+	e.Execute(*ctx, nil, c.Tx)
+	p = staking.LoadMinGasPrice(ctx, false)
+	require.Equal(t, 115, int(p))
+
+	//increase gasPrice failed because out of range
+	_, _, _, out = e.Execute(*ctx, nil, c.Tx)
+	p = staking.LoadMinGasPrice(ctx, false)
+	pLast := staking.LoadMinGasPrice(ctx, true)
+	require.Equal(t, 100, int(pLast))
+	require.Equal(t, 115, int(p))
+	require.True(t, bytes.Equal([]byte(staking.MinGasPriceExceedBlockChangeDelta.Error()), out))
+
+	//decrease gasPrice
+	c = buildChangeMinGasPriceCallEntry(sender, false)
+	e.Execute(*ctx, nil, c.Tx)
+	p = staking.LoadMinGasPrice(ctx, false)
+	require.Equal(t, 110, int(p))
+}

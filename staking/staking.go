@@ -17,9 +17,7 @@ import (
 
 var (
 	//contract address
-	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		byte('s'), byte('t'), byte('a'), byte('k'), byte('i'), byte('n'), byte('g')}
-
+	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
 	/*interface Staking {
 	    //0x24d1ed5d
