@@ -214,7 +214,7 @@ func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHe
 	return ctx.QueryTxByAddr(addr, startHeight, endHeight)
 }
 
-func (backend *apiBackend) MoeQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
+func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
 	ctx := backend.app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 

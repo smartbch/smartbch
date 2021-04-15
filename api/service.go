@@ -95,6 +95,6 @@ type BackendService interface {
 	QueryTxBySrc(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
 	QueryTxByDst(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
 	QueryTxByAddr(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
-	MoeQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
+	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
 	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
 }

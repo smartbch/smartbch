@@ -29,76 +29,76 @@ func newSbchAPI(backend sbchapi.BackendService) SbchAPI {
 	return sbchAPI{backend: backend}
 }
 
-func (moe sbchAPI) GetStandbyTxQueue() {
+func (sbch sbchAPI) GetStandbyTxQueue() {
 	panic("implement me")
 }
 
-func (moe sbchAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
+func (sbch sbchAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 	if height == gethrpc.LatestBlockNumber {
-		height = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		height = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
-	txs, err := moe.backend.GetTxListByHeight(uint32(height))
+	txs, err := sbch.backend.GetTxListByHeight(uint32(height))
 	if err != nil {
 		return nil, err
 	}
 	return txsToRpcResp(txs), nil
 }
 
-func (moe sbchAPI) QueryTxBySrc(addr gethcmn.Address,
+func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
-		startHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		startHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 	if endHeight == gethrpc.LatestBlockNumber {
-		endHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		endHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 
-	txs, err := moe.backend.QueryTxBySrc(addr, uint32(startHeight), uint32(endHeight)+1)
+	txs, err := sbch.backend.QueryTxBySrc(addr, uint32(startHeight), uint32(endHeight)+1)
 	if err != nil {
 		return nil, err
 	}
 	return txsToRpcResp(txs), nil
 }
 
-func (moe sbchAPI) QueryTxByDst(addr gethcmn.Address,
+func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
-		startHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		startHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 	if endHeight == gethrpc.LatestBlockNumber {
-		endHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		endHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 
-	txs, err := moe.backend.QueryTxByDst(addr, uint32(startHeight), uint32(endHeight)+1)
+	txs, err := sbch.backend.QueryTxByDst(addr, uint32(startHeight), uint32(endHeight)+1)
 	if err != nil {
 		return nil, err
 	}
 	return txsToRpcResp(txs), nil
 }
 
-func (moe sbchAPI) QueryTxByAddr(addr gethcmn.Address,
+func (sbch sbchAPI) QueryTxByAddr(addr gethcmn.Address,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
-		startHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		startHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 	if endHeight == gethrpc.LatestBlockNumber {
-		endHeight = gethrpc.BlockNumber(moe.backend.LatestHeight())
+		endHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 
-	txs, err := moe.backend.QueryTxByAddr(addr, uint32(startHeight), uint32(endHeight)+1)
+	txs, err := sbch.backend.QueryTxByAddr(addr, uint32(startHeight), uint32(endHeight)+1)
 	if err != nil {
 		return nil, err
 	}
 	return txsToRpcResp(txs), nil
 }
 
-func (moe sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
+func (sbch sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
 	startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error) {
 
-	logs, err := moe.backend.MoeQueryLogs(addr, topics, uint32(startHeight), uint32(endHeight))
+	logs, err := sbch.backend.SbchQueryLogs(addr, topics, uint32(startHeight), uint32(endHeight))
 	if err != nil {
 		return nil, err
 	}
