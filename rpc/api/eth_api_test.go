@@ -131,6 +131,7 @@ func TestBlockNum(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
@@ -138,6 +139,10 @@ func TestGetBalance(t *testing.T) {
 	b, err := _api.GetBalance(addr, -1)
 	require.NoError(t, err)
 	require.Equal(t, "0x989680", b.String())
+
+	b2, err := _api.GetBalance(addr2, -1)
+	require.NoError(t, err)
+	require.Equal(t, "0x0", b2.String())
 }
 
 func TestGetTxCount(t *testing.T) {

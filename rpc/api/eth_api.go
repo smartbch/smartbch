@@ -134,6 +134,9 @@ func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber)
 	// ignore blockNumber temporary
 	b, err := api.backend.GetBalance(addr, int64(gethrpc.LatestBlockNumber))
 	if err != nil {
+		if err == types.ErrAccNotFound {
+			return (*hexutil.Big)(big.NewInt(0)), nil
+		}
 		return nil, err
 	}
 	return (*hexutil.Big)(b), err
