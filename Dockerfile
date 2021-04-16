@@ -44,4 +44,4 @@ RUN smartbchd init smart1 --chain-id 0x1 --home /root/.smartbchd --init-balance=
 VOLUME ["/root/.smartbchd"]
 
 ENTRYPOINT ["smartbchd"]
-EXPOSE 8545
+EXPOSE 8545 8546
