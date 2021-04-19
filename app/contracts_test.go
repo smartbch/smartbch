@@ -135,6 +135,10 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		hex.EncodeToString(txInBlk5.Logs[0].Topics[1][:]))
 	require.Equal(t, "000000000000000000000000000000000000000000000000000000000000007b",
 		hex.EncodeToString(txInBlk5.Logs[0].Data))
+
+	// test queryTxByAddr
+	txs := getTxsByAddr(_app, contractAddr)
+	require.Equal(t, 2, len(txs))
 }
 
 func TestChainID(t *testing.T) {

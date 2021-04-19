@@ -81,6 +81,16 @@ func getBalance(_app *App, addr common.Address) *big.Int {
 	return b.ToBig()
 }
 
+func getTxsByAddr(_app *App, addr common.Address) []*motypes.Transaction {
+	ctx := _app.GetContext(HistoryOnlyMode)
+	defer ctx.Close(false)
+	txs, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.block.Number)+1)
+	if err != nil {
+		panic(err)
+	}
+	return txs
+}
+
 func getCode(_app *App, addr common.Address) []byte {
 	ctx := _app.GetContext(RpcMode)
 	defer ctx.Close(false)

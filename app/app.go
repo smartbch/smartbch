@@ -549,14 +549,11 @@ func (app *App) refresh() {
 		copy(blk.BlockHash[:], prevBlkInfo.Hash[:])
 		blk.BlockInfo = blkInfo
 		blk.TxList = make([]modbtypes.Tx, len(app.txEngine.CommittedTxs()))
-		var zeroValue [32]byte
 		for i, tx := range app.txEngine.CommittedTxs() {
 			t := modbtypes.Tx{}
 			copy(t.HashId[:], tx.Hash[:])
 			copy(t.SrcAddr[:], tx.From[:])
-			if !bytes.Equal(tx.Value[:], zeroValue[:]) {
-				copy(t.DstAddr[:], tx.To[:])
-			}
+			copy(t.DstAddr[:], tx.To[:])
 			txContent, err := tx.MarshalMsg(nil)
 			if err != nil {
 				panic(err)
