@@ -25,7 +25,7 @@ contract("SEP206", async (accounts) => {
         await testTransfer(accounts[3], newAddr, 10000);
     });
 
-    it('transfer: amt exceed balance', async () => {
+    it('transfer: insufficient balance', async () => {
         const bal = await web3.eth.getBalance(accounts[0]);
         const amt = BigInt(bal) + 1n;
         try {
@@ -86,12 +86,78 @@ contract("SEP206", async (accounts) => {
         assert.equal(await sep206.allowance(owner, spender), 0);
     });
 
+    it('transferFrom: ok', async () => {
+        await testTransferFrom(accounts[4], accounts[5], accounts[6], 0);
+        await testTransferFrom(accounts[4], accounts[5], accounts[6], 12345);
+
+        const newAddr = "0xADD0000000000000000000000000000000000004";
+        await testTransferFrom(accounts[4], newAddr, accounts[6], 0);
+        await testTransferFrom(accounts[4], newAddr, accounts[6], 12345);
+    });
+
+    it('transferFrom: insufficient balance', async () => {
+        const from = accounts[0];
+        const to = accounts[1]
+        const spender = accounts[2];
+
+        const bal = await web3.eth.getBalance(from);
+        const amt = BigInt(bal) + 1n;
+        await sep206.approve(spender, amt, { from: from, gasPrice: 0 });
+        try {
+            await sep206.transferFrom(from, to, amt, { from: spender, gasPrice: 0 });
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
+    });
+
+    it('transferFrom: insufficient allowance', async () => {
+        const from = accounts[0];
+        const to = accounts[1]
+        const spender = accounts[2];
+
+        const amt = 10000;
+        await sep206.approve(spender, amt - 1, { from: from, gasPrice: 0 });
+        try {
+            await sep206.transferFrom(from, to, amt, { from: spender, gasPrice: 0 });
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
+    });
+
+    it('transferFrom: non-existed from addr', async () => {
+        const from = "0xADD0000000000000000000000000000000000005";
+        const to = accounts[1]
+        const spender = accounts[2];
+
+        try {
+            await sep206.transferFrom(from, to, 1, { from: spender, gasPrice: 0 });
+            throw null;
+        } catch (e) {
+            assert(e, "Expected an error but did not get one");
+        }
+    });
+
 });
 
-async function testTransfer(a, b, amt) {
-    const balA = await web3.eth.getBalance(a);
-    const balB = await web3.eth.getBalance(b);
-    await sep206.transfer(b, amt, { from: a, gasPrice: 0 });
-    assert.equal(await web3.eth.getBalance(a), (BigInt(balA) - BigInt(amt)).toString());
-    assert.equal(await web3.eth.getBalance(b), (BigInt(balB) + BigInt(amt)).toString());
+async function testTransfer(from, to, amt) {
+    const balFrom = await web3.eth.getBalance(from);
+    const balTo = await web3.eth.getBalance(to);
+    await sep206.transfer(to, amt, { from: from, gasPrice: 0 });
+    assert.equal(await web3.eth.getBalance(from), (BigInt(balFrom) - BigInt(amt)).toString());
+    assert.equal(await web3.eth.getBalance(to), (BigInt(balTo) + BigInt(amt)).toString());
+}
+
+async function testTransferFrom(from, to, spender, amt) {
+    const balFrom = await web3.eth.getBalance(from);
+    const balTo = await web3.eth.getBalance(to);
+
+    await sep206.approve(spender, amt + 100, { from: from, gasPrice: 0 });
+    assert.equal(await sep206.allowance(from, spender), amt + 100);
+
+    await sep206.transferFrom(from, to, amt, { from: spender, gasPrice: 0 });
+    assert.equal(await web3.eth.getBalance(from), (BigInt(balFrom) - BigInt(amt)).toString());
+    assert.equal(await web3.eth.getBalance(to), (BigInt(balTo) + BigInt(amt)).toString());
+    assert.equal(await sep206.allowance(from, spender), 100);
 }
