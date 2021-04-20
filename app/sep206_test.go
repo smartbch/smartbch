@@ -305,6 +305,13 @@ var sep206ABI = testutils.MustParseABI(`
 ]
 `)
 
+func TestEventSigs(t *testing.T) {
+	require.Equal(t, "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+		sep206ABI.GetABI().Events["Transfer"].ID.Hex())
+	require.Equal(t, "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+		sep206ABI.GetABI().Events["Approval"].ID.Hex())
+}
+
 func TestTokenInfo(t *testing.T) {
 	_app := CreateTestApp()
 	defer DestroyTestApp(_app)

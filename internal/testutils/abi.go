@@ -10,6 +10,10 @@ type ABI4Test struct {
 	_abi abi.ABI
 }
 
+func (a ABI4Test) GetABI() abi.ABI {
+	return a._abi
+}
+
 func (a ABI4Test) Pack(name string, args ...interface{}) ([]byte, error) {
 	return a._abi.Pack(name, args...)
 }
