@@ -178,11 +178,13 @@ func (app *App) Init(blk *types.Block) {
 		app.reload()
 	} else {
 		app.txEngine.SetContext(app.GetContext(RunTxMode))
+		fmt.Printf("!!!!!!app init: %v\n", app.txEngine.Context())
 	}
 }
 
 func (app *App) reload() {
 	app.txEngine.SetContext(app.GetContext(RunTxMode))
+	fmt.Printf("!!!!!!app reload: %v\n", app.txEngine.Context())
 	if app.block != nil {
 		app.mtx.Lock()
 		bi := app.syncBlockInfo()
@@ -248,6 +250,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	app.logger.Debug("leave init chain!")
 
+	ctx := app.GetContext(RunTxMode)
 	var genesisValidators []*stakingtypes.Validator
 	if len(req.AppStateBytes) != 0 {
 		fmt.Printf("appstate:%s\n", req.AppStateBytes)
@@ -263,7 +266,6 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 
 	if len(genesisValidators) != 0 {
 		app.currValidators = genesisValidators
-		ctx := app.GetContext(RunTxMode)
 		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 		if stakingAcc == nil {
 			panic("Cannot find staking contract")
@@ -277,9 +279,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 			info.PendingRewards[i] = &stakingtypes.PendingReward{}
 		}
 		staking.SaveStakingInfo(*ctx, stakingAcc, info)
-		ctx.Close(true)
 	} else /*todo: for single node test*/ {
-		ctx := app.GetContext(RunTxMode)
 		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 		if stakingAcc == nil {
 			panic("Cannot find staking contract")
@@ -295,8 +295,8 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		info.PendingRewards[0] = &stakingtypes.PendingReward{}
 		copy(info.PendingRewards[0].Address[:], app.testValidatorPubKey.Address())
 		staking.SaveStakingInfo(*ctx, stakingAcc, info)
-		ctx.Close(true)
 	}
+	ctx.Close(true)
 
 	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	if len(app.currValidators) != 0 {
@@ -434,13 +434,15 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 
 	ctx := app.GetContext(RunTxMode)
 	_, info := staking.LoadStakingAcc(*ctx)
-	pubkeyMapByAddr := make(map[[20]byte][32]byte)
+	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
+	var consAddr [20]byte
 	for _, v := range info.Validators {
-		pubkeyMapByAddr[v.Address] = v.Pubkey
+		copy(consAddr[:], ed25519.PubKey(v.Pubkey[:]).Address().Bytes())
+		pubkeyMapByConsAddr[consAddr] = v.Pubkey
 	}
 	//slash first
 	for _, v := range app.slashValidators {
-		staking.Slash(ctx, pubkeyMapByAddr[v], staking.SlashedStakingAmount)
+		staking.Slash(ctx, pubkeyMapByConsAddr[v], staking.SlashedStakingAmount)
 	}
 	app.slashValidators = nil
 	//distribute previous block gas gee
@@ -448,7 +450,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	var tmpAddr [20]byte
 	for i, c := range app.lastCommitInfo {
 		copy(tmpAddr[:], c)
-		voters[i] = pubkeyMapByAddr[tmpAddr]
+		voters[i] = pubkeyMapByConsAddr[tmpAddr]
 	}
 	var blockReward = app.lastGasFee
 	if !app.lastGasFee.IsZero() {
@@ -479,7 +481,9 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 			panic(err)
 		}
 	}
-	staking.DistributeFee(*ctx, &blockReward, pubkeyMapByAddr[app.lastProposer], voters)
+	if app.currHeight != 1 {
+		staking.DistributeFee(*ctx, &blockReward, pubkeyMapByConsAddr[app.lastProposer], voters)
+	}
 	ctx.Close(true)
 
 	app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)

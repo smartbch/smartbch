@@ -235,8 +235,7 @@ func TestSlash(t *testing.T) {
 	totalSlashed := staking.Slash(ctx, slashedPubkey, uint256.NewInt().SetUint64(1))
 	require.Equal(t, uint64(1), totalSlashed.Uint64())
 	allBurnt := uint256.NewInt()
-	acc := ctx.GetAccount(stakingAddr)
-	bz := ctx.GetStorageAt(acc.Sequence(), staking.SlotAllBurnt)
+	bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotAllBurnt)
 	if len(bz) != 0 {
 		allBurnt.SetBytes32(bz)
 	}
