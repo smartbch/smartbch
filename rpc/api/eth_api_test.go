@@ -194,13 +194,16 @@ func TestGetStorageAt(t *testing.T) {
 	code = append(code, 0x12, 0x34)
 
 	seq := ctx.GetAccount(addr).Sequence()
-	sKey := strings.Repeat("abcd", 8)
-	ctx.SetStorageAt(seq, sKey, []byte{0x12, 0x34})
+	sKeyHex := strings.Repeat("abcd", 16)
+	sKey, err := hex.DecodeString(sKeyHex)
+	require.NoError(t, err)
+
+	ctx.SetStorageAt(seq, string(sKey), []byte{0x12, 0x34})
 	ctx.Close(true)
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	sVal, err := _api.GetStorageAt(addr, sKey, 0)
+	sVal, err := _api.GetStorageAt(addr, "0x"+sKeyHex, 0)
 	require.NoError(t, err)
 	require.Equal(t, "0x1234", sVal.String())
 }

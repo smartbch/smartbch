@@ -152,6 +152,8 @@ func (api *ethAPI) GetCode(addr common.Address, blockNum gethrpc.BlockNumber) (h
 // https://eth.wiki/json-rpc/API#eth_getStorageAt
 func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
 	// ignore blockNumber temporary
+	hash := common.HexToHash(key)
+	key = string(hash[:])
 	return api.backend.GetStorageAt(addr, key, int64(gethrpc.LatestBlockNumber)), nil
 }
 
