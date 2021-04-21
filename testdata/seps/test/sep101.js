@@ -4,8 +4,11 @@ const SEP101Proxy2 = artifacts.require("SEP101Proxy2");
 
 const shortKey = "0x1234";
 const shortVal = "0x5678";
-const longKey = "0x0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
-const longVal = "0x9876543210987654321098765432109876543210987654321098765432109876543210987654321098765432109876543210";
+const longKey  = "0x0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+const longVal  = "0x9876543210987654321098765432109876543210987654321098765432109876543210987654321098765432109876543210";
+
+const shortKeySHA256 = "0x3a103a4e5729ad68c02a678ae39accfbc0ae208096437401b7ceab63cca0622f";
+const longKeySHA256  = "0x1ce7576ec9158575ea90caa3acd6a0ae8c4e014bcc8fc34f3bb801b90760dbc0";
 
 contract("SEP101", async (accounts) => {
 
@@ -43,6 +46,10 @@ contract("SEP101Proxy1", async (accounts) => {
         await sep101Proxy.set(longKey, longVal);
         await sep101Proxy.get(longKey);
         assert.equal(await sep101Proxy.resultOfGet(), longVal);
+
+        // read by getStorageAt()
+        assert.equal(await web3.eth.getStorageAt(sep101Proxy.address, shortKeySHA256), shortVal);
+        assert.equal(await web3.eth.getStorageAt(sep101Proxy.address, longKeySHA256), longVal);
     });
 
 });
