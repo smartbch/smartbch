@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
-	"github.com/stretchr/testify/require"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -182,4 +184,38 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	require.Equal(t, 1, len(info.Validators))
 	require.Equal(t, int64(2), info.Validators[0].VotingPower)
+}
+
+func TestCallStakingMethodsFromEOA(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(key1, key1)
+	defer DestroyTestApp(_app)
+
+	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
+	pubKey := [32]byte{'p', 'u', 'b', 'k', 'e', 'y'}
+	stakingAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002710")
+
+	testCases := [][]byte{
+		stakingABI.MustPack("createValidator", addr1, intro, pubKey),
+		stakingABI.MustPack("editValidator", addr1, intro),
+		stakingABI.MustPack("retire"),
+		stakingABI.MustPack("increaseMinGasPrice"),
+		stakingABI.MustPack("decreaseMinGasPrice"),
+	}
+
+	for i, testCase := range testCases {
+		tx := gethtypes.NewTransaction(uint64(0+i), stakingAddr,
+			big.NewInt(0), 1000000, big.NewInt(1), testCase)
+		tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+		h := int64(1 + i*2)
+		testutils.ExecTxInBlock(_app, h, tx)
+
+		blk := getBlock(_app, uint64(h))
+		require.Equal(t, h, blk.Number)
+		require.Len(t, blk.Transactions, 1)
+		txInBlk := getTx(_app, blk.Transactions[0])
+		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
+		require.Equal(t, "precompile-failure", txInBlk.StatusStr)
+		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
+	}
 }
