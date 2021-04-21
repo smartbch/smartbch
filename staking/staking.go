@@ -128,6 +128,17 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 	}
 }
 
+func stringFromBytes(bz []byte) string {
+	i := len(bz) - 1
+	for i >= 0 {
+		if bz[i] != 0 {
+			break;
+		}
+		i--
+	}
+	return string(bz[i+1])
+}
+
 // This function implements the underlying logic for three external functions: createValidator, editValidator and retire
 func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retire bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = int(mevmtypes.ReceiptStatusFailed)
@@ -145,7 +156,7 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retir
 		copy(rewardTo[:], callData[12:])
 		callData = callData[32:]
 		// Second argument: introduction, byte32, limited to 32 byte
-		intro = string(callData[:32])
+		intro = stringFromBytes(callData[:32])
 		if create {
 			// Third argument: pubkey (only createValidator has it)
 			callData = callData[32:]
@@ -419,7 +430,7 @@ func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [3
 	coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
 	coins.Add(coins, proposerBaseFee)
 	coins.Add(coins, proposerExtraFee)
-	coins.Add(coins, remainedFee)
+	coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
 	rwd.Amount = coins.Bytes32()
 
 	SaveStakingInfo(ctx, stakingAcc, info)
