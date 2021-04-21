@@ -55,6 +55,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	appImpl := _app.(*app.App)
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
+	fmt.Printf("This Node ID: %s\n", nodeKey.ID())
 	if err != nil {
 		return nil, err
 	}
