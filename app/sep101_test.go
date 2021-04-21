@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"math/big"
 	"testing"
 
@@ -203,6 +204,11 @@ func TestSEP101(t *testing.T) {
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
+
+	// read val through getStorageAt()
+	sKey := sha256.Sum256(key)
+	sVal := getStorageAt(_app, contractAddr, sKey[:])
+	require.Equal(t, val, sVal)
 
 	// get non-existing key
 	data = _sep101ABI.MustPack("get", []byte{9, 9, 9})
