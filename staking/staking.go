@@ -132,7 +132,7 @@ func stringFromBytes(bz []byte) string {
 	i := len(bz) - 1
 	for i >= 0 {
 		if bz[i] != 0 {
-			break;
+			break
 		}
 		i--
 	}

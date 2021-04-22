@@ -11,6 +11,7 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -216,6 +217,55 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 		txInBlk := getTx(_app, blk.Transactions[0])
 		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
 		require.Equal(t, "success", txInBlk.StatusStr)
+		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
+	}
+}
+
+func TestCallStakingMethodsFromContract(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(key1, key1)
+	defer DestroyTestApp(_app)
+
+	proxyCreationBytecode := testutils.HexToBytes(`
+6080604052348015600f57600080fd5b50606980601d6000396000f3fe608060
+405260006127109050604051366000823760008036836000865af13d80600084
+3e8160008114602f578184f35b8184fdfea26469706673582212204b0d75d505
+e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
+430008000033
+`)
+
+	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
+		proxyCreationBytecode)
+	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+
+	testutils.ExecTxInBlock(_app, 1, tx1)
+	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
+	code := getCode(_app, contractAddr)
+	require.True(t, len(code) > 0)
+
+	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
+	pubKey := [32]byte{'p', 'u', 'b', 'k', 'e', 'y'}
+	testCases := [][]byte{
+		stakingABI.MustPack("createValidator", addr1, intro, pubKey),
+		stakingABI.MustPack("editValidator", addr1, intro),
+		stakingABI.MustPack("retire"),
+		stakingABI.MustPack("increaseMinGasPrice"),
+		stakingABI.MustPack("decreaseMinGasPrice"),
+	}
+
+	for i, testCase := range testCases {
+		tx := gethtypes.NewTransaction(uint64(1+i), contractAddr,
+			big.NewInt(0), 1000000, big.NewInt(1), testCase)
+		tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+		h := int64(3 + i*2)
+		testutils.ExecTxInBlock(_app, h, tx)
+
+		blk := getBlock(_app, uint64(h))
+		require.Equal(t, h, blk.Number)
+		require.Len(t, blk.Transactions, 1)
+		txInBlk := getTx(_app, blk.Transactions[0])
+		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
+		require.Equal(t, "revert", txInBlk.StatusStr)
 		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
 	}
 }
