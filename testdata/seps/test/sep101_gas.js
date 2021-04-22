@@ -1,5 +1,5 @@
 const ISEP101 = artifacts.require("ISEP101");
-const SEP101Proxy = artifacts.require("SEP101Proxy");
+const SEP101Proxy = artifacts.require("SEP101ProxyForGasTest");
 
 contract("SEP101", async (accounts) => {
 
