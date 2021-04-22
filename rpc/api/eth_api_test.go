@@ -95,6 +95,7 @@ func TestAccounts(t *testing.T) {
 	key2, addr2 := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(key1, key2)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app, key1, key2)
 
@@ -107,6 +108,7 @@ func TestAccounts(t *testing.T) {
 
 func TestChainId(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -116,6 +118,7 @@ func TestChainId(t *testing.T) {
 
 func TestBlockNum(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -133,6 +136,7 @@ func TestGetBalance(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_, addr2 := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -148,6 +152,7 @@ func TestGetBalance(t *testing.T) {
 func TestGetTxCount(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -167,6 +172,7 @@ func TestGetTxCount(t *testing.T) {
 func TestGetCode(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -186,6 +192,7 @@ func TestGetCode(t *testing.T) {
 func TestGetStorageAt(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := app.CreateTestApp(key)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -210,6 +217,7 @@ func TestGetStorageAt(t *testing.T) {
 
 func TestGetBlockByHash(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -231,6 +239,7 @@ func TestGetBlockByHash(t *testing.T) {
 
 func TestGetBlockByHash_notFound(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -241,6 +250,7 @@ func TestGetBlockByHash_notFound(t *testing.T) {
 
 func TestGetBlockByNum(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -265,6 +275,7 @@ func TestGetBlockByNum(t *testing.T) {
 
 func TestGetBlockByNum_notFound(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -275,6 +286,7 @@ func TestGetBlockByNum_notFound(t *testing.T) {
 
 func TestGetBlockTxCountByHash(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -293,6 +305,7 @@ func TestGetBlockTxCountByHash(t *testing.T) {
 
 func TestGetBlockTxCountByNum(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -311,6 +324,7 @@ func TestGetBlockTxCountByNum(t *testing.T) {
 
 func TestGetTxByBlockHashAndIdx(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -330,6 +344,7 @@ func TestGetTxByBlockHashAndIdx(t *testing.T) {
 
 func TestGetTxByBlockNumAndIdx(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -349,6 +364,7 @@ func TestGetTxByBlockNumAndIdx(t *testing.T) {
 
 func TestGetTxByHash(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -368,6 +384,7 @@ func TestGetTxByHash(t *testing.T) {
 
 func TestGetTxReceipt(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -399,6 +416,7 @@ func TestGetTxReceipt(t *testing.T) {
 
 func TestCall_NoFromAddr(t *testing.T) {
 	_app := app.CreateTestApp()
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -411,6 +429,7 @@ func TestCall_Transfer(t *testing.T) {
 	toKey, toAddr := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(fromKey, toKey)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -435,6 +454,7 @@ func TestCall_DeployContract(t *testing.T) {
 	fromKey, fromAddr := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(fromKey)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -450,6 +470,7 @@ func TestCall_RunGetter(t *testing.T) {
 	fromKey, fromAddr := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(fromKey)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -479,6 +500,7 @@ func TestEstimateGas(t *testing.T) {
 	fromKey, fromAddr := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(fromKey)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 
@@ -518,6 +540,7 @@ func testRandomTransfer() {
 	toKey, toAddr := testutils.GenKeyAndAddr()
 
 	_app := app.CreateTestApp(fromKey, toKey)
+	_app.WaitLock()
 	defer app.DestroyTestApp(_app)
 	_api := createEthAPI(_app)
 

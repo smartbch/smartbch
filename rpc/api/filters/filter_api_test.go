@@ -230,6 +230,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 
+	time.Sleep(10 * time.Millisecond)
 	b2Hash := gethcmn.Hash{0xB2}
 	block2 := testutils.NewMdbBlockBuilder().
 		Height(2).Hash(b2Hash).
@@ -237,6 +238,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 		Build()
 	ctx = _app.GetContext(app.RunTxMode)
 	ctx.StoreBlock(block2)
+	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 
 	logs, err := _api.GetLogs(testutils.NewBlockHashFilter(&b1Hash))

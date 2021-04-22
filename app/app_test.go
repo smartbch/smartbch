@@ -39,6 +39,7 @@ func TestTransferOK(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := CreateTestApp(key1, key2)
+	_app.WaitLock()
 	defer DestroyTestApp(_app)
 	require.Equal(t, uint64(10000000), getBalance(_app, addr1).Uint64())
 	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
