@@ -136,7 +136,7 @@ func stringFromBytes(bz []byte) string {
 		}
 		i--
 	}
-	return string(bz[i+1])
+	return string(bz[:i+1])
 }
 
 // This function implements the underlying logic for three external functions: createValidator, editValidator and retire

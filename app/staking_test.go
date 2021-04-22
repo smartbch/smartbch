@@ -215,7 +215,7 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 		require.Len(t, blk.Transactions, 1)
 		txInBlk := getTx(_app, blk.Transactions[0])
 		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
-		require.Equal(t, "precompile-failure", txInBlk.StatusStr)
+		require.Equal(t, "success", txInBlk.StatusStr)
 		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
 	}
 }
