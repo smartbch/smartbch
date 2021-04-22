@@ -226,6 +226,7 @@ func TestCallStakingMethodsFromContract(t *testing.T) {
 	_app := CreateTestApp(key1, key1)
 	defer DestroyTestApp(_app)
 
+	// see testdata/staking/contracts/StakingTest2
 	proxyCreationBytecode := testutils.HexToBytes(`
 6080604052348015600f57600080fd5b50606980601d6000396000f3fe608060
 405260006127109050604051366000823760008036836000865af13d80600084
