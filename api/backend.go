@@ -228,6 +228,25 @@ func (backend *apiBackend) GetTxListByHeight(height uint32) (tx []*types.Transac
 	return ctx.GetTxListByHeight(height)
 }
 
+func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	defer ctx.Close(false)
+
+	return ctx.GetToAddressCount(addr)
+}
+func (backend *apiBackend) GetSep20ToAddressCount(contract common.Address, addr common.Address) int64 {
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	defer ctx.Close(false)
+
+	return ctx.GetSep20ToAddressCount(contract, addr)
+}
+func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, addr common.Address) int64 {
+	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	defer ctx.Close(false)
+
+	return ctx.GetSep20FromAddressCount(contract, addr)
+}
+
 func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	if blockNr == rpc.LatestBlockNumber {
 		blockNr = rpc.BlockNumber(backend.app.GetLatestBlockNum())

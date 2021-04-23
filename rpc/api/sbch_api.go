@@ -2,6 +2,7 @@ package api
 
 import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
@@ -19,6 +20,9 @@ type SbchAPI interface {
 	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error)
 	GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
+	GetToAddressCount(addr gethcmn.Address) hexutil.Uint64
+	GetSep20ToAddressCount(contract, addr gethcmn.Address) hexutil.Uint64
+	GetSep20FromAddressCount(contract, addr gethcmn.Address) hexutil.Uint64
 }
 
 type sbchAPI struct {
@@ -103,4 +107,14 @@ func (sbch sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
 		return nil, err
 	}
 	return motypes.ToGethLogs(logs), nil
+}
+
+func (sbch sbchAPI) GetToAddressCount(addr gethcmn.Address) hexutil.Uint64 {
+	return hexutil.Uint64(sbch.backend.GetToAddressCount(addr))
+}
+func (sbch sbchAPI) GetSep20ToAddressCount(contract, addr gethcmn.Address) hexutil.Uint64 {
+	return hexutil.Uint64(sbch.backend.GetSep20ToAddressCount(contract, addr))
+}
+func (sbch sbchAPI) GetSep20FromAddressCount(contract, addr gethcmn.Address) hexutil.Uint64 {
+	return hexutil.Uint64(sbch.backend.GetSep20FromAddressCount(contract, addr))
 }

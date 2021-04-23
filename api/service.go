@@ -97,4 +97,7 @@ type BackendService interface {
 	QueryTxByAddr(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
 	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
 	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
+	GetToAddressCount(addr common.Address) int64
+	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
+	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
 }
