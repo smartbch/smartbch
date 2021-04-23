@@ -22,19 +22,13 @@ func _TestERC20Events(t *testing.T) {
 	_app := CreateTestApp(key1, key2)
 	defer DestroyTestApp(_app)
 
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
-		_myTokenCreationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key1)
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key1, 0, _myTokenCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 
 	data := sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
-	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(0), data)
-	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 3, tx2)
+	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key1, 1, contractAddr, 0, data)
 
 	blk3 := getBlock(_app, 3)
 	require.Equal(t, int64(3), blk3.Number)

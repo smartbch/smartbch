@@ -44,12 +44,9 @@ func TestTransferOK(t *testing.T) {
 	require.Equal(t, uint64(10000000), getBalance(_app, addr1).Uint64())
 	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
 
-	tx := gethtypes.NewTransaction(0, addr2, big.NewInt(100), 100000, big.NewInt(1), nil)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-
-	testutils.ExecTxInBlock(_app, 1, tx)
+	tx := testutils.MakeAndExecTxInBlock(_app, 1, key1, 0, addr2, 100, nil)
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, uint64(10000000-100-21000), getBalance(_app, addr1).Uint64())
+	require.Equal(t, uint64(10000000-100 /*-21000*/), getBalance(_app, addr1).Uint64())
 	require.Equal(t, uint64(10000000+100), getBalance(_app, addr2).Uint64())
 
 	n := _app.GetLatestBlockNum()
@@ -74,11 +71,9 @@ func TestTransferFailed(t *testing.T) {
 	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
 
 	// insufficient balance
-	tx := gethtypes.NewTransaction(0, addr2, big.NewInt(10000001), 100000, big.NewInt(1), nil)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 1, tx)
+	tx := testutils.MakeAndExecTxInBlock(_app, 1, key1, 0, addr2, 10000001, nil)
 
-	require.Equal(t, uint64(10000000-21000), getBalance(_app, addr1).Uint64())
+	require.Equal(t, uint64(10000000 /*-21000*/), getBalance(_app, addr1).Uint64())
 	require.Equal(t, uint64(10000000), getBalance(_app, addr2).Uint64())
 	ctx := _app.GetContext(RunTxMode)
 	fmt.Printf("bh balance:%d\n", ebp.GetBlackHoleBalance(ctx).Uint64())
@@ -97,9 +92,7 @@ func TestBlock(t *testing.T) {
 	_app := CreateTestApp(key1, key2)
 	defer DestroyTestApp(_app)
 
-	tx := gethtypes.NewTransaction(0, addr2, big.NewInt(100), 100000, big.NewInt(1), nil)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 1, tx)
+	testutils.MakeAndExecTxInBlock(_app, 1, key1, 0, addr2, 100, nil)
 	time.Sleep(50 * time.Millisecond)
 
 	blk1 := getBlock(_app, 1)

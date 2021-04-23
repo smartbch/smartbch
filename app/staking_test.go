@@ -3,14 +3,12 @@ package app
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
-	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
@@ -102,9 +100,8 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
 	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
-	tx := gethtypes.NewTransaction(0, staking.StakingContractAddress, big.NewInt(100), 1000000, big.NewInt(1), dataEncode)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 1, tx)
+	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 1, key1, 0,
+		staking.StakingContractAddress, 100, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
@@ -117,9 +114,8 @@ func TestStaking(t *testing.T) {
 
 	//test edit validator
 	dataEncode = stakingABI.MustPack("editValidator", [32]byte{'b'}, [32]byte{'2'})
-	tx = gethtypes.NewTransaction(1, staking.StakingContractAddress, big.NewInt(0), 400000, big.NewInt(1), dataEncode)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 3, tx)
+	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 3, key1, 1,
+		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
@@ -139,9 +135,8 @@ func TestStaking(t *testing.T) {
 	staking.SaveStakingInfo(*ctx, acc, info)
 	ctx.Close(true)
 	dataEncode = stakingABI.MustPack("increaseMinGasPrice")
-	tx = gethtypes.NewTransaction(2, staking.StakingContractAddress, big.NewInt(0), 400000, big.NewInt(1), dataEncode)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 5, tx)
+	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 5, key1, 2,
+		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
 	mp := staking.LoadMinGasPrice(ctx, false)
@@ -157,9 +152,8 @@ func TestStaking(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	dataEncode = stakingABI.MustPack("retire")
-	tx = gethtypes.NewTransaction(3, staking.StakingContractAddress, big.NewInt(0), 400000, big.NewInt(0), dataEncode)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
-	testutils.ExecTxInBlock(_app, 9, tx)
+	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 9, key1, 3,
+		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
@@ -204,11 +198,8 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		tx := gethtypes.NewTransaction(uint64(0+i), stakingAddr,
-			big.NewInt(0), 1000000, big.NewInt(1), testCase)
-		tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 		h := int64(1 + i*2)
-		testutils.ExecTxInBlock(_app, h, tx)
+		tx := testutils.MakeAndExecTxInBlock(_app, h, key1, uint64(0+i), stakingAddr, 0, testCase)
 
 		blk := getBlock(_app, uint64(h))
 		require.Equal(t, h, blk.Number)
@@ -234,11 +225,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 430008000033
 `)
 
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
-		proxyCreationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key1)
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key1, 0, proxyCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
@@ -254,11 +241,8 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 	}
 
 	for i, testCase := range testCases {
-		tx := gethtypes.NewTransaction(uint64(1+i), contractAddr,
-			big.NewInt(0), 1000000, big.NewInt(1), testCase)
-		tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 		h := int64(3 + i*2)
-		testutils.ExecTxInBlock(_app, h, tx)
+		tx := testutils.MakeAndExecTxInBlock(_app, h, key1, uint64(1+i), contractAddr, 0, testCase)
 
 		blk := getBlock(_app, uint64(h))
 		require.Equal(t, h, blk.Number)

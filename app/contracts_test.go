@@ -42,10 +42,8 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 2037865cfcfd438966956583c78d31220c05c0f1ebfd116aced883214fcb1096
 c664736f6c634300060c0033
 `)
-	tx := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
-	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key)
 
-	testutils.ExecTxInBlock(_app, 1, tx)
+	tx := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
 	code := getCode(_app, contractAddr)
 	require.Equal(t, deployedBytecode, code)
@@ -76,10 +74,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 `)
 
 	// deploy contract
-	tx1 := gethtypes.NewContractCreation(0,
-		big.NewInt(0), 10000000, big.NewInt(1), creationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
 
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := getCode(_app, contractAddr)
@@ -93,10 +88,8 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	require.Equal(t, tx1.Hash(), common.Hash(txInBlk1.Hash))
 
 	// call emitEvent1()
-	tx2 := gethtypes.NewTransaction(1, contractAddr,
-		big.NewInt(0), 10000000, big.NewInt(1), testutils.HexToBytes("990ee412"))
-	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key)
-	testutils.ExecTxInBlock(_app, 3, tx2)
+	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key, 1,
+		contractAddr, 0, testutils.HexToBytes("990ee412"))
 
 	time.Sleep(100 * time.Millisecond)
 	blk3 := getBlock(_app, 3)
@@ -113,11 +106,8 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		hex.EncodeToString(txInBlk3.Logs[0].Topics[1][:]))
 
 	// call emitEvent2()
-	tx3 := gethtypes.NewTransaction(2, contractAddr,
-		big.NewInt(0), 10000000, big.NewInt(1),
-		testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
-	tx3 = testutils.MustSignTx(tx3, _app.chainId.ToBig(), key)
-	testutils.ExecTxInBlock(_app, 5, tx3)
+	tx3 := testutils.MakeAndExecTxInBlock(_app, 5, key, 2,
+		contractAddr, 0, testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
 
 	time.Sleep(100 * time.Millisecond)
 	blk5 := getBlock(_app, 5)
@@ -158,10 +148,7 @@ func TestChainID(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
@@ -197,19 +184,14 @@ func TestRevert(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 
 	// call setN_revert()
-	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1),
-		testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064"))
-	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key)
-	testutils.ExecTxInBlock(_app, 3, tx2)
+	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key, 1,
+		contractAddr, 0, testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064"))
 
 	time.Sleep(100 * time.Millisecond)
 	blk3 := getBlock(_app, 3)
@@ -253,19 +235,14 @@ func TestInvalidOpcode(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 
 	// call setN_invalidOpcode()
-	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1),
-		testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064"))
-	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key)
-	testutils.ExecTxInBlock(_app, 3, tx2)
+	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key, 1,
+		contractAddr, 0, testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064"))
 
 	time.Sleep(100 * time.Millisecond)
 	blk3 := getBlock(_app, 3)
@@ -298,10 +275,7 @@ func TestEstimateGas(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
-	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
-
-	testutils.ExecTxInBlock(_app, 1, tx1)
+	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := getCode(_app, contractAddr)
 	require.True(t, len(code) > 0)

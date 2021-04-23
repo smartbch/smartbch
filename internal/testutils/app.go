@@ -21,11 +21,32 @@ type App interface {
 	TestValidatorPubkey() crypto.PubKey
 }
 
-func MakeAndExecTxInBlock(_app App, height int64, privKey string,
-	nonce uint64, toAddr gethcmn.Address, val int64, data []byte) *gethtypes.Transaction {
+func DeployContractInBlock(_app App, height int64, privKey string, nonce uint64, data []byte) *gethtypes.Transaction {
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(0),
+		Gas:      1000000,
+		To:       nil,
+		Value:    big.NewInt(0),
+		Data:     data,
+	}
+	tx := gethtypes.NewTx(txData)
+	tx = MustSignTx(tx, _app.ChainID().ToBig(), privKey)
+	ExecTxInBlock(_app, height, tx)
+	return tx
+}
+
+func MakeAndExecTxInBlock(_app App, height int64, privKey string, nonce uint64,
+	toAddr gethcmn.Address, val int64, data []byte) *gethtypes.Transaction {
+
+	return MakeAndExecTxInBlockWithGasPrice(_app, height, privKey, nonce, toAddr, val, data, 0)
+}
+func MakeAndExecTxInBlockWithGasPrice(_app App, height int64, privKey string, nonce uint64,
+	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
+
+	txData := &gethtypes.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: big.NewInt(gasPrice),
 		Gas:      1000000,
 		To:       &toAddr,
 		Value:    big.NewInt(val),
