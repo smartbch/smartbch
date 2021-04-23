@@ -2,9 +2,12 @@ package testutils
 
 import (
 	"bytes"
+	"math/big"
 	"time"
 
+	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/holiman/uint256"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto"
@@ -13,8 +16,25 @@ import (
 
 type App interface {
 	abci.Application
+	ChainID() *uint256.Int
 	WaitLock()
 	TestValidatorPubkey() crypto.PubKey
+}
+
+func MakeAndExecTxInBlock(_app App, height int64, privKey string,
+	nonce uint64, toAddr gethcmn.Address, val int64, data []byte) *gethtypes.Transaction {
+	txData := &gethtypes.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: big.NewInt(0),
+		Gas:      1000000,
+		To:       &toAddr,
+		Value:    big.NewInt(val),
+		Data:     data,
+	}
+	tx := gethtypes.NewTx(txData)
+	tx = MustSignTx(tx, _app.ChainID().ToBig(), privKey)
+	ExecTxInBlock(_app, height, tx)
+	return tx
 }
 
 func ExecTxInBlock(_app App, height int64, tx *gethtypes.Transaction) {

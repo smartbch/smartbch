@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/smartbch/smartbch/api"
@@ -167,6 +168,22 @@ func TestGetTxListByHeight(t *testing.T) {
 	txs, err = _api.GetTxListByHeight(3)
 	require.NoError(t, err)
 	require.Len(t, txs, 1)
+}
+
+func TestGetToAddressCount(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, _ := testutils.GenKeyAndAddr()
+	key3, _ := testutils.GenKeyAndAddr()
+	key4, _ := testutils.GenKeyAndAddr()
+
+	_app := app.CreateTestApp(key1, key2, key3, key4)
+	defer app.DestroyTestApp(_app)
+	_api := createSbchAPI(_app)
+
+	testutils.MakeAndExecTxInBlock(_app, 1, key2, 0, addr1, 123, nil)
+	testutils.MakeAndExecTxInBlock(_app, 3, key3, 1, addr1, 234, nil)
+	testutils.MakeAndExecTxInBlock(_app, 5, key4, 2, addr1, 345, nil)
+	require.Equal(t, hexutil.Uint64(3), _api.GetToAddressCount(addr1))
 }
 
 func createSbchAPI(_app *app.App) SbchAPI {
