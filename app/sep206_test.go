@@ -332,6 +332,26 @@ func TestTokenInfo(t *testing.T) {
 	}
 }
 
+func TestTransferEvent(t *testing.T) {
+	privKey1, _ := testutils.GenKeyAndAddr()
+	privKey2, addr2 := testutils.GenKeyAndAddr()
+	_app := CreateTestApp(privKey1, privKey2)
+	defer DestroyTestApp(_app)
+
+	amt := big.NewInt(100)
+	data1 := sep206ABI.MustPack("transfer", addr2, amt)
+	tx1 := testutils.MakeAndExecTxInBlock(_app, 1, privKey1, 0, sep206Addr, 0, data1)
+
+	blk1 := getBlock(_app, 1)
+	require.Equal(t, int64(1), blk1.Number)
+	require.Len(t, blk1.Transactions, 1)
+	txInBlk1 := getTx(_app, blk1.Transactions[0])
+	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
+	require.Equal(t, "success", txInBlk1.StatusStr)
+	require.Equal(t, tx1.Hash(), gethcmn.Hash(txInBlk1.Hash))
+	require.Len(t, txInBlk1.Logs, 1) // TODO: check more fields
+}
+
 func TestTransferToExistingAddr(t *testing.T) {
 	privKey1, addr1 := testutils.GenKeyAndAddr()
 	privKey2, addr2 := testutils.GenKeyAndAddr()
