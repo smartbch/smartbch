@@ -8,7 +8,6 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -346,7 +345,7 @@ func TestTransferToExistingAddr(t *testing.T) {
 	amt := big.NewInt(100)
 	data1 := sep206ABI.MustPack("transfer", addr2, amt)
 	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data1)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), privKey1)
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	require.Equal(t, b1.Sub(b1, amt), callViewMethod(t, _app, "balanceOf", addr1))
 	require.Equal(t, b2.Add(b2, amt), callViewMethod(t, _app, "balanceOf", addr2))
@@ -365,7 +364,7 @@ func TestTransferToNonExistingAddr(t *testing.T) {
 	amt := big.NewInt(100)
 	data1 := sep206ABI.MustPack("transfer", addr2, amt)
 	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data1)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey1))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), privKey1)
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	require.Equal(t, b1.Sub(b1, amt), callViewMethod(t, _app, "balanceOf", addr1))
 	require.Equal(t, amt, callViewMethod(t, _app, "balanceOf", addr2))
@@ -382,7 +381,7 @@ func TestAllowance(t *testing.T) {
 
 	data1 := sep206ABI.MustPack("approve", spenderAddr, big.NewInt(12345))
 	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data1)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(ownerKey))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), ownerKey)
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	checkTx(t, _app, 1, tx1.Hash())
 	a1 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
@@ -390,7 +389,7 @@ func TestAllowance(t *testing.T) {
 
 	data2 := sep206ABI.MustPack("increaseAllowance", spenderAddr, big.NewInt(123))
 	tx2 := gethtypes.NewTransaction(1, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data2)
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(ownerKey))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), ownerKey)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 	checkTx(t, _app, 3, tx2.Hash())
 	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
@@ -398,7 +397,7 @@ func TestAllowance(t *testing.T) {
 
 	data3 := sep206ABI.MustPack("decreaseAllowance", spenderAddr, big.NewInt(456))
 	tx3 := gethtypes.NewTransaction(2, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data3)
-	tx3 = ethutils.MustSignTx(tx3, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(ownerKey))
+	tx3 = testutils.MustSignTx(tx3, _app.chainId.ToBig(), ownerKey)
 	testutils.ExecTxInBlock(_app, 5, tx3)
 	checkTx(t, _app, 5, tx3.Hash())
 	a3 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
@@ -414,7 +413,7 @@ func TestTransferFrom(t *testing.T) {
 
 	data1 := sep206ABI.MustPack("approve", spenderAddr, big.NewInt(12345))
 	tx1 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data1)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(ownerKey))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), ownerKey)
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	checkTx(t, _app, 1, tx1.Hash())
 	a1 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
@@ -422,7 +421,7 @@ func TestTransferFrom(t *testing.T) {
 
 	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, big.NewInt(345))
 	tx2 := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 1000000, big.NewInt(0), data2)
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(spenderKey))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), spenderKey)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 	checkTx(t, _app, 3, tx2.Hash())
 	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)

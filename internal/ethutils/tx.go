@@ -32,16 +32,6 @@ func DecodeTx(data []byte) (*types.Transaction, error) {
 	return tx, err
 }
 
-func MustSignTx(tx *types.Transaction,
-	chainID *big.Int, key *ecdsa.PrivateKey) *types.Transaction {
-
-	if tx, err := SignTx(tx, chainID, key); err == nil {
-		return tx
-	} else {
-		panic(err)
-	}
-}
-
 func SignTx(tx *types.Transaction,
 	chainID *big.Int, key *ecdsa.PrivateKey) (*types.Transaction, error) {
 

@@ -14,7 +14,6 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
@@ -104,7 +103,7 @@ func TestStaking(t *testing.T) {
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
 	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
 	tx := gethtypes.NewTransaction(0, staking.StakingContractAddress, big.NewInt(100), 1000000, big.NewInt(1), dataEncode)
-	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 	testutils.ExecTxInBlock(_app, 1, tx)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
@@ -119,7 +118,7 @@ func TestStaking(t *testing.T) {
 	//test edit validator
 	dataEncode = stakingABI.MustPack("editValidator", [32]byte{'b'}, [32]byte{'2'})
 	tx = gethtypes.NewTransaction(1, staking.StakingContractAddress, big.NewInt(0), 400000, big.NewInt(1), dataEncode)
-	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 	testutils.ExecTxInBlock(_app, 3, tx)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
@@ -141,7 +140,7 @@ func TestStaking(t *testing.T) {
 	ctx.Close(true)
 	dataEncode = stakingABI.MustPack("increaseMinGasPrice")
 	tx = gethtypes.NewTransaction(2, staking.StakingContractAddress, big.NewInt(0), 400000, big.NewInt(1), dataEncode)
-	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 	testutils.ExecTxInBlock(_app, 5, tx)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
@@ -159,7 +158,7 @@ func TestStaking(t *testing.T) {
 
 	dataEncode = stakingABI.MustPack("retire")
 	tx = gethtypes.NewTransaction(3, staking.StakingContractAddress, big.NewInt(0), 400000, big.NewInt(0), dataEncode)
-	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 	testutils.ExecTxInBlock(_app, 9, tx)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetContext(RunTxMode)
@@ -207,7 +206,7 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 	for i, testCase := range testCases {
 		tx := gethtypes.NewTransaction(uint64(0+i), stakingAddr,
 			big.NewInt(0), 1000000, big.NewInt(1), testCase)
-		tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+		tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 		h := int64(1 + i*2)
 		testutils.ExecTxInBlock(_app, h, tx)
 
@@ -237,7 +236,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 
 	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
 		proxyCreationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key1)
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
@@ -257,7 +256,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 	for i, testCase := range testCases {
 		tx := gethtypes.NewTransaction(uint64(1+i), contractAddr,
 			big.NewInt(0), 1000000, big.NewInt(1), testCase)
-		tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key1))
+		tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key1)
 		h := int64(3 + i*2)
 		testutils.ExecTxInBlock(_app, h, tx)
 

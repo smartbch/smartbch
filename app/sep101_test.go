@@ -12,7 +12,6 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -163,7 +162,7 @@ ffffffffffffffffffffffffffffffffffff82169050919050565b8281833760
 func deploySEP101Proxy(t *testing.T, _app *App, privKey string, senderAddr gethcmn.Address) gethcmn.Address {
 	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1),
 		_sep101ProxyCreationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), privKey)
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	contractAddr := gethcrypto.CreateAddress(senderAddr, tx1.Nonce())
@@ -186,7 +185,7 @@ func TestSEP101(t *testing.T) {
 	// call set()
 	data := _sep101ABI.MustPack("set", key, val)
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), privKey)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	blk3 := getBlock(_app, 3)
@@ -230,7 +229,7 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 	// set() with zero-len key
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), privKey)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	blk3 := getBlock(_app, 3)
@@ -253,7 +252,7 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 	// set() with looooong key
 	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), privKey)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	blk3 := getBlock(_app, 3)
@@ -276,7 +275,7 @@ func TestSEP101_setValTooLong(t *testing.T) {
 	// set() with looooong val
 	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1), data)
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(privKey))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), privKey)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	blk3 := getBlock(_app, 3)

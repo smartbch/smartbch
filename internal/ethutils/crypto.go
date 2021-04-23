@@ -9,14 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func MustHexToPrivKey(key string) *ecdsa.PrivateKey {
-	if k, _, err := HexToPrivKey(key); err == nil {
-		return k
-	} else {
-		panic(err)
-	}
-}
-
 func HexToPrivKey(key string) (*ecdsa.PrivateKey, []byte, error) {
 	key = strings.TrimSpace(key)
 	if strings.HasPrefix(key, "0x") {

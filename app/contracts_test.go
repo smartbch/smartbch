@@ -14,7 +14,6 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/smartbch/smartbch/internal/bigutils"
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -44,7 +43,7 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 c664736f6c634300060c0033
 `)
 	tx := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
-	tx = ethutils.MustSignTx(tx, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx = testutils.MustSignTx(tx, _app.chainId.ToBig(), key)
 
 	testutils.ExecTxInBlock(_app, 1, tx)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
@@ -79,7 +78,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	// deploy contract
 	tx1 := gethtypes.NewContractCreation(0,
 		big.NewInt(0), 10000000, big.NewInt(1), creationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
 	testutils.ExecTxInBlock(_app, 1, tx1)
 
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
@@ -96,7 +95,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	// call emitEvent1()
 	tx2 := gethtypes.NewTransaction(1, contractAddr,
 		big.NewInt(0), 10000000, big.NewInt(1), testutils.HexToBytes("990ee412"))
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	time.Sleep(100 * time.Millisecond)
@@ -117,7 +116,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	tx3 := gethtypes.NewTransaction(2, contractAddr,
 		big.NewInt(0), 10000000, big.NewInt(1),
 		testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
-	tx3 = ethutils.MustSignTx(tx3, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx3 = testutils.MustSignTx(tx3, _app.chainId.ToBig(), key)
 	testutils.ExecTxInBlock(_app, 5, tx3)
 
 	time.Sleep(100 * time.Millisecond)
@@ -160,7 +159,7 @@ func TestChainID(t *testing.T) {
 `)
 
 	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
@@ -199,7 +198,7 @@ b5007928aa64736f6c63430007000033
 `)
 
 	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
@@ -209,7 +208,7 @@ b5007928aa64736f6c63430007000033
 	// call setN_revert()
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1),
 		testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064"))
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	time.Sleep(100 * time.Millisecond)
@@ -255,7 +254,7 @@ b5007928aa64736f6c63430007000033
 `)
 
 	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1), creationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
@@ -265,7 +264,7 @@ b5007928aa64736f6c63430007000033
 	// call setN_invalidOpcode()
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 1000000, big.NewInt(1),
 		testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064"))
-	tx2 = ethutils.MustSignTx(tx2, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx2 = testutils.MustSignTx(tx2, _app.chainId.ToBig(), key)
 	testutils.ExecTxInBlock(_app, 3, tx2)
 
 	time.Sleep(100 * time.Millisecond)
@@ -300,7 +299,7 @@ func TestEstimateGas(t *testing.T) {
 `)
 
 	tx1 := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1), creationBytecode)
-	tx1 = ethutils.MustSignTx(tx1, _app.chainId.ToBig(), ethutils.MustHexToPrivKey(key))
+	tx1 = testutils.MustSignTx(tx1, _app.chainId.ToBig(), key)
 
 	testutils.ExecTxInBlock(_app, 1, tx1)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())

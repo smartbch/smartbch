@@ -21,7 +21,6 @@ import (
 
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
@@ -477,7 +476,7 @@ func TestCall_RunGetter(t *testing.T) {
 	// deploy contract
 	tx := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1),
 		counterContractCreationBytecode)
-	tx = ethutils.MustSignTx(tx, _app.ChainID().ToBig(), ethutils.MustHexToPrivKey(fromKey))
+	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), fromKey)
 	testutils.ExecTxInBlock(_app, 1, tx)
 	contractAddr := gethcrypto.CreateAddress(fromAddr, tx.Nonce())
 	rtCode, err := _api.GetCode(contractAddr, 0)
