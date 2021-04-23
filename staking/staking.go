@@ -71,13 +71,13 @@ var (
 	MinMinGasPrice uint64 = 0
 
 	/*------error info------*/
-	InvalidCallData                   = errors.New("Invalid call data")
-	BalanceNotEnough                  = errors.New("Balance is not enough")
-	NoSuchValidator                   = errors.New("No such validator")
+	InvalidCallData                   = errors.New("invalid call data")
+	BalanceNotEnough                  = errors.New("balance is not enough")
+	NoSuchValidator                   = errors.New("no such validator")
 	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than max")
 	MinGasPriceTooSmall               = errors.New("minGasPrice smaller than max")
 	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
-	OperatorNotValidator              = errors.New("minGasPrice operator not validator")
+	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
 )
 
 type StakingContractExecutor struct{}
@@ -228,14 +228,14 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 	mGP := LoadMinGasPrice(ctx, false)
 	lastMGP := LoadMinGasPrice(ctx, true)
 	_, info := LoadStakingAcc(*ctx)
-	isValidator := false
+	isValidatorOrRewardTo := false
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	for _, v := range activeValidators {
-		if v.Address == sender {
-			isValidator = true
+		if v.Address == sender || v.RewardTo == sender {
+			isValidatorOrRewardTo = true
 		}
 	}
-	if !isValidator {
+	if !isValidatorOrRewardTo {
 		outData = []byte(OperatorNotValidator.Error())
 		return
 	}
