@@ -18,7 +18,6 @@ import (
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -225,7 +224,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 		Height(1).Hash(b1Hash).
 		Tx(gethcmn.Hash{0xC1}, types.Log{Address: gethcmn.Address{0xA1}}).
 		Build()
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block1)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -236,7 +235,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 		Height(2).Hash(b2Hash).
 		Tx(gethcmn.Hash{0xC2}, types.Log{Address: gethcmn.Address{0xA2}}).
 		Build()
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	ctx.StoreBlock(block2)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -308,7 +307,7 @@ func addBlock(_app *testutils.TestApp, block *modbtypes.Block) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{Height: block.Height},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.Close(true)
 	_app.AddBlockFotTest(block)

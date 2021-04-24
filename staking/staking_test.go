@@ -10,7 +10,6 @@ import (
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	types2 "github.com/smartbch/smartbch/staking/types"
@@ -111,7 +110,7 @@ func TestStaking(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
 
@@ -158,7 +157,7 @@ func TestSwitchEpoch(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	//build new epoch
 	e := &types2.Epoch{
 		StartHeight:    100,
@@ -223,7 +222,7 @@ func TestSlash(t *testing.T) {
 	key, _ := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	var slashedPubkey [32]byte
 	copy(slashedPubkey[:], _app.TestValidatorPubkey().Bytes())
 	stakingAddr := common.Address{}
@@ -247,7 +246,7 @@ func TestGasPriceAdjustment(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
 

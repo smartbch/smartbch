@@ -145,7 +145,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	app.watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
 	go app.watcher.Run()
 
-	ctx := app.GetContext(RunTxMode)
+	ctx := app.GetRunTxContext()
 	prevBlk := ctx.GetCurrBlockBasicInfo()
 	app.block = &types.Block{}
 	if prevBlk != nil {
@@ -177,13 +177,13 @@ func (app *App) Init(blk *types.Block) {
 	if app.currHeight != 0 {
 		app.reload()
 	} else {
-		app.txEngine.SetContext(app.GetContext(RunTxMode))
+		app.txEngine.SetContext(app.GetRunTxContext())
 		fmt.Printf("!!!!!!app init: %v\n", app.txEngine.Context())
 	}
 }
 
 func (app *App) reload() {
-	app.txEngine.SetContext(app.GetContext(RunTxMode))
+	app.txEngine.SetContext(app.GetRunTxContext())
 	fmt.Printf("!!!!!!app reload: %v\n", app.txEngine.Context())
 	if app.block != nil {
 		app.mtx.Lock()
@@ -209,7 +209,7 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 
 func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx {
 	app.logger.Debug("enter check tx!")
-	ctx := app.GetContext(CheckTxMode)
+	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
@@ -250,7 +250,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	app.logger.Debug("leave init chain!")
 
-	ctx := app.GetContext(RunTxMode)
+	ctx := app.GetRunTxContext()
 	var genesisValidators []*stakingtypes.Validator
 	if len(req.AppStateBytes) != 0 {
 		fmt.Printf("appstate:%s\n", req.AppStateBytes)
@@ -399,7 +399,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 	}
 	if len(app.epochList) != 0 {
 		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
-			ctx := app.GetContext(RunTxMode)
+			ctx := app.GetRunTxContext()
 			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			ctx.Close(true)
 			app.epochList = app.epochList[1:]
@@ -432,7 +432,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
-	ctx := app.GetContext(RunTxMode)
+	ctx := app.GetRunTxContext()
 	_, info := staking.LoadStakingAcc(*ctx)
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
 	var consAddr [20]byte
@@ -521,7 +521,7 @@ func (app *App) refresh() {
 	//close old
 	app.checkTrunk.Close(false)
 
-	ctx := app.GetContext(RunTxMode)
+	ctx := app.GetRunTxContext()
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
 	//refresh lastMinGasPrice
@@ -584,7 +584,7 @@ func (app *App) refresh() {
 	app.root.SetHeight(app.currHeight + 1)
 	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
-	app.txEngine.SetContext(app.GetContext(RunTxMode))
+	app.txEngine.SetContext(app.GetRunTxContext())
 }
 
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
@@ -641,6 +641,19 @@ func (app *App) Stop() {
 	app.scope.Close()
 }
 
+func (app *App) GetRpcContext() *types.Context {
+	return app.GetContext(RpcMode)
+}
+func (app *App) GetRunTxContext() *types.Context {
+	return app.GetContext(RunTxMode)
+}
+func (app *App) GetHistoryOnlyContext() *types.Context {
+	return app.GetContext(HistoryOnlyMode)
+}
+func (app *App) GetCheckTxContext() *types.Context {
+	return app.GetContext(CheckTxMode)
+}
+
 func (app *App) GetContext(mode ContextMode) *types.Context {
 	c := types.NewContext(uint64(app.currHeight), nil, nil)
 	if mode == CheckTxMode {
@@ -666,7 +679,7 @@ func (app *App) GetContext(mode ContextMode) *types.Context {
 func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool) (*ebp.TxRunner, int64) {
 	txToRun := &types.TxToRun{}
 	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
-	ctx := app.GetContext(RpcMode)
+	ctx := app.GetRpcContext()
 	defer ctx.Close(false)
 	runner := &ebp.TxRunner{
 		Ctx: *ctx,

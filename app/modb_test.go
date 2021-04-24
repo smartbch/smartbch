@@ -9,7 +9,6 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 
 	"github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -31,7 +30,7 @@ func TestGetBlock(t *testing.T) {
 	_app.HistoryStore().AddBlock(nil, -1)
 	time.Sleep(10 * time.Millisecond)
 
-	ctx := _app.GetContext(app.RpcMode)
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	blk1, err := ctx.GetBlockByHeight(1)
 	require.NoError(t, err)
@@ -64,7 +63,7 @@ func TestQueryLogs(t *testing.T) {
 	_app.HistoryStore().AddBlock(nil, -1)
 	time.Sleep(10 * time.Millisecond)
 
-	ctx := _app.GetContext(app.RpcMode)
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 
 	logs, err := ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{}, 1, 2)
@@ -119,7 +118,7 @@ func TestGetLogsMaxResults(t *testing.T) {
 	_app.HistoryStore().AddBlock(nil, -1)
 	time.Sleep(10 * time.Millisecond)
 
-	ctx := _app.GetContext(app.RpcMode)
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 
 	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)

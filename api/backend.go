@@ -61,7 +61,7 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string, bloc
 		return nil
 	}
 
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
 	acc := ctx.GetAccount(address)
@@ -77,7 +77,7 @@ func (backend *apiBackend) GetCode(contract common.Address, blockNumber int64) (
 		return
 	}
 
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
 	info := ctx.GetCode(contract)
@@ -89,7 +89,7 @@ func (backend *apiBackend) GetCode(contract common.Address, blockNumber int64) (
 }
 
 func (backend *apiBackend) GetBalance(owner common.Address, height int64) (*big.Int, error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 	b, err := ctx.GetBalance(owner, height)
 	if err != nil {
@@ -99,7 +99,7 @@ func (backend *apiBackend) GetBalance(owner common.Address, height int64) (*big.
 }
 
 func (backend *apiBackend) GetNonce(address common.Address) (uint64, error) {
-	ctx := backend.app.GetContext(app.RpcMode)
+	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 	if acc := ctx.GetAccount(address); acc != nil {
 		return acc.Nonce(), nil
@@ -109,7 +109,7 @@ func (backend *apiBackend) GetNonce(address common.Address) (uint64, error) {
 }
 
 func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	if tx, err = ctx.GetTxByHash(txHash); err != nil {
@@ -126,7 +126,7 @@ func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transac
 }
 
 func (backend *apiBackend) BlockByHash(hash common.Hash) (*types.Block, error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	block, err := ctx.GetBlockByHash(hash)
 	if err != nil {
@@ -136,7 +136,7 @@ func (backend *apiBackend) BlockByHash(hash common.Hash) (*types.Block, error) {
 }
 
 func (backend *apiBackend) BlockByNumber(number int64) (*types.Block, error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.GetBlockByHeight(uint64(number))
 }
@@ -146,12 +146,12 @@ func (backend *apiBackend) ProtocolVersion() int {
 }
 
 func (backend *apiBackend) LatestHeight() int64 {
-	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	appCtx := backend.app.GetHistoryOnlyContext()
 	return appCtx.GetLatestHeight()
 }
 
 func (backend *apiBackend) CurrentBlock() (*types.Block, error) {
-	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	appCtx := backend.app.GetHistoryOnlyContext()
 	block, err := appCtx.GetBlockByHeight(uint64(appCtx.GetLatestHeight()))
 	if err != nil {
 		return nil, err
@@ -190,58 +190,58 @@ func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.
 }
 
 func (backend *apiBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.QueryLogs(addresses, topics, startHeight, endHeight)
 }
 
 func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxBySrc(addr, startHeight, endHeight)
 }
 
 func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxByDst(addr, startHeight, endHeight)
 }
 
 func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxByAddr(addr, startHeight, endHeight)
 }
 
 func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight)
 }
 
 func (backend *apiBackend) GetTxListByHeight(height uint32) (tx []*types.Transaction, err error) {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.GetTxListByHeight(height)
 }
 
 func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.GetToAddressCount(addr)
 }
 func (backend *apiBackend) GetSep20ToAddressCount(contract common.Address, addr common.Address) int64 {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.GetSep20ToAddressCount(contract, addr)
 }
 func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, addr common.Address) int64 {
-	ctx := backend.app.GetContext(app.HistoryOnlyMode)
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.GetSep20FromAddressCount(contract, addr)
@@ -252,7 +252,7 @@ func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.Block
 		blockNr = rpc.BlockNumber(backend.app.GetLatestBlockNum())
 	}
 
-	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
 	block, err := appCtx.GetBlockByHeight(uint64(blockNr))
 	if err != nil {
@@ -265,7 +265,7 @@ func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.Block
 	}, nil
 }
 func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Hash) (*types.Header, error) {
-	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
 	block, err := appCtx.GetBlockByHash(blockHash)
 	if err != nil {
@@ -277,7 +277,7 @@ func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Ha
 	}, nil
 }
 func (backend *apiBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (gethtypes.Receipts, error) {
-	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
 
 	receipts := make([]*gethtypes.Receipt, 0, 8)
@@ -296,7 +296,7 @@ func (backend *apiBackend) GetReceipts(ctx context.Context, blockHash common.Has
 }
 
 func (backend *apiBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*gethtypes.Log, error) {
-	appCtx := backend.app.GetContext(app.HistoryOnlyMode)
+	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
 
 	logs := make([][]*gethtypes.Log, 0, 8)

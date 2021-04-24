@@ -18,7 +18,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -49,9 +48,7 @@ func TestTransferOK(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	require.Equal(t, uint64(10000000-100 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000+100), _app.GetBalance(addr2).Uint64())
-
-	n := _app.GetLatestBlockNum()
-	require.Equal(t, int64(2), n)
+	require.Equal(t, int64(2), _app.GetLatestBlockNum())
 
 	blk1 := _app.GetBlock(1)
 	require.Equal(t, int64(1), blk1.Number)
@@ -76,9 +73,6 @@ func TestTransferFailed(t *testing.T) {
 
 	require.Equal(t, uint64(10000000 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
-	ctx := _app.GetContext(app.RunTxMode)
-	fmt.Printf("bh balance:%d\n", ebp.GetBlackHoleBalance(ctx).Uint64())
-	fmt.Printf("sys balance:%d\n", ebp.GetSystemBalance(ctx).Uint64())
 	// check tx status
 	time.Sleep(100 * time.Millisecond)
 	moeTx := _app.GetTx(tx.Hash())
@@ -214,7 +208,7 @@ func execRandomTxs(_app *app.App, txLists [][]*gethtypes.Transaction, from1, fro
 		_app.Commit()
 		_app.WaitLock()
 	}
-	ctx := _app.GetContext(app.CheckTxMode)
+	ctx := _app.GetCheckTxContext()
 	defer ctx.Close(false)
 	balanceFrom1 := ctx.GetAccount(from1).Balance().Uint64()
 	balanceFrom2 := ctx.GetAccount(from2).Balance().Uint64()

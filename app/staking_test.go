@@ -12,7 +12,6 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
@@ -96,7 +95,7 @@ func TestStaking(t *testing.T) {
 	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
 
 	//test create validator through deliver tx
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	stakingAcc, info := staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
@@ -104,7 +103,7 @@ func TestStaking(t *testing.T) {
 	_app.MakeAndExecTxInBlockWithGasPrice(1, key1, 0,
 		staking.StakingContractAddress, 100, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, uint64(100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/ +600000 /*extra gas*/), stakingAcc.Balance().Uint64())
@@ -118,7 +117,7 @@ func TestStaking(t *testing.T) {
 	_app.MakeAndExecTxInBlockWithGasPrice(3, key1, 1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
@@ -127,7 +126,7 @@ func TestStaking(t *testing.T) {
 	require.Equal(t, [32]byte{'2'}, intro)
 
 	//test change minGasPrice
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	staking.SaveMinGasPrice(ctx, 100, true)
 	staking.SaveMinGasPrice(ctx, 100, false)
 	acc, info := staking.LoadStakingAcc(*ctx)
@@ -139,13 +138,13 @@ func TestStaking(t *testing.T) {
 	_app.MakeAndExecTxInBlockWithGasPrice(5, key1, 2,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	mp := staking.LoadMinGasPrice(ctx, false)
 	ctx.Close(false)
 	require.Equal(t, 105, int(mp))
 
 	//test validator retire
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	staking.SaveMinGasPrice(ctx, 0, true)
 	staking.SaveMinGasPrice(ctx, 0, false)
 	ctx.Close(true)
@@ -156,7 +155,7 @@ func TestStaking(t *testing.T) {
 	_app.MakeAndExecTxInBlockWithGasPrice(9, key1, 3,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
@@ -174,7 +173,7 @@ func TestStaking(t *testing.T) {
 	}
 	_app.EpochChan() <- e
 	_app.ExecTxInBlock(11, nil)
-	ctx = _app.GetContext(app.RunTxMode)
+	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, 1, len(info.Validators))
@@ -211,7 +210,7 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
 
 		var info types.StakingInfo
-		ctx := _app.GetContext(app.RpcMode)
+		ctx := _app.GetRpcContext()
 		bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotStakingInfo)
 		_, err := info.UnmarshalMsg(bz)
 		if err != nil {

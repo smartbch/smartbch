@@ -11,7 +11,6 @@ import (
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -38,7 +37,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 		TxWithAddr(gethcmn.Hash{0xC7}, addr3, addr2).
 		Build()
 
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(blk1)
 	ctx.StoreBlock(blk2)
 	ctx.StoreBlock(nil) // flush previous block
@@ -107,7 +106,7 @@ func TestQueryTxByAddr(t *testing.T) {
 		TxWithAddr(gethcmn.Hash{0xC3}, addr3, addr4).
 		Build()
 
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(blk1)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -149,7 +148,7 @@ func TestGetTxListByHeight(t *testing.T) {
 		TxWithAddr(gethcmn.Hash{0xC6}, addr3, addr4).
 		Build()
 
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(blk1)
 	ctx.StoreBlock(blk2)
 	ctx.StoreBlock(blk3)

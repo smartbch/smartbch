@@ -20,7 +20,6 @@ import (
 	"github.com/smartbch/moeingevm/types"
 
 	"github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
@@ -121,7 +120,7 @@ func TestBlockNum(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.Db.AddBlock(&modbtypes.Block{Height: 0x100}, -1)
 	ctx.Db.AddBlock(nil, -1) //To Flush
 	ctx.Close(true)
@@ -157,7 +156,7 @@ func TestGetTxCount(t *testing.T) {
 
 	acc := types.ZeroAccountInfo()
 	acc.UpdateNonce(78)
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.SetAccount(addr, acc)
 	ctx.Close(true)
 	_app.CloseTxEngineContext()
@@ -175,7 +174,7 @@ func TestGetCode(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	code := bytes.Repeat([]byte{0xff}, 32)
 	code = append(code, 0x12, 0x34)
 	ctx.SetCode(addr, types.NewBytecodeInfo(code))
@@ -195,7 +194,7 @@ func TestGetStorageAt(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	code := bytes.Repeat([]byte{0xff}, 32)
 	code = append(code, 0x12, 0x34)
 
@@ -222,7 +221,7 @@ func TestGetBlockByHash(t *testing.T) {
 
 	hash := gethcmn.Hash{0x12, 0x34}
 	block := newMdbBlock(hash, 123, nil)
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -257,7 +256,7 @@ func TestGetBlockByNum(t *testing.T) {
 	block := newMdbBlock(hash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -293,7 +292,7 @@ func TestGetBlockTxCountByHash(t *testing.T) {
 	block := newMdbBlock(hash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -312,7 +311,7 @@ func TestGetBlockTxCountByNum(t *testing.T) {
 	block := newMdbBlock(hash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -331,7 +330,7 @@ func TestGetTxByBlockHashAndIdx(t *testing.T) {
 	block := newMdbBlock(blkHash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -351,7 +350,7 @@ func TestGetTxByBlockNumAndIdx(t *testing.T) {
 	block := newMdbBlock(blkHash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -371,7 +370,7 @@ func TestGetTxByHash(t *testing.T) {
 	block := newMdbBlock(blkHash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
@@ -397,7 +396,7 @@ func TestGetTxReceipt(t *testing.T) {
 		Tx(gethcmn.Hash{0x90}).
 		Tx(gethcmn.Hash{0xAB}).
 		Build()
-	ctx := _app.GetContext(app.RunTxMode)
+	ctx := _app.GetRunTxContext()
 	ctx.StoreBlock(block)
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
