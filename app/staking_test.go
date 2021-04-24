@@ -100,7 +100,7 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
 	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
-	_app.MakeAndExecTxInBlockWithGasPrice(1, key1, 0,
+	_app.MakeAndExecTxInBlockWithGasPrice(1, key1,
 		staking.StakingContractAddress, 100, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetRunTxContext()
@@ -114,7 +114,7 @@ func TestStaking(t *testing.T) {
 
 	//test edit validator
 	dataEncode = stakingABI.MustPack("editValidator", [32]byte{'b'}, [32]byte{'2'})
-	_app.MakeAndExecTxInBlockWithGasPrice(3, key1, 1,
+	_app.MakeAndExecTxInBlockWithGasPrice(3, key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetRunTxContext()
@@ -135,7 +135,7 @@ func TestStaking(t *testing.T) {
 	staking.SaveStakingInfo(*ctx, acc, info)
 	ctx.Close(true)
 	dataEncode = stakingABI.MustPack("increaseMinGasPrice")
-	_app.MakeAndExecTxInBlockWithGasPrice(5, key1, 2,
+	_app.MakeAndExecTxInBlockWithGasPrice(5, key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetRunTxContext()
@@ -152,7 +152,7 @@ func TestStaking(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	dataEncode = stakingABI.MustPack("retire")
-	_app.MakeAndExecTxInBlockWithGasPrice(9, key1, 3,
+	_app.MakeAndExecTxInBlockWithGasPrice(9, key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
 	ctx = _app.GetRunTxContext()
@@ -199,7 +199,7 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 
 	for i, testCase := range testCases {
 		h := int64(1 + i*2)
-		tx := _app.MakeAndExecTxInBlock(h, key1, uint64(0+i), stakingAddr, 0, testCase)
+		tx := _app.MakeAndExecTxInBlock(h, key1, stakingAddr, 0, testCase)
 
 		blk := _app.GetBlock(uint64(h))
 		require.Equal(t, h, blk.Number)
@@ -235,7 +235,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 430008000033
 `)
 
-	tx1 := _app.DeployContractInBlock(1, key1, 0, proxyCreationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key1, proxyCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
@@ -252,7 +252,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 
 	for i, testCase := range testCases {
 		h := int64(3 + i*2)
-		tx := _app.MakeAndExecTxInBlock(h, key1, uint64(1+i), contractAddr, 0, testCase)
+		tx := _app.MakeAndExecTxInBlock(h, key1, contractAddr, 0, testCase)
 
 		blk := _app.GetBlock(uint64(h))
 		require.Equal(t, h, blk.Number)

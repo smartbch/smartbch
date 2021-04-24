@@ -160,7 +160,7 @@ ffffffffffffffffffffffffffffffffffff82169050919050565b8281833760
 `)
 
 func deploySEP101Proxy(t *testing.T, _app *testutils.TestApp, privKey string, senderAddr gethcmn.Address) gethcmn.Address {
-	tx1 := _app.DeployContractInBlock(1, privKey, 0, _sep101ProxyCreationBytecode)
+	tx1 := _app.DeployContractInBlock(1, privKey, _sep101ProxyCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(senderAddr, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
@@ -180,7 +180,7 @@ func TestSEP101(t *testing.T) {
 
 	// call set()
 	data := _sep101ABI.MustPack("set", key, val)
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, 1, contractAddr, 0, data)
+	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
 
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
@@ -222,7 +222,7 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 
 	// set() with zero-len key
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, 1, contractAddr, 0, data)
+	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
 
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
@@ -243,7 +243,7 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 
 	// set() with looooong key
 	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, 1, contractAddr, 0, data)
+	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
 
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
@@ -264,7 +264,7 @@ func TestSEP101_setValTooLong(t *testing.T) {
 
 	// set() with looooong val
 	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, 1, contractAddr, 0, data)
+	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
 
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)

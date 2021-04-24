@@ -20,12 +20,17 @@ import (
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
 )
 
 const (
 	adsDir  = "./testdbdata"
 	modbDir = "./modbdata"
+)
+
+const (
+	defaultGasLimit = 1000000
 )
 
 // var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -69,35 +74,40 @@ func (_app *TestApp) Destroy() {
 	_ = os.RemoveAll(modbDir)
 }
 
+func (_app *TestApp) GetNonce(addr gethcmn.Address) uint64 {
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	if acc := ctx.GetAccount(addr); acc != nil {
+		return acc.Nonce()
+	}
+	return 0
+}
+
 func (_app *TestApp) GetBalance(addr gethcmn.Address) *big.Int {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
-	b, err := ctx.GetBalance(addr, -1)
-	if err != nil {
-		panic(err)
+	if acc := ctx.GetAccount(addr); acc != nil {
+		return acc.Balance().ToBig()
 	}
-	return b.ToBig()
-}
-
-func (_app *TestApp) GetCode(addr gethcmn.Address) []byte {
-	ctx := _app.GetRpcContext()
-	defer ctx.Close(false)
-	codeInfo := ctx.GetCode(addr)
-	if codeInfo == nil {
-		return nil
-	}
-	return codeInfo.BytecodeSlice()
+	return nil
 }
 
 func (_app *TestApp) GetStorageAt(addr gethcmn.Address, key []byte) []byte {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
-
-	acc := ctx.GetAccount(addr)
-	if acc == nil {
-		return nil
+	if acc := ctx.GetAccount(addr); acc != nil {
+		return ctx.GetStorageAt(acc.Sequence(), string(key))
 	}
-	return ctx.GetStorageAt(acc.Sequence(), string(key))
+	return nil
+}
+
+func (_app *TestApp) GetCode(addr gethcmn.Address) []byte {
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	if codeInfo := ctx.GetCode(addr); codeInfo != nil {
+		return codeInfo.BytecodeSlice()
+	}
+	return nil
 }
 
 func (_app *TestApp) GetBlock(h uint64) *motypes.Block {
@@ -133,6 +143,35 @@ func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
 	return txs
 }
 
+func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
+
+	privKey, _, err := ethutils.HexToPrivKey(hexPrivKey)
+	if err != nil {
+		panic(err)
+	}
+
+	addr := ethutils.PrivKeyToAddr(privKey)
+	nonce := _app.GetNonce(addr)
+	chainID := _app.ChainID().ToBig()
+
+	txData := &gethtypes.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: big.NewInt(gasPrice),
+		Gas:      defaultGasLimit,
+		To:       toAddr,
+		Value:    big.NewInt(val),
+		Data:     data,
+	}
+	tx := gethtypes.NewTx(txData)
+	tx, err = ethutils.SignTx(tx, chainID, privKey)
+	if err != nil {
+		panic(err)
+	}
+
+	return tx
+}
+
 func (_app *TestApp) Call(sender gethcmn.Address, tx *gethtypes.Transaction) (int, string, []byte) {
 	runner, _ := _app.RunTxForRpc(tx, sender, false)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
@@ -142,39 +181,21 @@ func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transacti
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
 }
 
-func (_app *TestApp) DeployContractInBlock(height int64, privKey string, nonce uint64, data []byte) *gethtypes.Transaction {
-	txData := &gethtypes.LegacyTx{
-		Nonce:    nonce,
-		GasPrice: big.NewInt(0),
-		Gas:      1000000,
-		To:       nil,
-		Value:    big.NewInt(0),
-		Data:     data,
-	}
-	tx := gethtypes.NewTx(txData)
-	tx = MustSignTx(tx, _app.ChainID().ToBig(), privKey)
+func (_app *TestApp) DeployContractInBlock(height int64, privKey string, data []byte) *gethtypes.Transaction {
+	tx := _app.MakeAndSignTx(privKey, nil, 0, data, 0)
 	_app.ExecTxInBlock(height, tx)
 	return tx
 }
 
-func (_app *TestApp) MakeAndExecTxInBlock(height int64, privKey string, nonce uint64,
+func (_app *TestApp) MakeAndExecTxInBlock(height int64, privKey string,
 	toAddr gethcmn.Address, val int64, data []byte) *gethtypes.Transaction {
 
-	return _app.MakeAndExecTxInBlockWithGasPrice(height, privKey, nonce, toAddr, val, data, 0)
+	return _app.MakeAndExecTxInBlockWithGasPrice(height, privKey, toAddr, val, data, 0)
 }
-func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(height int64, privKey string, nonce uint64,
+func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(height int64, privKey string,
 	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
 
-	txData := &gethtypes.LegacyTx{
-		Nonce:    nonce,
-		GasPrice: big.NewInt(gasPrice),
-		Gas:      1000000,
-		To:       &toAddr,
-		Value:    big.NewInt(val),
-		Data:     data,
-	}
-	tx := gethtypes.NewTx(txData)
-	tx = MustSignTx(tx, _app.ChainID().ToBig(), privKey)
+	tx := _app.MakeAndSignTx(privKey, &toAddr, val, data, gasPrice)
 	_app.ExecTxInBlock(height, tx)
 	return tx
 }

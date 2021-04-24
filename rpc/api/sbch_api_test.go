@@ -179,9 +179,10 @@ func TestGetToAddressCount(t *testing.T) {
 	defer _app.Destroy()
 	_api := createSbchAPI(_app)
 
-	_app.MakeAndExecTxInBlock(1, key2, 0, addr1, 123, nil)
-	_app.MakeAndExecTxInBlock(3, key3, 1, addr1, 234, nil)
-	_app.MakeAndExecTxInBlock(5, key4, 2, addr1, 345, nil)
+	_app.MakeAndExecTxInBlock(1, key2, addr1, 123, nil)
+	_app.MakeAndExecTxInBlock(3, key3, addr1, 234, nil)
+	_app.MakeAndExecTxInBlock(5, key4, addr1, 345, nil)
+	time.Sleep(200 * time.Millisecond)
 	require.Equal(t, hexutil.Uint64(3), _api.GetToAddressCount(addr1))
 }
 

@@ -43,7 +43,7 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 c664736f6c634300060c0033
 `)
 
-	tx := _app.DeployContractInBlock(1, key, 0, creationBytecode)
+	tx := _app.DeployContractInBlock(1, key, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.Equal(t, deployedBytecode, code)
@@ -74,7 +74,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 `)
 
 	// deploy contract
-	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, creationBytecode)
 
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
@@ -88,7 +88,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	require.Equal(t, tx1.Hash(), common.Hash(txInBlk1.Hash))
 
 	// call emitEvent1()
-	tx2 := _app.MakeAndExecTxInBlock(3, key, 1,
+	tx2 := _app.MakeAndExecTxInBlock(3, key,
 		contractAddr, 0, testutils.HexToBytes("990ee412"))
 
 	time.Sleep(100 * time.Millisecond)
@@ -106,7 +106,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		hex.EncodeToString(txInBlk3.Logs[0].Topics[1][:]))
 
 	// call emitEvent2()
-	tx3 := _app.MakeAndExecTxInBlock(5, key, 2,
+	tx3 := _app.MakeAndExecTxInBlock(5, key,
 		contractAddr, 0, testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
 
 	time.Sleep(100 * time.Millisecond)
@@ -148,7 +148,7 @@ func TestChainID(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
@@ -184,13 +184,13 @@ func TestRevert(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
 	// call setN_revert()
-	tx2 := _app.MakeAndExecTxInBlock(3, key, 1,
+	tx2 := _app.MakeAndExecTxInBlock(3, key,
 		contractAddr, 0, testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064"))
 
 	time.Sleep(100 * time.Millisecond)
@@ -235,13 +235,13 @@ func TestInvalidOpcode(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
 	// call setN_invalidOpcode()
-	tx2 := _app.MakeAndExecTxInBlock(3, key, 1,
+	tx2 := _app.MakeAndExecTxInBlock(3, key,
 		contractAddr, 0, testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064"))
 
 	time.Sleep(100 * time.Millisecond)
@@ -275,7 +275,7 @@ func TestEstimateGas(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)

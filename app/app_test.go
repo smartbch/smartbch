@@ -44,7 +44,7 @@ func TestTransferOK(t *testing.T) {
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
-	tx := _app.MakeAndExecTxInBlock(1, key1, 0, addr2, 100, nil)
+	tx := _app.MakeAndExecTxInBlock(1, key1, addr2, 100, nil)
 	time.Sleep(100 * time.Millisecond)
 	require.Equal(t, uint64(10000000-100 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000+100), _app.GetBalance(addr2).Uint64())
@@ -69,7 +69,7 @@ func TestTransferFailed(t *testing.T) {
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
 	// insufficient balance
-	tx := _app.MakeAndExecTxInBlock(1, key1, 0, addr2, 10000001, nil)
+	tx := _app.MakeAndExecTxInBlock(1, key1, addr2, 10000001, nil)
 
 	require.Equal(t, uint64(10000000 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
@@ -87,7 +87,7 @@ func TestBlock(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2)
 	defer _app.Destroy()
 
-	_app.MakeAndExecTxInBlock(1, key1, 0, addr2, 100, nil)
+	_app.MakeAndExecTxInBlock(1, key1, addr2, 100, nil)
 	time.Sleep(50 * time.Millisecond)
 
 	blk1 := _app.GetBlock(1)
