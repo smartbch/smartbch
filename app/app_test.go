@@ -32,8 +32,8 @@ import (
 func TestGetBalance(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr).Uint64())
+	defer _app.Destroy()
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr).Uint64())
 }
 
 func TestTransferOK(t *testing.T) {
@@ -41,24 +41,24 @@ func TestTransferOK(t *testing.T) {
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr1).Uint64())
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr2).Uint64())
+	defer _app.Destroy()
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr1).Uint64())
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
-	tx := testutils.MakeAndExecTxInBlock(_app, 1, key1, 0, addr2, 100, nil)
+	tx := _app.MakeAndExecTxInBlock(1, key1, 0, addr2, 100, nil)
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, uint64(10000000-100 /*-21000*/), testutils.GetBalance(_app, addr1).Uint64())
-	require.Equal(t, uint64(10000000+100), testutils.GetBalance(_app, addr2).Uint64())
+	require.Equal(t, uint64(10000000-100 /*-21000*/), _app.GetBalance(addr1).Uint64())
+	require.Equal(t, uint64(10000000+100), _app.GetBalance(addr2).Uint64())
 
 	n := _app.GetLatestBlockNum()
 	require.Equal(t, int64(2), n)
 
-	blk1 := testutils.GetBlock(_app, 1)
+	blk1 := _app.GetBlock(1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
 
 	// check tx status
-	moeTx := testutils.GetTx(_app, tx.Hash())
+	moeTx := _app.GetTx(tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	//require.Equal(t, uint64(1), moeTx.Status)
 }
@@ -67,21 +67,21 @@ func TestTransferFailed(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)
-	defer testutils.DestroyTestApp(_app)
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr1).Uint64())
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr2).Uint64())
+	defer _app.Destroy()
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr1).Uint64())
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
 	// insufficient balance
-	tx := testutils.MakeAndExecTxInBlock(_app, 1, key1, 0, addr2, 10000001, nil)
+	tx := _app.MakeAndExecTxInBlock(1, key1, 0, addr2, 10000001, nil)
 
-	require.Equal(t, uint64(10000000 /*-21000*/), testutils.GetBalance(_app, addr1).Uint64())
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr2).Uint64())
+	require.Equal(t, uint64(10000000 /*-21000*/), _app.GetBalance(addr1).Uint64())
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 	ctx := _app.GetContext(app.RunTxMode)
 	fmt.Printf("bh balance:%d\n", ebp.GetBlackHoleBalance(ctx).Uint64())
 	fmt.Printf("sys balance:%d\n", ebp.GetSystemBalance(ctx).Uint64())
 	// check tx status
 	time.Sleep(100 * time.Millisecond)
-	moeTx := testutils.GetTx(_app, tx.Hash())
+	moeTx := _app.GetTx(tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	require.Equal(t, gethtypes.ReceiptStatusFailed, moeTx.Status)
 	require.Equal(t, "balance-not-enough", moeTx.StatusStr)
@@ -91,19 +91,19 @@ func TestBlock(t *testing.T) {
 	key1, _ := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
-	testutils.MakeAndExecTxInBlock(_app, 1, key1, 0, addr2, 100, nil)
+	_app.MakeAndExecTxInBlock(1, key1, 0, addr2, 100, nil)
 	time.Sleep(50 * time.Millisecond)
 
-	blk1 := testutils.GetBlock(_app, 1)
+	blk1 := _app.GetBlock(1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
 
-	testutils.ExecTxInBlock(_app, 3, nil)
+	_app.ExecTxInBlock(3, nil)
 	time.Sleep(50 * time.Millisecond)
 
-	blk3 := testutils.GetBlock(_app, 3)
+	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 0)
 }
@@ -111,8 +111,8 @@ func TestBlock(t *testing.T) {
 func TestCheckTx(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1)
-	defer testutils.DestroyTestApp(_app)
-	require.Equal(t, uint64(10000000), testutils.GetBalance(_app, addr1).Uint64())
+	defer _app.Destroy()
+	require.Equal(t, uint64(10000000), _app.GetBalance(addr1).Uint64())
 
 	//tx decode failed
 	tx := gethtypes.NewTransaction(1, addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
@@ -166,12 +166,12 @@ func TestRandomTxs(t *testing.T) {
 	key4, addrTo2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2, key3, key4)
 	txLists := generateRandomTxs(100, _app.ChainID(), key1, key2, addrTo1, addrTo2)
-	res1 := execRandomTxs(_app, txLists, addr1, addr2)
-	testutils.DestroyTestApp(_app)
+	res1 := execRandomTxs(_app.App, txLists, addr1, addr2)
+	_app.Destroy()
 
 	_app = testutils.CreateTestApp(key1, key2, key3, key4)
-	res2 := execRandomTxs(_app, txLists, addr1, addr2)
-	testutils.DestroyTestApp(_app)
+	res2 := execRandomTxs(_app.App, txLists, addr1, addr2)
+	_app.Destroy()
 
 	require.Equal(t, res1[0], res2[0])
 	require.Equal(t, res1[1], res2[1])

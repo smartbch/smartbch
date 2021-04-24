@@ -24,7 +24,7 @@ import (
 
 func TestNewFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 	id, err := _api.NewFilter(gethfilters.FilterCriteria{})
 	require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestNewFilter(t *testing.T) {
 
 func TestGetFilterChanges_blockFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 	id := _api.NewBlockFilter()
 	require.NotEmpty(t, id)
@@ -59,7 +59,7 @@ func TestGetFilterChanges_blockFilter(t *testing.T) {
 
 func TestGetFilterChanges_addrFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 	id, err := _api.NewFilter(testutils.NewAddressFilter(gethcmn.Address{0xA1}))
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ A transaction with a log with topics [A, B] will be matched by the following top
 */
 func TestGetFilterChanges_topicsFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 	ids := make([]gethrpc.ID, 5)
 	ids[0] = newTopicsFilter(t, _api, [][]gethcmn.Hash{})                                           // []
@@ -146,7 +146,7 @@ func TestGetFilterChanges_topicsFilter(t *testing.T) {
 
 func TestGetFilterLogs_addrFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 	fc := testutils.NewFilterBuilder().
 		BlockRange(1, 3). // the ending '3' is not included
@@ -189,7 +189,7 @@ func TestGetFilterLogs_addrFilter(t *testing.T) {
 
 func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 	id, err := _api.NewFilter(testutils.NewBlockRangeFilter(0, 2))
 	require.NoError(t, err)
@@ -217,7 +217,7 @@ func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
 
 func TestGetLogs_blockHashFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 
 	b1Hash := gethcmn.Hash{0xB1}
@@ -254,7 +254,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 
 func TestGetLogs_addrFilter(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 
 	addr1 := gethcmn.Address{0xA1, 0x23}
@@ -299,12 +299,12 @@ func TestGetLogs_addrFilter(t *testing.T) {
 	require.Len(t, logs, 2)
 }
 
-func createFiltersAPI(_app *app.App) PublicFilterAPI {
-	backend := api.NewBackend(nil, _app)
+func createFiltersAPI(_app *testutils.TestApp) PublicFilterAPI {
+	backend := api.NewBackend(nil, _app.App)
 	return NewAPI(backend)
 }
 
-func addBlock(_app *app.App, block *modbtypes.Block) {
+func addBlock(_app *testutils.TestApp, block *modbtypes.Block) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{Height: block.Height},
 	})

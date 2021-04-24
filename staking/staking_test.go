@@ -110,7 +110,7 @@ func buildChangeMinGasPriceCallEntry(sender common.Address, isIncrease bool) *ca
 func TestStaking(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	ctx := _app.GetContext(app.RunTxMode)
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
@@ -156,7 +156,7 @@ func TestSwitchEpoch(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	//key, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
 	ctx := _app.GetContext(app.RunTxMode)
 	//build new epoch
@@ -222,7 +222,7 @@ func TestSwitchEpoch(t *testing.T) {
 func TestSlash(t *testing.T) {
 	key, _ := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	ctx := _app.GetContext(app.RunTxMode)
 	var slashedPubkey [32]byte
 	copy(slashedPubkey[:], _app.TestValidatorPubkey().Bytes())
@@ -246,7 +246,7 @@ func TestGasPriceAdjustment(t *testing.T) {
 	staking.DefaultMinGasPrice = 100
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	ctx := _app.GetContext(app.RunTxMode)
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)

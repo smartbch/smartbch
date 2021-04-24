@@ -95,7 +95,7 @@ func TestAccounts(t *testing.T) {
 
 	_app := testutils.CreateTestApp(key1, key2)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app, key1, key2)
 
 	addrs, err := _api.Accounts()
@@ -108,7 +108,7 @@ func TestAccounts(t *testing.T) {
 func TestChainId(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	id := _api.ChainId()
@@ -118,7 +118,7 @@ func TestChainId(t *testing.T) {
 func TestBlockNum(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	ctx := _app.GetContext(app.RunTxMode)
@@ -136,7 +136,7 @@ func TestGetBalance(t *testing.T) {
 	_, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	b, err := _api.GetBalance(addr, -1)
@@ -152,7 +152,7 @@ func TestGetTxCount(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	acc := types.ZeroAccountInfo()
@@ -172,7 +172,7 @@ func TestGetCode(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	ctx := _app.GetContext(app.RunTxMode)
@@ -192,7 +192,7 @@ func TestGetStorageAt(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	ctx := _app.GetContext(app.RunTxMode)
@@ -217,7 +217,7 @@ func TestGetStorageAt(t *testing.T) {
 func TestGetBlockByHash(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	hash := gethcmn.Hash{0x12, 0x34}
@@ -239,7 +239,7 @@ func TestGetBlockByHash(t *testing.T) {
 func TestGetBlockByHash_notFound(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blk, err := _api.GetBlockByHash(gethcmn.Hash{0x12, 0x34}, true)
@@ -250,7 +250,7 @@ func TestGetBlockByHash_notFound(t *testing.T) {
 func TestGetBlockByNum(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	hash := gethcmn.Hash{0x12, 0x34}
@@ -275,7 +275,7 @@ func TestGetBlockByNum(t *testing.T) {
 func TestGetBlockByNum_notFound(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blk, err := _api.GetBlockByNumber(99, true)
@@ -286,7 +286,7 @@ func TestGetBlockByNum_notFound(t *testing.T) {
 func TestGetBlockTxCountByHash(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	hash := gethcmn.Hash{0x12, 0x34}
@@ -305,7 +305,7 @@ func TestGetBlockTxCountByHash(t *testing.T) {
 func TestGetBlockTxCountByNum(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	hash := gethcmn.Hash{0x12, 0x34}
@@ -324,7 +324,7 @@ func TestGetBlockTxCountByNum(t *testing.T) {
 func TestGetTxByBlockHashAndIdx(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blkHash := gethcmn.Hash{0x12, 0x34}
@@ -344,7 +344,7 @@ func TestGetTxByBlockHashAndIdx(t *testing.T) {
 func TestGetTxByBlockNumAndIdx(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blkHash := gethcmn.Hash{0x12, 0x34}
@@ -364,7 +364,7 @@ func TestGetTxByBlockNumAndIdx(t *testing.T) {
 func TestGetTxByHash(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blkHash := gethcmn.Hash{0x12, 0x34}
@@ -384,7 +384,7 @@ func TestGetTxByHash(t *testing.T) {
 func TestGetTxReceipt(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blkHash := gethcmn.Hash{0x12, 0x34}
@@ -416,7 +416,7 @@ func TestGetTxReceipt(t *testing.T) {
 func TestCall_NoFromAddr(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	_, err := _api.Call(ethapi.CallArgs{}, 0)
@@ -429,7 +429,7 @@ func TestCall_Transfer(t *testing.T) {
 
 	_app := testutils.CreateTestApp(fromKey, toKey)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	ret, err := _api.Call(ethapi.CallArgs{
@@ -454,7 +454,7 @@ func TestCall_DeployContract(t *testing.T) {
 
 	_app := testutils.CreateTestApp(fromKey)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	ret, err := _api.Call(ethapi.CallArgs{
@@ -470,14 +470,14 @@ func TestCall_RunGetter(t *testing.T) {
 
 	_app := testutils.CreateTestApp(fromKey)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	// deploy contract
 	tx := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1),
 		counterContractCreationBytecode)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), fromKey)
-	testutils.ExecTxInBlock(_app, 1, tx)
+	_app.ExecTxInBlock(1, tx)
 	contractAddr := gethcrypto.CreateAddress(fromAddr, tx.Nonce())
 	rtCode, err := _api.GetCode(contractAddr, 0)
 	require.NoError(t, err)
@@ -500,7 +500,7 @@ func TestEstimateGas(t *testing.T) {
 
 	_app := testutils.CreateTestApp(fromKey)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	ret, err := _api.EstimateGas(ethapi.CallArgs{
@@ -511,8 +511,8 @@ func TestEstimateGas(t *testing.T) {
 	require.Equal(t, 96908, int(ret))
 }
 
-func createEthAPI(_app *app.App, testKeys ...string) *ethAPI {
-	backend := api.NewBackend(nil, _app)
+func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
+	backend := api.NewBackend(nil, _app.App)
 	return newEthAPI(backend, testKeys, _app.Logger())
 }
 
@@ -540,7 +540,7 @@ func testRandomTransfer() {
 
 	_app := testutils.CreateTestApp(fromKey, toKey)
 	_app.WaitLock()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	w := sync.WaitGroup{}

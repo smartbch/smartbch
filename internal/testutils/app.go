@@ -7,21 +7,12 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/holiman/uint256"
 
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-type App interface {
-	abci.Application
-	ChainID() *uint256.Int
-	WaitLock()
-	TestValidatorPubkey() crypto.PubKey
-}
-
-func DeployContractInBlock(_app App, height int64, privKey string, nonce uint64, data []byte) *gethtypes.Transaction {
+func (_app *TestApp) DeployContractInBlock(height int64, privKey string, nonce uint64, data []byte) *gethtypes.Transaction {
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(0),
@@ -32,16 +23,16 @@ func DeployContractInBlock(_app App, height int64, privKey string, nonce uint64,
 	}
 	tx := gethtypes.NewTx(txData)
 	tx = MustSignTx(tx, _app.ChainID().ToBig(), privKey)
-	ExecTxInBlock(_app, height, tx)
+	_app.ExecTxInBlock(height, tx)
 	return tx
 }
 
-func MakeAndExecTxInBlock(_app App, height int64, privKey string, nonce uint64,
+func (_app *TestApp) MakeAndExecTxInBlock(height int64, privKey string, nonce uint64,
 	toAddr gethcmn.Address, val int64, data []byte) *gethtypes.Transaction {
 
-	return MakeAndExecTxInBlockWithGasPrice(_app, height, privKey, nonce, toAddr, val, data, 0)
+	return _app.MakeAndExecTxInBlockWithGasPrice(height, privKey, nonce, toAddr, val, data, 0)
 }
-func MakeAndExecTxInBlockWithGasPrice(_app App, height int64, privKey string, nonce uint64,
+func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(height int64, privKey string, nonce uint64,
 	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
 
 	txData := &gethtypes.LegacyTx{
@@ -54,11 +45,11 @@ func MakeAndExecTxInBlockWithGasPrice(_app App, height int64, privKey string, no
 	}
 	tx := gethtypes.NewTx(txData)
 	tx = MustSignTx(tx, _app.ChainID().ToBig(), privKey)
-	ExecTxInBlock(_app, height, tx)
+	_app.ExecTxInBlock(height, tx)
 	return tx
 }
 
-func ExecTxInBlock(_app App, height int64, tx *gethtypes.Transaction) {
+func (_app *TestApp) ExecTxInBlock(height int64, tx *gethtypes.Transaction) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,

@@ -15,7 +15,7 @@ import (
 
 func TestGetBlock(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	blk := testutils.NewMdbBlockBuilder().
 		Height(1).Hash(gethcmn.Hash{0xB1}).
@@ -40,7 +40,7 @@ func TestGetBlock(t *testing.T) {
 
 func TestQueryLogs(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	addr1 := gethcmn.Address{0xA1, 0x23}
 	addr2 := gethcmn.Address{0xA2, 0x34}
@@ -98,7 +98,7 @@ func TestQueryLogs(t *testing.T) {
 
 func TestGetLogsMaxResults(t *testing.T) {
 	_app := testutils.CreateTestApp()
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	addr := gethcmn.Address{0xA1}
 	blk := testutils.NewMdbBlockBuilder().

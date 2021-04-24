@@ -20,7 +20,7 @@ import (
 func TestDeployContract(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	// see testdata/counter/contracts/Counter.sol
 	creationBytecode := testutils.HexToBytes(`
@@ -43,16 +43,16 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 c664736f6c634300060c0033
 `)
 
-	tx := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
+	tx := _app.DeployContractInBlock(1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
-	code := testutils.GetCode(_app, contractAddr)
+	code := _app.GetCode(contractAddr)
 	require.Equal(t, deployedBytecode, code)
 }
 
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp0(bigutils.NewU256(1000000000), key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	// see testdata/basic/contracts/Events.sol
 	creationBytecode := testutils.HexToBytes(`
@@ -74,28 +74,28 @@ e7686360ba62da573cfb4864736f6c63430008000033
 `)
 
 	// deploy contract
-	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
 
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := testutils.GetCode(_app, contractAddr)
+	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
-	blk1 := testutils.GetBlock(_app, 1)
+	blk1 := _app.GetBlock(1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
-	txInBlk1 := testutils.GetTx(_app, blk1.Transactions[0])
+	txInBlk1 := _app.GetTx(blk1.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
 	require.Equal(t, tx1.Hash(), common.Hash(txInBlk1.Hash))
 
 	// call emitEvent1()
-	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key, 1,
+	tx2 := _app.MakeAndExecTxInBlock(3, key, 1,
 		contractAddr, 0, testutils.HexToBytes("990ee412"))
 
 	time.Sleep(100 * time.Millisecond)
-	blk3 := testutils.GetBlock(_app, 3)
+	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
+	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
 	require.Equal(t, tx2.Hash(), common.Hash(txInBlk3.Hash))
 	require.Len(t, txInBlk3.Logs, 1)
@@ -106,14 +106,14 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		hex.EncodeToString(txInBlk3.Logs[0].Topics[1][:]))
 
 	// call emitEvent2()
-	tx3 := testutils.MakeAndExecTxInBlock(_app, 5, key, 2,
+	tx3 := _app.MakeAndExecTxInBlock(5, key, 2,
 		contractAddr, 0, testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
 
 	time.Sleep(100 * time.Millisecond)
-	blk5 := testutils.GetBlock(_app, 5)
+	blk5 := _app.GetBlock(5)
 	require.Equal(t, int64(5), blk5.Number)
 	require.Len(t, blk5.Transactions, 1)
-	txInBlk5 := testutils.GetTx(_app, blk5.Transactions[0])
+	txInBlk5 := _app.GetTx(blk5.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk5.Status)
 	require.Equal(t, tx3.Hash(), common.Hash(txInBlk5.Hash))
 	require.Len(t, txInBlk5.Logs, 1)
@@ -126,14 +126,14 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		hex.EncodeToString(txInBlk5.Logs[0].Data))
 
 	// test queryTxByAddr
-	txs := testutils.GetTxsByAddr(_app, contractAddr)
+	txs := _app.GetTxsByAddr(contractAddr)
 	require.Equal(t, 2, len(txs))
 }
 
 func TestChainID(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	require.Equal(t, "0x1", _app.ChainID().String())
 
@@ -148,15 +148,15 @@ func TestChainID(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := testutils.GetCode(_app, contractAddr)
+	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
 	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 100000, big.NewInt(1),
 		testutils.HexToBytes("564b81ef"))
 
-	_, _, output := testutils.Call(_app, addr, tx2)
+	_, _, output := _app.Call(addr, tx2)
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
 		hex.EncodeToString(output))
 }
@@ -164,7 +164,7 @@ func TestChainID(t *testing.T) {
 func TestRevert(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	// see testdata/basic/contracts/Errors.sol
 	creationBytecode := testutils.HexToBytes(`
@@ -184,24 +184,24 @@ func TestRevert(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := testutils.GetCode(_app, contractAddr)
+	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
 	// call setN_revert()
-	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key, 1,
+	tx2 := _app.MakeAndExecTxInBlock(3, key, 1,
 		contractAddr, 0, testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064"))
 
 	time.Sleep(100 * time.Millisecond)
-	blk3 := testutils.GetBlock(_app, 3)
+	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
+	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
 
-	statusCode, statusStr, retData := testutils.Call(_app, contractAddr, tx2)
+	statusCode, statusStr, retData := _app.Call(contractAddr, tx2)
 	require.Equal(t, 2, statusCode)
 	require.Equal(t, "revert", statusStr)
 	require.Equal(t, "08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000166e206d757374206265206c657373207468616e20313000000000000000000000",
@@ -215,7 +215,7 @@ b5007928aa64736f6c63430007000033
 func TestInvalidOpcode(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	// see testdata/basic/contracts/Errors.sol
 	creationBytecode := testutils.HexToBytes(`
@@ -235,24 +235,24 @@ func TestInvalidOpcode(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := testutils.GetCode(_app, contractAddr)
+	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
 	// call setN_invalidOpcode()
-	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key, 1,
+	tx2 := _app.MakeAndExecTxInBlock(3, key, 1,
 		contractAddr, 0, testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064"))
 
 	time.Sleep(100 * time.Millisecond)
-	blk3 := testutils.GetBlock(_app, 3)
+	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
+	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "invalid-instruction", txInBlk3.StatusStr)
 
-	statusCode, statusStr, _ := testutils.Call(_app, contractAddr, tx2)
+	statusCode, statusStr, _ := _app.Call(contractAddr, tx2)
 	require.Equal(t, 4, statusCode)
 	require.Equal(t, "invalid-instruction", statusStr)
 }
@@ -260,7 +260,7 @@ b5007928aa64736f6c63430007000033
 func TestEstimateGas(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
-	defer testutils.DestroyTestApp(_app)
+	defer _app.Destroy()
 
 	require.Equal(t, "0x1", _app.ChainID().String())
 
@@ -275,12 +275,12 @@ func TestEstimateGas(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1 := testutils.DeployContractInBlock(_app, 1, key, 0, creationBytecode)
+	tx1 := _app.DeployContractInBlock(1, key, 0, creationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr, tx1.Nonce())
-	code := testutils.GetCode(_app, contractAddr)
+	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
-	statusCode, statusStr, gas := testutils.EstimateGas(_app, addr, tx1)
+	statusCode, statusStr, gas := _app.EstimateGas(addr, tx1)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.True(t, gas > 0)

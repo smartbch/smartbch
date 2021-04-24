@@ -30,17 +30,15 @@ const (
 // var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 var nopLogger = log.NewNopLogger()
 
-func DestroyTestApp(_app *app.App) {
-	_app.Stop()
-	_ = os.RemoveAll(adsDir)
-	_ = os.RemoveAll(modbDir)
+type TestApp struct {
+	*app.App
 }
 
-func CreateTestApp(keys ...string) *app.App {
+func CreateTestApp(keys ...string) *TestApp {
 	return CreateTestApp0(bigutils.NewU256(10000000), keys...)
 }
 
-func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *app.App {
+func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	_ = os.RemoveAll(adsDir)
 	_ = os.RemoveAll(modbDir)
 	params := param.DefaultConfig()
@@ -61,10 +59,16 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *app.App {
 		ProposerAddress: testValidatorPubKey.Address(),
 	}})
 	_app.Commit()
-	return _app
+	return &TestApp{_app}
 }
 
-func GetBalance(_app *app.App, addr common.Address) *big.Int {
+func (_app *TestApp) Destroy() {
+	_app.Stop()
+	_ = os.RemoveAll(adsDir)
+	_ = os.RemoveAll(modbDir)
+}
+
+func (_app *TestApp) GetBalance(addr common.Address) *big.Int {
 	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 	b, err := ctx.GetBalance(addr, -1)
@@ -74,7 +78,7 @@ func GetBalance(_app *app.App, addr common.Address) *big.Int {
 	return b.ToBig()
 }
 
-func GetCode(_app *app.App, addr common.Address) []byte {
+func (_app *TestApp) GetCode(addr common.Address) []byte {
 	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 	codeInfo := ctx.GetCode(addr)
@@ -84,7 +88,7 @@ func GetCode(_app *app.App, addr common.Address) []byte {
 	return codeInfo.BytecodeSlice()
 }
 
-func GetStorageAt(_app *app.App, addr common.Address, key []byte) []byte {
+func (_app *TestApp) GetStorageAt(addr common.Address, key []byte) []byte {
 	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 
@@ -95,7 +99,7 @@ func GetStorageAt(_app *app.App, addr common.Address, key []byte) []byte {
 	return ctx.GetStorageAt(acc.Sequence(), string(key))
 }
 
-func GetBlock(_app *app.App, h uint64) *motypes.Block {
+func (_app *TestApp) GetBlock(h uint64) *motypes.Block {
 	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 	if ctx.GetLatestHeight() != int64(h) {
@@ -108,7 +112,7 @@ func GetBlock(_app *app.App, h uint64) *motypes.Block {
 	return b
 }
 
-func GetTx(_app *app.App, h common.Hash) *motypes.Transaction {
+func (_app *TestApp) GetTx(h common.Hash) *motypes.Transaction {
 	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 	tx, err := ctx.GetTxByHash(h)
@@ -118,7 +122,7 @@ func GetTx(_app *app.App, h common.Hash) *motypes.Transaction {
 	return tx
 }
 
-func GetTxsByAddr(_app *app.App, addr common.Address) []*motypes.Transaction {
+func (_app *TestApp) GetTxsByAddr(addr common.Address) []*motypes.Transaction {
 	ctx := _app.GetContext(app.HistoryOnlyMode)
 	defer ctx.Close(false)
 	txs, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.BlockNum())+1)
@@ -128,11 +132,11 @@ func GetTxsByAddr(_app *app.App, addr common.Address) []*motypes.Transaction {
 	return txs
 }
 
-func Call(_app *app.App, sender common.Address, tx *gethtypes.Transaction) (int, string, []byte) {
+func (_app *TestApp) Call(sender common.Address, tx *gethtypes.Transaction) (int, string, []byte) {
 	runner, _ := _app.RunTxForRpc(tx, sender, false)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
-func EstimateGas(_app *app.App, sender common.Address, tx *gethtypes.Transaction) (int, string, int64) {
+func (_app *TestApp) EstimateGas(sender common.Address, tx *gethtypes.Transaction) (int, string, int64) {
 	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true)
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
 }
