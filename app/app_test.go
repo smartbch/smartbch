@@ -109,7 +109,7 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr1).Uint64())
 
 	//tx decode failed
-	tx := gethtypes.NewTransaction(1, addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
+	tx := ethutils.NewTx(1, &addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
 	data, _ := tx.MarshalJSON()
 	res := _app.CheckTx(abci.RequestCheckTx{
 		Tx:   data,
@@ -118,36 +118,36 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, app.CannotDecodeTx, res.Code)
 
 	//sender decode failed
-	tx = gethtypes.NewTransaction(1, addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
+	tx = ethutils.NewTx(1, &addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
 	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   append(ethutils.MustEncodeTx(tx), 0x01),
+		Tx:   append(testutils.MustEncodeTx(tx), 0x01),
 		Type: abci.CheckTxType_New,
 	})
 	require.Equal(t, app.CannotRecoverSender, res.Code)
 
 	//tx nonce mismatch
-	tx = gethtypes.NewTransaction(1, addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
+	tx = ethutils.NewTx(1, &addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
 	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   ethutils.MustEncodeTx(tx),
+		Tx:   testutils.MustEncodeTx(tx),
 		Type: abci.CheckTxType_New,
 	})
 	require.Equal(t, app.AccountNonceMismatch, res.Code)
 
 	//gas fee not pay
-	tx = gethtypes.NewTransaction(0, addr1, big.NewInt(100), 900_0000, big.NewInt(10), nil)
+	tx = ethutils.NewTx(0, &addr1, big.NewInt(100), 900_0000, big.NewInt(10), nil)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
 	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   ethutils.MustEncodeTx(tx),
+		Tx:   testutils.MustEncodeTx(tx),
 		Type: abci.CheckTxType_New,
 	})
 	require.Equal(t, app.CannotPayGasFee, res.Code)
 
 	//ok
-	tx = gethtypes.NewTransaction(0, addr1, big.NewInt(100), 100000, big.NewInt(10), nil)
+	tx = ethutils.NewTx(0, &addr1, big.NewInt(100), 100000, big.NewInt(10), nil)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
 	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   ethutils.MustEncodeTx(tx),
+		Tx:   testutils.MustEncodeTx(tx),
 		Type: abci.CheckTxType_New,
 	})
 	require.Equal(t, uint32(0), res.Code)
@@ -201,7 +201,7 @@ func execRandomTxs(_app *app.App, txLists [][]*gethtypes.Transaction, from1, fro
 		})
 		for _, tx := range txList {
 			_app.DeliverTx(abci.RequestDeliverTx{
-				Tx: ethutils.MustEncodeTx(tx),
+				Tx: testutils.MustEncodeTx(tx),
 			})
 		}
 		_app.EndBlock(abci.RequestEndBlock{})
@@ -223,12 +223,12 @@ func generateRandomTxs(count int, chainId *uint256.Int, key1, key2 string, to1, 
 		for i := 0; i < 1000; i++ {
 			nonce := uint64(rand.Int() % 200)
 			value := int64(rand.Int()%100 + 1)
-			tx := gethtypes.NewTransaction(nonce, to1, big.NewInt(value), 100000, big.NewInt(1), nil)
+			tx := ethutils.NewTx(nonce, &to1, big.NewInt(value), 100000, big.NewInt(1), nil)
 			tx = testutils.MustSignTx(tx, chainId.ToBig(), key1)
 			set[i*2] = tx
 			nonce = uint64(rand.Int() % 200)
 			value = int64(rand.Int()%100 + 1)
-			tx = gethtypes.NewTransaction(nonce, to2, big.NewInt(value), 100000, big.NewInt(1), nil)
+			tx = ethutils.NewTx(nonce, &to2, big.NewInt(value), 100000, big.NewInt(1), nil)
 			tx = testutils.MustSignTx(tx, chainId.ToBig(), key2)
 			set[i*2+1] = tx
 		}

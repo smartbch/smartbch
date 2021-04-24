@@ -5,17 +5,21 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func MustEncodeTx(tx *types.Transaction) []byte {
-	if data, err := EncodeTx(tx); err == nil {
-		return data
-	} else {
-		panic(err)
-	}
+func NewTx(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *types.Transaction {
+	return types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		To:       to,
+		Value:    amount,
+		Gas:      gasLimit,
+		GasPrice: gasPrice,
+		Data:     data,
+	})
 }
 
 func EncodeTx(tx *types.Transaction) ([]byte, error) {

@@ -437,8 +437,7 @@ func TestTransferFrom(t *testing.T) {
 
 func callViewMethod(t *testing.T, _app *testutils.TestApp, selector string, args ...interface{}) interface{} {
 	data := sep206ABI.MustPack(selector, args...)
-	tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := _app.Call(gethcmn.Address{}, tx)
+	statusCode, statusStr, output := _app.Call(gethcmn.Address{}, sep206Addr, data)
 	require.Equal(t, 0, statusCode, selector)
 	require.Equal(t, "success", statusStr, selector)
 	result := sep206ABI.MustUnpack(selector, output)

@@ -445,6 +445,7 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 	//	return nil, from, err
 	//}
 
+	// TODO: replace with ethutils.NewTx()
 	tx := gethtypes.NewTransaction(0, to, val, gasLimit, gasPrice, data)
 	return tx, from, nil
 }

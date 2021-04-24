@@ -9,6 +9,14 @@ import (
 	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
+func MustEncodeTx(tx *gethtypes.Transaction) []byte {
+	if data, err := ethutils.EncodeTx(tx); err == nil {
+		return data
+	} else {
+		panic(err)
+	}
+}
+
 func MustSignTx(tx *gethtypes.Transaction,
 	chainID *big.Int, privKey string) *gethtypes.Transaction {
 

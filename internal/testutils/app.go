@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"bytes"
 	"encoding/json"
 	"math/big"
 	"os"
@@ -172,7 +171,8 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	return tx
 }
 
-func (_app *TestApp) Call(sender gethcmn.Address, tx *gethtypes.Transaction) (int, string, []byte) {
+func (_app *TestApp) Call(sender, contractAddr gethcmn.Address, data []byte) (int, string, []byte) {
+	tx := ethutils.NewTx(0, &contractAddr, big.NewInt(0), defaultGasLimit, big.NewInt(0), data)
 	runner, _ := _app.RunTxForRpc(tx, sender, false)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
@@ -210,7 +210,7 @@ func (_app *TestApp) ExecTxInBlock(height int64, tx *gethtypes.Transaction) {
 	})
 	if tx != nil {
 		_app.DeliverTx(abci.RequestDeliverTx{
-			Tx: mustEncodeTx(tx),
+			Tx: MustEncodeTx(tx),
 		})
 	}
 	_app.EndBlock(abci.RequestEndBlock{Height: height})
@@ -224,12 +224,4 @@ func (_app *TestApp) ExecTxInBlock(height int64, tx *gethtypes.Transaction) {
 	_app.EndBlock(abci.RequestEndBlock{Height: height + 1})
 	_app.Commit()
 	_app.WaitLock()
-}
-
-func mustEncodeTx(tx *gethtypes.Transaction) []byte {
-	buf := &bytes.Buffer{}
-	if err := tx.EncodeRLP(buf); err != nil {
-		panic(err)
-	}
-	return buf.Bytes()
 }

@@ -21,7 +21,7 @@ func TestTxSig(t *testing.T) {
 
 	chainIDEpoch := big.NewInt(1)
 
-	tx := types.NewTransaction(123, addr2, big.NewInt(100), 100000, big.NewInt(1), nil)
+	tx := ethutils.NewTx(123, &addr2, big.NewInt(100), 100000, big.NewInt(1), nil)
 	tx = testutils.MustSignTx(tx, chainIDEpoch, key1)
 
 	signer := types.NewEIP155Signer(chainIDEpoch)

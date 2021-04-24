@@ -60,6 +60,7 @@ func createGethTxFromSendTxArgs(args rpctypes.SendTxArgs) (*gethtypes.Transactio
 		gasLimit = (uint64)(*args.Gas)
 	}
 
+	// TODO: replace with ethutils.NewTx()
 	var tx *gethtypes.Transaction
 	if args.To != nil {
 		tx = gethtypes.NewTransaction(nonce, *args.To, amount, gasLimit, gasPrice, input)

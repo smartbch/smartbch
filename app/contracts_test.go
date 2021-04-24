@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"encoding/hex"
-	"math/big"
 	"testing"
 	"time"
 
@@ -153,10 +152,7 @@ func TestChainID(t *testing.T) {
 	code := _app.GetCode(contractAddr)
 	require.True(t, len(code) > 0)
 
-	tx2 := gethtypes.NewTransaction(1, contractAddr, big.NewInt(0), 100000, big.NewInt(1),
-		testutils.HexToBytes("564b81ef"))
-
-	_, _, output := _app.Call(addr, tx2)
+	_, _, output := _app.Call(addr, contractAddr, testutils.HexToBytes("564b81ef"))
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
 		hex.EncodeToString(output))
 }
@@ -190,8 +186,8 @@ b5007928aa64736f6c63430007000033
 	require.True(t, len(code) > 0)
 
 	// call setN_revert()
-	tx2 := _app.MakeAndExecTxInBlock(3, key,
-		contractAddr, 0, testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064"))
+	callData := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064")
+	_app.MakeAndExecTxInBlock(3, key, contractAddr, 0, callData)
 
 	time.Sleep(100 * time.Millisecond)
 	blk3 := _app.GetBlock(3)
@@ -201,7 +197,7 @@ b5007928aa64736f6c63430007000033
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
 
-	statusCode, statusStr, retData := _app.Call(contractAddr, tx2)
+	statusCode, statusStr, retData := _app.Call(addr, contractAddr, callData)
 	require.Equal(t, 2, statusCode)
 	require.Equal(t, "revert", statusStr)
 	require.Equal(t, "08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000166e206d757374206265206c657373207468616e20313000000000000000000000",
@@ -241,8 +237,8 @@ b5007928aa64736f6c63430007000033
 	require.True(t, len(code) > 0)
 
 	// call setN_invalidOpcode()
-	tx2 := _app.MakeAndExecTxInBlock(3, key,
-		contractAddr, 0, testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064"))
+	callData := testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064")
+	_app.MakeAndExecTxInBlock(3, key, contractAddr, 0, callData)
 
 	time.Sleep(100 * time.Millisecond)
 	blk3 := _app.GetBlock(3)
@@ -252,7 +248,7 @@ b5007928aa64736f6c63430007000033
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
 	require.Equal(t, "invalid-instruction", txInBlk3.StatusStr)
 
-	statusCode, statusStr, _ := _app.Call(contractAddr, tx2)
+	statusCode, statusStr, _ := _app.Call(addr, contractAddr, callData)
 	require.Equal(t, 4, statusCode)
 	require.Equal(t, "invalid-instruction", statusStr)
 }

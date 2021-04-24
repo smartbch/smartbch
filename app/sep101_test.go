@@ -3,7 +3,6 @@ package app_test
 import (
 	"bytes"
 	"crypto/sha256"
-	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -192,8 +191,7 @@ func TestSEP101(t *testing.T) {
 
 	// call get()
 	data = _sep101ABI.MustPack("get", key)
-	tx4 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := _app.Call(addr, tx4)
+	statusCode, statusStr, output := _app.Call(addr, contractAddr, data)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
@@ -205,8 +203,7 @@ func TestSEP101(t *testing.T) {
 
 	// get non-existing key
 	data = _sep101ABI.MustPack("get", []byte{9, 9, 9})
-	tx5 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output = _app.Call(addr, tx5)
+	statusCode, statusStr, output = _app.Call(addr, contractAddr, data)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, []interface{}{[]byte{}}, _sep101ABI.MustUnpack("get", output))
