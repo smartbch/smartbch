@@ -208,6 +208,16 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
 		require.Equal(t, "success", txInBlk.StatusStr)
 		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
+
+		var info types.StakingInfo
+		ctx := _app.GetContext(RpcMode)
+		bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotStakingInfo)
+		_, err := info.UnmarshalMsg(bz)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("info %#v\n", info) //TODO check details
+		ctx.Close(false)
 	}
 }
 
