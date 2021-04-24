@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"testing"
@@ -9,12 +9,13 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 
 	"github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestGetBlock(t *testing.T) {
-	_app := CreateTestApp()
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 
 	blk := testutils.NewMdbBlockBuilder().
 		Height(1).Hash(gethcmn.Hash{0xB1}).
@@ -26,11 +27,11 @@ func TestGetBlock(t *testing.T) {
 		}).
 		Build()
 
-	_app.historyStore.AddBlock(blk, -1)
-	_app.historyStore.AddBlock(nil, -1)
+	_app.HistoryStore().AddBlock(blk, -1)
+	_app.HistoryStore().AddBlock(nil, -1)
 	time.Sleep(10 * time.Millisecond)
 
-	ctx := _app.GetContext(RpcMode)
+	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 	blk1, err := ctx.GetBlockByHeight(1)
 	require.NoError(t, err)
@@ -38,8 +39,8 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestQueryLogs(t *testing.T) {
-	_app := CreateTestApp()
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 
 	addr1 := gethcmn.Address{0xA1, 0x23}
 	addr2 := gethcmn.Address{0xA2, 0x34}
@@ -59,11 +60,11 @@ func TestQueryLogs(t *testing.T) {
 			Topics:  [][32]byte{topic3, topic4},
 		}).
 		Build()
-	_app.historyStore.AddBlock(blk, -1)
-	_app.historyStore.AddBlock(nil, -1)
+	_app.HistoryStore().AddBlock(blk, -1)
+	_app.HistoryStore().AddBlock(nil, -1)
 	time.Sleep(10 * time.Millisecond)
 
-	ctx := _app.GetContext(RpcMode)
+	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 
 	logs, err := ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{}, 1, 2)
@@ -96,8 +97,8 @@ func TestQueryLogs(t *testing.T) {
 }
 
 func TestGetLogsMaxResults(t *testing.T) {
-	_app := CreateTestApp()
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 
 	addr := gethcmn.Address{0xA1}
 	blk := testutils.NewMdbBlockBuilder().
@@ -114,18 +115,18 @@ func TestGetLogsMaxResults(t *testing.T) {
 		Tx(gethcmn.Hash{0xC0}, types.Log{Address: addr}).
 		Build()
 
-	_app.historyStore.AddBlock(blk, -1)
-	_app.historyStore.AddBlock(nil, -1)
+	_app.HistoryStore().AddBlock(blk, -1)
+	_app.HistoryStore().AddBlock(nil, -1)
 	time.Sleep(10 * time.Millisecond)
 
-	ctx := _app.GetContext(RpcMode)
+	ctx := _app.GetContext(app.RpcMode)
 	defer ctx.Close(false)
 
 	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 10)
 
-	_app.historyStore.SetMaxEntryCount(5)
+	_app.HistoryStore().SetMaxEntryCount(5)
 	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)
 	require.NoError(t, err)
 	require.Len(t, logs, 5)

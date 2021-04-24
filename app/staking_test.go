@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
+	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
@@ -87,15 +88,15 @@ var stakingABI = testutils.MustParseABI(`
 func TestStaking(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, _ := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(key1, key2)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(key1, key2)
+	defer testutils.DestroyTestApp(_app)
 
 	//config test param
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(1)
 	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
 
 	//test create validator through deliver tx
-	ctx := _app.GetContext(RunTxMode)
+	ctx := _app.GetContext(app.RunTxMode)
 	stakingAcc, info := staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
@@ -103,7 +104,7 @@ func TestStaking(t *testing.T) {
 	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 1, key1, 0,
 		staking.StakingContractAddress, 100, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, uint64(100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/ +600000 /*extra gas*/), stakingAcc.Balance().Uint64())
@@ -117,7 +118,7 @@ func TestStaking(t *testing.T) {
 	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 3, key1, 1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
@@ -126,7 +127,7 @@ func TestStaking(t *testing.T) {
 	require.Equal(t, [32]byte{'2'}, intro)
 
 	//test change minGasPrice
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	staking.SaveMinGasPrice(ctx, 100, true)
 	staking.SaveMinGasPrice(ctx, 100, false)
 	acc, info := staking.LoadStakingAcc(*ctx)
@@ -138,13 +139,13 @@ func TestStaking(t *testing.T) {
 	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 5, key1, 2,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	mp := staking.LoadMinGasPrice(ctx, false)
 	ctx.Close(false)
 	require.Equal(t, 105, int(mp))
 
 	//test validator retire
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	staking.SaveMinGasPrice(ctx, 0, true)
 	staking.SaveMinGasPrice(ctx, 0, false)
 	ctx.Close(true)
@@ -155,7 +156,7 @@ func TestStaking(t *testing.T) {
 	testutils.MakeAndExecTxInBlockWithGasPrice(_app, 9, key1, 3,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	time.Sleep(50 * time.Millisecond)
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
@@ -166,14 +167,14 @@ func TestStaking(t *testing.T) {
 		ValMapByPubkey: make(map[[32]byte]*types.Nomination),
 	}
 	var pubkey [32]byte
-	copy(pubkey[:], _app.testValidatorPubKey.Bytes())
+	copy(pubkey[:], _app.TestValidatorPubkey().Bytes())
 	e.ValMapByPubkey[pubkey] = &types.Nomination{
 		Pubkey:         pubkey,
 		NominatedCount: 2,
 	}
-	_app.watcher.EpochChan <- e
+	_app.EpochChan() <- e
 	testutils.ExecTxInBlock(_app, 11, nil)
-	ctx = _app.GetContext(RunTxMode)
+	ctx = _app.GetContext(app.RunTxMode)
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
 	require.Equal(t, 1, len(info.Validators))
@@ -182,8 +183,8 @@ func TestStaking(t *testing.T) {
 
 func TestCallStakingMethodsFromEOA(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(key1, key1)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(key1, key1)
+	defer testutils.DestroyTestApp(_app)
 
 	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
 	pubKey := [32]byte{'p', 'u', 'b', 'k', 'e', 'y'}
@@ -201,10 +202,10 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 		h := int64(1 + i*2)
 		tx := testutils.MakeAndExecTxInBlock(_app, h, key1, uint64(0+i), stakingAddr, 0, testCase)
 
-		blk := getBlock(_app, uint64(h))
+		blk := testutils.GetBlock(_app, uint64(h))
 		require.Equal(t, h, blk.Number)
 		require.Len(t, blk.Transactions, 1)
-		txInBlk := getTx(_app, blk.Transactions[0])
+		txInBlk := testutils.GetTx(_app, blk.Transactions[0])
 		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
 		require.Equal(t, "success", txInBlk.StatusStr)
 		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
@@ -223,8 +224,8 @@ func TestCallStakingMethodsFromEOA(t *testing.T) {
 
 func TestCallStakingMethodsFromContract(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(key1, key1)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(key1, key1)
+	defer testutils.DestroyTestApp(_app)
 
 	// see testdata/staking/contracts/StakingTest2
 	proxyCreationBytecode := testutils.HexToBytes(`
@@ -237,7 +238,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 
 	tx1 := testutils.DeployContractInBlock(_app, 1, key1, 0, proxyCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
-	code := getCode(_app, contractAddr)
+	code := testutils.GetCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 
 	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
@@ -254,10 +255,10 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 		h := int64(3 + i*2)
 		tx := testutils.MakeAndExecTxInBlock(_app, h, key1, uint64(1+i), contractAddr, 0, testCase)
 
-		blk := getBlock(_app, uint64(h))
+		blk := testutils.GetBlock(_app, uint64(h))
 		require.Equal(t, h, blk.Number)
 		require.Len(t, blk.Transactions, 1)
-		txInBlk := getTx(_app, blk.Transactions[0])
+		txInBlk := testutils.GetTx(_app, blk.Transactions[0])
 		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
 		require.Equal(t, "revert", txInBlk.StatusStr)
 		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))

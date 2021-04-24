@@ -23,8 +23,8 @@ import (
 )
 
 func TestNewFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 	id, err := _api.NewFilter(gethfilters.FilterCriteria{})
 	require.NoError(t, err)
@@ -35,8 +35,8 @@ func TestNewFilter(t *testing.T) {
 }
 
 func TestGetFilterChanges_blockFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 	id := _api.NewBlockFilter()
 	require.NotEmpty(t, id)
@@ -58,8 +58,8 @@ func TestGetFilterChanges_blockFilter(t *testing.T) {
 }
 
 func TestGetFilterChanges_addrFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 	id, err := _api.NewFilter(testutils.NewAddressFilter(gethcmn.Address{0xA1}))
 	require.NoError(t, err)
@@ -96,8 +96,8 @@ A transaction with a log with topics [A, B] will be matched by the following top
 [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
 */
 func TestGetFilterChanges_topicsFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 	ids := make([]gethrpc.ID, 5)
 	ids[0] = newTopicsFilter(t, _api, [][]gethcmn.Hash{})                                           // []
@@ -145,8 +145,8 @@ func TestGetFilterChanges_topicsFilter(t *testing.T) {
 }
 
 func TestGetFilterLogs_addrFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 	fc := testutils.NewFilterBuilder().
 		BlockRange(1, 3). // the ending '3' is not included
@@ -188,8 +188,8 @@ func TestGetFilterLogs_addrFilter(t *testing.T) {
 }
 
 func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 	id, err := _api.NewFilter(testutils.NewBlockRangeFilter(0, 2))
 	require.NoError(t, err)
@@ -216,8 +216,8 @@ func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
 }
 
 func TestGetLogs_blockHashFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 
 	b1Hash := gethcmn.Hash{0xB1}
@@ -253,8 +253,8 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 }
 
 func TestGetLogs_addrFilter(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createFiltersAPI(_app)
 
 	addr1 := gethcmn.Address{0xA1, 0x23}
@@ -311,7 +311,7 @@ func addBlock(_app *app.App, block *modbtypes.Block) {
 	ctx := _app.GetContext(app.RunTxMode)
 	ctx.StoreBlock(block)
 	ctx.Close(true)
-	app.AddBlockFotTest(_app, block)
+	_app.AddBlockFotTest(block)
 }
 
 func newTopicsFilter(t *testing.T, _api PublicFilterAPI, topics [][]gethcmn.Hash) gethrpc.ID {

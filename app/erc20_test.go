@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"encoding/json"
@@ -19,21 +19,21 @@ var _myTokenCreationBytecode = testutils.HexToBytes(`608060405234801561001057600
 func _TestERC20Events(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(key1, key2)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(key1, key2)
+	defer testutils.DestroyTestApp(_app)
 
 	tx1 := testutils.DeployContractInBlock(_app, 1, key1, 0, _myTokenCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
-	code := getCode(_app, contractAddr)
+	code := testutils.GetCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 
 	data := sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
 	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, key1, 1, contractAddr, 0, data)
 
-	blk3 := getBlock(_app, 3)
+	blk3 := testutils.GetBlock(_app, 3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
 	require.Equal(t, "success", txInBlk3.StatusStr)
 	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))

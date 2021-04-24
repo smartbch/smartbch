@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"math/big"
@@ -8,6 +8,8 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -312,8 +314,8 @@ func TestEventSigs(t *testing.T) {
 }
 
 func TestTokenInfo(t *testing.T) {
-	_app := CreateTestApp()
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 
 	testCases := []struct {
 		getter string
@@ -335,17 +337,17 @@ func TestTokenInfo(t *testing.T) {
 func TestTransferEvent(t *testing.T) {
 	privKey1, _ := testutils.GenKeyAndAddr()
 	privKey2, addr2 := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey1, privKey2)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey1, privKey2)
+	defer testutils.DestroyTestApp(_app)
 
 	amt := big.NewInt(100)
 	data1 := sep206ABI.MustPack("transfer", addr2, amt)
 	tx1 := testutils.MakeAndExecTxInBlock(_app, 1, privKey1, 0, sep206Addr, 0, data1)
 
-	blk1 := getBlock(_app, 1)
+	blk1 := testutils.GetBlock(_app, 1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
-	txInBlk1 := getTx(_app, blk1.Transactions[0])
+	txInBlk1 := testutils.GetTx(_app, blk1.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
 	require.Equal(t, "success", txInBlk1.StatusStr)
 	require.Equal(t, tx1.Hash(), gethcmn.Hash(txInBlk1.Hash))
@@ -355,11 +357,11 @@ func TestTransferEvent(t *testing.T) {
 func TestTransferToExistingAddr(t *testing.T) {
 	privKey1, addr1 := testutils.GenKeyAndAddr()
 	privKey2, addr2 := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey1, privKey2)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey1, privKey2)
+	defer testutils.DestroyTestApp(_app)
 
-	b1 := getBalance(_app, addr1)
-	b2 := getBalance(_app, addr2)
+	b1 := testutils.GetBalance(_app, addr1)
+	b2 := testutils.GetBalance(_app, addr2)
 	require.Equal(t, b1, callViewMethod(t, _app, "balanceOf", addr1))
 
 	amt := big.NewInt(100)
@@ -372,10 +374,10 @@ func TestTransferToExistingAddr(t *testing.T) {
 func TestTransferToNonExistingAddr(t *testing.T) {
 	privKey1, addr1 := testutils.GenKeyAndAddr()
 	_, addr2 := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey1)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey1)
+	defer testutils.DestroyTestApp(_app)
 
-	b1 := getBalance(_app, addr1)
+	b1 := testutils.GetBalance(_app, addr1)
 	require.Equal(t, b1, callViewMethod(t, _app, "balanceOf", addr1))
 	require.Equal(t, uint64(0), callViewMethod(t, _app, "balanceOf", addr2).(*big.Int).Uint64())
 
@@ -389,8 +391,8 @@ func TestTransferToNonExistingAddr(t *testing.T) {
 func TestAllowance(t *testing.T) {
 	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
 	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(ownerKey, spenderKey)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(ownerKey, spenderKey)
+	defer testutils.DestroyTestApp(_app)
 
 	a0 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(0), a0.(*big.Int).Uint64())
@@ -418,8 +420,8 @@ func TestTransferFrom(t *testing.T) {
 	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
 	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
 	_, receiptAddr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(ownerKey, spenderKey)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(ownerKey, spenderKey)
+	defer testutils.DestroyTestApp(_app)
 
 	data1 := sep206ABI.MustPack("approve", spenderAddr, big.NewInt(12345))
 	tx1 := testutils.MakeAndExecTxInBlock(_app, 1, ownerKey, 0, sep206Addr, 0, data1)
@@ -434,10 +436,10 @@ func TestTransferFrom(t *testing.T) {
 	require.Equal(t, uint64(12000), a2.(*big.Int).Uint64())
 }
 
-func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{}) interface{} {
+func callViewMethod(t *testing.T, _app *app.App, selector string, args ...interface{}) interface{} {
 	data := sep206ABI.MustPack(selector, args...)
 	tx := gethtypes.NewTransaction(0, sep206Addr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, gethcmn.Address{}, tx)
+	statusCode, statusStr, output := testutils.Call(_app, gethcmn.Address{}, tx)
 	require.Equal(t, 0, statusCode, selector)
 	require.Equal(t, "success", statusStr, selector)
 	result := sep206ABI.MustUnpack(selector, output)
@@ -445,11 +447,11 @@ func callViewMethod(t *testing.T, _app *App, selector string, args ...interface{
 	return result[0]
 }
 
-func checkTx(t *testing.T, _app *App, h int64, txHash gethcmn.Hash) {
-	blk := getBlock(_app, uint64(h))
+func checkTx(t *testing.T, _app *app.App, h int64, txHash gethcmn.Hash) {
+	blk := testutils.GetBlock(_app, uint64(h))
 	require.Equal(t, h, blk.Number)
 	require.Len(t, blk.Transactions, 1)
-	txInBlk := getTx(_app, blk.Transactions[0])
+	txInBlk := testutils.GetTx(_app, blk.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
 	require.Equal(t, "success", txInBlk.StatusStr)
 	require.Equal(t, txHash, gethcmn.Hash(txInBlk.Hash))

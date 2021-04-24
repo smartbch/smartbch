@@ -1,4 +1,4 @@
-package app
+package app_test
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -159,18 +160,18 @@ ffffffffffffffffffffffffffffffffffff82169050919050565b8281833760
 5ab2c033cb0791c564736f6c63430008000033
 `)
 
-func deploySEP101Proxy(t *testing.T, _app *App, privKey string, senderAddr gethcmn.Address) gethcmn.Address {
+func deploySEP101Proxy(t *testing.T, _app *app.App, privKey string, senderAddr gethcmn.Address) gethcmn.Address {
 	tx1 := testutils.DeployContractInBlock(_app, 1, privKey, 0, _sep101ProxyCreationBytecode)
 	contractAddr := gethcrypto.CreateAddress(senderAddr, tx1.Nonce())
-	code := getCode(_app, contractAddr)
+	code := testutils.GetCode(_app, contractAddr)
 	require.True(t, len(code) > 0)
 	return contractAddr
 }
 
 func TestSEP101(t *testing.T) {
 	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey)
+	defer testutils.DestroyTestApp(_app)
 
 	// deploy proxy
 	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
@@ -182,10 +183,10 @@ func TestSEP101(t *testing.T) {
 	data := _sep101ABI.MustPack("set", key, val)
 	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, privKey, 1, contractAddr, 0, data)
 
-	blk3 := getBlock(_app, 3)
+	blk3 := testutils.GetBlock(_app, 3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
 	require.Equal(t, "success", txInBlk3.StatusStr)
 	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
@@ -193,20 +194,20 @@ func TestSEP101(t *testing.T) {
 	// call get()
 	data = _sep101ABI.MustPack("get", key)
 	tx4 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output := call(_app, addr, tx4)
+	statusCode, statusStr, output := testutils.Call(_app, addr, tx4)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
 
 	// read val through getStorageAt()
 	sKey := sha256.Sum256(key)
-	sVal := getStorageAt(_app, contractAddr, sKey[:])
+	sVal := testutils.GetStorageAt(_app, contractAddr, sKey[:])
 	require.Equal(t, val, sVal)
 
 	// get non-existing key
 	data = _sep101ABI.MustPack("get", []byte{9, 9, 9})
 	tx5 := gethtypes.NewTransaction(0, contractAddr, big.NewInt(0), 10000000, big.NewInt(1), data)
-	statusCode, statusStr, output = call(_app, addr, tx5)
+	statusCode, statusStr, output = testutils.Call(_app, addr, tx5)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, []interface{}{[]byte{}}, _sep101ABI.MustUnpack("get", output))
@@ -214,8 +215,8 @@ func TestSEP101(t *testing.T) {
 
 func TestSEP101_setZeroLenKey(t *testing.T) {
 	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey)
+	defer testutils.DestroyTestApp(_app)
 
 	// deploy proxy
 	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
@@ -224,10 +225,10 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
 	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, privKey, 1, contractAddr, 0, data)
 
-	blk3 := getBlock(_app, 3)
+	blk3 := testutils.GetBlock(_app, 3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
 	//require.Equal(t, 2, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
 	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
@@ -235,8 +236,8 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 
 func TestSEP101_setKeyTooLong(t *testing.T) {
 	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey)
+	defer testutils.DestroyTestApp(_app)
 
 	// deploy proxy
 	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
@@ -245,10 +246,10 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
 	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, privKey, 1, contractAddr, 0, data)
 
-	blk3 := getBlock(_app, 3)
+	blk3 := testutils.GetBlock(_app, 3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
 	//require.Equal(t, 2, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
 	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
@@ -256,8 +257,8 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 
 func TestSEP101_setValTooLong(t *testing.T) {
 	privKey, addr := testutils.GenKeyAndAddr()
-	_app := CreateTestApp(privKey)
-	defer DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(privKey)
+	defer testutils.DestroyTestApp(_app)
 
 	// deploy proxy
 	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
@@ -266,10 +267,10 @@ func TestSEP101_setValTooLong(t *testing.T) {
 	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
 	tx2 := testutils.MakeAndExecTxInBlock(_app, 3, privKey, 1, contractAddr, 0, data)
 
-	blk3 := getBlock(_app, 3)
+	blk3 := testutils.GetBlock(_app, 3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := getTx(_app, blk3.Transactions[0])
+	txInBlk3 := testutils.GetTx(_app, blk3.Transactions[0])
 	//require.Equal(t, 2, txInBlk3.Status)
 	require.Equal(t, "revert", txInBlk3.StatusStr)
 	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))

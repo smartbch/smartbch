@@ -47,7 +47,7 @@ var (
 type ContextMode uint8
 
 const (
-	checkTxMode     ContextMode = iota
+	CheckTxMode     ContextMode = iota
 	RunTxMode       ContextMode = iota
 	RpcMode         ContextMode = iota
 	HistoryOnlyMode ContextMode = iota
@@ -209,7 +209,7 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 
 func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx {
 	app.logger.Debug("enter check tx!")
-	ctx := app.GetContext(checkTxMode)
+	ctx := app.GetContext(CheckTxMode)
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
@@ -643,7 +643,7 @@ func (app *App) Stop() {
 
 func (app *App) GetContext(mode ContextMode) *types.Context {
 	c := types.NewContext(uint64(app.currHeight), nil, nil)
-	if mode == checkTxMode {
+	if mode == CheckTxMode {
 		r := rabbit.NewRabbitStore(app.checkTrunk)
 		c = c.WithRbt(&r)
 	} else if mode == RunTxMode {
@@ -715,4 +715,22 @@ func (app *App) WaitLock() {
 
 func (app *App) TestValidatorPubkey() crypto.PubKey {
 	return app.testValidatorPubKey
+}
+
+func (app *App) HistoryStore() modbtypes.DB {
+	return app.historyStore
+}
+
+func (app *App) BlockNum() int64 {
+	return app.block.Number
+}
+
+func (app *App) EpochChan() chan *stakingtypes.Epoch {
+	return app.watcher.EpochChan
+}
+
+func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {
+	app.historyStore.AddBlock(mdbBlock, -1)
+	app.historyStore.AddBlock(nil, -1) // To Flush
+	app.publishNewBlock(mdbBlock)
 }

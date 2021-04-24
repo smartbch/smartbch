@@ -16,8 +16,8 @@ import (
 )
 
 func TestQueryTxBySrcDst(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createSbchAPI(_app)
 
 	addr1 := gethcmn.Address{0xAD, 0x01}
@@ -91,8 +91,8 @@ func TestQueryTxBySrcDst(t *testing.T) {
 }
 
 func TestQueryTxByAddr(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createSbchAPI(_app)
 
 	addr1 := gethcmn.Address{0xAD, 0x01}
@@ -122,8 +122,8 @@ func TestQueryTxByAddr(t *testing.T) {
 }
 
 func TestGetTxListByHeight(t *testing.T) {
-	_app := app.CreateTestApp()
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp()
+	defer testutils.DestroyTestApp(_app)
 	_api := createSbchAPI(_app)
 
 	addr1 := gethcmn.Address{0xAD, 0x01}
@@ -176,8 +176,8 @@ func TestGetToAddressCount(t *testing.T) {
 	key3, _ := testutils.GenKeyAndAddr()
 	key4, _ := testutils.GenKeyAndAddr()
 
-	_app := app.CreateTestApp(key1, key2, key3, key4)
-	defer app.DestroyTestApp(_app)
+	_app := testutils.CreateTestApp(key1, key2, key3, key4)
+	defer testutils.DestroyTestApp(_app)
 	_api := createSbchAPI(_app)
 
 	testutils.MakeAndExecTxInBlock(_app, 1, key2, 0, addr1, 123, nil)
