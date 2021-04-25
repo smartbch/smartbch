@@ -143,6 +143,22 @@ func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
 	return txs
 }
 
+func (_app *TestApp) GetToAddressCount(addr gethcmn.Address) int64 {
+	ctx := _app.GetHistoryOnlyContext()
+	defer ctx.Close(false)
+	return ctx.GetToAddressCount(addr)
+}
+func (_app *TestApp) GetSep20FromAddressCount(contract, addr gethcmn.Address) int64 {
+	ctx := _app.GetHistoryOnlyContext()
+	defer ctx.Close(false)
+	return ctx.GetSep20FromAddressCount(contract, addr)
+}
+func (_app *TestApp) GetSep20ToAddressCount(contract, addr gethcmn.Address) int64 {
+	ctx := _app.GetHistoryOnlyContext()
+	defer ctx.Close(false)
+	return ctx.GetSep20ToAddressCount(contract, addr)
+}
+
 func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
 
