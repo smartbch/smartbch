@@ -32,8 +32,8 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v3.21.3+incompatible // indirect
 	github.com/smartbch/moeingads v0.1.0
-	github.com/smartbch/moeingdb v0.1.1
-	github.com/smartbch/moeingevm v0.1.2-0.20210425013412-5ee1f0638d45
+	github.com/smartbch/moeingdb v0.1.2-0.20210425074613-ca06120877a3
+	github.com/smartbch/moeingevm v0.1.2-0.20210425074754-a06d92d8c67c
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
