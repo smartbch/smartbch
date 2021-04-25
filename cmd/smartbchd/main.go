@@ -6,6 +6,7 @@ import (
 
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -64,7 +65,8 @@ func newApp(logger log.Logger, chainId *uint256.Int) abci.Application {
 	}
 	bz, _ := json.Marshal(testValidators)
 	fmt.Printf("testValidator:%s\n", bz)
-	cetChainApp := app.NewApp(param.DefaultConfig(), chainId, logger,
-		pv.Key.PubKey)
+	conf := param.DefaultConfig()
+	conf.RetainBlocks = viper.GetInt64(flagRetainBlocks)
+	cetChainApp := app.NewApp(conf, chainId, logger, pv.Key.PubKey)
 	return cetChainApp
 }

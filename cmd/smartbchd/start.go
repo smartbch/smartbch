@@ -25,6 +25,7 @@ import (
 const (
 	flagRpcAddr = "http.addr"
 	flagWsAddr  = "ws.addr"
+	flagRetainBlocks = "retain"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -40,6 +41,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	}
 	tcmd.AddNodeFlags(cmd)
 	cmd.PersistentFlags().String("log_level", ctx.Config.LogLevel, "Log level")
+	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
 	return cmd

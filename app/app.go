@@ -67,7 +67,8 @@ type App struct {
 	mtx sync.Mutex
 
 	//config
-	chainId *uint256.Int
+	chainId      *uint256.Int
+	retainBlocks int64
 
 	//store
 	root         *store.RootStore
@@ -115,8 +116,12 @@ type App struct {
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	testValidatorPubKey crypto.PubKey) *App {
-
 	app := &App{}
+	/*------set config------*/
+	app.retainBlocks = config.RetainBlocks
+	app.chainId = chainId
+
+	/*------set store------*/
 	first := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	last := []byte{255, 255, 255, 255, 255, 255, 255, 255}
 	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first, last})
@@ -124,7 +129,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 		panic(err)
 	}
 	app.root = store.NewRootStore(mads, nil)
-
 	//app.historyStore = &modb.MockMoDB{}
 	modbDir := config.ModbDataPath
 	if _, err := os.Stat(modbDir); os.IsNotExist(err) {
@@ -134,28 +138,34 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 		app.historyStore = modb.NewMoDB(modbDir)
 	}
 	app.historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
-
 	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
-	app.chainId = chainId
+
+	/*------set util------*/
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
-	app.txEngine = ebp.NewEbpTxExec(10, 100, 32, 100, app.signer)
 	app.logger = logger.With("module", "app")
+
+	/*------set engine------*/
+	app.txEngine = ebp.NewEbpTxExec(10, 100, 32, 100, app.signer)
+
+	/*------set watcher------*/
 	//todo: lastHeight = latest previous bch mainnet 2016x blocks
 	app.watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
 	go app.watcher.Run()
 
+	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
+	//init PredefinedSystemContractExecutors before tx execute
+	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
+	ebp.PredefinedSystemContractExecutor.Init(ctx)
+
+	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
 	app.block = &types.Block{}
 	if prevBlk != nil {
 		app.block.Number = prevBlk.Number
 		app.currHeight = app.block.Number
 	}
-	//init PredefinedSystemContractExecutors before tx execute
-	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
-	ebp.PredefinedSystemContractExecutor.Init(ctx)
-
 	_, stakingInfo := staking.LoadStakingAcc(*ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	for _, val := range app.currValidators {
@@ -492,9 +502,14 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
 	app.logger.Debug("leave commit!")
-	return abcitypes.ResponseCommit{
+	res := abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
 	}
+	// prune tendermint history block and state every 100 blocks, maybe param it
+	if app.retainBlocks > 0 && app.currHeight >= app.retainBlocks && (app.currHeight%100 == 0) {
+		res.RetainHeight = app.currHeight - app.retainBlocks + 1
+	}
+	return res
 }
 
 func (app *App) syncBlockInfo() *types.BlockInfo {
