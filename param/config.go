@@ -9,7 +9,7 @@ import (
 
 const (
 	DefaultRpcEthGetLogsMaxResults = 10000
-	DefaultRetainBlocks = -1
+	DefaultRetainBlocks            = -1
 )
 
 type ChainConfig struct {
@@ -64,6 +64,6 @@ func DefaultConfig() *ChainConfig {
 		AppDataPath:             defaultAppDataPath,
 		ModbDataPath:            defaultModbDataPath,
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
-		RetainBlocks: DefaultRetainBlocks,
+		RetainBlocks:            DefaultRetainBlocks,
 	}
 }

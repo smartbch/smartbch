@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	flagRpcAddr = "http.addr"
-	flagWsAddr  = "ws.addr"
+	flagRpcAddr      = "http.addr"
+	flagWsAddr       = "ws.addr"
 	flagRetainBlocks = "retain"
 )
 
