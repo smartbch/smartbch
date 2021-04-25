@@ -59,11 +59,13 @@ var (
 
 func DefaultConfig() *ChainConfig {
 	os.LookupEnv("HOME")
-	return &ChainConfig{
+	c := &ChainConfig{
 		NodeConfig:              config.DefaultConfig(),
 		AppDataPath:             defaultAppDataPath,
 		ModbDataPath:            defaultModbDataPath,
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 		RetainBlocks:            DefaultRetainBlocks,
 	}
+	c.NodeConfig.TxIndex.Indexer = "null"
+	return c
 }
