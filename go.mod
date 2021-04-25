@@ -11,6 +11,7 @@ require (
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/ethereum/go-ethereum v1.10.2
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/gorilla/mux v1.8.0
@@ -31,8 +32,8 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v3.21.3+incompatible // indirect
 	github.com/smartbch/moeingads v0.1.0
-	github.com/smartbch/moeingdb v0.1.1-0.20210422091355-a916b0a144bb
-	github.com/smartbch/moeingevm v0.1.1-0.20210423082815-913a132e4703
+	github.com/smartbch/moeingdb v0.1.1
+	github.com/smartbch/moeingevm v0.1.2-0.20210425013412-5ee1f0638d45
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
@@ -45,7 +46,6 @@ require (
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
 	golang.org/x/net v0.0.0-20210421230115-4e50805a0758 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20210421221651-33663a62ff08 // indirect
 	google.golang.org/genproto v0.0.0-20210422153429-2279cbceda62 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
