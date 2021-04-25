@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
-	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -235,10 +234,8 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 430008000033
 `)
 
-	tx1 := _app.DeployContractInBlock(1, key1, proxyCreationBytecode)
-	contractAddr := gethcrypto.CreateAddress(addr1, tx1.Nonce())
-	code := _app.GetCode(contractAddr)
-	require.True(t, len(code) > 0)
+	_, contractAddr := _app.DeployContractInBlock(1, key1, proxyCreationBytecode)
+	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
 	pubKey := [32]byte{'p', 'u', 'b', 'k', 'e', 'y'}

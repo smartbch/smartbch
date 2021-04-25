@@ -13,6 +13,7 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/moeingevm/ebp"
@@ -143,7 +144,7 @@ func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
 }
 
 func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
-	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
+	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
 
 	privKey, _, err := ethutils.HexToPrivKey(hexPrivKey)
 	if err != nil {
@@ -168,7 +169,7 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 		panic(err)
 	}
 
-	return tx
+	return tx, addr
 }
 
 func (_app *TestApp) Call(sender, contractAddr gethcmn.Address, data []byte) (int, string, []byte) {
@@ -181,10 +182,11 @@ func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transacti
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
 }
 
-func (_app *TestApp) DeployContractInBlock(height int64, privKey string, data []byte) *gethtypes.Transaction {
-	tx := _app.MakeAndSignTx(privKey, nil, 0, data, 0)
+func (_app *TestApp) DeployContractInBlock(height int64, privKey string, data []byte) (*gethtypes.Transaction, gethcmn.Address) {
+	tx, addr := _app.MakeAndSignTx(privKey, nil, 0, data, 0)
 	_app.ExecTxInBlock(height, tx)
-	return tx
+	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
+	return tx, contractAddr
 }
 
 func (_app *TestApp) MakeAndExecTxInBlock(height int64, privKey string,
@@ -195,7 +197,7 @@ func (_app *TestApp) MakeAndExecTxInBlock(height int64, privKey string,
 func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(height int64, privKey string,
 	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
 
-	tx := _app.MakeAndSignTx(privKey, &toAddr, val, data, gasPrice)
+	tx, _ := _app.MakeAndSignTx(privKey, &toAddr, val, data, gasPrice)
 	_app.ExecTxInBlock(height, tx)
 	return tx
 }

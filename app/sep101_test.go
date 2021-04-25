@@ -9,8 +9,6 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-	gethcrypto "github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -158,11 +156,9 @@ ffffffffffffffffffffffffffffffffffff82169050919050565b8281833760
 5ab2c033cb0791c564736f6c63430008000033
 `)
 
-func deploySEP101Proxy(t *testing.T, _app *testutils.TestApp, privKey string, senderAddr gethcmn.Address) gethcmn.Address {
-	tx1 := _app.DeployContractInBlock(1, privKey, _sep101ProxyCreationBytecode)
-	contractAddr := gethcrypto.CreateAddress(senderAddr, tx1.Nonce())
-	code := _app.GetCode(contractAddr)
-	require.True(t, len(code) > 0)
+func deploySEP101Proxy(t *testing.T, _app *testutils.TestApp, privKey string) gethcmn.Address {
+	_, contractAddr := _app.DeployContractInBlock(1, privKey, _sep101ProxyCreationBytecode)
+	require.NotEmpty(t, _app.GetCode(contractAddr))
 	return contractAddr
 }
 
@@ -172,7 +168,7 @@ func TestSEP101(t *testing.T) {
 	defer _app.Destroy()
 
 	// deploy proxy
-	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
+	contractAddr := deploySEP101Proxy(t, _app, privKey)
 
 	key := []byte{0xAB, 0xCD}
 	val := bytes.Repeat([]byte{0x12, 0x34}, 500)
@@ -210,12 +206,12 @@ func TestSEP101(t *testing.T) {
 }
 
 func TestSEP101_setZeroLenKey(t *testing.T) {
-	privKey, addr := testutils.GenKeyAndAddr()
+	privKey, _ := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(privKey)
 	defer _app.Destroy()
 
 	// deploy proxy
-	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
+	contractAddr := deploySEP101Proxy(t, _app, privKey)
 
 	// set() with zero-len key
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
@@ -231,12 +227,12 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 }
 
 func TestSEP101_setKeyTooLong(t *testing.T) {
-	privKey, addr := testutils.GenKeyAndAddr()
+	privKey, _ := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(privKey)
 	defer _app.Destroy()
 
 	// deploy proxy
-	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
+	contractAddr := deploySEP101Proxy(t, _app, privKey)
 
 	// set() with looooong key
 	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
@@ -252,12 +248,12 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 }
 
 func TestSEP101_setValTooLong(t *testing.T) {
-	privKey, addr := testutils.GenKeyAndAddr()
+	privKey, _ := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(privKey)
 	defer _app.Destroy()
 
 	// deploy proxy
-	contractAddr := deploySEP101Proxy(t, _app, privKey, addr)
+	contractAddr := deploySEP101Proxy(t, _app, privKey)
 
 	// set() with looooong val
 	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
