@@ -134,7 +134,7 @@ func (_app *TestApp) GetTx(h gethcmn.Hash) *motypes.Transaction {
 }
 
 func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
-	ctx := _app.GetHistoryOnlyContext()
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	txs, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.BlockNum())+1)
 	if err != nil {
@@ -144,17 +144,17 @@ func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
 }
 
 func (_app *TestApp) GetToAddressCount(addr gethcmn.Address) int64 {
-	ctx := _app.GetHistoryOnlyContext()
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	return ctx.GetToAddressCount(addr)
 }
 func (_app *TestApp) GetSep20FromAddressCount(contract, addr gethcmn.Address) int64 {
-	ctx := _app.GetHistoryOnlyContext()
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	return ctx.GetSep20FromAddressCount(contract, addr)
 }
 func (_app *TestApp) GetSep20ToAddressCount(contract, addr gethcmn.Address) int64 {
-	ctx := _app.GetHistoryOnlyContext()
+	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	return ctx.GetSep20ToAddressCount(contract, addr)
 }
