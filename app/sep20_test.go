@@ -68,11 +68,11 @@ func TestGetSep20FromToAddressCount(t *testing.T) {
 		sep206ABI.MustPack("transferFrom", addr2, addr4, big.NewInt(123)))
 
 	time.Sleep(200 * time.Millisecond)
-	require.NotNil(t, "success", _app.GetTx(tx1.Hash()).StatusStr)
-	require.NotNil(t, "success", _app.GetTx(tx2.Hash()).StatusStr)
-	require.NotNil(t, "success", _app.GetTx(tx3.Hash()).StatusStr)
-	require.NotNil(t, "success", _app.GetTx(tx4.Hash()).StatusStr)
-	require.NotNil(t, "success", _app.GetTx(tx5.Hash()).StatusStr)
+	require.Equal(t, "success", _app.GetTx(tx1.Hash()).StatusStr)
+	require.Equal(t, "success", _app.GetTx(tx2.Hash()).StatusStr)
+	require.Equal(t, "success", _app.GetTx(tx3.Hash()).StatusStr)
+	require.Equal(t, "success", _app.GetTx(tx4.Hash()).StatusStr)
+	require.Equal(t, "success", _app.GetTx(tx5.Hash()).StatusStr)
 
 	require.Equal(t, int64(3), _app.GetSep20FromAddressCount(contractAddr, addr1))
 	require.Equal(t, int64(1), _app.GetSep20FromAddressCount(contractAddr, addr2)) // TODO: fix me
