@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"encoding/hex"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -333,26 +335,6 @@ func TestTokenInfo(t *testing.T) {
 	}
 }
 
-func TestTransferEvent(t *testing.T) {
-	privKey1, _ := testutils.GenKeyAndAddr()
-	privKey2, addr2 := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(privKey1, privKey2)
-	defer _app.Destroy()
-
-	amt := big.NewInt(100)
-	data1 := sep206ABI.MustPack("transfer", addr2, amt)
-	tx1 := _app.MakeAndExecTxInBlock(1, privKey1, sep206Addr, 0, data1)
-
-	blk1 := _app.GetBlock(1)
-	require.Equal(t, int64(1), blk1.Number)
-	require.Len(t, blk1.Transactions, 1)
-	txInBlk1 := _app.GetTx(blk1.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
-	require.Equal(t, "success", txInBlk1.StatusStr)
-	require.Equal(t, tx1.Hash(), gethcmn.Hash(txInBlk1.Hash))
-	require.Len(t, txInBlk1.Logs, 1) // TODO: check more fields
-}
-
 func TestTransferToExistingAddr(t *testing.T) {
 	privKey1, addr1 := testutils.GenKeyAndAddr()
 	privKey2, addr2 := testutils.GenKeyAndAddr()
@@ -433,6 +415,62 @@ func TestTransferFrom(t *testing.T) {
 	checkTx(t, _app, 3, tx2.Hash())
 	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12000), a2.(*big.Int).Uint64())
+}
+
+func TestTransferEvent(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	//_, contractAddr := _app.DeployContractInBlock(1, key1, _myTokenCreationBytecode)
+	//require.NotEmpty(t, _app.GetCode(contractAddr))
+	contractAddr := sep206Addr
+
+	// addr1 => addr2
+	data := sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
+	tx1 := _app.MakeAndExecTxInBlock(3, key1, contractAddr, 0, data)
+
+	_app.WaitMS(200)
+	tx1Query := _app.GetTx(tx1.Hash())
+	require.Equal(t, "success", tx1Query.StatusStr)
+	require.Len(t, tx1Query.Logs, 1)
+	require.Len(t, tx1Query.Logs[0].Topics, 3)
+
+	// event Transfer(address indexed _from, address indexed _to, uint256 _value)
+	log0 := tx1Query.Logs[0]
+	require.Equal(t, sep206ABI.GetABI().Events["Transfer"].ID.Hex(), "0x"+hex.EncodeToString(log0.Topics[0][:]))
+	require.Equal(t, strings.ToLower(addr1.Hex()), "0x"+hex.EncodeToString(log0.Topics[1][12:]))
+	require.Equal(t, strings.ToLower(addr2.Hex()), "0x"+hex.EncodeToString(log0.Topics[2][12:]))
+	require.Equal(t, []interface{}{big.NewInt(100)}, sep206ABI.MustUnpack("Transfer", log0.Data))
+}
+
+func TestApproveEvent(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	//_, contractAddr := _app.DeployContractInBlock(1, key1, _myTokenCreationBytecode)
+	//require.NotEmpty(t, _app.GetCode(contractAddr))
+	contractAddr := sep206Addr
+
+	// addr1 => addr2
+	data := sep206ABI.MustPack("approve", addr2, big.NewInt(123))
+	tx1 := _app.MakeAndExecTxInBlock(3, key1, contractAddr, 0, data)
+
+	_app.WaitMS(200)
+	tx1Query := _app.GetTx(tx1.Hash())
+	require.Equal(t, "success", tx1Query.StatusStr)
+	require.Len(t, tx1Query.Logs, 1)
+	require.Len(t, tx1Query.Logs[0].Topics, 3)
+
+	// event Approval(address indexed _owner, address indexed _spender, uint256 _value)
+	log0 := tx1Query.Logs[0]
+	require.Equal(t, sep206ABI.GetABI().Events["Approval"].ID.Hex(), "0x"+hex.EncodeToString(log0.Topics[0][:]))
+	require.Equal(t, strings.ToLower(addr1.Hex()), "0x"+hex.EncodeToString(log0.Topics[1][12:]))
+	require.Equal(t, strings.ToLower(addr2.Hex()), "0x"+hex.EncodeToString(log0.Topics[2][12:]))
+	require.Equal(t, []interface{}{big.NewInt(123)}, sep206ABI.MustUnpack("Transfer", log0.Data))
 }
 
 func callViewMethod(t *testing.T, _app *testutils.TestApp, selector string, args ...interface{}) interface{} {
