@@ -1,5 +1,8 @@
 const StakingTest = artifacts.require("StakingTest");
 
+const intro = "0x1234";
+const pubKey = "0x5678"
+
 contract("StakingTest", async (accounts) => {
 
     let testContract;
@@ -10,7 +13,7 @@ contract("StakingTest", async (accounts) => {
 
     it('call staking from contract: createValidator', async () => {
         try {
-            await testContract.createValidator(accounts[0], "intro", "pubkey");
+            await testContract.createValidator(accounts[0], intro, pubKey);
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
@@ -19,7 +22,7 @@ contract("StakingTest", async (accounts) => {
 
     it('call staking from contract: editValidator', async () => {
         try {
-            await testContract.editValidator(accounts[1], "intro1");
+            await testContract.editValidator(accounts[1], intro);
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");

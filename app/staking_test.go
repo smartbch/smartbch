@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -250,12 +251,9 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 		h := int64(3 + i*2)
 		tx := _app.MakeAndExecTxInBlock(h, key1, contractAddr, 0, testCase)
 
-		blk := _app.GetBlock(uint64(h))
-		require.Equal(t, h, blk.Number)
-		require.Len(t, blk.Transactions, 1)
-		txInBlk := _app.GetTx(blk.Transactions[0])
-		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
-		require.Equal(t, "revert", txInBlk.StatusStr)
-		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
+		_app.WaitMS(200)
+		txQuery := _app.GetTx(tx.Hash())
+		require.Equal(t, gethtypes.ReceiptStatusFailed, txQuery.Status)
+		require.Equal(t, "revert", txQuery.StatusStr)
 	}
 }
