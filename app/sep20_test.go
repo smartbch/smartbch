@@ -61,12 +61,26 @@ func TestGetSep20FromToAddressCount(t *testing.T) {
 	tx3 := _app.MakeAndExecTxInBlock(7, key1, contractAddr, 0,
 		sep206ABI.MustPack("transfer", addr4, big.NewInt(100)))
 
+	// addr2 => addr4
+	tx4 := _app.MakeAndExecTxInBlock(9, key2, contractAddr, 0,
+		sep206ABI.MustPack("approve", addr3, big.NewInt(9999999)))
+	tx5 := _app.MakeAndExecTxInBlock(11, key3, contractAddr, 0,
+		sep206ABI.MustPack("transferFrom", addr2, addr4, big.NewInt(123)))
+
 	time.Sleep(200 * time.Millisecond)
 	require.NotNil(t, "success", _app.GetTx(tx1.Hash()).StatusStr)
 	require.NotNil(t, "success", _app.GetTx(tx2.Hash()).StatusStr)
 	require.NotNil(t, "success", _app.GetTx(tx3.Hash()).StatusStr)
+	require.NotNil(t, "success", _app.GetTx(tx4.Hash()).StatusStr)
+	require.NotNil(t, "success", _app.GetTx(tx5.Hash()).StatusStr)
 
-	// TODO: fix me
 	require.Equal(t, int64(3), _app.GetSep20FromAddressCount(contractAddr, addr1))
+	require.Equal(t, int64(1), _app.GetSep20FromAddressCount(contractAddr, addr2)) // TODO: fix me
+	require.Equal(t, int64(0), _app.GetSep20FromAddressCount(contractAddr, addr3))
+	require.Equal(t, int64(0), _app.GetSep20FromAddressCount(contractAddr, addr4))
+
+	require.Equal(t, int64(0), _app.GetSep20ToAddressCount(contractAddr, addr1))
 	require.Equal(t, int64(1), _app.GetSep20ToAddressCount(contractAddr, addr2))
+	require.Equal(t, int64(1), _app.GetSep20ToAddressCount(contractAddr, addr3))
+	require.Equal(t, int64(2), _app.GetSep20ToAddressCount(contractAddr, addr4)) // TODO: fix me
 }
