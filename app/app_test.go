@@ -45,7 +45,7 @@ func TestTransferOK(t *testing.T) {
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
 	tx := _app.MakeAndExecTxInBlock(1, key1, addr2, 100, nil)
-	time.Sleep(100 * time.Millisecond)
+	_app.WaitMS(100)
 	require.Equal(t, uint64(10000000-100 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000+100), _app.GetBalance(addr2).Uint64())
 	require.Equal(t, int64(2), _app.GetLatestBlockNum())
@@ -74,7 +74,7 @@ func TestTransferFailed(t *testing.T) {
 	require.Equal(t, uint64(10000000 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 	// check tx status
-	time.Sleep(100 * time.Millisecond)
+	_app.WaitMS(100)
 	moeTx := _app.GetTx(tx.Hash())
 	require.Equal(t, [32]byte(tx.Hash()), moeTx.Hash)
 	require.Equal(t, gethtypes.ReceiptStatusFailed, moeTx.Status)
@@ -88,14 +88,14 @@ func TestBlock(t *testing.T) {
 	defer _app.Destroy()
 
 	_app.MakeAndExecTxInBlock(1, key1, addr2, 100, nil)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 
 	blk1 := _app.GetBlock(1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
 
 	_app.ExecTxInBlock(3, nil)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)

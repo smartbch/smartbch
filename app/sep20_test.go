@@ -3,7 +3,6 @@ package app_test
 import (
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -67,7 +66,7 @@ func TestGetSep20FromToAddressCount(t *testing.T) {
 	tx5 := _app.MakeAndExecTxInBlock(11, key3, contractAddr, 0,
 		sep206ABI.MustPack("transferFrom", addr2, addr4, big.NewInt(123)))
 
-	time.Sleep(200 * time.Millisecond)
+	_app.WaitMS(200)
 	require.Equal(t, "success", _app.GetTx(tx1.Hash()).StatusStr)
 	require.Equal(t, "success", _app.GetTx(tx2.Hash()).StatusStr)
 	require.Equal(t, "success", _app.GetTx(tx3.Hash()).StatusStr)

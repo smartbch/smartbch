@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -101,7 +100,7 @@ func TestStaking(t *testing.T) {
 	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
 	_app.MakeAndExecTxInBlockWithGasPrice(1, key1,
 		staking.StakingContractAddress, 100, dataEncode, 1)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
@@ -115,7 +114,7 @@ func TestStaking(t *testing.T) {
 	dataEncode = stakingABI.MustPack("editValidator", [32]byte{'b'}, [32]byte{'2'})
 	_app.MakeAndExecTxInBlockWithGasPrice(3, key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)
@@ -136,7 +135,7 @@ func TestStaking(t *testing.T) {
 	dataEncode = stakingABI.MustPack("increaseMinGasPrice")
 	_app.MakeAndExecTxInBlockWithGasPrice(5, key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	mp := staking.LoadMinGasPrice(ctx, false)
 	ctx.Close(false)
@@ -148,12 +147,12 @@ func TestStaking(t *testing.T) {
 	staking.SaveMinGasPrice(ctx, 0, false)
 	ctx.Close(true)
 	_app.ExecTxInBlock(7, nil)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 
 	dataEncode = stakingABI.MustPack("retire")
 	_app.MakeAndExecTxInBlockWithGasPrice(9, key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
-	time.Sleep(50 * time.Millisecond)
+	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(*ctx)
 	ctx.Close(false)

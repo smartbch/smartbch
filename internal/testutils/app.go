@@ -74,6 +74,10 @@ func (_app *TestApp) Destroy() {
 	_ = os.RemoveAll(modbDir)
 }
 
+func (_app *TestApp) WaitMS(n int64) {
+	time.Sleep(time.Duration(n) * time.Millisecond)
+}
+
 func (_app *TestApp) GetNonce(addr gethcmn.Address) uint64 {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -114,7 +118,7 @@ func (_app *TestApp) GetBlock(h uint64) *motypes.Block {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	if ctx.GetLatestHeight() != int64(h) {
-		time.Sleep(500 * time.Millisecond)
+		_app.WaitMS(500)
 	}
 	b, err := ctx.GetBlockByHeight(h)
 	if err != nil {

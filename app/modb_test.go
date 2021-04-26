@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -28,7 +27,7 @@ func TestGetBlock(t *testing.T) {
 
 	_app.HistoryStore().AddBlock(blk, -1)
 	_app.HistoryStore().AddBlock(nil, -1)
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -61,7 +60,7 @@ func TestQueryLogs(t *testing.T) {
 		Build()
 	_app.HistoryStore().AddBlock(blk, -1)
 	_app.HistoryStore().AddBlock(nil, -1)
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -116,7 +115,7 @@ func TestGetLogsMaxResults(t *testing.T) {
 
 	_app.HistoryStore().AddBlock(blk, -1)
 	_app.HistoryStore().AddBlock(nil, -1)
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)

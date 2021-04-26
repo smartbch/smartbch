@@ -3,7 +3,6 @@ package app_test
 import (
 	"encoding/hex"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -84,7 +83,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	tx2 := _app.MakeAndExecTxInBlock(3, key,
 		contractAddr, 0, testutils.HexToBytes("990ee412"))
 
-	time.Sleep(100 * time.Millisecond)
+	_app.WaitMS(100)
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
@@ -102,7 +101,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	tx3 := _app.MakeAndExecTxInBlock(5, key,
 		contractAddr, 0, testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
 
-	time.Sleep(100 * time.Millisecond)
+	_app.WaitMS(100)
 	blk5 := _app.GetBlock(5)
 	require.Equal(t, int64(5), blk5.Number)
 	require.Len(t, blk5.Transactions, 1)
@@ -179,7 +178,7 @@ b5007928aa64736f6c63430007000033
 	callData := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064")
 	_app.MakeAndExecTxInBlock(3, key, contractAddr, 0, callData)
 
-	time.Sleep(100 * time.Millisecond)
+	_app.WaitMS(100)
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
@@ -228,7 +227,7 @@ b5007928aa64736f6c63430007000033
 	callData := testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064")
 	_app.MakeAndExecTxInBlock(3, key, contractAddr, 0, callData)
 
-	time.Sleep(100 * time.Millisecond)
+	_app.WaitMS(100)
 	blk3 := _app.GetBlock(3)
 	require.Equal(t, int64(3), blk3.Number)
 	require.Len(t, blk3.Transactions, 1)

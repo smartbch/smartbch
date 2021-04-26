@@ -3,7 +3,6 @@ package filters
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -47,7 +46,7 @@ func TestGetFilterChanges_blockFilter(t *testing.T) {
 		Height(1).Hash(gethcmn.Hash{0xB1, 0x23}).Build()
 	addBlock(_app, block)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	ret, err := _api.GetFilterChanges(id)
 	require.NoError(t, err)
 	hashes, ok := ret.([]gethcmn.Hash)
@@ -76,7 +75,7 @@ func TestGetFilterChanges_addrFilter(t *testing.T) {
 		}).Build()
 	addBlock(_app, block)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	logs, err = _api.GetFilterChanges(id)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
@@ -114,7 +113,7 @@ func TestGetFilterChanges_topicsFilter(t *testing.T) {
 		}).Build()
 	addBlock(_app, block1)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	for _, id := range ids {
 		logs, err := _api.GetFilterChanges(id)
 		require.NoError(t, err)
@@ -130,7 +129,7 @@ func TestGetFilterChanges_topicsFilter(t *testing.T) {
 		}).Build()
 	addBlock(_app, block2)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	logs0, _ := _api.GetFilterChanges(ids[0])
 	require.Len(t, logs0, 1)
 	logs1, _ := _api.GetFilterChanges(ids[1])
@@ -180,7 +179,7 @@ func TestGetFilterLogs_addrFilter(t *testing.T) {
 		Build()
 	addBlock(_app, block2)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	logs, err = _api.GetFilterLogs(id)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(logs))
@@ -206,7 +205,7 @@ func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
 		Build()
 	addBlock(_app, block)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	fmt.Printf("====================================\n")
 	logs, err = _api.GetFilterLogs(id)
 	require.NoError(t, err)
@@ -229,7 +228,7 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 
-	time.Sleep(10 * time.Millisecond)
+	_app.WaitMS(10)
 	b2Hash := gethcmn.Hash{0xB2}
 	block2 := testutils.NewMdbBlockBuilder().
 		Height(2).Hash(b2Hash).
