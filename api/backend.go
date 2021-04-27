@@ -1,8 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"github.com/tendermint/tendermint/crypto"
 	"math/big"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -341,4 +344,36 @@ func (backend *apiBackend) BloomStatus() (uint64, uint64) {
 }
 func (backend *apiBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
 	panic("implement me")
+}
+
+/*-----------------------tendermint info----------------------------*/
+type Info struct {
+	IsValidator     bool            `json:"is_validator"`
+	ValidatorIndex  int64           `json:"validator_index"`
+	Height          int64           `json:"height"`
+	Seed            string          `json:"seed"`
+	ConsensusPubKey crypto.PubKey   `json:"consensus_pub_key"`
+	AppState        json.RawMessage `json:"app_state"`
+}
+
+func (backend *apiBackend) NodeInfo() Info {
+	i := Info{}
+	i.Height = backend.node.BlockStore().Height()
+	address, _ := backend.node.NodeInfo().NetAddress()
+	if address != nil {
+		i.Seed = address.String()
+	}
+	i.ConsensusPubKey, _ = backend.node.PrivValidator().GetPubKey()
+	i.AppState = backend.node.GenesisDoc().AppState
+	genesisData := app.GenesisData{}
+	err := json.Unmarshal(i.AppState, &genesisData)
+	if err == nil {
+		for k, v := range genesisData.Validators {
+			if bytes.Equal(v.Pubkey[:], i.ConsensusPubKey.Bytes()) {
+				i.IsValidator = true
+				i.ValidatorIndex = int64(k)
+			}
+		}
+	}
+	return i
 }

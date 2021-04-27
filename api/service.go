@@ -100,4 +100,7 @@ type BackendService interface {
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
+
+	//tendermint info
+	NodeInfo() Info
 }
