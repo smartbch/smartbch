@@ -9,7 +9,8 @@ import (
 var _ TendermintAPI = (*tmAPI)(nil)
 
 type TendermintAPI interface {
-	GetNodeInfo() json.RawMessage
+	GetNodeInfo() json.RawMessage // TODO: remove this method
+	NodeInfo() json.RawMessage
 }
 
 type tmAPI struct {
@@ -18,6 +19,10 @@ type tmAPI struct {
 
 func newTendermintAPI(backend api.BackendService) TendermintAPI {
 	return &tmAPI{backend}
+}
+
+func (tm *tmAPI) NodeInfo() json.RawMessage {
+	return tm.GetNodeInfo()
 }
 
 func (tm *tmAPI) GetNodeInfo() json.RawMessage {
