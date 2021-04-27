@@ -170,9 +170,9 @@ func TestGetTxListByHeight(t *testing.T) {
 
 func TestGetToAddressCount(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
-	key2, _ := testutils.GenKeyAndAddr()
-	key3, _ := testutils.GenKeyAndAddr()
-	key4, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	key3, addr3 := testutils.GenKeyAndAddr()
+	key4, addr4 := testutils.GenKeyAndAddr()
 
 	_app := testutils.CreateTestApp(key1, key2, key3, key4)
 	defer _app.Destroy()
@@ -182,7 +182,14 @@ func TestGetToAddressCount(t *testing.T) {
 	_app.MakeAndExecTxInBlock(3, key3, addr1, 234, nil)
 	_app.MakeAndExecTxInBlock(5, key4, addr1, 345, nil)
 	_app.WaitMS(200)
-	require.Equal(t, hexutil.Uint64(3), _api.GetToAddressCount(addr1))
+	require.Equal(t, hexutil.Uint64(3), _api.GetAddressCount("to", addr1))
+	require.Equal(t, hexutil.Uint64(0), _api.GetAddressCount("to", addr2))
+	require.Equal(t, hexutil.Uint64(0), _api.GetAddressCount("to", addr3))
+	require.Equal(t, hexutil.Uint64(0), _api.GetAddressCount("to", addr4))
+	require.Equal(t, hexutil.Uint64(3), _api.GetAddressCount("both", addr1))
+	require.Equal(t, hexutil.Uint64(1), _api.GetAddressCount("both", addr2))
+	require.Equal(t, hexutil.Uint64(1), _api.GetAddressCount("both", addr3))
+	require.Equal(t, hexutil.Uint64(1), _api.GetAddressCount("both", addr4))
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {

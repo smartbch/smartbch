@@ -20,9 +20,8 @@ type SbchAPI interface {
 	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error)
 	GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
-	GetToAddressCount(addr gethcmn.Address) hexutil.Uint64
-	GetSep20ToAddressCount(contract, addr gethcmn.Address) hexutil.Uint64
-	GetSep20FromAddressCount(contract, addr gethcmn.Address) hexutil.Uint64
+	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
+	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 }
 
 type sbchAPI struct {
@@ -109,12 +108,42 @@ func (sbch sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
 	return motypes.ToGethLogs(logs), nil
 }
 
-func (sbch sbchAPI) GetToAddressCount(addr gethcmn.Address) hexutil.Uint64 {
-	return hexutil.Uint64(sbch.backend.GetToAddressCount(addr))
+func (sbch sbchAPI) GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64 {
+	fromCount, toCount := int64(0), int64(0)
+	if kind == "from" || kind == "both" {
+		nonce, err := sbch.backend.GetNonce(addr)
+		if err == nil {
+			fromCount = int64(nonce)
+		}
+	}
+	if kind == "to" || kind == "both" {
+		toCount = sbch.backend.GetToAddressCount(addr)
+	}
+	if kind == "from" {
+		return hexutil.Uint64(fromCount)
+	} else if kind == "to" {
+		return hexutil.Uint64(toCount)
+	} else if kind == "both" {
+		return hexutil.Uint64(fromCount + toCount)
+	}
+	return hexutil.Uint64(0)
 }
-func (sbch sbchAPI) GetSep20ToAddressCount(contract, addr gethcmn.Address) hexutil.Uint64 {
-	return hexutil.Uint64(sbch.backend.GetSep20ToAddressCount(contract, addr))
+
+func (sbch sbchAPI) GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64 {
+	fromCount, toCount := int64(0), int64(0)
+	if kind == "from" || kind == "both" {
+		fromCount = sbch.backend.GetSep20FromAddressCount(contract, addr)
+	}
+	if kind == "to" || kind == "both" {
+		toCount = sbch.backend.GetSep20ToAddressCount(contract, addr)
+	}
+	if kind == "from" {
+		return hexutil.Uint64(fromCount)
+	} else if kind == "to" {
+		return hexutil.Uint64(toCount)
+	} else if kind == "both" {
+		return hexutil.Uint64(fromCount + toCount)
+	}
+	return hexutil.Uint64(0)
 }
-func (sbch sbchAPI) GetSep20FromAddressCount(contract, addr gethcmn.Address) hexutil.Uint64 {
-	return hexutil.Uint64(sbch.backend.GetSep20FromAddressCount(contract, addr))
-}
+
