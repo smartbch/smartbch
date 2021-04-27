@@ -146,4 +146,3 @@ func (sbch sbchAPI) GetSep20AddressCount(kind string, contract, addr gethcmn.Add
 	}
 	return hexutil.Uint64(0)
 }
-

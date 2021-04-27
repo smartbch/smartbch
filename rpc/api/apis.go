@@ -15,6 +15,7 @@ const (
 	namespacePersonal = "personal"
 	namespaceEVM      = "evm"
 	namespaceSBCH     = "sbch"
+	namespaceTM       = "tm"
 
 	apiVersion = "1.0"
 )
@@ -29,6 +30,7 @@ func GetAPIs(backend sbchapi.BackendService,
 	_filterAPI := filters.NewAPI(backend)
 	_sbchAPI := newSbchAPI(backend)
 	_evmAPI := newEvmAPI(backend)
+	_tmAPI := newTendermintAPI(backend)
 
 	return []rpc.API{
 		{
@@ -65,6 +67,12 @@ func GetAPIs(backend sbchapi.BackendService,
 			Namespace: namespaceEVM,
 			Version:   apiVersion,
 			Service:   _evmAPI,
+			Public:    true,
+		},
+		{
+			Namespace: namespaceTM,
+			Version:   apiVersion,
+			Service:   _tmAPI,
 			Public:    true,
 		},
 	}
