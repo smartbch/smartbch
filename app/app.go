@@ -314,7 +314,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 			vals[i] = abcitypes.ValidatorUpdate{
 				PubKey: p,
-				Power:  1,
+				Power:  v.VotingPower,
 			}
 			fmt.Printf("inichain validator:%s\n", p.String())
 		}
@@ -421,7 +421,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 			vals[i] = abcitypes.ValidatorUpdate{
 				PubKey: p,
-				Power:  1,
+				Power:  v.VotingPower,
 			}
 			fmt.Printf("endblock validator:%v\n", v.Address)
 		}
