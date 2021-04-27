@@ -12,7 +12,7 @@ pragma solidity ^0.8.0;
 import "./IERC20.sol";
 
 
-contract ERC20 is IERC20 {
+contract SimpleERC20 is IERC20 {
 
     uint256 public override totalSupply;
     uint256 constant private MAX_UINT256 = 2**256 - 1;

@@ -5,7 +5,7 @@ contract("SEP101ProxyForGasTest", async (accounts) => {
     it('gas', async () => {
         const proxy = await SEP101Proxy.new();
 
-        for (let i = 1; i < 256; i += 5) {
+        for (let i = 1; i < 256; i += 15) {
             let key = "ab".repeat(i);
             let val = "cd".repeat(i * 96);
             let setResult = await proxy.set("0x" + key, "0x" + val);

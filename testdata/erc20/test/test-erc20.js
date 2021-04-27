@@ -1,6 +1,6 @@
 // https://github.com/ethereum-optimism/Truffle-ERC20-Example/blob/master/truffle-tests/test-erc20.js
 
-const ERC20 = artifacts.require('ERC20');
+const ERC20 = artifacts.require('SimpleERC20');
 let token;
 
 contract('ERC20', (accounts) => {

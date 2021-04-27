@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 export EVMWRAP=libevmwrap.so
 
 rm -rf ~/.smartbchd/
