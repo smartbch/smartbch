@@ -3,7 +3,7 @@
 const ERC20 = artifacts.require('SimpleERC20');
 let token;
 
-contract('ERC20', (accounts) => {
+contract('SimpleERC20', (accounts) => {
   const tokenName = 'Optipus Coin'
   const tokenSymbol = 'OPT'
   const tokenDecimals = 1

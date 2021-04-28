@@ -18,7 +18,7 @@
  *
  */
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
+const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
 //
 // const fs = require('fs');
@@ -52,6 +52,27 @@ module.exports = {
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
     },
+    sbch_testnet: {
+      // host: "158.247.197.98",
+      // port: 8545,
+      network_id: "10001",
+      gasPrice: 0,
+      provider: () => new HDWalletProvider({
+        providerOrUrl: "http://158.247.197.98:8545",
+        privateKeys: [
+          "561e2df7631ab7526f4d816344e2a79ba3abc65441126050e25f6cee75d0c227",
+          "60d6b9031b312aca02c8711bd212c4081caa5030dd15cab37dd68824313ebee2",
+          "ec0101dbe5241b80a2bfb3a512d73db6a150ac7bbb3547e2d1417a0dae8b7678",
+          "3267904d1aef4dac1f50bd891aa773f53d0239b692cd1566eb36fec32ea8b5e0",
+          "98adba7f01112c36533934cd4f661a83b1dd89ffed82753fab4c9204aaaa8e80",
+          "fe14a73445068451848b9177860e78b9ec5c0df04d4ba5f1def97dd2da83b16d",
+          "c8609123409c38706784765d161cbc9869ec6d0fd8388df488914269cf3276a3",
+          "ef1d52b24b243d715b9045c2d4f5d069ee272eb271a92f9136caf7164f30b3db",
+          "25cfb24c6ee4134733897abc2abd764f4ef12743c1c6b8510ece2a25b446c835",
+          "28e50d172ddd6c967d852d7863cd9a5f113ad1d370fa18cd4d50f548d02c6f51",
+        ],
+      }),
+    },
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port
@@ -81,7 +102,7 @@ module.exports = {
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
-    // timeout: 100000
+    timeout: 1000000
   },
 
   // Configure your compilers

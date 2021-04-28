@@ -145,7 +145,7 @@ contract("SEP206", async (accounts) => {
 
         let result = await sep206.transfer(to, 1234, { from: from });
         const transferLog = result.logs.find(element => element.event.match('Transfer'));
-        console.log(transferLog);
+        // console.log(transferLog);
         assert.equal(transferLog.args._from, from);
         assert.equal(transferLog.args._to, to);
         assert.equal(transferLog.args._value, 1234);
@@ -157,7 +157,7 @@ contract("SEP206", async (accounts) => {
 
         let result = await sep206.approve(spender, 1234, { from: owner });
         const approvalLog = result.logs.find(element => element.event.match('Approval'));
-        console.log(approvalLog);
+        // console.log(approvalLog);
         assert.equal(approvalLog.args._owner, owner);
         assert.equal(approvalLog.args._spender, spender);
         assert.equal(approvalLog.args._value, 1234);

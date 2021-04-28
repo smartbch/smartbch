@@ -62,6 +62,7 @@ module.exports = {
       // host: "158.247.197.98",
       // port: 8545,
       network_id: "10001",
+      gasPrice: 0,
       provider: () => new HDWalletProvider({
         providerOrUrl: "http://158.247.197.98:8545",
         privateKeys: [
