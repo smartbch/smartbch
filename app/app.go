@@ -232,7 +232,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	}
 	sender, err := app.signer.Sender(tx)
 	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender"}
+		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
 	}
 	//todo: replace with engine param
 	if tx.Gas() > uint64(ebp.MaxTxGasLimit) {
