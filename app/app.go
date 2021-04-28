@@ -167,14 +167,12 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 		app.currHeight = app.block.Number
 	}
 
-
 	app.root.SetHeight(app.currHeight + 1)
 	if app.currHeight != 0 {
 		app.reload()
 	} else {
 		app.txEngine.SetContext(app.GetRunTxContext())
 	}
-
 
 	_, stakingInfo := staking.LoadStakingAcc(*ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
