@@ -16,7 +16,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	moetypes "github.com/smartbch/moeingevm/types"
+	//moetypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/rpc"
@@ -74,20 +74,20 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	//todo: make sure this is the latest committed block
-	latestBlock := tmNode.BlockStore().LoadBlock(tmNode.BlockStore().Height())
 	fmt.Println("Load LatestBlock...")
-	if latestBlock != nil {
-		blk := moetypes.Block{}
-		fmt.Println(latestBlock.String())
-		copy(blk.Hash[:], latestBlock.Hash().Bytes())
-		copy(blk.Miner[:], latestBlock.Header.ProposerAddress)
-		blk.Number = latestBlock.Height
-		blk.Timestamp = latestBlock.Time.Unix()
-		appImpl.Init(&blk)
-	} else {
-		appImpl.Init(nil)
-	}
+	//todo: make sure this is the latest committed block
+	//latestBlock := tmNode.BlockStore().LoadBlock(tmNode.BlockStore().Height())
+	//if latestBlock != nil {
+	//	blk := moetypes.Block{}
+	//	fmt.Println(latestBlock.String())
+	//	copy(blk.Hash[:], latestBlock.Hash().Bytes())
+	//	copy(blk.Miner[:], latestBlock.Header.ProposerAddress)
+	//	blk.Number = latestBlock.Height
+	//	blk.Timestamp = latestBlock.Time.Unix()
+	//	appImpl.Init(&blk)
+	//} else {
+	//	appImpl.Init(nil)
+	//}
 
 	if err := tmNode.Start(); err != nil {
 		return nil, err
