@@ -166,6 +166,16 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 		app.block.Number = prevBlk.Number
 		app.currHeight = app.block.Number
 	}
+
+
+	app.root.SetHeight(app.currHeight + 1)
+	if app.currHeight != 0 {
+		app.reload()
+	} else {
+		app.txEngine.SetContext(app.GetRunTxContext())
+	}
+
+
 	_, stakingInfo := staking.LoadStakingAcc(*ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	for _, val := range app.currValidators {
@@ -182,7 +192,7 @@ func (app *App) Init(blk *types.Block) {
 		app.block = blk
 		app.currHeight = app.block.Number
 	}
-	//fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
+	fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
 	app.root.SetHeight(app.currHeight + 1)
 	if app.currHeight != 0 {
 		app.reload()
@@ -203,6 +213,7 @@ func (app *App) reload() {
 }
 
 func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
+	fmt.Printf("Info app.block.Number %d\n", app.block.Number)
 	return abcitypes.ResponseInfo{
 		LastBlockHeight:  app.block.Number,
 		LastBlockAppHash: app.root.GetRootHash(),
@@ -259,6 +270,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	app.logger.Debug("leave init chain!")
+	fmt.Printf("InitChain!!!!!\n")
 
 	ctx := app.GetRunTxContext()
 	var genesisValidators []*stakingtypes.Validator
@@ -351,6 +363,7 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
+	fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter begin block!")
 	app.block = &types.Block{
 		Number:    req.Header.Height,
@@ -399,6 +412,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
+	fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter end block!")
 	select {
 	case epoch := <-app.watcher.EpochChan:
@@ -439,6 +453,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
+	fmt.Printf("Commit!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
