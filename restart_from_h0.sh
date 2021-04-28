@@ -3,7 +3,7 @@
 export EVMWRAP=libevmwrap.so
 
 rm -rf ~/.smartbchd/
-go run github.com/smartbch/smartbch/cmd/smartbchd init m1 --chain-id 0x539 \
+go run github.com/smartbch/smartbch/cmd/smartbchd init m1 --chain-id 0x2711 \
   --init-balance=10000000000000000000 \
   --test-keys="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 0x5a09e9d6be2cdc7de8f6beba300e52823493cd23357b1ca14a9c36764d600f5e,\
