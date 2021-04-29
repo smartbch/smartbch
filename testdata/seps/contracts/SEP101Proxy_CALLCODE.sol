@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-contract SEP101ProxyForGasTest2 {
+contract SEP101Proxy_CALLCODE {
 
     // solhint-disable-next-line no-complex-fallback
     fallback() payable external {
@@ -10,7 +10,7 @@ contract SEP101ProxyForGasTest2 {
         assembly {
             let ptr := mload(0x40)
             calldatacopy(ptr, 0, calldatasize())
-            let result := delegatecall(gas(), _impl, ptr, calldatasize(), 0, 0)
+            let result := callcode(gas(), _impl, 0, ptr, calldatasize(), 0, 0)
             let size := returndatasize()
             returndatacopy(ptr, 0, size)
             switch result

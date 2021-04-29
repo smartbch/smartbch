@@ -1,6 +1,8 @@
 const ISEP101 = artifacts.require("ISEP101");
-const SEP101Proxy1 = artifacts.require("SEP101Proxy");
-const SEP101Proxy2 = artifacts.require("SEP101Proxy2");
+const SEP101Proxy_DELEGATECALL = artifacts.require("SEP101Proxy_DELEGATECALL");
+const SEP101Proxy_CALLCODE     = artifacts.require("SEP101Proxy_CALLCODE");
+const SEP101Proxy_CALL         = artifacts.require("SEP101Proxy_CALL");
+const SEP101Proxy_STATICCALL   = artifacts.require("SEP101Proxy_STATICCALL");
 
 const shortKey = "0x1234";
 const shortVal = "0x5678";
@@ -30,51 +32,34 @@ contract("SEP101", async (accounts) => {
 
 });
 
-contract("SEP101Proxy1", async (accounts) => {
+contract("SEP101Proxy_DELEGATECALL", async (accounts) => {
 
     let sep101Proxy;
 
     before(async () => {
-        sep101Proxy = await SEP101Proxy1.new()
+        sep101Proxy = await SEP101Proxy_DELEGATECALL.new();
+        sep101Proxy = new ISEP101(sep101Proxy.address);
     });
 
     it('get/set: delegate_call', async () => {
         await sep101Proxy.set(shortKey, shortVal);
-        await sep101Proxy.get(shortKey);
-        assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+        assert.equal(await sep101Proxy.get(shortKey), shortVal);
 
         await sep101Proxy.set(longKey, longVal);
-        await sep101Proxy.get(longKey);
-        assert.equal(await sep101Proxy.resultOfGet(), longVal);
+        assert.equal(await sep101Proxy.get(longKey), longVal);
 
         // read by getStorageAt()
         assert.equal(await web3.eth.getStorageAt(sep101Proxy.address, shortKeySHA256), shortVal);
         assert.equal(await web3.eth.getStorageAt(sep101Proxy.address, longKeySHA256), longVal);
     });
 
-});
-
-contract("SEP101Proxy2", async (accounts) => {
-
-    let sep101Proxy;
-
-    before(async () => {
-        sep101Proxy = await SEP101Proxy2.new()
-    });
-
     it('get: non-existing key', async () => {
-        await sep101Proxy.get("0x999999999");
-        assert.equal(await sep101Proxy.resultOfGet(), null);
+        assert.equal(await sep101Proxy.get("0x99999999"), null);
     });
 
     it('set: zero-length val', async () => {
-        await sep101Proxy.set_zero_len_val(shortKey);
-        await sep101Proxy.get(shortKey);
-        assert.equal(await sep101Proxy.resultOfGet(), null);
-
         await sep101Proxy.set(shortKey, []);
-        await sep101Proxy.get(shortKey);
-        assert.equal(await sep101Proxy.resultOfGet(), null);
+        assert.equal(await sep101Proxy.get(shortKey), null);
     });
 
     it('set: zero-length key', async () => {
@@ -89,11 +74,10 @@ contract("SEP101Proxy2", async (accounts) => {
     it('set: key too large', async () => {
         const maxLenKey = "0x" + "ab".repeat(256);
         await sep101Proxy.set(maxLenKey, shortVal);
-        await sep101Proxy.get(maxLenKey);
-        assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+        assert.equal(await sep101Proxy.get(maxLenKey), shortVal);
 
         try {
-            await sep101Proxy.set(maxLenKey + "0", shortVal);
+            await sep101Proxy.set(maxLenKey + "ff", shortVal);
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
@@ -103,28 +87,43 @@ contract("SEP101Proxy2", async (accounts) => {
     it('set: val too large', async () => {
         const maxLenVal = "0x" + "cd".repeat(24*1024);
         await sep101Proxy.set(shortKey, maxLenVal);
-        await sep101Proxy.get(shortKey);
-        assert.equal(await sep101Proxy.resultOfGet(), maxLenVal);
+        assert.equal(await sep101Proxy.get(shortKey), maxLenVal);
 
         try {
-            await sep101Proxy.set(shortKey, maxLenVal + "0");
+            await sep101Proxy.set(shortKey, maxLenVal + "ff");
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
         }
     });
 
-    it('get/set: call_code', async () => {
-    //     await sep101Proxy.set_callcode(shortKey, shortVal);
-    //     await sep101Proxy.get_callcode(shortKey);
-    //     assert.equal(await sep101Proxy.resultOfGet(), shortVal);
+});
 
-    //     await sep101Proxy.set_callcode(longKey, longVal);
-    //     await sep101Proxy.get_callcode(longKey);
-    //     assert.equal(await sep101Proxy.resultOfGet(), longVal);
+contract("SEP101Proxy_CALLCODE", async (accounts) => {
+
+    it('get/set: call_code', async () => {
+        let sep101Proxy = await SEP101Proxy_CALLCODE.new();
+        sep101Proxy = new ISEP101(sep101Proxy.address);
+
+        await sep101Proxy.set(shortKey, shortVal);
+        assert.equal(await sep101Proxy.get(shortKey), shortVal);
+
+        await sep101Proxy.set(longKey, longVal);
+        assert.equal(await sep101Proxy.get(longKey), longVal);
+
+        // read by getStorageAt()
+        assert.equal(await web3.eth.getStorageAt(sep101Proxy.address, shortKeySHA256), shortVal);
+        assert.equal(await web3.eth.getStorageAt(sep101Proxy.address, longKeySHA256), longVal);
     });
 
+});
+
+contract("SEP101Proxy_CALL", async (accounts) => {
+
     it('get/set: call', async () => {
+        let sep101Proxy = await SEP101Proxy_CALL.new();
+        sep101Proxy = new ISEP101(sep101Proxy.address);
+
         try {
             await sep101Proxy.set_call(shortKey, shortVal);
             throw null;
@@ -139,7 +138,13 @@ contract("SEP101Proxy2", async (accounts) => {
         }
     });
 
+});
+
+contract("SEP101Proxy_STATICCALL", async (accounts) => {
+
     it('get/set: staticcall', async () => {
+        let sep101Proxy = await SEP101Proxy_STATICCALL.new();
+        sep101Proxy = new ISEP101(sep101Proxy.address);
         try {
             await sep101Proxy.set_staticcall(shortKey, shortVal);
             throw null;

@@ -1,9 +1,11 @@
-const SEP101Proxy = artifacts.require("SEP101ProxyForGasTest");
+const ISEP101 = artifacts.require("ISEP101");
+const SEP101Proxy = artifacts.require("SEP101Proxy_DELEGATECALL");
 
-contract("SEP101ProxyForGasTest", async (accounts) => {
+contract("SEP101Proxy_DELEGATECALL/gas", async (accounts) => {
 
     it('gas', async () => {
-        const proxy = await SEP101Proxy.new();
+        let proxy = await SEP101Proxy.new();
+        proxy = new ISEP101(proxy.address);
 
         for (let i = 1; i < 256; i += 15) {
             let key = "ab".repeat(i);
