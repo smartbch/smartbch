@@ -13,14 +13,16 @@ contract("SEP206", async (accounts) => {
     it('balance', async () => {
         assert.equal(await sep206.balanceOf(accounts[0]),
             await web3.eth.getBalance(accounts[0]));
-        assert.equal(await sep206.balanceOf("0xADD0000000000000000000000000000000000001"), 0);
+
+        const newAddr = web3.utils.randomHex(20);;
+        assert.equal(await sep206.balanceOf(newAddr), 0);
     });
 
     it('transfer: ok', async () => {
         await testTransfer(accounts[1], accounts[2], 0);
         await testTransfer(accounts[1], accounts[2], 10000);
 
-        const newAddr = "0xADD0000000000000000000000000000000000002";
+        const newAddr = web3.utils.randomHex(20);
         await testTransfer(accounts[3], newAddr, 0);
         await testTransfer(accounts[3], newAddr, 10000);
     });
@@ -38,7 +40,8 @@ contract("SEP206", async (accounts) => {
 
     it('approve&allowance: ok', async () => {
         const owner = accounts[0];
-        const spender = accounts[1];
+        const spender = web3.utils.randomHex(20);
+        await web3.eth.sendTransaction({from: owner, to: spender, value: 1});
         assert.equal(await sep206.allowance(owner, spender), 0);
 
         await sep206.approve(spender, 1234, { from: owner });
@@ -53,7 +56,7 @@ contract("SEP206", async (accounts) => {
 
     it('approve&allowance: to non-existed addr', async () => {
         const owner = accounts[0];
-        const spender = "0xADD0000000000000000000000000000000000003";
+        const spender = web3.utils.randomHex(20);
         assert.equal(await sep206.allowance(owner, spender), 0);
 
         await sep206.approve(spender, 1234, { from: owner });
@@ -90,7 +93,7 @@ contract("SEP206", async (accounts) => {
         await testTransferFrom(accounts[4], accounts[5], accounts[6], 0);
         await testTransferFrom(accounts[4], accounts[5], accounts[6], 12345);
 
-        const newAddr = "0xADD0000000000000000000000000000000000004";
+        const newAddr = web3.utils.randomHex(20);
         await testTransferFrom(accounts[4], newAddr, accounts[6], 0);
         await testTransferFrom(accounts[4], newAddr, accounts[6], 12345);
     });
@@ -127,7 +130,7 @@ contract("SEP206", async (accounts) => {
     });
 
     it('transferFrom: non-existed from addr', async () => {
-        const from = "0xADD0000000000000000000000000000000000005";
+        const from = web3.utils.randomHex(20);
         const to = accounts[1]
         const spender = accounts[2];
 
