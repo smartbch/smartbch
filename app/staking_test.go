@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 
@@ -123,6 +122,15 @@ func TestStaking(t *testing.T) {
 	var intro [32]byte
 	copy(intro[:], info.Validators[1].Introduction)
 	require.Equal(t, [32]byte{'2'}, intro)
+	var SInfo types.StakingInfo
+	rCtx := _app.GetRpcContext()
+	bz := rCtx.GetStorageAt(staking.StakingContractSequence, staking.SlotStakingInfo)
+	_, err := SInfo.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	require.Equal(t, "2", info.Validators[1].Introduction)
+	rCtx.Close(false)
 
 	//test change minGasPrice
 	ctx = _app.GetRunTxContext()
@@ -159,6 +167,14 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
 	require.Equal(t, true, info.Validators[1].IsRetiring)
+	rCtx = _app.GetRpcContext()
+	bz = rCtx.GetStorageAt(staking.StakingContractSequence, staking.SlotStakingInfo)
+	_, err = SInfo.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	require.Equal(t, true, info.Validators[1].IsRetiring)
+	rCtx.Close(false)
 
 	// test switchEpoch
 	e := &types.Epoch{
@@ -177,47 +193,6 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	require.Equal(t, 1, len(info.Validators))
 	require.Equal(t, int64(2), info.Validators[0].VotingPower)
-}
-
-func TestCallStakingMethodsFromEOA(t *testing.T) {
-	key1, addr1 := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key1, key1)
-	defer _app.Destroy()
-
-	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
-	pubKey := [32]byte{'p', 'u', 'b', 'k', 'e', 'y'}
-	stakingAddr := gethcmn.HexToAddress("0x0000000000000000000000000000000000002710")
-
-	testCases := [][]byte{
-		stakingABI.MustPack("createValidator", addr1, intro, pubKey),
-		stakingABI.MustPack("editValidator", addr1, intro),
-		stakingABI.MustPack("retire"),
-		stakingABI.MustPack("increaseMinGasPrice"),
-		stakingABI.MustPack("decreaseMinGasPrice"),
-	}
-
-	for i, testCase := range testCases {
-		h := int64(1 + i*2)
-		tx := _app.MakeAndExecTxInBlock(h, key1, stakingAddr, 0, testCase)
-
-		blk := _app.GetBlock(uint64(h))
-		require.Equal(t, h, blk.Number)
-		require.Len(t, blk.Transactions, 1)
-		txInBlk := _app.GetTx(blk.Transactions[0])
-		//require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk.Status)
-		require.Equal(t, "success", txInBlk.StatusStr)
-		require.Equal(t, tx.Hash(), gethcmn.Hash(txInBlk.Hash))
-
-		var info types.StakingInfo
-		ctx := _app.GetRpcContext()
-		bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotStakingInfo)
-		_, err := info.UnmarshalMsg(bz)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("info %#v\n", info) //TODO check details
-		ctx.Close(false)
-	}
 }
 
 func TestCallStakingMethodsFromContract(t *testing.T) {
