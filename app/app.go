@@ -267,8 +267,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 //TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
-	app.logger.Debug("leave init chain!")
-	fmt.Printf("InitChain!!!!!\n")
+	//fmt.Printf("InitChain!!!!!\n")
 
 	ctx := app.GetRunTxContext()
 	var genesisValidators []*stakingtypes.Validator
@@ -361,7 +360,7 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
-	fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
+	//fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter begin block!")
 	app.block = &types.Block{
 		Number:    req.Header.Height,
@@ -410,7 +409,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
-	fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
+	//fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter end block!")
 	select {
 	case epoch := <-app.watcher.EpochChan:
@@ -451,7 +450,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
-	fmt.Printf("Commit!!!!!!!!!!!!!!!\n")
+	//fmt.Printf("Commit!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 

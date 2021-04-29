@@ -53,7 +53,7 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
 	_app := app.NewApp(params, bigutils.NewU256(1), nopLogger,
 		testValidatorPubKey)
-	_app.Init(nil)
+	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
 		Alloc: KeysToGenesisAlloc(testInitAmt, keys),
