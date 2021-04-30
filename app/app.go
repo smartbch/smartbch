@@ -116,28 +116,15 @@ type App struct {
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	testValidatorPubKey crypto.PubKey) *App {
+
 	app := &App{}
 	/*------set config------*/
 	app.retainBlocks = config.RetainBlocks
 	app.chainId = chainId
 
 	/*------set store------*/
-	first := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	last := []byte{255, 255, 255, 255, 255, 255, 255, 255}
-	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first, last})
-	if err != nil {
-		panic(err)
-	}
-	app.root = store.NewRootStore(mads, nil)
-	//app.historyStore = &modb.MockMoDB{}
-	modbDir := config.ModbDataPath
-	if _, err := os.Stat(modbDir); os.IsNotExist(err) {
-		_ = os.MkdirAll(path.Join(modbDir, "data"), 0700)
-		app.historyStore = modb.CreateEmptyMoDB(modbDir, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
-	} else {
-		app.historyStore = modb.NewMoDB(modbDir)
-	}
-	app.historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
+	app.root = createRootStore(config)
+	app.historyStore = createHistoryStore(config)
 	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
 
@@ -183,6 +170,29 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	ctx.Close(true)
 	app.testValidatorPubKey = testValidatorPubKey
 	return app
+}
+
+func createRootStore(config *param.ChainConfig) *store.RootStore {
+	first := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	last := []byte{255, 255, 255, 255, 255, 255, 255, 255}
+	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first, last})
+	if err != nil {
+		panic(err)
+	}
+	return store.NewRootStore(mads, nil)
+}
+
+func createHistoryStore(config *param.ChainConfig) *modb.MoDB {
+	var historyStore *modb.MoDB
+	modbDir := config.ModbDataPath
+	if _, err := os.Stat(modbDir); os.IsNotExist(err) {
+		_ = os.MkdirAll(path.Join(modbDir, "data"), 0700)
+		historyStore = modb.CreateEmptyMoDB(modbDir, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+	} else {
+		historyStore = modb.NewMoDB(modbDir)
+	}
+	historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
+	return historyStore
 }
 
 func (app *App) Init(blk *types.Block) {
