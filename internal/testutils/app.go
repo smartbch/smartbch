@@ -30,7 +30,8 @@ const (
 )
 
 const (
-	defaultGasLimit = 1000000
+	DefaultGasLimit    = 1000000
+	DefaultInitBalance = uint64(10000000)
 )
 
 // var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -41,7 +42,7 @@ type TestApp struct {
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(bigutils.NewU256(10000000), keys...)
+	return CreateTestApp0(bigutils.NewU256(DefaultInitBalance), keys...)
 }
 
 func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
@@ -178,7 +179,7 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(gasPrice),
-		Gas:      defaultGasLimit,
+		Gas:      DefaultGasLimit,
 		To:       toAddr,
 		Value:    big.NewInt(val),
 		Data:     data,
@@ -193,7 +194,7 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 }
 
 func (_app *TestApp) Call(sender, contractAddr gethcmn.Address, data []byte) (int, string, []byte) {
-	tx := ethutils.NewTx(0, &contractAddr, big.NewInt(0), defaultGasLimit, big.NewInt(0), data)
+	tx := ethutils.NewTx(0, &contractAddr, big.NewInt(0), DefaultGasLimit, big.NewInt(0), data)
 	runner, _ := _app.RunTxForRpc(tx, sender, false)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
@@ -248,4 +249,20 @@ func (_app *TestApp) ExecTxInBlock(tx *gethtypes.Transaction) int64 {
 	_app.Commit()
 	_app.WaitLock()
 	return height
+}
+
+func (_app *TestApp) EnsureTxSuccess(hash gethcmn.Hash) {
+	tx := _app.GetTx(hash)
+	if tx.Status != gethtypes.ReceiptStatusSuccessful || tx.StatusStr != "success" {
+		panic("tx is failed")
+	}
+}
+func (_app *TestApp) EnsureTxFailed(hash gethcmn.Hash, msg string) {
+	tx := _app.GetTx(hash)
+	if tx.Status != gethtypes.ReceiptStatusFailed {
+		panic("tx is success")
+	}
+	if tx.StatusStr != msg {
+		panic("expected " + msg + ", got " + tx.StatusStr)
+	}
 }

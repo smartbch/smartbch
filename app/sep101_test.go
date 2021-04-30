@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
-	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -175,15 +174,8 @@ func TestSEP101(t *testing.T) {
 
 	// call set()
 	data := _sep101ABI.MustPack("set", key, val)
-	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
-
-	blk3 := _app.GetBlock(h2)
-	require.Equal(t, h2, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
-	require.Equal(t, "success", txInBlk3.StatusStr)
-	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
+	tx, _ := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
+	_app.EnsureTxSuccess(tx.Hash())
 
 	// call get()
 	data = _sep101ABI.MustPack("get", key)
@@ -215,15 +207,8 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 
 	// set() with zero-len key
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
-	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
-
-	blk3 := _app.GetBlock(h2)
-	require.Equal(t, h2, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
-	//require.Equal(t, 2, txInBlk3.Status)
-	require.Equal(t, "revert", txInBlk3.StatusStr)
-	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
+	tx, _ := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
+	_app.EnsureTxFailed(tx.Hash(), "revert")
 }
 
 func TestSEP101_setKeyTooLong(t *testing.T) {
@@ -236,15 +221,8 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 
 	// set() with looooong key
 	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
-	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
-
-	blk3 := _app.GetBlock(h2)
-	require.Equal(t, h2, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
-	//require.Equal(t, 2, txInBlk3.Status)
-	require.Equal(t, "revert", txInBlk3.StatusStr)
-	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
+	tx, _ := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
+	_app.EnsureTxFailed(tx.Hash(), "revert")
 }
 
 func TestSEP101_setValTooLong(t *testing.T) {
@@ -257,13 +235,6 @@ func TestSEP101_setValTooLong(t *testing.T) {
 
 	// set() with looooong val
 	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
-	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
-
-	blk3 := _app.GetBlock(h2)
-	require.Equal(t, h2, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
-	//require.Equal(t, 2, txInBlk3.Status)
-	require.Equal(t, "revert", txInBlk3.StatusStr)
-	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
+	tx, _ := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
+	_app.EnsureTxFailed(tx.Hash(), "revert")
 }

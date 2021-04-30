@@ -69,25 +69,19 @@ e7686360ba62da573cfb4864736f6c63430008000033
 `)
 
 	// deploy contract
-	tx1, h1, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	tx1, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
-
-	blk1 := _app.GetBlock(h1)
-	require.Equal(t, h1, blk1.Number)
-	require.Len(t, blk1.Transactions, 1)
-	txInBlk1 := _app.GetTx(blk1.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
-	require.Equal(t, tx1.Hash(), common.Hash(txInBlk1.Hash))
+	_app.EnsureTxSuccess(tx1.Hash())
 
 	// call emitEvent1()
 	tx2, h2 := _app.MakeAndExecTxInBlock(key,
 		contractAddr, 0, testutils.HexToBytes("990ee412"))
 
 	_app.WaitMS(100)
-	blk3 := _app.GetBlock(h2)
-	require.Equal(t, h2, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
+	blk2 := _app.GetBlock(h2)
+	require.Equal(t, h2, blk2.Number)
+	require.Len(t, blk2.Transactions, 1)
+	txInBlk3 := _app.GetTx(blk2.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
 	require.Equal(t, tx2.Hash(), common.Hash(txInBlk3.Hash))
 	require.Len(t, txInBlk3.Logs, 1)
@@ -102,10 +96,10 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		contractAddr, 0, testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
 
 	_app.WaitMS(100)
-	blk5 := _app.GetBlock(h3)
-	require.Equal(t, h3, blk5.Number)
-	require.Len(t, blk5.Transactions, 1)
-	txInBlk5 := _app.GetTx(blk5.Transactions[0])
+	blk3 := _app.GetBlock(h3)
+	require.Equal(t, h3, blk3.Number)
+	require.Len(t, blk3.Transactions, 1)
+	txInBlk5 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk5.Status)
 	require.Equal(t, tx3.Hash(), common.Hash(txInBlk5.Hash))
 	require.Len(t, txInBlk5.Logs, 1)
@@ -176,15 +170,10 @@ b5007928aa64736f6c63430007000033
 
 	// call setN_revert()
 	callData := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064")
-	_, h := _app.MakeAndExecTxInBlock(key, contractAddr, 0, callData)
+	tx, _ := _app.MakeAndExecTxInBlock(key, contractAddr, 0, callData)
 
 	_app.WaitMS(100)
-	blk3 := _app.GetBlock(h)
-	require.Equal(t, h, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
-	require.Equal(t, "revert", txInBlk3.StatusStr)
+	_app.EnsureTxFailed(tx.Hash(), "revert")
 
 	statusCode, statusStr, retData := _app.Call(addr, contractAddr, callData)
 	require.Equal(t, 2, statusCode)
@@ -225,15 +214,10 @@ b5007928aa64736f6c63430007000033
 
 	// call setN_invalidOpcode()
 	callData := testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064")
-	_, h := _app.MakeAndExecTxInBlock(key, contractAddr, 0, callData)
+	tx, _ := _app.MakeAndExecTxInBlock(key, contractAddr, 0, callData)
 
 	_app.WaitMS(100)
-	blk3 := _app.GetBlock(h)
-	require.Equal(t, h, blk3.Number)
-	require.Len(t, blk3.Transactions, 1)
-	txInBlk3 := _app.GetTx(blk3.Transactions[0])
-	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
-	require.Equal(t, "invalid-instruction", txInBlk3.StatusStr)
+	_app.EnsureTxFailed(tx.Hash(), "invalid-instruction")
 
 	statusCode, statusStr, _ := _app.Call(addr, contractAddr, callData)
 	require.Equal(t, 4, statusCode)
