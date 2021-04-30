@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
@@ -97,8 +98,10 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
 	//rpcAddr = viper.GetString("")
-	rpcServer := rpc.NewServer(rpcAddr, wsAddr,
-		rpcBackend, ctx.Logger, testKeys)
+	certfileDir := filepath.Join(cfg.RootDir, "config/cert.pem")
+	keyfileDir := filepath.Join(cfg.RootDir, "config/key.pem")
+	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcBackend, certfileDir, keyfileDir,
+		ctx.Logger, testKeys)
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err

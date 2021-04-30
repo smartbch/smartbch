@@ -21,8 +21,11 @@ var _ tmservice.Service = (*Server)(nil)
 type Server struct {
 	tmservice.BaseService
 
-	rpcAddr string // listen address of rest-server
-	wsAddr  string // listen address of ws server
+	rpcAddr      string // listen address of rest-server
+	wsAddr       string // listen address of ws server
+	rpcHttpsAddr string //listen address of https rest-server
+	wsHttpsAddr  string //listen address of https ws server
+
 	logger  tmlog.Logger
 	backend api.BackendService
 
@@ -31,19 +34,27 @@ type Server struct {
 	wsServer     *gethrpc.Server
 	wsListener   net.Listener
 
+	httpsListener     net.Listener
+	wssListener       net.Listener
+	certFile, keyFile string
+
 	testKeys []string
 }
 
 func NewServer(rpcAddr string, wsAddr string,
-	backend api.BackendService,
+	backend api.BackendService, certFile, keyFile string,
 	logger tmlog.Logger, testKeys []string) tmservice.Service {
 
 	impl := &Server{
-		rpcAddr:  rpcAddr,
-		wsAddr:   wsAddr,
-		backend:  backend,
-		logger:   logger,
-		testKeys: testKeys,
+		rpcAddr:      rpcAddr,
+		wsAddr:       wsAddr,
+		backend:      backend,
+		logger:       logger,
+		testKeys:     testKeys,
+		certFile:     certFile,
+		keyFile:      keyFile,
+		rpcHttpsAddr: "tcp://:9545",
+		wsHttpsAddr:  "tcp://:9546",
 	}
 	return tmservice.NewBaseService(logger, "", impl)
 }
@@ -69,10 +80,18 @@ func (server *Server) startHTTP(apis []gethrpc.API) (err error) {
 		return err
 	}
 
+	server.httpsListener, err = tmrpcserver.Listen(
+		server.rpcHttpsAddr, tmrpcserver.DefaultConfig())
+	if err != nil {
+		return err
+	}
+
 	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
 	handler := newCorsHandler(server.httpServer, allowedOrigins)
 	go tmrpcserver.Serve(server.httpListener, handler, server.logger,
 		tmrpcserver.DefaultConfig()) // TODO: get config from config file
+	go tmrpcserver.ServeTLS(server.httpsListener, handler,
+		server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig())
 	return nil
 }
 
