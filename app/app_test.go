@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -144,6 +145,25 @@ func TestCheckTx(t *testing.T) {
 		Type: abci.CheckTxType_New,
 	})
 	require.Equal(t, uint32(0), res.Code)
+}
+
+func TestIncorrectNonceErr(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+
+	_app.ExecTxsInBlock(tx1, tx2)
+	_app.EnsureTxSuccess(tx1.Hash())
+	_app.EnsureTxFailed(tx2.Hash(), "incorrect nonce")
+
+	txs := _app.GetTxsByAddr(addr1)
+	require.Len(t, txs, 1)
+	require.Equal(t, tx1.Hash().Hex(),
+		"0x"+hex.EncodeToString(txs[0].Hash[:]))
 }
 
 func TestRandomTxs(t *testing.T) {

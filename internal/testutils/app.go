@@ -224,6 +224,13 @@ func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(privKey string,
 }
 
 func (_app *TestApp) ExecTxInBlock(tx *gethtypes.Transaction) int64 {
+	if tx == nil {
+		return _app.ExecTxsInBlock()
+	}
+	return _app.ExecTxsInBlock(tx)
+}
+
+func (_app *TestApp) ExecTxsInBlock(txs ...*gethtypes.Transaction) int64 {
 	height := _app.BlockNum() + 1
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
@@ -232,7 +239,7 @@ func (_app *TestApp) ExecTxInBlock(tx *gethtypes.Transaction) int64 {
 			ProposerAddress: _app.TestValidatorPubkey().Address(),
 		},
 	})
-	if tx != nil {
+	for _, tx := range txs {
 		_app.DeliverTx(abci.RequestDeliverTx{
 			Tx: MustEncodeTx(tx),
 		})
@@ -254,7 +261,7 @@ func (_app *TestApp) ExecTxInBlock(tx *gethtypes.Transaction) int64 {
 func (_app *TestApp) EnsureTxSuccess(hash gethcmn.Hash) {
 	tx := _app.GetTx(hash)
 	if tx.Status != gethtypes.ReceiptStatusSuccessful || tx.StatusStr != "success" {
-		panic("tx is failed")
+		panic("tx is failed: " + tx.StatusStr)
 	}
 }
 func (_app *TestApp) EnsureTxFailed(hash gethcmn.Hash, msg string) {
