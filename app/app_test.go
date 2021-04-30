@@ -44,7 +44,7 @@ func TestTransferOK(t *testing.T) {
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
-	tx := _app.MakeAndExecTxInBlock(1, key1, addr2, 100, nil)
+	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
 	_app.WaitMS(100)
 	require.Equal(t, uint64(10000000-100 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000+100), _app.GetBalance(addr2).Uint64())
@@ -69,7 +69,7 @@ func TestTransferFailed(t *testing.T) {
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
 
 	// insufficient balance
-	tx := _app.MakeAndExecTxInBlock(1, key1, addr2, 10000001, nil)
+	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 10000001, nil)
 
 	require.Equal(t, uint64(10000000 /*-21000*/), _app.GetBalance(addr1).Uint64())
 	require.Equal(t, uint64(10000000), _app.GetBalance(addr2).Uint64())
@@ -87,14 +87,14 @@ func TestBlock(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2)
 	defer _app.Destroy()
 
-	_app.MakeAndExecTxInBlock(1, key1, addr2, 100, nil)
+	_app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
 	_app.WaitMS(50)
 
 	blk1 := _app.GetBlock(1)
 	require.Equal(t, int64(1), blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
 
-	_app.ExecTxInBlock(3, nil)
+	_app.ExecTxInBlock(nil)
 	_app.WaitMS(50)
 
 	blk3 := _app.GetBlock(3)

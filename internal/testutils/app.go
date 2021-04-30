@@ -114,13 +114,13 @@ func (_app *TestApp) GetCode(addr gethcmn.Address) []byte {
 	return nil
 }
 
-func (_app *TestApp) GetBlock(h uint64) *motypes.Block {
+func (_app *TestApp) GetBlock(h int64) *motypes.Block {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
-	if ctx.GetLatestHeight() != int64(h) {
+	if ctx.GetLatestHeight() != h {
 		_app.WaitMS(500)
 	}
-	b, err := ctx.GetBlockByHeight(h)
+	b, err := ctx.GetBlockByHeight(uint64(h))
 	if err != nil {
 		panic(err)
 	}
@@ -202,27 +202,28 @@ func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transacti
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
 }
 
-func (_app *TestApp) DeployContractInBlock(height int64, privKey string, data []byte) (*gethtypes.Transaction, gethcmn.Address) {
+func (_app *TestApp) DeployContractInBlock(privKey string, data []byte) (*gethtypes.Transaction, int64, gethcmn.Address) {
 	tx, addr := _app.MakeAndSignTx(privKey, nil, 0, data, 0)
-	_app.ExecTxInBlock(height, tx)
+	h := _app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
-	return tx, contractAddr
+	return tx, h, contractAddr
 }
 
-func (_app *TestApp) MakeAndExecTxInBlock(height int64, privKey string,
-	toAddr gethcmn.Address, val int64, data []byte) *gethtypes.Transaction {
+func (_app *TestApp) MakeAndExecTxInBlock(privKey string,
+	toAddr gethcmn.Address, val int64, data []byte) (*gethtypes.Transaction, int64) {
 
-	return _app.MakeAndExecTxInBlockWithGasPrice(height, privKey, toAddr, val, data, 0)
+	return _app.MakeAndExecTxInBlockWithGasPrice(privKey, toAddr, val, data, 0)
 }
-func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(height int64, privKey string,
-	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) *gethtypes.Transaction {
+func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(privKey string,
+	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, int64) {
 
 	tx, _ := _app.MakeAndSignTx(privKey, &toAddr, val, data, gasPrice)
-	_app.ExecTxInBlock(height, tx)
-	return tx
+	h := _app.ExecTxInBlock(tx)
+	return tx, h
 }
 
-func (_app *TestApp) ExecTxInBlock(height int64, tx *gethtypes.Transaction) {
+func (_app *TestApp) ExecTxInBlock(tx *gethtypes.Transaction) int64 {
+	height := _app.BlockNum() + 1
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
@@ -246,4 +247,5 @@ func (_app *TestApp) ExecTxInBlock(height int64, tx *gethtypes.Transaction) {
 	_app.EndBlock(abci.RequestEndBlock{Height: height + 1})
 	_app.Commit()
 	_app.WaitLock()
+	return height
 }

@@ -347,7 +347,7 @@ func TestTransferToExistingAddr(t *testing.T) {
 
 	amt := big.NewInt(100)
 	data1 := sep206ABI.MustPack("transfer", addr2, amt)
-	_app.MakeAndExecTxInBlock(1, privKey1, sep206Addr, 0, data1)
+	_app.MakeAndExecTxInBlock(privKey1, sep206Addr, 0, data1)
 	require.Equal(t, b1.Sub(b1, amt), callViewMethod(t, _app, "balanceOf", addr1))
 	require.Equal(t, b2.Add(b2, amt), callViewMethod(t, _app, "balanceOf", addr2))
 }
@@ -364,7 +364,7 @@ func TestTransferToNonExistingAddr(t *testing.T) {
 
 	amt := big.NewInt(100)
 	data1 := sep206ABI.MustPack("transfer", addr2, amt)
-	_app.MakeAndExecTxInBlock(1, privKey1, sep206Addr, 0, data1)
+	_app.MakeAndExecTxInBlock(privKey1, sep206Addr, 0, data1)
 	require.Equal(t, b1.Sub(b1, amt), callViewMethod(t, _app, "balanceOf", addr1))
 	require.Equal(t, amt, callViewMethod(t, _app, "balanceOf", addr2))
 }
@@ -379,20 +379,20 @@ func TestAllowance(t *testing.T) {
 	require.Equal(t, uint64(0), a0.(*big.Int).Uint64())
 
 	data1 := sep206ABI.MustPack("approve", spenderAddr, big.NewInt(12345))
-	tx1 := _app.MakeAndExecTxInBlock(1, ownerKey, sep206Addr, 0, data1)
-	checkTx(t, _app, 1, tx1.Hash())
+	tx1, h1 := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	checkTx(t, _app, h1, tx1.Hash())
 	a1 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12345), a1.(*big.Int).Uint64())
 
 	data2 := sep206ABI.MustPack("increaseAllowance", spenderAddr, big.NewInt(123))
-	tx2 := _app.MakeAndExecTxInBlock(3, ownerKey, sep206Addr, 0, data2)
-	checkTx(t, _app, 3, tx2.Hash())
+	tx2, h2 := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data2)
+	checkTx(t, _app, h2, tx2.Hash())
 	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12468), a2.(*big.Int).Uint64())
 
 	data3 := sep206ABI.MustPack("decreaseAllowance", spenderAddr, big.NewInt(456))
-	tx3 := _app.MakeAndExecTxInBlock(5, ownerKey, sep206Addr, 0, data3)
-	checkTx(t, _app, 5, tx3.Hash())
+	tx3, h3 := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data3)
+	checkTx(t, _app, h3, tx3.Hash())
 	a3 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12012), a3.(*big.Int).Uint64())
 }
@@ -405,14 +405,14 @@ func TestTransferFrom(t *testing.T) {
 	defer _app.Destroy()
 
 	data1 := sep206ABI.MustPack("approve", spenderAddr, big.NewInt(12345))
-	tx1 := _app.MakeAndExecTxInBlock(1, ownerKey, sep206Addr, 0, data1)
-	checkTx(t, _app, 1, tx1.Hash())
+	tx1, h1 := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	checkTx(t, _app, h1, tx1.Hash())
 	a1 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12345), a1.(*big.Int).Uint64())
 
 	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, big.NewInt(345))
-	tx2 := _app.MakeAndExecTxInBlock(3, spenderKey, sep206Addr, 0, data2)
-	checkTx(t, _app, 3, tx2.Hash())
+	tx2, h2 := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+	checkTx(t, _app, h2, tx2.Hash())
 	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12000), a2.(*big.Int).Uint64())
 }
@@ -429,7 +429,7 @@ func TestTransferEvent(t *testing.T) {
 
 	// addr1 => addr2
 	data := sep206ABI.MustPack("transfer", addr2, big.NewInt(100))
-	tx1 := _app.MakeAndExecTxInBlock(3, key1, contractAddr, 0, data)
+	tx1, _ := _app.MakeAndExecTxInBlock(key1, contractAddr, 0, data)
 
 	_app.WaitMS(200)
 	tx1Query := _app.GetTx(tx1.Hash())
@@ -457,7 +457,7 @@ func TestApproveEvent(t *testing.T) {
 
 	// addr1 => addr2
 	data := sep206ABI.MustPack("approve", addr2, big.NewInt(123))
-	tx1 := _app.MakeAndExecTxInBlock(3, key1, contractAddr, 0, data)
+	tx1, _ := _app.MakeAndExecTxInBlock(key1, contractAddr, 0, data)
 
 	_app.WaitMS(200)
 	tx1Query := _app.GetTx(tx1.Hash())
@@ -484,7 +484,7 @@ func callViewMethod(t *testing.T, _app *testutils.TestApp, selector string, args
 }
 
 func checkTx(t *testing.T, _app *testutils.TestApp, h int64, txHash gethcmn.Hash) {
-	blk := _app.GetBlock(uint64(h))
+	blk := _app.GetBlock(h)
 	require.Equal(t, h, blk.Number)
 	require.Len(t, blk.Transactions, 1)
 	txInBlk := _app.GetTx(blk.Transactions[0])

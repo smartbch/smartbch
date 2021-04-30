@@ -40,7 +40,7 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 c664736f6c634300060c0033
 `)
 
-	_, contractAddr := _app.DeployContractInBlock(1, key, creationBytecode)
+	_, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.Equal(t, deployedBytecode, _app.GetCode(contractAddr))
 }
 
@@ -69,23 +69,23 @@ e7686360ba62da573cfb4864736f6c63430008000033
 `)
 
 	// deploy contract
-	tx1, contractAddr := _app.DeployContractInBlock(1, key, creationBytecode)
+	tx1, h1, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
-	blk1 := _app.GetBlock(1)
-	require.Equal(t, int64(1), blk1.Number)
+	blk1 := _app.GetBlock(h1)
+	require.Equal(t, h1, blk1.Number)
 	require.Len(t, blk1.Transactions, 1)
 	txInBlk1 := _app.GetTx(blk1.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk1.Status)
 	require.Equal(t, tx1.Hash(), common.Hash(txInBlk1.Hash))
 
 	// call emitEvent1()
-	tx2 := _app.MakeAndExecTxInBlock(3, key,
+	tx2, h2 := _app.MakeAndExecTxInBlock(key,
 		contractAddr, 0, testutils.HexToBytes("990ee412"))
 
 	_app.WaitMS(100)
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h2)
+	require.Equal(t, h2, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
@@ -98,12 +98,12 @@ e7686360ba62da573cfb4864736f6c63430008000033
 		hex.EncodeToString(txInBlk3.Logs[0].Topics[1][:]))
 
 	// call emitEvent2()
-	tx3 := _app.MakeAndExecTxInBlock(5, key,
+	tx3, h3 := _app.MakeAndExecTxInBlock(key,
 		contractAddr, 0, testutils.HexToBytes("0xfb584c39000000000000000000000000000000000000000000000000000000000000007b"))
 
 	_app.WaitMS(100)
-	blk5 := _app.GetBlock(5)
-	require.Equal(t, int64(5), blk5.Number)
+	blk5 := _app.GetBlock(h3)
+	require.Equal(t, h3, blk5.Number)
 	require.Len(t, blk5.Transactions, 1)
 	txInBlk5 := _app.GetTx(blk5.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk5.Status)
@@ -140,7 +140,7 @@ func TestChainID(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	_, contractAddr := _app.DeployContractInBlock(1, key, creationBytecode)
+	_, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	_, _, output := _app.Call(addr, contractAddr, testutils.HexToBytes("564b81ef"))
@@ -171,16 +171,16 @@ func TestRevert(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	_, contractAddr := _app.DeployContractInBlock(1, key, creationBytecode)
+	_, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	// call setN_revert()
 	callData := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064")
-	_app.MakeAndExecTxInBlock(3, key, contractAddr, 0, callData)
+	_, h := _app.MakeAndExecTxInBlock(key, contractAddr, 0, callData)
 
 	_app.WaitMS(100)
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h)
+	require.Equal(t, h, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
@@ -220,16 +220,16 @@ func TestInvalidOpcode(t *testing.T) {
 b5007928aa64736f6c63430007000033
 `)
 
-	_, contractAddr := _app.DeployContractInBlock(1, key, creationBytecode)
+	_, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	// call setN_invalidOpcode()
 	callData := testutils.HexToBytes("0x12f28d510000000000000000000000000000000000000000000000000000000000000064")
-	_app.MakeAndExecTxInBlock(3, key, contractAddr, 0, callData)
+	_, h := _app.MakeAndExecTxInBlock(key, contractAddr, 0, callData)
 
 	_app.WaitMS(100)
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h)
+	require.Equal(t, h, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusFailed, txInBlk3.Status)
@@ -258,7 +258,7 @@ func TestEstimateGas(t *testing.T) {
 7dfdabc41dd2e3b50064736f6c63430008000033
 `)
 
-	tx1, contractAddr := _app.DeployContractInBlock(1, key, creationBytecode)
+	tx1, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	statusCode, statusStr, gas := _app.EstimateGas(addr, tx1)

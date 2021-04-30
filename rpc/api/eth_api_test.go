@@ -476,7 +476,7 @@ func TestCall_RunGetter(t *testing.T) {
 	tx := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1),
 		counterContractCreationBytecode)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), fromKey)
-	_app.ExecTxInBlock(1, tx)
+	_app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(fromAddr, tx.Nonce())
 	rtCode, err := _api.GetCode(contractAddr, 0)
 	require.NoError(t, err)

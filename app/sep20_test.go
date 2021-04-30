@@ -20,25 +20,25 @@ func TestGetSep20FromToAddressCount(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2, key3, key4)
 	defer _app.Destroy()
 
-	_, contractAddr := _app.DeployContractInBlock(1, key1, _myTokenCreationBytecode)
+	_, _, contractAddr := _app.DeployContractInBlock(key1, _myTokenCreationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	// addr1 => addr2
-	tx1 := _app.MakeAndExecTxInBlock(3, key1, contractAddr, 0,
+	tx1, _ := _app.MakeAndExecTxInBlock(key1, contractAddr, 0,
 		sep206ABI.MustPack("transfer", addr2, big.NewInt(100)))
 
 	// addr1 => addr3
-	tx2 := _app.MakeAndExecTxInBlock(5, key1, contractAddr, 0,
+	tx2, _ := _app.MakeAndExecTxInBlock(key1, contractAddr, 0,
 		sep206ABI.MustPack("transfer", addr3, big.NewInt(100)))
 
 	// addr1 => addr4
-	tx3 := _app.MakeAndExecTxInBlock(7, key1, contractAddr, 0,
+	tx3, _ := _app.MakeAndExecTxInBlock(key1, contractAddr, 0,
 		sep206ABI.MustPack("transfer", addr4, big.NewInt(100)))
 
 	// addr2 => addr4
-	tx4 := _app.MakeAndExecTxInBlock(9, key2, contractAddr, 0,
+	tx4, _ := _app.MakeAndExecTxInBlock(key2, contractAddr, 0,
 		sep206ABI.MustPack("approve", addr3, big.NewInt(9999999)))
-	tx5 := _app.MakeAndExecTxInBlock(11, key3, contractAddr, 0,
+	tx5, _ := _app.MakeAndExecTxInBlock(key3, contractAddr, 0,
 		sep206ABI.MustPack("transferFrom", addr2, addr4, big.NewInt(55)))
 
 	_app.WaitMS(200)

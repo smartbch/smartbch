@@ -157,7 +157,7 @@ ffffffffffffffffffffffffffffffffffff82169050919050565b8281833760
 `)
 
 func deploySEP101Proxy(t *testing.T, _app *testutils.TestApp, privKey string) gethcmn.Address {
-	_, contractAddr := _app.DeployContractInBlock(1, privKey, _sep101ProxyCreationBytecode)
+	_, _, contractAddr := _app.DeployContractInBlock(privKey, _sep101ProxyCreationBytecode)
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 	return contractAddr
 }
@@ -175,10 +175,10 @@ func TestSEP101(t *testing.T) {
 
 	// call set()
 	data := _sep101ABI.MustPack("set", key, val)
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
+	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
 
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h2)
+	require.Equal(t, h2, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
@@ -215,10 +215,10 @@ func TestSEP101_setZeroLenKey(t *testing.T) {
 
 	// set() with zero-len key
 	data := _sep101ABI.MustPack("set", []byte{}, []byte{1, 2, 3})
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
+	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
 
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h2)
+	require.Equal(t, h2, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	//require.Equal(t, 2, txInBlk3.Status)
@@ -236,10 +236,10 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 
 	// set() with looooong key
 	data := _sep101ABI.MustPack("set", bytes.Repeat([]byte{39}, 257), []byte{1, 2, 3})
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
+	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
 
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h2)
+	require.Equal(t, h2, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	//require.Equal(t, 2, txInBlk3.Status)
@@ -257,10 +257,10 @@ func TestSEP101_setValTooLong(t *testing.T) {
 
 	// set() with looooong val
 	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
-	tx2 := _app.MakeAndExecTxInBlock(3, privKey, contractAddr, 0, data)
+	tx2, h2 := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
 
-	blk3 := _app.GetBlock(3)
-	require.Equal(t, int64(3), blk3.Number)
+	blk3 := _app.GetBlock(h2)
+	require.Equal(t, h2, blk3.Number)
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk3.Transactions[0])
 	//require.Equal(t, 2, txInBlk3.Status)
