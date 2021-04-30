@@ -160,6 +160,7 @@ func TestIncorrectNonceErr(t *testing.T) {
 	_app.EnsureTxSuccess(tx1.Hash())
 	_app.EnsureTxFailed(tx2.Hash(), "incorrect nonce")
 
+	_app.WaitMS(200)
 	txs := _app.GetTxsByAddr(addr1)
 	require.Len(t, txs, 1)
 	require.Equal(t, tx1.Hash().Hex(),
