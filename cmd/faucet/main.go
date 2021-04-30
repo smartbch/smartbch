@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 const indexHTML = `
@@ -18,7 +19,7 @@ const indexHTML = `
 <h2>Hi, please send to this address 0.01 smart BCH:</h2>
 <form action="/sendBCH" method="post">
   <label for="addr">Address:</label><br>
-  <input type="text" id="addr" name="addr" size="100"><br>
+  <input type="text" id="addr" name="addr" size="80"><br>
   <input type="submit" value="Submit">
 </form>
 
@@ -71,14 +72,17 @@ func sendBCH(w http.ResponseWriter, req *http.Request) {
 	} else {
 		addr = req.URL.Query().Get("addr")
 	}
+	fmt.Println("time:", time.Now())
 	fmt.Println("addr:", addr)
 	postBody := fmt.Sprintf(reqTMPL, addr)
 	fmt.Println("req:", postBody)
 
 	result, err := post(rpcURL, postBody)
 	if err != nil {
+		fmt.Println("err:", err.Error())
 		_, _ = w.Write([]byte(err.Error()))
 	} else {
+		fmt.Println("result:", result)
 		_, _ = w.Write([]byte(fmt.Sprintf(resultHTML, result)))
 	}
 }
