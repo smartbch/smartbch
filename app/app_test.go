@@ -156,7 +156,8 @@ func TestIncorrectNonceErr(t *testing.T) {
 	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
 	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
 
-	_app.ExecTxsInBlock(tx1, tx2)
+	h := _app.ExecTxsInBlock(tx1, tx2)
+	require.Len(t, _app.GetBlock(h).Transactions, 2)
 	_app.EnsureTxSuccess(tx1.Hash())
 	_app.EnsureTxFailed(tx2.Hash(), "incorrect nonce")
 
