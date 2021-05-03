@@ -373,7 +373,7 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
 	//fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
-	//app.randomPanic(10000, 7919)
+	//app.randomPanic(5000, 7919)
 	app.logger.Debug("enter begin block!")
 	app.block = &types.Block{
 		Number:    req.Header.Height,
@@ -788,7 +788,7 @@ func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {
 	app.publishNewBlock(mdbBlock)
 }
 
-// for ((i=1; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
+// for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) {
 	heightStr := os.Getenv("RANDPANICHEIGHT")
 	if len(heightStr) == 0 {

@@ -31,7 +31,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v3.21.3+incompatible // indirect
-	github.com/smartbch/moeingads v0.1.1-0.20210503071638-71bc32688cde
+	github.com/smartbch/moeingads v0.1.1-0.20210503193836-8617e85f5336
 	github.com/smartbch/moeingdb v0.1.2-0.20210425074613-ca06120877a3
 	github.com/smartbch/moeingevm v0.1.2-0.20210425074754-a06d92d8c67c
 	github.com/spf13/afero v1.6.0 // indirect
