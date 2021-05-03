@@ -110,7 +110,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 		if tmNode.IsRunning() {
 			_ = rpcServer.Stop()
 			_ = tmNode.Stop()
-			appImpl.Stop()
+			//appImpl.Stop()
 		}
 		ctx.Logger.Info("exiting...")
 	})
