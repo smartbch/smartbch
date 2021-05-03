@@ -9,6 +9,8 @@ import (
 	"path"
 	"sync"
 	"sync/atomic"
+	"strconv"
+	"time"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethcore "github.com/ethereum/go-ethereum/core"
@@ -371,6 +373,7 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
 	//fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
+	//app.randomPanic(10000, 7919)
 	app.logger.Debug("enter begin block!")
 	app.block = &types.Block{
 		Number:    req.Header.Height,
@@ -783,4 +786,25 @@ func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {
 	app.historyStore.AddBlock(mdbBlock, -1)
 	app.historyStore.AddBlock(nil, -1) // To Flush
 	app.publishNewBlock(mdbBlock)
+}
+
+// for ((i=1; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
+func (app *App) randomPanic(baseNumber, primeNumber int64) {
+	heightStr := os.Getenv("RANDPANICHEIGHT")
+	if len(heightStr) == 0 {
+		return
+	}
+	h, err := strconv.Atoi(heightStr)
+	if err != nil {
+		panic(err)
+	}
+	if app.currHeight < int64(h) {
+		return
+	}
+	go func(sleepMilliseconds int64) {
+		time.Sleep(time.Duration(sleepMilliseconds * int64(time.Millisecond)))
+		s := fmt.Sprintf("random panic after %d millisecond", sleepMilliseconds)
+		fmt.Println(s)
+		panic(s)
+	}(baseNumber + time.Now().UnixNano() % primeNumber)
 }
