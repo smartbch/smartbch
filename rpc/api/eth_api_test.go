@@ -405,8 +405,12 @@ func TestGetTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x78}, receipt["transactionHash"])
 	require.Equal(t, hexutil.Uint(0x1), receipt["status"])
-	require.Len(t, receipt["logs"], 2)
 
+	contractAddress, found := receipt["contractAddress"]
+	require.True(t, found)
+	require.Equal(t, nil, contractAddress)
+
+	require.Len(t, receipt["logs"], 2)
 	gethLogs := receipt["logs"].([]*gethtypes.Log)
 	require.Equal(t, gethcmn.Address{0xA2}, gethLogs[1].Address)
 	require.Equal(t, []byte{0xD1}, gethLogs[1].Data)

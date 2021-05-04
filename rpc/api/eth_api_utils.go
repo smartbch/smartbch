@@ -128,6 +128,7 @@ func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
 		"from":              gethcmn.Address(tx.From),
 		"to":                gethcmn.Address(tx.To),
 		"cumulativeGasUsed": hexutil.Uint64(tx.CumulativeGasUsed),
+		"contractAddress":   nil,
 		"gasUsed":           hexutil.Uint64(tx.GasUsed),
 		"logs":              types.ToGethLogs(tx.Logs),
 		"logsBloom":         hexutil.Bytes(tx.LogsBloom[:]),

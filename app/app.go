@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 	"sync/atomic"
-	"strconv"
 	"time"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
@@ -806,5 +806,5 @@ func (app *App) randomPanic(baseNumber, primeNumber int64) {
 		s := fmt.Sprintf("random panic after %d millisecond", sleepMilliseconds)
 		fmt.Println(s)
 		panic(s)
-	}(baseNumber + time.Now().UnixNano() % primeNumber)
+	}(baseNumber + time.Now().UnixNano()%primeNumber)
 }
