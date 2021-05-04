@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
+	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/smartbch/smartbch/internal/bigutils"
@@ -40,8 +40,10 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 c664736f6c634300060c0033
 `)
 
-	_, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	require.Equal(t, deployedBytecode, _app.GetCode(contractAddr))
+	txGot := _app.GetTx(tx.Hash())
+	require.Equal(t, contractAddr, gethcmn.Address(txGot.ContractAddress))
 }
 
 func TestEmitLogs(t *testing.T) {
@@ -83,7 +85,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	require.Len(t, blk2.Transactions, 1)
 	txInBlk3 := _app.GetTx(blk2.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk3.Status)
-	require.Equal(t, tx2.Hash(), common.Hash(txInBlk3.Hash))
+	require.Equal(t, tx2.Hash(), gethcmn.Hash(txInBlk3.Hash))
 	require.Len(t, txInBlk3.Logs, 1)
 	require.Len(t, txInBlk3.Logs[0].Topics, 2)
 	require.Equal(t, "d1c6b99eac4e6a0f44c67915eb5195ecb58425668b0c7a46f58908541b5b2899",
@@ -101,7 +103,7 @@ e7686360ba62da573cfb4864736f6c63430008000033
 	require.Len(t, blk3.Transactions, 1)
 	txInBlk5 := _app.GetTx(blk3.Transactions[0])
 	require.Equal(t, gethtypes.ReceiptStatusSuccessful, txInBlk5.Status)
-	require.Equal(t, tx3.Hash(), common.Hash(txInBlk5.Hash))
+	require.Equal(t, tx3.Hash(), gethcmn.Hash(txInBlk5.Hash))
 	require.Len(t, txInBlk5.Logs, 1)
 	require.Len(t, txInBlk5.Logs[0].Topics, 2)
 	require.Equal(t, "7a2c2ad471d70e0a88640e6c3f4f5e975bcbccea7740c25631d0b74bb2c1cef4",
