@@ -268,6 +268,7 @@ func TestGetBlockByNum(t *testing.T) {
 	require.Equal(t, hexutil.Uint64(200000000), block2["gasLimit"])
 	require.Equal(t, hexutil.Uint64(0), block2["gasUsed"])
 	require.Equal(t, hexutil.Bytes(nil), block2["extraData"])
+	require.Equal(t, "0x0000000000000000", block2["nonce"].(hexutil.Bytes).String())
 	require.Len(t, block2["transactions"], 3)
 }
 

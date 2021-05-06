@@ -76,8 +76,8 @@ func blockToRpcResp(block *types.Block) map[string]interface{} {
 		"number":           hexutil.Uint64(block.Number),
 		"hash":             hexutil.Bytes(block.Hash[:]),
 		"parentHash":       hexutil.Bytes(block.ParentHash[:]),
-		"nonce":            hexutil.Uint64(0), // PoW specific
-		"sha3Uncles":       gethcmn.Hash{},    // No uncles in Tendermint
+		"nonce":            hexutil.Bytes(make([]byte, 8)), // PoW specific
+		"sha3Uncles":       gethcmn.Hash{},                 // No uncles in Tendermint
 		"logsBloom":        gethtypes.Bloom{},
 		"transactionsRoot": hexutil.Bytes(block.TransactionsRoot[:]),
 		"stateRoot":        hexutil.Bytes(block.StateRoot[:]),
