@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -145,6 +146,80 @@ func TestCheckTx(t *testing.T) {
 		Type: abci.CheckTxType_New,
 	})
 	require.Equal(t, uint32(0), res.Code)
+}
+
+func TestCheckTxNonce_serial(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	require.Equal(t, uint64(0), tx1.Nonce())
+	require.Equal(t, uint64(0), tx2.Nonce())
+
+	res1 := _app.CheckTx(abci.RequestCheckTx{
+		Tx:   testutils.MustEncodeTx(tx1),
+		Type: abci.CheckTxType_New,
+	})
+	require.Equal(t, uint32(0), res1.Code)
+
+	res2 := _app.CheckTx(abci.RequestCheckTx{
+		Tx:   testutils.MustEncodeTx(tx2),
+		Type: abci.CheckTxType_New,
+	})
+	require.Equal(t, app.AccountNonceMismatch, res2.Code)
+}
+
+func TestCheckTxNonce_parallel(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	require.Equal(t, uint64(0), tx1.Nonce())
+	require.Equal(t, uint64(0), tx2.Nonce())
+
+	wg1 := sync.WaitGroup{}
+	wg1.Add(1)
+	wg2 := sync.WaitGroup{}
+	wg2.Add(2)
+
+	var resCode1 uint32
+	var resCode2 uint32
+
+	go func() {
+		defer wg2.Done()
+		wg1.Wait()
+		res1 := _app.CheckTx(abci.RequestCheckTx{
+			Tx:   testutils.MustEncodeTx(tx1),
+			Type: abci.CheckTxType_New,
+		})
+		resCode1 = res1.Code
+	}()
+
+	go func() {
+		defer wg2.Done()
+		wg1.Wait()
+		res2 := _app.CheckTx(abci.RequestCheckTx{
+			Tx:   testutils.MustEncodeTx(tx2),
+			Type: abci.CheckTxType_New,
+		})
+		resCode2 = res2.Code
+	}()
+
+	wg1.Done()
+	wg2.Wait()
+
+	if resCode1 == 0 {
+		require.Equal(t, app.AccountNonceMismatch, resCode2)
+	} else {
+		require.Equal(t, uint32(0), resCode2)
+		require.Equal(t, app.AccountNonceMismatch, resCode1)
+	}
 }
 
 func TestIncorrectNonceErr(t *testing.T) {

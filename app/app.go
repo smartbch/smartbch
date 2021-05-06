@@ -256,7 +256,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
 	}
 	//todo: replace with engine param
-	if tx.Gas() > uint64(ebp.MaxTxGasLimit) {
+	if tx.Gas() > ebp.MaxTxGasLimit {
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
 	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
