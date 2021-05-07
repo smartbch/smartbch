@@ -15,5 +15,9 @@ contract TestAdd {
         data[c] = (data[a] + data[b] + msg.value)/2;
         data[z] = (data[x] + data[y] + msg.value)/2;
     }
+
+    function get(uint32 d) external returns (uint) {
+        return data[d];
+    }
 }
 
