@@ -150,6 +150,18 @@ func TestCheckTxNonce_serial(t *testing.T) {
 	require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx2))
 }
 
+func TestCheckTx_hasPending(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	_app.AddTxsInBlock(1, tx1)
+	require.Equal(t, app.HasPendingTx, _app.CheckNewTxABCI(tx2))
+}
+
 func TestIncorrectNonceErr(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_, addr2 := testutils.GenKeyAndAddr()
