@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"encoding/hex"
+	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -252,3 +254,57 @@ func TestEstimateGas(t *testing.T) {
 	require.Equal(t, "success", statusStr)
 	require.True(t, gas > 0)
 }
+var testAddABI = testutils.MustParseABI(`
+[
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "param",
+          "type": "uint256"
+        }
+      ],
+      "name": "run",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    }
+]
+`)
+
+func TestContractAdd(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+	// see testdata/basic/contracts/TestAdd.sol
+	creationBytecode := testutils.HexToBytes(`
+	608060405234801561001057600080fd5b50610264806100206000396000f3fe60806040526004361061001e5760003560e01c8063381fd19014610023575b600080fd5b61003661003136600461017b565b610038565b005b604080516000815260208101918290526001600160a01b0384169161232891349161006391906101b1565b600060405180830381858888f193505050503d80600081146100a1576040519150601f19603f3d011682016040523d82523d6000602084013e6100a6565b606091505b505050602081811c63ffffffff81811660009081529283905260408084205491851684529283902054849384901c91606085901c91608086901c9160a087901c9160029134916100f691906101ea565b61010091906101ea565b61010a919061020e565b63ffffffff8086166000908152602081905260408082209390935584821681528281205491861681529190912054600291349161014791906101ea565b61015191906101ea565b61015b919061020e565b63ffffffff90911660009081526020819052604090205550505050505050565b6000806040838503121561018d578182fd5b82356001600160a01b03811681146101a3578283fd5b946020939093013593505050565b60008251815b818110156101d157602081860181015185830152016101b7565b818111156101df5782828501525b509190910192915050565b6000821982111561020957634e487b7160e01b81526011600452602481fd5b500190565b60008261022957634e487b7160e01b81526012600452602481fd5b50049056fea2646970667358221220e3b7b62d342ecf70509d4193520e8f9d643096c2ff67a083c542c4ae01cbd23a64736f6c63430008000033
+`)
+
+	_, _, contractAddr := _app.DeployContractInBlock(key1, creationBytecode)
+	require.NotEmpty(t, _app.GetCode(contractAddr))
+
+	param := big.NewInt(1)
+	param.Lsh(param, 32); param.Or(param, big.NewInt(2))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(3))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(4))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(5))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(6))
+	calldata := testAddABI.MustPack("run", addr2, param)
+	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 100/*value*/, calldata, 2/*gasprice*/)
+
+	ctx := _app.GetCheckTxContext()
+	defer ctx.Close(false)
+	fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().Uint64())
+	fmt.Printf("addr2's balance %d\n", ctx.GetAccount(addr2).Balance().Uint64())
+}
+
+
+
+
