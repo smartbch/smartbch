@@ -128,14 +128,22 @@ func (_app *TestApp) GetBlock(h int64) *motypes.Block {
 	return b
 }
 
-func (_app *TestApp) GetTx(h gethcmn.Hash) *motypes.Transaction {
+func (_app *TestApp) GetTx(h gethcmn.Hash) (tx *motypes.Transaction) {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
-	tx, err := ctx.GetTxByHash(h)
+
+	var err error
+	for i := 0; i < 10; i++ {// retry ten times
+		tx, err = ctx.GetTxByHash(h)
+		if err == nil {
+			return
+		}
+		time.Sleep(300*time.Millisecond)
+	}
 	if err != nil {
 		panic(err)
 	}
-	return tx
+	return nil
 }
 
 func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {

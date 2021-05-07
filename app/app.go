@@ -63,6 +63,7 @@ const (
 	CannotPayGasFee      uint32 = 105
 	GasLimitInvalid      uint32 = 106
 	InvalidMinGasPrice   uint32 = 107
+	HasPendingTx         uint32 = 108
 )
 
 type App struct {
@@ -97,8 +98,9 @@ type App struct {
 	scope     event.SubscriptionScope
 
 	//engine
-	txEngine    ebp.TxExecutor
-	reorderSeed int64
+	txEngine     ebp.TxExecutor
+	reorderSeed  int64
+	touchedAddrs map[gethcmn.Address]int
 
 	//watcher
 	watcher   *staking.Watcher
@@ -254,6 +256,11 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	sender, err := app.signer.Sender(tx)
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
+	}
+	if req.Type != abcitypes.CheckTxType_Recheck && app.touchedAddrs != nil {
+		if _, ok := app.touchedAddrs[sender]; ok {
+			return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
+		}
 	}
 	//todo: replace with engine param
 	if tx.Gas() > ebp.MaxTxGasLimit {
@@ -521,7 +528,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	}
 	ctx.Close(true)
 
-	app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
+	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
 
 	app.refresh()
 	bi := app.syncBlockInfo()

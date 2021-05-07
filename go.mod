@@ -33,7 +33,7 @@ require (
 	github.com/shirou/gopsutil v3.21.3+incompatible // indirect
 	github.com/smartbch/moeingads v0.1.1-0.20210503193836-8617e85f5336
 	github.com/smartbch/moeingdb v0.1.2-0.20210425074613-ca06120877a3
-	github.com/smartbch/moeingevm v0.1.2-0.20210425074754-a06d92d8c67c
+	github.com/smartbch/moeingevm v0.1.3-0.20210506114320-d637d283b467
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
