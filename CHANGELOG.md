@@ -1,5 +1,21 @@
 # Changelog
 
+
+
+## v0.1.3
+
+* Fix some bugs
+
+
+
+## v0.1.2
+
+* JSON-RPC
+  * Add tm_nodeInfo
+* Fix some bugs
+
+
+
 ## v0.1.1
 
 * SEP
