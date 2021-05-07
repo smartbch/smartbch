@@ -18,7 +18,6 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -172,56 +171,6 @@ func TestCheckTxNonce_serial(t *testing.T) {
 	require.Equal(t, app.AccountNonceMismatch, res2.Code)
 }
 
-//func TestCheckTxNonce_parallel(t *testing.T) {
-//	key1, _ := testutils.GenKeyAndAddr()
-//	key2, addr2 := testutils.GenKeyAndAddr()
-//	_app := testutils.CreateTestApp(key1, key2)
-//	defer _app.Destroy()
-//
-//	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-//	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
-//	require.Equal(t, uint64(0), tx1.Nonce())
-//	require.Equal(t, uint64(0), tx2.Nonce())
-//
-//	wg1 := sync.WaitGroup{}
-//	wg1.Add(1)
-//	wg2 := sync.WaitGroup{}
-//	wg2.Add(2)
-//
-//	var resCode1 uint32
-//	var resCode2 uint32
-//
-//	go func() {
-//		defer wg2.Done()
-//		wg1.Wait()
-//		res1 := _app.CheckTx(abci.RequestCheckTx{
-//			Tx:   testutils.MustEncodeTx(tx1),
-//			Type: abci.CheckTxType_New,
-//		})
-//		resCode1 = res1.Code
-//	}()
-//
-//	go func() {
-//		defer wg2.Done()
-//		wg1.Wait()
-//		res2 := _app.CheckTx(abci.RequestCheckTx{
-//			Tx:   testutils.MustEncodeTx(tx2),
-//			Type: abci.CheckTxType_New,
-//		})
-//		resCode2 = res2.Code
-//	}()
-//
-//	wg1.Done()
-//	wg2.Wait()
-//
-//	if resCode1 == 0 {
-//		require.Equal(t, app.AccountNonceMismatch, resCode2)
-//	} else {
-//		require.Equal(t, uint32(0), resCode2)
-//		require.Equal(t, app.AccountNonceMismatch, resCode1)
-//	}
-//}
-
 func TestIncorrectNonceErr(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_, addr2 := testutils.GenKeyAndAddr()
@@ -251,11 +200,11 @@ func TestRandomTxs(t *testing.T) {
 	key4, addrTo2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2, key3, key4)
 	txLists := generateRandomTxs(100, _app.ChainID(), key1, key2, addrTo1, addrTo2)
-	res1 := execRandomTxs(_app.App, txLists, addr1, addr2)
+	res1 := execRandomTxs(_app, txLists, addr1, addr2)
 	_app.Destroy()
 
 	_app = testutils.CreateTestApp(key1, key2, key3, key4)
-	res2 := execRandomTxs(_app.App, txLists, addr1, addr2)
+	res2 := execRandomTxs(_app, txLists, addr1, addr2)
 	_app.Destroy()
 
 	require.Equal(t, res1[0], res2[0])
@@ -282,22 +231,9 @@ func TestJson(t *testing.T) {
 	fmt.Println(v, err)
 }
 
-func execRandomTxs(_app *app.App, txLists [][]*gethtypes.Transaction, from1, from2 common.Address) []uint64 {
+func execRandomTxs(_app *testutils.TestApp, txLists [][]*gethtypes.Transaction, from1, from2 common.Address) []uint64 {
 	for i, txList := range txLists {
-		_app.BeginBlock(abci.RequestBeginBlock{
-			Header: tmproto.Header{
-				Height:          int64(i + 1),
-				ProposerAddress: _app.TestValidatorPubkey().Address(),
-			},
-		})
-		for _, tx := range txList {
-			_app.DeliverTx(abci.RequestDeliverTx{
-				Tx: testutils.MustEncodeTx(tx),
-			})
-		}
-		_app.EndBlock(abci.RequestEndBlock{})
-		_app.Commit()
-		_app.WaitLock()
+		_app.AddTxsInBlock(int64(i+1), txList...)
 	}
 	ctx := _app.GetCheckTxContext()
 	defer ctx.Close(false)

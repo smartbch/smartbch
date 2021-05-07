@@ -133,12 +133,12 @@ func (_app *TestApp) GetTx(h gethcmn.Hash) (tx *motypes.Transaction) {
 	defer ctx.Close(false)
 
 	var err error
-	for i := 0; i < 10; i++ {// retry ten times
+	for i := 0; i < 10; i++ { // retry ten times
 		tx, err = ctx.GetTxByHash(h)
 		if err == nil {
 			return
 		}
-		time.Sleep(300*time.Millisecond)
+		_app.WaitMS(300)
 	}
 	if err != nil {
 		panic(err)
@@ -240,6 +240,12 @@ func (_app *TestApp) ExecTxInBlock(tx *gethtypes.Transaction) int64 {
 
 func (_app *TestApp) ExecTxsInBlock(txs ...*gethtypes.Transaction) int64 {
 	height := _app.BlockNum() + 1
+	_app.AddTxsInBlock(height, txs...)
+	_app.WaitNextBlock(height)
+	return height
+}
+
+func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) int64 {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
@@ -255,15 +261,16 @@ func (_app *TestApp) ExecTxsInBlock(txs ...*gethtypes.Transaction) int64 {
 	_app.EndBlock(abci.RequestEndBlock{Height: height})
 	_app.Commit()
 	_app.WaitLock()
-
+	return height
+}
+func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{Height: height + 1},
+		Header: tmproto.Header{Height: currHeight + 1},
 	})
 	_app.DeliverTx(abci.RequestDeliverTx{})
-	_app.EndBlock(abci.RequestEndBlock{Height: height + 1})
+	_app.EndBlock(abci.RequestEndBlock{Height: currHeight + 1})
 	_app.Commit()
 	_app.WaitLock()
-	return height
 }
 
 func (_app *TestApp) EnsureTxSuccess(hash gethcmn.Hash) {
