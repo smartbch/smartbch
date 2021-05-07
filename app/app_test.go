@@ -122,29 +122,17 @@ func TestCheckTx(t *testing.T) {
 	//tx nonce mismatch
 	tx = ethutils.NewTx(1, &addr1, big.NewInt(100), 100000, big.NewInt(1), nil)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
-	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   testutils.MustEncodeTx(tx),
-		Type: abci.CheckTxType_New,
-	})
-	require.Equal(t, app.AccountNonceMismatch, res.Code)
+	require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx))
 
 	//gas fee not pay
 	tx = ethutils.NewTx(0, &addr1, big.NewInt(100), 900_0000, big.NewInt(10), nil)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
-	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   testutils.MustEncodeTx(tx),
-		Type: abci.CheckTxType_New,
-	})
-	require.Equal(t, app.CannotPayGasFee, res.Code)
+	require.Equal(t, app.CannotPayGasFee, _app.CheckNewTxABCI(tx))
 
 	//ok
 	tx = ethutils.NewTx(0, &addr1, big.NewInt(100), 100000, big.NewInt(10), nil)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
-	res = _app.CheckTx(abci.RequestCheckTx{
-		Tx:   testutils.MustEncodeTx(tx),
-		Type: abci.CheckTxType_New,
-	})
-	require.Equal(t, uint32(0), res.Code)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
 }
 
 func TestCheckTxNonce_serial(t *testing.T) {
@@ -158,17 +146,8 @@ func TestCheckTxNonce_serial(t *testing.T) {
 	require.Equal(t, uint64(0), tx1.Nonce())
 	require.Equal(t, uint64(0), tx2.Nonce())
 
-	res1 := _app.CheckTx(abci.RequestCheckTx{
-		Tx:   testutils.MustEncodeTx(tx1),
-		Type: abci.CheckTxType_New,
-	})
-	require.Equal(t, uint32(0), res1.Code)
-
-	res2 := _app.CheckTx(abci.RequestCheckTx{
-		Tx:   testutils.MustEncodeTx(tx2),
-		Type: abci.CheckTxType_New,
-	})
-	require.Equal(t, app.AccountNonceMismatch, res2.Code)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx1))
+	require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx2))
 }
 
 func TestIncorrectNonceErr(t *testing.T) {

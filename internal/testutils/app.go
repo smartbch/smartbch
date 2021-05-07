@@ -288,3 +288,11 @@ func (_app *TestApp) EnsureTxFailed(hash gethcmn.Hash, msg string) {
 		panic("expected " + msg + ", got " + tx.StatusStr)
 	}
 }
+
+func (_app *TestApp) CheckNewTxABCI(tx *gethtypes.Transaction) uint32 {
+	res := _app.CheckTx(abci.RequestCheckTx{
+		Tx:   MustEncodeTx(tx),
+		Type: abci.CheckTxType_New,
+	})
+	return res.Code
+}
