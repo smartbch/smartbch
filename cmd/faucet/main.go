@@ -1,111 +1,140 @@
 package main
 
 import (
-	"bytes"
+	"crypto/ecdsa"
+	_ "embed"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"math/rand"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
+
+	gethcmn "github.com/ethereum/go-ethereum/common"
+
+	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
-const indexHTML = `
-<!DOCTYPE html>
-<html>
-<head>
-<title>smartBCH testnet faucet</title>
-</head>
-<body>
-
-<h2>Hi, please send to this address 0.01 smart BCH:</h2>
-<form action="/sendBCH" method="post">
-  <label for="addr">Address:</label><br>
-  <input type="text" id="addr" name="addr" size="80"><br>
-  <input type="submit" value="Submit">
-</form>
-
-</body>
-</html>
-`
-
-const resultHTML = `
-<!DOCTYPE html>
-<html>
-<head>
-<title>smartBCH testnet faucet</title>
-</head>
-<body>
-
-<h2>Sent! result:</h2>
-<code>
-%s
-</code>
-
-</body>
-</html>
-`
-
-const reqTMPL = `{
-  "jsonrpc": "2.0",
-  "method": "eth_sendTransaction",
-  "params":[{
-    "from": "0x83b1e2268e976d14cde7c23baa94887404fe71a1",
-    "to": "%s",
-    "gasPrice": "0x0",
-    "value": "0x2386F26FC10000"
-  }],
-  "id":1}'`
-
 const rpcURL = "http://45.32.38.25:8545"
+
+var (
+	//go:embed html/index.html
+	indexHTML string
+
+	//go:embed html/result.html
+	resultHTML string
+
+	//go:embed json/send_tx_req.json
+	sendTxReqJSON string
+
+	//go:embed json/get_tx_count_req.json
+	getTxCountReqJSON string
+
+	//go:embed json/send_raw_tx_req.json
+	sendRawTxReqJSON string
+)
+
+var (
+	faucetAddrs []gethcmn.Address
+	faucetKeys  []*ecdsa.PrivateKey
+)
+
+type GetTxCountResp struct {
+	Result string `json:"result"`
+}
 
 func hello(w http.ResponseWriter, req *http.Request) {
 	_, _ = fmt.Fprint(w, indexHTML)
 }
 
 func sendBCH(w http.ResponseWriter, req *http.Request) {
-	var addr string
-	if req.Method == "POST" {
-		if err := req.ParseForm(); err != nil {
-			_, _ = w.Write([]byte(err.Error()))
-			return
-		}
-		addr = req.Form.Get("addr")
-	} else {
-		addr = req.URL.Query().Get("addr")
-	}
 	fmt.Println("time:", time.Now())
-	fmt.Println("addr:", addr)
-	postBody := fmt.Sprintf(reqTMPL, addr)
-	fmt.Println("req:", postBody)
+	toAddrHex, err := getQueryParam(req, "addr")
+	if err != nil {
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
 
-	result, err := post(rpcURL, postBody)
+	fmt.Println("addr:", toAddrHex)
+	toAddr := gethcmn.HexToAddress(toAddrHex)
+
+	idx := rand.Intn(len(faucetKeys))
+	fromAddr := faucetAddrs[idx]
+	key := faucetKeys[idx]
+
+	getNonceReq := fmt.Sprintf(getTxCountReqJSON, fromAddr.Hex())
+	fmt.Println("get nonce req:", getNonceReq)
+	getNonceResp, err := sendPost(rpcURL, getNonceReq)
+	if err != nil {
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	fmt.Println("get nonce resp:", getNonceResp)
+	respObj := GetTxCountResp{}
+	err = json.Unmarshal([]byte(getNonceResp), &respObj)
+	if err != nil {
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	if strings.HasPrefix(respObj.Result, "0x") {
+		respObj.Result = respObj.Result[2:]
+	}
+	nonce, err := strconv.ParseInt(respObj.Result, 16, 64)
+	if err != nil {
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	txData, err := makeAndSignTx(key, uint64(nonce), toAddr)
+	sendRawTxReq := fmt.Sprintf(sendRawTxReqJSON, "0x"+hex.EncodeToString(txData))
+	fmt.Println("sendRawTx req:", sendRawTxReq)
+
+	sendRawTxResp, err := sendPost(rpcURL, sendRawTxReq)
 	if err != nil {
 		fmt.Println("err:", err.Error())
 		_, _ = w.Write([]byte(err.Error()))
-	} else {
-		fmt.Println("result:", result)
-		_, _ = w.Write([]byte(fmt.Sprintf(resultHTML, result)))
+		return
 	}
+
+	fmt.Println("sendRawTx resp:", sendRawTxResp)
+	_, _ = w.Write([]byte(fmt.Sprintf(resultHTML, sendRawTxResp)))
 }
 
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: faucet 'key1,key2,key3,...'")
+		return
+	}
+
+	parsePrivKeys(os.Args[1])
+	startServer()
+}
+
+func parsePrivKeys(csv string) {
+	for _, hexKey := range strings.Split(csv, ",") {
+		key, _, err := ethutils.HexToPrivKey(hexKey)
+		if err != nil {
+			panic(err)
+		}
+
+		addr := ethutils.PrivKeyToAddr(key)
+		faucetKeys = append(faucetKeys, key)
+		faucetAddrs = append(faucetAddrs, addr)
+		fmt.Println("parsed faucet addr: ", addr.Hex())
+	}
+}
+
+func startServer() {
 	http.HandleFunc("/faucet", hello)
 	http.HandleFunc("/sendBCH", sendBCH)
 
-	http.ListenAndServe(":8080", nil)
-}
-
-func post(url string, jsonStr string) (string, error) {
-	body := bytes.NewReader([]byte(jsonStr))
-	resp, err := http.Post(url, "application/json", body)
+	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
-		return "", err
+		panic(err)
 	}
-
-	defer resp.Body.Close()
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), err
 }

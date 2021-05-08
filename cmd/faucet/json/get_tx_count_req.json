@@ -1,0 +1,6 @@
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getTransactionCount",
+  "params": ["%s", "latest"],
+  "id": 123
+}
