@@ -509,9 +509,9 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		panic("system balance not enough!")
 	}
 	if app.txEngine.StandbyQLen() != 0 {
-		if sysB.Cmp(uint256.NewInt()) <= 0 {
-			panic("system account balance should have some pending gas fee")
-		}
+		//if sysB.Cmp(uint256.NewInt()) <= 0 {
+		//	panic("system account balance should have some pending gas fee")
+		//}
 	} else {
 		// distribute extra balance to validators
 		blockReward = *sysB
