@@ -18,11 +18,11 @@ var (
 	resultHTML string
 )
 
-func startServer() {
+func startServer(port int64) {
 	http.HandleFunc("/faucet", hello)
 	http.HandleFunc("/sendBCH", sendBCH)
 
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		panic(err)
 	}

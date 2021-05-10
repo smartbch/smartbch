@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
@@ -22,21 +23,25 @@ var (
 
 func main() {
 	switch len(os.Args) {
-	case 1, 2:
+	case 1, 2, 3:
 		fmt.Print(`
-Usage: faucet <rpc-url> <priv-keys-file>
-   or: faucet <rpc-url> key1 key2 key3 ...
+Usage: faucet <port> <rpc-url> <priv-keys-file>
+   or: faucet <port> <rpc-url> key1 key2 key3 ...
 `)
 		return
-	case 3:
-		rpcURL = os.Args[1]
-		parsePrivKeysFromFile(os.Args[2])
 	case 4:
-		rpcURL = os.Args[1]
-		parsePrivKeys(os.Args[2:])
+		rpcURL = os.Args[2]
+		parsePrivKeysFromFile(os.Args[3])
+	default:
+		rpcURL = os.Args[2]
+		parsePrivKeys(os.Args[3:])
 	}
 
-	startServer()
+	port, err := strconv.ParseInt(os.Args[1], 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	startServer(port)
 }
 
 func parsePrivKeysFromFile(filename string) {
