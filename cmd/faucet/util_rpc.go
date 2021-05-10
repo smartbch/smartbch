@@ -11,8 +11,6 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 )
 
-const rpcURL = "http://45.32.38.25:8545"
-
 var (
 	//go:embed json/get_tx_count_req.json
 	getTxCountReqJSON string

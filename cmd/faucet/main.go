@@ -14,22 +14,26 @@ import (
 )
 
 var (
+	rpcURL = "http://45.32.38.25:8545"
+
 	faucetAddrs []gethcmn.Address
 	faucetKeys  []*ecdsa.PrivateKey
 )
 
 func main() {
 	switch len(os.Args) {
-	case 1:
+	case 1, 2:
 		fmt.Print(`
-Usage: faucet <priv-keys-file>
-   or: faucet key1 key2 key3 ...
+Usage: faucet <rpc-url> <priv-keys-file>
+   or: faucet <rpc-url> key1 key2 key3 ...
 `)
 		return
-	case 2:
-		parsePrivKeysFromFile(os.Args[1])
 	case 3:
-		parsePrivKeys(os.Args[1:])
+		rpcURL = os.Args[1]
+		parsePrivKeysFromFile(os.Args[2])
+	case 4:
+		rpcURL = os.Args[1]
+		parsePrivKeys(os.Args[2:])
 	}
 
 	startServer()
