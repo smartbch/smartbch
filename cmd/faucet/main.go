@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	_ "embed"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -18,8 +19,28 @@ var (
 )
 
 func main() {
-	parsePrivKeys(os.Args[1:])
+	switch len(os.Args) {
+	case 1:
+		fmt.Print(`
+Usage: faucet <priv-keys-file>
+   or: faucet key1 key2 key3 ...
+`)
+		return
+	case 2:
+		parsePrivKeysFromFile(os.Args[1])
+	case 3:
+		parsePrivKeys(os.Args[1:])
+	}
+
 	startServer()
+}
+
+func parsePrivKeysFromFile(filename string) {
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+	parsePrivKeys(strings.Split(string(bytes), "\n"))
 }
 
 func parsePrivKeys(privKeys []string) {
