@@ -4,8 +4,10 @@ import (
 	"crypto/ecdsa"
 	_ "embed"
 	"fmt"
-	gethcmn "github.com/ethereum/go-ethereum/common"
 	"os"
+	"strings"
+
+	gethcmn "github.com/ethereum/go-ethereum/common"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 )
@@ -22,14 +24,17 @@ func main() {
 
 func parsePrivKeys(privKeys []string) {
 	for _, hexKey := range privKeys {
-		key, _, err := ethutils.HexToPrivKey(hexKey)
-		if err != nil {
-			panic(err)
-		}
+		hexKey = strings.TrimSpace(hexKey)
+		if len(hexKey) == 64 {
+			key, _, err := ethutils.HexToPrivKey(hexKey)
+			if err != nil {
+				panic(err)
+			}
 
-		addr := ethutils.PrivKeyToAddr(key)
-		faucetKeys = append(faucetKeys, key)
-		faucetAddrs = append(faucetAddrs, addr)
-		fmt.Println("faucet addr: ", addr.Hex())
+			addr := ethutils.PrivKeyToAddr(key)
+			faucetKeys = append(faucetKeys, key)
+			faucetAddrs = append(faucetAddrs, addr)
+			fmt.Println("faucet addr: ", addr.Hex())
+		}
 	}
 }
