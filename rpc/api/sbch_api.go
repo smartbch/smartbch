@@ -111,10 +111,7 @@ func (sbch sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
 func (sbch sbchAPI) GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64 {
 	fromCount, toCount := int64(0), int64(0)
 	if kind == "from" || kind == "both" {
-		nonce, err := sbch.backend.GetNonce(addr)
-		if err == nil {
-			fromCount = int64(nonce)
-		}
+		fromCount = sbch.backend.GetFromAddressCount(addr)
 	}
 	if kind == "to" || kind == "both" {
 		toCount = sbch.backend.GetToAddressCount(addr)

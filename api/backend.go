@@ -237,6 +237,12 @@ func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {
 
 	return ctx.GetToAddressCount(addr)
 }
+func (backend *apiBackend) GetFromAddressCount(addr common.Address) int64 {
+	ctx := backend.app.GetHistoryOnlyContext()
+	defer ctx.Close(false)
+
+	return ctx.GetFromAddressCount(addr)
+}
 func (backend *apiBackend) GetSep20ToAddressCount(contract common.Address, addr common.Address) int64 {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
