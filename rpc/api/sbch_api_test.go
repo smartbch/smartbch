@@ -60,6 +60,9 @@ func TestQueryTxBySrcDst(t *testing.T) {
 		{"addr", addr2, 1, 1, []gethcmn.Hash{{0xC1, 0x01}, {0xC1, 0x02}}},
 		{"addr", addr3, 1, 1, []gethcmn.Hash{{0xC1, 0x02}, {0xC1, 0x03}}},
 		{"addr", addr4, 1, 2, []gethcmn.Hash{{0xC1, 0x03}, {0xC2, 0x01}}},
+
+		// TODO: fix me
+		{"src", addr1, 2, 1, []gethcmn.Hash{{0xC2, 0x01}, {0xC1, 0x01}}},
 	}
 	for _, testCase := range testCases {
 		switch testCase.queryBy {
