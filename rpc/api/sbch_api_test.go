@@ -18,22 +18,22 @@ func TestQueryTxBySrcDst(t *testing.T) {
 	defer _app.Destroy()
 	_api := createSbchAPI(_app)
 
-	addr1 := gethcmn.Address{0xAD, 0x01}
-	addr2 := gethcmn.Address{0xAD, 0x02}
-	addr3 := gethcmn.Address{0xAD, 0x03}
-	addr4 := gethcmn.Address{0xAD, 0x04}
+	addr1 := gethcmn.Address{0xA1}
+	addr2 := gethcmn.Address{0xA2}
+	addr3 := gethcmn.Address{0xA3}
+	addr4 := gethcmn.Address{0xA4}
 
 	blk1 := testutils.NewMdbBlockBuilder().
-		Height(1).Hash(gethcmn.Hash{0xB1, 0x23}).
-		TxWithAddr(gethcmn.Hash{0xC1}, addr1, addr2).
-		TxWithAddr(gethcmn.Hash{0xC2}, addr2, addr3).
-		TxWithAddr(gethcmn.Hash{0xC3}, addr3, addr4).
+		Height(1).Hash(gethcmn.Hash{0xB1}).
+		TxWithAddr(gethcmn.Hash{0xC1, 0x01}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC1, 0x02}, addr2, addr3).
+		TxWithAddr(gethcmn.Hash{0xC1, 0x03}, addr3, addr4).
 		Build()
 	blk2 := testutils.NewMdbBlockBuilder().
-		Height(2).Hash(gethcmn.Hash{0xB1, 0x23}).
-		TxWithAddr(gethcmn.Hash{0xC5}, addr1, addr4).
-		TxWithAddr(gethcmn.Hash{0xC6}, addr2, addr3).
-		TxWithAddr(gethcmn.Hash{0xC7}, addr3, addr2).
+		Height(2).Hash(gethcmn.Hash{0xB2}).
+		TxWithAddr(gethcmn.Hash{0xC2, 0x01}, addr1, addr4).
+		TxWithAddr(gethcmn.Hash{0xC2, 0x02}, addr2, addr3).
+		TxWithAddr(gethcmn.Hash{0xC2, 0x03}, addr3, addr2).
 		Build()
 
 	ctx := _app.GetRunTxContext()
@@ -44,45 +44,48 @@ func TestQueryTxBySrcDst(t *testing.T) {
 	_app.WaitMS(100)
 
 	testCases := []struct {
-		queryBy string
-		addr    gethcmn.Address
-		startH  gethrpc.BlockNumber
-		endH    gethrpc.BlockNumber
-		retLen  int
+		queryBy  string
+		addr     gethcmn.Address
+		startH   gethrpc.BlockNumber
+		endH     gethrpc.BlockNumber
+		txHashes []gethcmn.Hash
 	}{
-		{"src", addr1, 1, 2, 2},
-		{"src", addr1, 1, -1, 2},
-		{"src", addr1, -1, -1, 1},
-		{"dst", addr2, 1, 2, 2},
-		{"dst", addr2, 1, -1, 2},
-		{"dst", addr2, -1, -1, 1},
-		{"addr", addr1, 1, 1, 1},
-		{"addr", addr2, 1, 1, 2},
-		{"addr", addr3, 1, 1, 2},
-		//{"addr", addr4, 1, 1, 1},
+		{"src", addr1, 1, 2, []gethcmn.Hash{{0xC1, 0x01}, {0xC2, 0x01}}},
+		{"src", addr1, 1, -1, []gethcmn.Hash{{0xC1, 0x01}, {0xC2, 0x01}}},
+		{"src", addr1, -1, -1, []gethcmn.Hash{{0xC2, 0x01}}},
+		{"dst", addr2, 1, 2, []gethcmn.Hash{{0xC1, 0x01}, {0xC2, 0x03}}},
+		{"dst", addr2, 1, -1, []gethcmn.Hash{{0xC1, 0x01}, {0xC2, 0x03}}},
+		{"dst", addr2, -1, -1, []gethcmn.Hash{{0xC2, 0x03}}},
+		{"addr", addr1, 1, 1, []gethcmn.Hash{{0xC1, 0x01}}},
+		{"addr", addr2, 1, 1, []gethcmn.Hash{{0xC1, 0x01}, {0xC1, 0x02}}},
+		{"addr", addr3, 1, 1, []gethcmn.Hash{{0xC1, 0x02}, {0xC1, 0x03}}},
+		{"addr", addr4, 1, 2, []gethcmn.Hash{{0xC1, 0x03}, {0xC2, 0x01}}},
 	}
 	for _, testCase := range testCases {
 		switch testCase.queryBy {
 		case "src":
 			txs, err := _api.QueryTxBySrc(testCase.addr, testCase.startH, testCase.endH)
 			require.NoError(t, err)
-			require.Len(t, txs, testCase.retLen)
-			for _, tx := range txs {
+			require.Len(t, txs, len(testCase.txHashes))
+			for i, tx := range txs {
 				require.Equal(t, testCase.addr, tx.From)
+				require.Equal(t, testCase.txHashes[i], tx.Hash)
 			}
 		case "dst":
 			txs, err := _api.QueryTxByDst(testCase.addr, testCase.startH, testCase.endH)
 			require.NoError(t, err)
-			require.Len(t, txs, testCase.retLen)
-			for _, tx := range txs {
+			require.Len(t, txs, len(testCase.txHashes))
+			for i, tx := range txs {
 				require.Equal(t, testCase.addr, *tx.To)
+				require.Equal(t, testCase.txHashes[i], tx.Hash)
 			}
 		default:
 			txs, err := _api.QueryTxByAddr(testCase.addr, testCase.startH, testCase.endH)
 			require.NoError(t, err)
-			require.Len(t, txs, testCase.retLen)
-			for _, tx := range txs {
+			require.Len(t, txs, len(testCase.txHashes))
+			for i, tx := range txs {
 				require.True(t, testCase.addr == tx.From || testCase.addr == *tx.To)
+				require.Equal(t, testCase.txHashes[i], tx.Hash)
 			}
 		}
 	}
