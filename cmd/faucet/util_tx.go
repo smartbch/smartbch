@@ -17,7 +17,7 @@ var (
 	amt      = big.NewInt(10000000000000000)
 )
 
-func makeAndSignTx(privKey *ecdsa.PrivateKey, nonce uint64, toAddr gethcmn.Address) ([]byte, error) {
+func makeAndSignTx(privKey *ecdsa.PrivateKey, nonce uint64, toAddr gethcmn.Address) (*gethtypes.Transaction, error) {
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
@@ -32,5 +32,5 @@ func makeAndSignTx(privKey *ecdsa.PrivateKey, nonce uint64, toAddr gethcmn.Addre
 		return nil, err
 	}
 
-	return ethutils.EncodeTx(tx)
+	return tx, nil
 }

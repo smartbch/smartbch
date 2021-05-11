@@ -9,6 +9,9 @@ import (
 	"strings"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
 var (
@@ -44,7 +47,14 @@ func getNonce(addr gethcmn.Address) (int64, error) {
 	return strconv.ParseInt(respObj.Result, 16, 64)
 }
 
-func sendRawTx(txData []byte) (string, error) {
+func sendRawTx(tx *gethtypes.Transaction) (string, error) {
+	txData, err := ethutils.EncodeTx(tx)
+	if err != nil {
+		return "", err
+	}
+	txJson, _ := tx.MarshalJSON()
+	fmt.Println("sendRawTx tx:", string(txJson))
+
 	sendRawTxReq := fmt.Sprintf(sendRawTxReqJSON, "0x"+hex.EncodeToString(txData))
 	fmt.Println("sendRawTx req:", sendRawTxReq)
 

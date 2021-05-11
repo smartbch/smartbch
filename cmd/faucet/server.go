@@ -33,33 +33,34 @@ func hello(w http.ResponseWriter, req *http.Request) {
 }
 
 func sendBCH(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("time:", time.Now())
+	fmt.Println("---------- time:", time.Now())
 	toAddrHex, err := getQueryParam(req, "addr")
 	if err != nil {
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
 
-	fmt.Println("addr:", toAddrHex)
+	fmt.Println("---------- user addr:", toAddrHex)
 	toAddr := gethcmn.HexToAddress(toAddrHex)
 
 	idx := rand.Intn(len(faucetKeys))
-	fromAddr := faucetAddrs[idx]
-	key := faucetKeys[idx]
+	faucetAddr := faucetAddrs[idx]
+	faucetKey := faucetKeys[idx]
+	fmt.Println("faucet addr:", faucetAddr)
 
-	nonce, err := getNonce(fromAddr)
+	nonce, err := getNonce(faucetAddr)
 	if err != nil {
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
 
-	txData, err := makeAndSignTx(key, uint64(nonce), toAddr)
+	tx, err := makeAndSignTx(faucetKey, uint64(nonce), toAddr)
 	if err != nil {
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
 
-	sendRawTxResp, err := sendRawTx(txData)
+	sendRawTxResp, err := sendRawTx(tx)
 	if err != nil {
 		_, _ = w.Write([]byte(err.Error()))
 		return
