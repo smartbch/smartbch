@@ -186,17 +186,20 @@ func createRootStore(config *param.ChainConfig) *store.RootStore {
 	return store.NewRootStore(mads, nil)
 }
 
-func createHistoryStore(config *param.ChainConfig) *modb.MoDB {
-	var historyStore *modb.MoDB
+func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 	modbDir := config.ModbDataPath
-	if _, err := os.Stat(modbDir); os.IsNotExist(err) {
-		_ = os.MkdirAll(path.Join(modbDir, "data"), 0700)
-		historyStore = modb.CreateEmptyMoDB(modbDir, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+	if config.UseLiteDB {
+		historyStore = modb.NewLiteDB(modbDir)
 	} else {
-		historyStore = modb.NewMoDB(modbDir)
+		if _, err := os.Stat(modbDir); os.IsNotExist(err) {
+			_ = os.MkdirAll(path.Join(modbDir, "data"), 0700)
+			historyStore = modb.CreateEmptyMoDB(modbDir, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+		} else {
+			historyStore = modb.NewMoDB(modbDir)
+		}
+		historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
 	}
-	historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
-	return historyStore
+	return
 }
 
 func (app *App) Init(blk *types.Block) {

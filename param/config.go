@@ -49,6 +49,9 @@ type ChainConfig struct {
 
 	// db config
 	RetainBlocks int64
+
+	// Use LiteDB instead of MoDB
+	UseLiteDB bool
 }
 
 var (
