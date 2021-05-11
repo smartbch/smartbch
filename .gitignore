@@ -28,3 +28,5 @@ node_modules/
 staking/showopreturn/showopreturn
 staking/mocknode/mocknode
 cmd/smartbchd/smartbchd
+
+private/
