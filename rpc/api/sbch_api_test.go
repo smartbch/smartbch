@@ -50,6 +50,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 		endH     gethrpc.BlockNumber
 		txHashes []gethcmn.Hash
 	}{
+		// startH <= endH
 		{"src", addr1, 1, 2, []gethcmn.Hash{{0xC1, 0x01}, {0xC2, 0x01}}},
 		{"src", addr1, 1, -1, []gethcmn.Hash{{0xC1, 0x01}, {0xC2, 0x01}}},
 		{"src", addr1, -1, -1, []gethcmn.Hash{{0xC2, 0x01}}},
@@ -61,8 +62,10 @@ func TestQueryTxBySrcDst(t *testing.T) {
 		{"addr", addr3, 1, 1, []gethcmn.Hash{{0xC1, 0x02}, {0xC1, 0x03}}},
 		{"addr", addr4, 1, 2, []gethcmn.Hash{{0xC1, 0x03}, {0xC2, 0x01}}},
 
-		// TODO: fix me
+		// startH > endH
 		{"src", addr1, 2, 1, []gethcmn.Hash{{0xC2, 0x01}, {0xC1, 0x01}}},
+		{"dst", addr2, 2, 1, []gethcmn.Hash{{0xC2, 0x03}, {0xC1, 0x01}}},
+		{"addr", addr4, 2, 1, []gethcmn.Hash{{0xC2, 0x01}, {0xC1, 0x03}}},
 	}
 	for _, testCase := range testCases {
 		switch testCase.queryBy {
