@@ -22,6 +22,7 @@ import (
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
+	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
 const counterContract = `
@@ -213,37 +214,7 @@ func TestGetStorageAt(t *testing.T) {
 	require.Equal(t, "0x1234", sVal.String())
 }
 
-func TestGetBlockByHash(t *testing.T) {
-	_app := testutils.CreateTestApp()
-	_app.WaitLock()
-	defer _app.Destroy()
-	_api := createEthAPI(_app)
-
-	hash := gethcmn.Hash{0x12, 0x34}
-	block := newMdbBlock(hash, 123, nil)
-	_app.StoreBlocks(block)
-
-	block2, err := _api.GetBlockByHash(hash, true)
-	require.NoError(t, err)
-	require.Equal(t, hexutil.Uint64(123), block2["number"])
-	require.Equal(t, hexutil.Bytes(hash[:]), block2["hash"])
-	require.Equal(t, hexutil.Uint64(200000000), block2["gasLimit"])
-	require.Equal(t, hexutil.Uint64(0), block2["gasUsed"])
-	require.Equal(t, hexutil.Bytes(nil), block2["extraData"])
-}
-
-func TestGetBlockByHash_notFound(t *testing.T) {
-	_app := testutils.CreateTestApp()
-	_app.WaitLock()
-	defer _app.Destroy()
-	_api := createEthAPI(_app)
-
-	blk, err := _api.GetBlockByHash(gethcmn.Hash{0x12, 0x34}, true)
-	require.NoError(t, err)
-	require.Nil(t, blk)
-}
-
-func TestGetBlockByNum(t *testing.T) {
+func TestGetBlockByNumAndHash(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
 	defer _app.Destroy()
@@ -255,24 +226,39 @@ func TestGetBlockByNum(t *testing.T) {
 	})
 	_app.StoreBlocks(block)
 
-	block2, err := _api.GetBlockByNumber(123, true)
+	getBlockByNumResult, err := _api.GetBlockByNumber(123, false)
 	require.NoError(t, err)
-	require.Equal(t, hexutil.Uint64(123), block2["number"])
-	require.Equal(t, hexutil.Bytes(hash[:]), block2["hash"])
-	require.Equal(t, hexutil.Uint64(200000000), block2["gasLimit"])
-	require.Equal(t, hexutil.Uint64(0), block2["gasUsed"])
-	require.Equal(t, hexutil.Bytes(nil), block2["extraData"])
-	require.Equal(t, "0x0000000000000000", block2["nonce"].(hexutil.Bytes).String())
-	require.Len(t, block2["transactions"], 3)
+	require.Equal(t, hexutil.Uint64(123), getBlockByNumResult["number"])
+	require.Equal(t, hexutil.Bytes(hash[:]), getBlockByNumResult["hash"])
+	require.Equal(t, hexutil.Uint64(200000000), getBlockByNumResult["gasLimit"])
+	require.Equal(t, hexutil.Uint64(0), getBlockByNumResult["gasUsed"])
+	require.Equal(t, hexutil.Bytes(nil), getBlockByNumResult["extraData"])
+	require.Equal(t, "0x0000000000000000", getBlockByNumResult["nonce"].(hexutil.Bytes).String())
+	require.Equal(t, []gethcmn.Hash{{0x56}, {0x78}, {0x90}}, getBlockByNumResult["transactions"])
+
+	getBlockByHashResult, err := _api.GetBlockByHash(hash, false)
+	require.NoError(t, err)
+	require.Equal(t, getBlockByNumResult, getBlockByHashResult)
+
+	getBlockByNumResultFull, err := _api.GetBlockByNumber(123, true)
+	require.Len(t, getBlockByNumResultFull["transactions"].([]*rpctypes.Transaction), 3)
+
+	getBlockByHashResultFull, err := _api.GetBlockByHash(hash, true)
+	require.NoError(t, err)
+	require.Equal(t, getBlockByNumResultFull, getBlockByHashResultFull)
 }
 
-func TestGetBlockByNum_notFound(t *testing.T) {
+func TestGetBlockByNumAndHash_notFound(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
 	blk, err := _api.GetBlockByNumber(99, true)
+	require.NoError(t, err)
+	require.Nil(t, blk)
+
+	blk, err = _api.GetBlockByHash(gethcmn.Hash{0x12, 0x34}, true)
 	require.NoError(t, err)
 	require.Nil(t, blk)
 }

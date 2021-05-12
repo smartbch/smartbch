@@ -166,7 +166,16 @@ func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 		}
 		return nil, err
 	}
-	return blockToRpcResp(block), nil
+
+	var txs []*types.Transaction
+	if fullTx {
+		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return blockToRpcResp(block, txs), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByNumber
@@ -178,7 +187,15 @@ func (api *ethAPI) GetBlockByNumber(blockNum gethrpc.BlockNumber, fullTx bool) (
 		}
 		return nil, err
 	}
-	return blockToRpcResp(block), nil
+
+	var txs []*types.Transaction
+	if fullTx {
+		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return blockToRpcResp(block, txs), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockTransactionCountByHash

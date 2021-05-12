@@ -71,8 +71,8 @@ func createGethTxFromSendTxArgs(args rpctypes.SendTxArgs) (*gethtypes.Transactio
 	return tx, nil
 }
 
-func blockToRpcResp(block *types.Block) map[string]interface{} {
-	return map[string]interface{}{
+func blockToRpcResp(block *types.Block, txs []*types.Transaction) map[string]interface{} {
+	result := map[string]interface{}{
 		"number":           hexutil.Uint64(block.Number),
 		"hash":             hexutil.Bytes(block.Hash[:]),
 		"parentHash":       hexutil.Bytes(block.ParentHash[:]),
@@ -94,6 +94,16 @@ func blockToRpcResp(block *types.Block) map[string]interface{} {
 		"uncles":           []string{},
 		"receiptsRoot":     gethcmn.Hash{},
 	}
+
+	if len(txs) > 0 {
+		rpcTxs := make([]*rpctypes.Transaction, len(txs))
+		for i, tx := range txs {
+			rpcTxs[i] = txToRpcResp(tx)
+		}
+		result["transactions"] = rpcTxs
+	}
+
+	return result
 }
 
 func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
