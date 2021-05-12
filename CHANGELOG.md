@@ -6,12 +6,18 @@
 
 * JSON-RPC
 
-  * sbch_queryTxBySrc/Dst/Addr & sbch_queryLogs
+  * Bug fixes
 
-    * allow `startHeight` to be greater than `endHeight`
-    * add `limit` param
+    * eta_getBlockByNumber/Hash
 
-    please refer to  [JSON-RPC docs](https://github.com/smartbch/docs/blob/main/deverlopers-guide/jsonrpc.md#sbch_queryTxBySrc) for more detailed change
+  * Improvements
+
+    * sbch_queryTxBySrc/Dst/Addr & sbch_queryLogs
+
+      * allow `startHeight` to be greater than `endHeight`
+      * add `limit` param
+
+      please refer to  [JSON-RPC docs](https://github.com/smartbch/docs/blob/main/deverlopers-guide/jsonrpc.md#sbch_queryTxBySrc) for more detailed info
 
 
 
