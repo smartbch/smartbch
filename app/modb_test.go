@@ -24,10 +24,7 @@ func TestGetBlock(t *testing.T) {
 			Address: gethcmn.Address{0xAD, 0x02},
 		}).
 		Build()
-
-	_app.HistoryStore().AddBlock(blk, -1)
-	_app.HistoryStore().AddBlock(nil, -1)
-	_app.WaitMS(10)
+	_app.AddBlocksToHistory(blk)
 
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -58,9 +55,7 @@ func TestQueryLogs(t *testing.T) {
 			Topics:  [][32]byte{topic3, topic4},
 		}).
 		Build()
-	_app.HistoryStore().AddBlock(blk, -1)
-	_app.HistoryStore().AddBlock(nil, -1)
-	_app.WaitMS(10)
+	_app.AddBlocksToHistory(blk)
 
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -112,10 +107,7 @@ func TestGetLogsMaxResults(t *testing.T) {
 		Tx(gethcmn.Hash{0xC9}, types.Log{Address: addr}).
 		Tx(gethcmn.Hash{0xC0}, types.Log{Address: addr}).
 		Build()
-
-	_app.HistoryStore().AddBlock(blk, -1)
-	_app.HistoryStore().AddBlock(nil, -1)
-	_app.WaitMS(10)
+	_app.AddBlocksToHistory(blk)
 
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)

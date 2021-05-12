@@ -181,6 +181,13 @@ func (_app *TestApp) StoreBlocks(blocks ...*modbtypes.Block) {
 	ctx.StoreBlock(nil) // flush previous block
 	ctx.Close(true)
 }
+func (_app *TestApp) AddBlocksToHistory(blocks ...*modbtypes.Block) {
+	for _, blk := range blocks {
+		_app.HistoryStore().AddBlock(blk, -1)
+	}
+	_app.HistoryStore().AddBlock(nil, -1)
+	_app.WaitMS(10)
+}
 
 func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {

@@ -277,10 +277,7 @@ func TestQueryLogs(t *testing.T) {
 		Tx(tx5Hash, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic3, topic2}}).
 		Tx(tx6Hash, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic3, topic4}}).
 		Build()
-	_app.HistoryStore().AddBlock(blk1, -1)
-	_app.HistoryStore().AddBlock(blk2, -1)
-	_app.HistoryStore().AddBlock(nil, -1)
-	_app.WaitMS(10)
+	_app.AddBlocksToHistory(blk1, blk2)
 
 	testCases := []struct {
 		addr        gethcmn.Address
@@ -321,10 +318,7 @@ func TestQueryLogs_limit(t *testing.T) {
 		Tx(gethcmn.Hash{0xC8}, motypes.Log{Address: addr1, Topics: [][32]byte{topic3, topic1, topic2}}).
 		Tx(gethcmn.Hash{0xC9}, motypes.Log{Address: addr1, Topics: [][32]byte{topic3, topic2, topic1}}).
 		Build()
-
-	_app.HistoryStore().AddBlock(blk1, -1)
-	_app.HistoryStore().AddBlock(nil, -1)
-	_app.WaitMS(100)
+	_app.AddBlocksToHistory(blk1)
 
 	logs, err := _api.QueryLogs(addr1, []gethcmn.Hash{topic1, topic2}, 1, 2, 0)
 	require.NoError(t, err)
