@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
+	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
@@ -199,6 +200,60 @@ func TestGetToAddressCount(t *testing.T) {
 	require.Equal(t, hexutil.Uint64(1), _api.GetAddressCount("both", addr2))
 	require.Equal(t, hexutil.Uint64(1), _api.GetAddressCount("both", addr3))
 	require.Equal(t, hexutil.Uint64(1), _api.GetAddressCount("both", addr4))
+}
+
+func TestQueryLogs(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	addr1 := gethcmn.Address{0xA1}
+	addr2 := gethcmn.Address{0xA2}
+	tx1Hash := gethcmn.Hash{0xC1}
+	tx2Hash := gethcmn.Hash{0xC2}
+	tx3Hash := gethcmn.Hash{0xC3}
+	tx4Hash := gethcmn.Hash{0xC4}
+	tx5Hash := gethcmn.Hash{0xC5}
+	tx6Hash := gethcmn.Hash{0xC6}
+	topic1 := gethcmn.Hash{0xD1}
+	topic2 := gethcmn.Hash{0xD2}
+	topic3 := gethcmn.Hash{0xD3}
+	topic4 := gethcmn.Hash{0xD4}
+	topic5 := gethcmn.Hash{0xD5}
+
+	blk1 := testutils.NewMdbBlockBuilder().
+		Height(1).Hash(gethcmn.Hash{0xB1}).
+		Tx(tx1Hash, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic2, topic3}}).
+		Tx(tx2Hash, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic4, topic5}}).
+		Tx(tx3Hash, motypes.Log{Address: addr2, Topics: [][32]byte{topic2, topic3, topic4}}).
+		Build()
+	blk2 := testutils.NewMdbBlockBuilder().
+		Height(2).Hash(gethcmn.Hash{0xB2}).
+		Tx(tx4Hash, motypes.Log{Address: addr2, Topics: [][32]byte{topic2, topic4, topic5}}).
+		Tx(tx5Hash, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic3, topic2}}).
+		Tx(tx6Hash, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic3, topic4}}).
+		Build()
+	_app.HistoryStore().AddBlock(blk1, -1)
+	_app.HistoryStore().AddBlock(blk2, -1)
+	_app.HistoryStore().AddBlock(nil, -1)
+	_app.WaitMS(10)
+
+	testCases := []struct {
+		addr        gethcmn.Address
+		topics      []gethcmn.Hash
+		startH      gethrpc.BlockNumber
+		endH        gethrpc.BlockNumber
+		logTxHashes []gethcmn.Hash
+	}{
+		{addr1, []gethcmn.Hash{topic2, topic3}, 1, 3, []gethcmn.Hash{tx1Hash, tx5Hash}},
+		{addr1, []gethcmn.Hash{topic2, topic3}, 3, 1, []gethcmn.Hash{tx5Hash, tx3Hash}},
+	}
+
+	for _, testCase := range testCases {
+		logs, err := _api.QueryLogs(testCase.addr, testCase.topics, testCase.startH, testCase.endH)
+		require.NoError(t, err)
+		require.Len(t, logs, len(testCase.logTxHashes))
+	}
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {
