@@ -221,10 +221,7 @@ func TestGetBlockByHash(t *testing.T) {
 
 	hash := gethcmn.Hash{0x12, 0x34}
 	block := newMdbBlock(hash, 123, nil)
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	block2, err := _api.GetBlockByHash(hash, true)
 	require.NoError(t, err)
@@ -256,10 +253,7 @@ func TestGetBlockByNum(t *testing.T) {
 	block := newMdbBlock(hash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	block2, err := _api.GetBlockByNumber(123, true)
 	require.NoError(t, err)
@@ -293,10 +287,7 @@ func TestGetBlockTxCountByHash(t *testing.T) {
 	block := newMdbBlock(hash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	cnt := _api.GetBlockTransactionCountByHash(hash)
 	require.Equal(t, hexutil.Uint(3), *cnt)
@@ -312,10 +303,7 @@ func TestGetBlockTxCountByNum(t *testing.T) {
 	block := newMdbBlock(hash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	cnt := _api.GetBlockTransactionCountByNumber(123)
 	require.Equal(t, hexutil.Uint(4), *cnt)
@@ -331,10 +319,7 @@ func TestGetTxByBlockHashAndIdx(t *testing.T) {
 	block := newMdbBlock(blkHash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	tx, err := _api.GetTransactionByBlockHashAndIndex(blkHash, 2)
 	require.NoError(t, err)
@@ -351,10 +336,7 @@ func TestGetTxByBlockNumAndIdx(t *testing.T) {
 	block := newMdbBlock(blkHash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	tx, err := _api.GetTransactionByBlockNumberAndIndex(123, 1)
 	require.NoError(t, err)
@@ -371,10 +353,7 @@ func TestGetTxByHash(t *testing.T) {
 	block := newMdbBlock(blkHash, 123, []gethcmn.Hash{
 		{0x56}, {0x78}, {0x90}, {0xAB},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	tx, err := _api.GetTransactionByHash(gethcmn.Hash{0x78})
 	require.NoError(t, err)
@@ -397,10 +376,7 @@ func TestGetTxReceipt(t *testing.T) {
 		Tx(gethcmn.Hash{0x90}).
 		Tx(gethcmn.Hash{0xAB}).
 		Build()
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 
 	receipt, err := _api.GetTransactionReceipt(gethcmn.Hash{0x78})
 	require.NoError(t, err)

@@ -37,11 +37,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 		TxWithAddr(gethcmn.Hash{0xC2, 0x03}, addr3, addr2).
 		Build()
 
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(blk1)
-	ctx.StoreBlock(blk2)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(blk1, blk2)
 	_app.WaitMS(100)
 
 	testCases := []struct {
@@ -115,10 +111,7 @@ func TestQueryTxByAddr(t *testing.T) {
 		TxWithAddr(gethcmn.Hash{0xC3}, addr3, addr4).
 		Build()
 
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(blk1)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(blk1)
 	_app.WaitMS(100)
 
 	txs, err := _api.QueryTxByAddr(addr4, 1, 1)
@@ -157,12 +150,7 @@ func TestGetTxListByHeight(t *testing.T) {
 		TxWithAddr(gethcmn.Hash{0xC6}, addr3, addr4).
 		Build()
 
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(blk1)
-	ctx.StoreBlock(blk2)
-	ctx.StoreBlock(blk3)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+	_app.StoreBlocks(blk1, blk2, blk3)
 	_app.WaitMS(100)
 
 	txs, err := _api.GetTxListByHeight(1)

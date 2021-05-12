@@ -223,21 +223,15 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 		Height(1).Hash(b1Hash).
 		Tx(gethcmn.Hash{0xC1}, types.Log{Address: gethcmn.Address{0xA1}}).
 		Build()
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block1)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
 
-	_app.WaitMS(10)
 	b2Hash := gethcmn.Hash{0xB2}
 	block2 := testutils.NewMdbBlockBuilder().
 		Height(2).Hash(b2Hash).
 		Tx(gethcmn.Hash{0xC2}, types.Log{Address: gethcmn.Address{0xA2}}).
 		Build()
-	ctx = _app.GetRunTxContext()
-	ctx.StoreBlock(block2)
-	ctx.StoreBlock(nil) // flush previous block
-	ctx.Close(true)
+
+	_app.StoreBlocks(block1, block2)
+	_app.WaitMS(10)
 
 	logs, err := _api.GetLogs(testutils.NewBlockHashFilter(&b1Hash))
 	require.NoError(t, err)
@@ -306,9 +300,7 @@ func addBlock(_app *testutils.TestApp, block *modbtypes.Block) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{Height: block.Height},
 	})
-	ctx := _app.GetRunTxContext()
-	ctx.StoreBlock(block)
-	ctx.Close(true)
+	_app.StoreBlocks(block)
 	_app.AddBlockFotTest(block)
 }
 

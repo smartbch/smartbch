@@ -16,6 +16,7 @@ import (
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
+	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/ebp"
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
@@ -170,6 +171,15 @@ func (_app *TestApp) GetSep20ToAddressCount(contract, addr gethcmn.Address) int6
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 	return ctx.GetSep20ToAddressCount(contract, addr)
+}
+
+func (_app *TestApp) StoreBlocks(blocks ...*modbtypes.Block) {
+	ctx := _app.GetRunTxContext()
+	for _, block := range blocks {
+		ctx.StoreBlock(block)
+	}
+	ctx.StoreBlock(nil) // flush previous block
+	ctx.Close(true)
 }
 
 func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
