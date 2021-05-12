@@ -11,14 +11,14 @@ import (
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
-var _ SbchAPI = (*sbchAPI)(nil)
+type ResultLimit = gethrpc.BlockNumber
 
 type SbchAPI interface {
 	GetStandbyTxQueue()
-	QueryTxBySrc(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
-	QueryTxByDst(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
-	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
-	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error)
+	QueryTxBySrc(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error)
+	QueryTxByDst(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error)
+	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error)
+	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*gethtypes.Log, error)
 	GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.Transaction, error)
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
@@ -48,10 +48,10 @@ func (sbch sbchAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]*rpctypes.T
 }
 
 func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
-	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
+	startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error) {
 
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxBySrc(addr, _start, _end)
+	txs, err := sbch.backend.QueryTxBySrc(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -59,10 +59,10 @@ func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
 }
 
 func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
-	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
+	startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error) {
 
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxByDst(addr, _start, _end)
+	txs, err := sbch.backend.QueryTxByDst(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -70,10 +70,10 @@ func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
 }
 
 func (sbch sbchAPI) QueryTxByAddr(addr gethcmn.Address,
-	startHeight, endHeight gethrpc.BlockNumber) ([]*rpctypes.Transaction, error) {
+	startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error) {
 
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxByAddr(addr, _start, _end)
+	txs, err := sbch.backend.QueryTxByAddr(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (sbch sbchAPI) prepareHeightRange(startHeight, endHeight gethrpc.BlockNumbe
 }
 
 func (sbch sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
-	startHeight, endHeight gethrpc.BlockNumber) ([]*gethtypes.Log, error) {
+	startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*gethtypes.Log, error) {
 
 	if startHeight == gethrpc.LatestBlockNumber {
 		startHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
@@ -105,7 +105,8 @@ func (sbch sbchAPI) QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash,
 		endHeight = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
 
-	logs, err := sbch.backend.SbchQueryLogs(addr, topics, uint32(startHeight), uint32(endHeight))
+	logs, err := sbch.backend.SbchQueryLogs(addr, topics,
+		uint32(startHeight), uint32(endHeight), uint32(limit))
 	if err != nil {
 		return nil, err
 	}

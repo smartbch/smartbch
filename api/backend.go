@@ -199,29 +199,29 @@ func (backend *apiBackend) QueryLogs(addresses []common.Address, topics [][]comm
 	return ctx.QueryLogs(addresses, topics, startHeight, endHeight)
 }
 
-func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
-	return ctx.QueryTxBySrc(addr, startHeight, endHeight)
+	return ctx.QueryTxBySrc(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
-	return ctx.QueryTxByDst(addr, startHeight, endHeight)
+	return ctx.QueryTxByDst(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
-	return ctx.QueryTxByAddr(addr, startHeight, endHeight)
+	return ctx.QueryTxByAddr(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
+func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight, limit uint32) ([]types.Log, error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
-	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight)
+	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight, limit)
 }
 
 func (backend *apiBackend) GetTxListByHeight(height uint32) (tx []*types.Transaction, err error) {

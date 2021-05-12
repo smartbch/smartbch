@@ -12,9 +12,10 @@ import (
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/testutils"
+	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
-func TestQueryTxBySrcDst(t *testing.T) {
+func TestQueryTxBySrcDstAddr(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	defer _app.Destroy()
 	_api := createSbchAPI(_app)
@@ -67,7 +68,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 	for _, testCase := range testCases {
 		switch testCase.queryBy {
 		case "src":
-			txs, err := _api.QueryTxBySrc(testCase.addr, testCase.startH, testCase.endH)
+			txs, err := _api.QueryTxBySrc(testCase.addr, testCase.startH, testCase.endH, 0)
 			require.NoError(t, err)
 			require.Len(t, txs, len(testCase.txHashes))
 			for i, tx := range txs {
@@ -75,7 +76,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 				require.Equal(t, testCase.txHashes[i], tx.Hash)
 			}
 		case "dst":
-			txs, err := _api.QueryTxByDst(testCase.addr, testCase.startH, testCase.endH)
+			txs, err := _api.QueryTxByDst(testCase.addr, testCase.startH, testCase.endH, 0)
 			require.NoError(t, err)
 			require.Len(t, txs, len(testCase.txHashes))
 			for i, tx := range txs {
@@ -83,7 +84,7 @@ func TestQueryTxBySrcDst(t *testing.T) {
 				require.Equal(t, testCase.txHashes[i], tx.Hash)
 			}
 		default:
-			txs, err := _api.QueryTxByAddr(testCase.addr, testCase.startH, testCase.endH)
+			txs, err := _api.QueryTxByAddr(testCase.addr, testCase.startH, testCase.endH, 0)
 			require.NoError(t, err)
 			require.Len(t, txs, len(testCase.txHashes))
 			for i, tx := range txs {
@@ -91,6 +92,61 @@ func TestQueryTxBySrcDst(t *testing.T) {
 				require.Equal(t, testCase.txHashes[i], tx.Hash)
 			}
 		}
+	}
+}
+
+func TestQueryTxBySrcDstAddr_limit(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	addr1 := gethcmn.Address{0xA1}
+	addr2 := gethcmn.Address{0xA2}
+	blk1 := testutils.NewMdbBlockBuilder().
+		Height(1).Hash(gethcmn.Hash{0xB1}).
+		TxWithAddr(gethcmn.Hash{0xC1}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC2}, addr2, addr1).
+		TxWithAddr(gethcmn.Hash{0xC3}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC4}, addr2, addr1).
+		TxWithAddr(gethcmn.Hash{0xC5}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC6}, addr2, addr1).
+		TxWithAddr(gethcmn.Hash{0xC7}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC8}, addr2, addr1).
+		TxWithAddr(gethcmn.Hash{0xC9}, addr1, addr2).
+		Build()
+
+	_app.StoreBlocks(blk1)
+
+	testCases := []struct {
+		queryBy string
+		addr    gethcmn.Address
+		startH  gethrpc.BlockNumber
+		endH    gethrpc.BlockNumber
+		limit   hexutil.Uint64
+		nRet    int
+	}{
+		{"src", addr1, 1, 1, 0, 5},
+		{"src", addr1, 1, 1, 3, 3},
+		{"dst", addr1, 1, 1, 0, 4},
+		{"dst", addr1, 1, 1, 2, 2},
+		{"addr", addr1, 1, 1, 0, 9},
+		{"addr", addr1, 1, 1, 7, 7},
+	}
+
+	for _, testCase := range testCases {
+		var txs []*rpctypes.Transaction
+		var err error
+		switch testCase.queryBy {
+		case "src":
+			txs, err = _api.QueryTxBySrc(addr1, testCase.startH, testCase.endH, testCase.limit)
+		case "dst":
+			txs, err = _api.QueryTxByDst(addr1, testCase.startH, testCase.endH, testCase.limit)
+		case "addr":
+			txs, err = _api.QueryTxByAddr(addr1, testCase.startH, testCase.endH, testCase.limit)
+		}
+
+		require.NoError(t, err)
+		require.Len(t, txs, testCase.nRet)
 	}
 }
 
@@ -114,7 +170,7 @@ func TestQueryTxByAddr(t *testing.T) {
 	_app.StoreBlocks(blk1)
 	_app.WaitMS(100)
 
-	txs, err := _api.QueryTxByAddr(addr4, 1, 1)
+	txs, err := _api.QueryTxByAddr(addr4, 1, 1, 0)
 	require.NoError(t, err)
 	for _, tx := range txs {
 		require.Contains(t, []gethcmn.Address{tx.From, *tx.To}, addr4)
@@ -238,10 +294,45 @@ func TestQueryLogs(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		logs, err := _api.QueryLogs(testCase.addr, testCase.topics, testCase.startH, testCase.endH)
+		logs, err := _api.QueryLogs(testCase.addr, testCase.topics, testCase.startH, testCase.endH, 0)
 		require.NoError(t, err)
 		require.Len(t, logs, len(testCase.logTxHashes))
 	}
+}
+
+func TestQueryLogs_limit(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	addr1 := gethcmn.Address{0xA1}
+	topic1 := gethcmn.Hash{0xD1}
+	topic2 := gethcmn.Hash{0xD2}
+	topic3 := gethcmn.Hash{0xD3}
+	blk1 := testutils.NewMdbBlockBuilder().
+		Height(1).Hash(gethcmn.Hash{0xB1}).
+		Tx(gethcmn.Hash{0xC1}, motypes.Log{Address: addr1, Topics: [][32]byte{topic1}}).
+		Tx(gethcmn.Hash{0xC2}, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic2}}).
+		Tx(gethcmn.Hash{0xC3}, motypes.Log{Address: addr1, Topics: [][32]byte{topic2, topic1}}).
+		Tx(gethcmn.Hash{0xC4}, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic2, topic3}}).
+		Tx(gethcmn.Hash{0xC5}, motypes.Log{Address: addr1, Topics: [][32]byte{topic1, topic3, topic2}}).
+		Tx(gethcmn.Hash{0xC6}, motypes.Log{Address: addr1, Topics: [][32]byte{topic2, topic1, topic3}}).
+		Tx(gethcmn.Hash{0xC7}, motypes.Log{Address: addr1, Topics: [][32]byte{topic2, topic3, topic1}}).
+		Tx(gethcmn.Hash{0xC8}, motypes.Log{Address: addr1, Topics: [][32]byte{topic3, topic1, topic2}}).
+		Tx(gethcmn.Hash{0xC9}, motypes.Log{Address: addr1, Topics: [][32]byte{topic3, topic2, topic1}}).
+		Build()
+
+	_app.HistoryStore().AddBlock(blk1, -1)
+	_app.HistoryStore().AddBlock(nil, -1)
+	_app.WaitMS(100)
+
+	logs, err := _api.QueryLogs(addr1, []gethcmn.Hash{topic1, topic2}, 1, 2, 0)
+	require.NoError(t, err)
+	require.Len(t, logs, 8)
+
+	logs, err = _api.QueryLogs(addr1, []gethcmn.Hash{topic1, topic2}, 1, 2, 5)
+	require.NoError(t, err)
+	require.Len(t, logs, 5)
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {

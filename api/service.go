@@ -92,10 +92,10 @@ type BackendService interface {
 	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
 	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
-	QueryTxBySrc(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
-	QueryTxByDst(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
-	QueryTxByAddr(address common.Address, startHeight, endHeight uint32) (tx []*motypes.Transaction, err error)
-	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight uint32) ([]motypes.Log, error)
+	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
+	QueryTxByDst(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
+	QueryTxByAddr(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
+	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight, limit uint32) ([]motypes.Log, error)
 	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
 	GetFromAddressCount(addr common.Address) int64
 	GetToAddressCount(addr common.Address) int64
