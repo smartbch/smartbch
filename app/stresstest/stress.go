@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/hex"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -12,31 +12,31 @@ import (
 	"time"
 
 	"github.com/coinexchain/randsrc"
-	"github.com/holiman/uint256"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingads/indextree"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
 )
 
 type RocksDB = indextree.RocksDB
 
 const (
-	adsDir  = "./testdbdata"
-	modbDir = "./modbdata"
+	adsDir   = "./testdbdata"
+	modbDir  = "./modbdata"
 	blockDir = "./blkdata"
 )
 
-var num1e18 = uint256.NewInt().SetUint64(1_000_000_000_000_000_000);
+var num1e18 = uint256.NewInt().SetUint64(1_000_000_000_000_000_000)
 var initBalance = uint256.NewInt().Mul(num1e18, num1e18)
 
 type Block struct {
@@ -157,7 +157,6 @@ var creationBytecode = testutils.HexToBytes(`
 	608060405234801561001057600080fd5b506102f1806100206000396000f3fe6080604052600436106100295760003560e01c8063381fd1901461002e578063d8a26e3a14610043575b600080fd5b61004161003c3660046101d4565b610079565b005b34801561004f57600080fd5b5061006361005e36600461020a565b6101bc565b604051610070919061026e565b60405180910390f35b604080516000815260208101918290526001600160a01b038416916123289134916100a49190610235565b600060405180830381858888f193505050503d80600081146100e2576040519150601f19603f3d011682016040523d82523d6000602084013e6100e7565b606091505b505050602081811c63ffffffff81811660009081529283905260408084205491851684529283902054849384901c91606085901c91608086901c9160a087901c9160029134916101379190610277565b6101419190610277565b61014b919061029b565b63ffffffff808616600090815260208190526040808220939093558482168152828120549186168152919091205460029134916101889190610277565b6101929190610277565b61019c919061029b565b63ffffffff90911660009081526020819052604090205550505050505050565b63ffffffff1660009081526020819052604090205490565b600080604083850312156101e6578182fd5b82356001600160a01b03811681146101fc578283fd5b946020939093013593505050565b60006020828403121561021b578081fd5b813563ffffffff8116811461022e578182fd5b9392505050565b60008251815b81811015610255576020818601810151858301520161023b565b818111156102635782828501525b509190910192915050565b90815260200190565b6000821982111561029657634e487b7160e01b81526011600452602481fd5b500190565b6000826102b657634e487b7160e01b81526012600452602481fd5b50049056fea2646970667358221220e66a2e809beccf7e9d31ac11ec547ae76cd13f0c56d68a51d2da6224c706fdd864736f6c63430008000033
 `)
 
-
 func GetDeployTxAndAddrList(_app *testutils.TestApp, privKeys []string, creationBytecode []byte) ([][]byte, []common.Address) {
 	txList := make([][]byte, len(privKeys))
 	contractAddrList := make([]common.Address, len(privKeys))
@@ -189,23 +188,28 @@ func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (app
 
 func GetTx(_app *testutils.TestApp, key string, contractAddr, toAddr common.Address, value int64, slots [6]uint32) []byte {
 	param := big.NewInt(int64(slots[0]))
-	param.Lsh(param, 32); param.Or(param, big.NewInt(int64(slots[1])))
-	param.Lsh(param, 32); param.Or(param, big.NewInt(int64(slots[2])))
-	param.Lsh(param, 32); param.Or(param, big.NewInt(int64(slots[3])))
-	param.Lsh(param, 32); param.Or(param, big.NewInt(int64(slots[4])))
-	param.Lsh(param, 32); param.Or(param, big.NewInt(int64(slots[5])))
+	param.Lsh(param, 32)
+	param.Or(param, big.NewInt(int64(slots[1])))
+	param.Lsh(param, 32)
+	param.Or(param, big.NewInt(int64(slots[2])))
+	param.Lsh(param, 32)
+	param.Or(param, big.NewInt(int64(slots[3])))
+	param.Lsh(param, 32)
+	param.Or(param, big.NewInt(int64(slots[4])))
+	param.Lsh(param, 32)
+	param.Or(param, big.NewInt(int64(slots[5])))
 	calldata := testAddABI.MustPack("run", toAddr, param)
-	tx, _ := _app.MakeAndSignTx(key, &contractAddr, value, calldata, 2/*gasprice*/)
+	tx, _ := _app.MakeAndSignTx(key, &contractAddr, value, calldata, 2 /*gasprice*/)
 	return testutils.MustEncodeTx(tx)
 }
 
 func GenInitStorageTxList(_app *testutils.TestApp, fromKeys []string, contractAddrs, toAddrs []common.Address, j int) [][]byte {
-	if len(fromKeys) != len(contractAddrs) || len(toAddrs) % len(fromKeys) != 0 {
+	if len(fromKeys) != len(contractAddrs) || len(toAddrs)%len(fromKeys) != 0 {
 		panic("Invalid lengths")
 	}
 	res := make([][]byte, 0, len(toAddrs))
 	for i, fromKey := range fromKeys {
-		slots := [6]uint32{uint32(2*j), 0, 0, uint32(2*j+1), 0, 0}
+		slots := [6]uint32{uint32(2 * j), 0, 0, uint32(2*j + 1), 0, 0}
 		tx := GetTx(_app, fromKey, contractAddrs[i], toAddrs[i], 10000, slots)
 		res = append(res, tx)
 	}
@@ -213,7 +217,7 @@ func GenInitStorageTxList(_app *testutils.TestApp, fromKeys []string, contractAd
 }
 
 func GenRandTxList(_app *testutils.TestApp, rs randsrc.RandSrc, txList [][]byte, fromKeys []string, contractAddrs, toAddrs []common.Address) {
-	if len(fromKeys) != len(contractAddrs) || len(toAddrs) % len(fromKeys) != 0 {
+	if len(fromKeys) != len(contractAddrs) || len(toAddrs)%len(fromKeys) != 0 {
 		panic("Invalid lengths")
 	}
 	touchedFrom := make(map[int]struct{}, len(txList))
@@ -268,11 +272,11 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 }
 
 func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, totalNum int, keys []string, fromSize, toSize int) {
-	if toSize % fromSize != 0 {
+	if toSize%fromSize != 0 {
 		panic("Invalid sizes")
 	}
 	n := toSize / fromSize
-	if len(keys) < fromSize + toSize {
+	if len(keys) < fromSize+toSize {
 		panic("not enough keys")
 	}
 	toAddrs := make([]common.Address, toSize)
@@ -301,7 +305,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, totalNum int, keys []string, 
 	}
 
 	blk.TxList = make([][]byte, 8192)
-	for i := 0; i < totalNum; i++{
+	for i := 0; i < totalNum; i++ {
 		GenRandTxList(_app, rs, blk.TxList, keys, contractAddrs, toAddrs)
 		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 		db.SaveBlock(blk)
@@ -335,4 +339,3 @@ func main() {
 	RunRecordBlocks(1000, 10, 1000)
 	//RunReplayBlocks(1000, 10)
 }
-
