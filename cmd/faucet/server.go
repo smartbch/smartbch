@@ -22,6 +22,7 @@ func startServer(port int64) {
 	http.HandleFunc("/faucet", hello)
 	http.HandleFunc("/sendBCH", sendBCH)
 
+	//fmt.Println("start server on port ", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		panic(err)

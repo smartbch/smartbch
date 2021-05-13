@@ -5,43 +5,76 @@ import (
 	_ "embed"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"strconv"
+	"math/big"
 	"strings"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/spf13/cobra"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
 var (
-	rpcURL = "http://45.32.38.25:8545"
+	rpcURL  = "https://moeing.app:9545"
+	sendAmt = big.NewInt(10000000000000000)
 
 	faucetAddrs []gethcmn.Address
 	faucetKeys  []*ecdsa.PrivateKey
 )
 
 func main() {
-	switch len(os.Args) {
-	case 1, 2, 3:
-		fmt.Print(`
-Usage: faucet <port> <rpc-url> <priv-keys-file>
-   or: faucet <port> <rpc-url> key1 key2 key3 ...
-`)
-		return
-	case 4:
-		rpcURL = os.Args[2]
-		parsePrivKeysFromFile(os.Args[3])
-	default:
-		rpcURL = os.Args[2]
-		parsePrivKeys(os.Args[3:])
+	cmd := &cobra.Command{
+		Use:  "faucet",
+		RunE: startFaucetServer,
 	}
 
-	port, err := strconv.ParseInt(os.Args[1], 10, 64)
-	if err != nil {
+	cmd.Flags().Int64("port", 8080, "faucet server listening port")
+	cmd.Flags().String("rpc-url", "https://moeing.app:9545", "testnet RPC URL")
+	cmd.Flags().String("priv-keys-file", "", "private keys file, one key per line")
+	cmd.Flags().String("send-amount", "10000000000000000", "the amount of BCH send per request")
+
+	_ = cmd.MarkFlagRequired("port")
+
+	if err := cmd.Execute(); err != nil {
 		panic(err)
 	}
+}
+
+func startFaucetServer(cmd *cobra.Command, args []string) error {
+	port, err := cmd.Flags().GetInt64("port")
+	if err != nil {
+		return err
+	}
+	fmt.Println("port: ", port)
+
+	_rpcURL, err := cmd.Flags().GetString("rpc-url")
+	if err != nil {
+		return err
+	}
+	rpcURL = _rpcURL
+	fmt.Println("rpc-url: ", rpcURL)
+
+	privKeysFile, err := cmd.Flags().GetString("priv-keys-file")
+	if err != nil {
+		return err
+	}
+	fmt.Println("priv-keys-file: ", privKeysFile)
+
+	_sendAmt, err := cmd.Flags().GetString("send-amount")
+	_, ok := sendAmt.SetString(_sendAmt, 10)
+	if !ok {
+		panic("incorrect send amount?")
+	}
+	fmt.Println("send-amount: ", sendAmt.String())
+
+	if privKeysFile != "" {
+		parsePrivKeysFromFile(privKeysFile)
+	} else {
+		parsePrivKeys(args)
+	}
+
 	startServer(port)
+	return nil
 }
 
 func parsePrivKeysFromFile(filename string) {
