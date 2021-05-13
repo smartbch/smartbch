@@ -11,7 +11,7 @@ import (
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
-type ResultLimit = gethrpc.BlockNumber
+var _ SbchAPI = (*sbchAPI)(nil)
 
 type SbchAPI interface {
 	GetStandbyTxQueue()
