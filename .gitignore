@@ -30,3 +30,4 @@ staking/mocknode/mocknode
 cmd/smartbchd/smartbchd
 
 private/
+app/stresstest/stresstest

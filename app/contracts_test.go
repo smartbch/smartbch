@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/hex"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -251,4 +252,88 @@ func TestEstimateGas(t *testing.T) {
 	require.Equal(t, 0, statusCode)
 	require.Equal(t, "success", statusStr)
 	require.True(t, gas > 0)
+}
+
+var testAddABI = testutils.MustParseABI(`
+[
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "param",
+          "type": "uint256"
+        }
+      ],
+      "name": "run",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint32",
+          "name": "d",
+          "type": "uint32"
+        }
+      ],
+      "name": "get",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+]
+`)
+
+func TestContractAdd(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+	// see testdata/basic/contracts/TestAdd.sol
+	creationBytecode := testutils.HexToBytes(`
+	608060405234801561001057600080fd5b506102f1806100206000396000f3fe6080604052600436106100295760003560e01c8063381fd1901461002e578063d8a26e3a14610043575b600080fd5b61004161003c3660046101d4565b610079565b005b34801561004f57600080fd5b5061006361005e36600461020a565b6101bc565b604051610070919061026e565b60405180910390f35b604080516000815260208101918290526001600160a01b038416916123289134916100a49190610235565b600060405180830381858888f193505050503d80600081146100e2576040519150601f19603f3d011682016040523d82523d6000602084013e6100e7565b606091505b505050602081811c63ffffffff81811660009081529283905260408084205491851684529283902054849384901c91606085901c91608086901c9160a087901c9160029134916101379190610277565b6101419190610277565b61014b919061029b565b63ffffffff808616600090815260208190526040808220939093558482168152828120549186168152919091205460029134916101889190610277565b6101929190610277565b61019c919061029b565b63ffffffff90911660009081526020819052604090205550505050505050565b63ffffffff1660009081526020819052604090205490565b600080604083850312156101e6578182fd5b82356001600160a01b03811681146101fc578283fd5b946020939093013593505050565b60006020828403121561021b578081fd5b813563ffffffff8116811461022e578182fd5b9392505050565b60008251815b81811015610255576020818601810151858301520161023b565b818111156102635782828501525b509190910192915050565b90815260200190565b6000821982111561029657634e487b7160e01b81526011600452602481fd5b500190565b6000826102b657634e487b7160e01b81526012600452602481fd5b50049056fea2646970667358221220e66a2e809beccf7e9d31ac11ec547ae76cd13f0c56d68a51d2da6224c706fdd864736f6c63430008000033
+`)
+
+	_, _, contractAddr := _app.DeployContractInBlock(key1, creationBytecode)
+	require.NotEmpty(t, _app.GetCode(contractAddr))
+
+	param := big.NewInt(1)
+	param.Lsh(param, 32); param.Or(param, big.NewInt(2))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(3))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(4))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(5))
+	param.Lsh(param, 32); param.Or(param, big.NewInt(6))
+	calldata := testAddABI.MustPack("run", addr2, param)
+	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 1200000/*value*/, calldata, 2/*gasprice*/)
+
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	//conAcc := ctx.GetAccount(contractAddr)
+	//seq := conAcc.Sequence()
+	//fmt.Printf("conAcc's Sequence %d\n", seq)
+	//fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().Uint64())
+	require.Equal(t, uint64(1200000), ctx.GetAccount(addr2).Balance().Uint64())
+
+	res := [7]int64{-1, 600000, 0, 0, 600000, 0, 0}
+	for i := uint32(1); i <= 6; i++ {
+		calldata = testAddABI.MustPack("get", uint32(i))
+		status, statusStr, retData := _app.Call(addr1, contractAddr, calldata)
+		n := big.NewInt(0)
+		n.SetBytes(retData[:])
+		require.Equal(t, 0, status)
+		require.Equal(t, "success", statusStr)
+		require.Equal(t, res[i], n.Int64())
+	}
 }
