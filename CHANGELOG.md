@@ -2,24 +2,18 @@
 
 
 
-## v0.1.5 (draft)
+## v0.1.5
 
 * JSON-RPC
 
-  * Bug fixes
+  * sbch_queryTxBySrc/Dst/Addr & sbch_queryLogs
 
-    * eta_getBlockByNumber/Hash
+    * allow `startHeight` to be greater than `endHeight`
+    * add `limit` param
 
-  * Improvements
+    please refer to  [JSON-RPC docs](https://github.com/smartbch/docs/blob/main/deverlopers-guide/jsonrpc.md#sbch_queryTxBySrc) for more detailed change
 
-    * sbch_queryTxBySrc/Dst/Addr & sbch_queryLogs
-
-      * allow `startHeight` to be greater than `endHeight`
-      * add `limit` param
-
-      please refer to  [JSON-RPC docs](https://github.com/smartbch/docs/blob/main/deverlopers-guide/jsonrpc.md#sbch_queryTxBySrc) for more detailed info
-
-
+* Add config option to support lite history DB
 
 
 
