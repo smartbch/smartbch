@@ -50,9 +50,11 @@ func (s faucetServer) start() {
 			_, _ = fmt.Fprint(w, indexHTML)
 		}
 	})
-	http.HandleFunc("/sendBCH", func(w http.ResponseWriter, r *http.Request) {
-		s.sendBCH(w, r)
-	})
+	if !s.maintenance {
+		http.HandleFunc("/sendBCH", func(w http.ResponseWriter, r *http.Request) {
+			s.sendBCH(w, r)
+		})
+	}
 
 	//fmt.Println("start server on port ", port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), nil)
