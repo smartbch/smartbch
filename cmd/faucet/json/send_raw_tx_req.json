@@ -1,6 +1,0 @@
-{
-  "jsonrpc": "2.0",
-  "method": "eth_sendRawTransaction",
-  "params": ["%s"],
-  "id": 123
-}

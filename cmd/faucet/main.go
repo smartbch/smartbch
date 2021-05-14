@@ -3,23 +3,17 @@ package main
 import (
 	"crypto/ecdsa"
 	_ "embed"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"math/big"
+	"os"
 	"strings"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
-)
-
-var (
-	rpcURL  = "https://moeing.app:9545"
-	sendAmt = big.NewInt(10000000000000000)
-
-	faucetAddrs []gethcmn.Address
-	faucetKeys  []*ecdsa.PrivateKey
 )
 
 func main() {
@@ -41,51 +35,66 @@ func main() {
 }
 
 func startFaucetServer(cmd *cobra.Command, args []string) error {
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+
 	port, err := cmd.Flags().GetInt64("port")
 	if err != nil {
 		return err
 	}
-	fmt.Println("port: ", port)
+	logger.Info("flag", "port", port)
 
-	_rpcURL, err := cmd.Flags().GetString("rpc-url")
+	rpcURL, err := cmd.Flags().GetString("rpc-url")
 	if err != nil {
 		return err
 	}
-	rpcURL = _rpcURL
-	fmt.Println("rpc-url: ", rpcURL)
+	logger.Info("flag", "rpc-url", rpcURL)
 
 	privKeysFile, err := cmd.Flags().GetString("priv-keys-file")
 	if err != nil {
 		return err
 	}
-	fmt.Println("priv-keys-file: ", privKeysFile)
+	logger.Info("flag", "priv-keys-file", privKeysFile)
 
-	_sendAmt, err := cmd.Flags().GetString("send-amount")
-	_, ok := sendAmt.SetString(_sendAmt, 10)
+	sendAmt, err := cmd.Flags().GetString("send-amount")
+	sendAmtBig := big.NewInt(0)
+	_, ok := sendAmtBig.SetString(sendAmt, 10)
 	if !ok {
-		panic("incorrect send amount?")
+		return errors.New("incorrect send amount")
 	}
-	fmt.Println("send-amount: ", sendAmt.String())
+	logger.Info("flag", "send-amount", sendAmtBig.String())
 
+	var keys []*ecdsa.PrivateKey
+	var addrs []gethcmn.Address
 	if privKeysFile != "" {
-		parsePrivKeysFromFile(privKeysFile)
+		keys, addrs = parsePrivKeysFromFile(logger, privKeysFile)
 	} else {
-		parsePrivKeys(args)
+		keys, addrs = parsePrivKeys(logger, args)
 	}
 
-	startServer(port)
+	server := faucetServer{
+		port:        port,
+		faucetKeys:  keys,
+		faucetAddrs: addrs,
+		sendAmt:     sendAmtBig,
+		logger:      logger,
+		rpcClient: rpcClient{
+			rpcURL: rpcURL,
+			logger: logger,
+		},
+	}
+	server.start()
 	return nil
 }
 
-func parsePrivKeysFromFile(filename string) {
+func parsePrivKeysFromFile(logger log.Logger, filename string) (keys []*ecdsa.PrivateKey, addrs []gethcmn.Address) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
-	parsePrivKeys(strings.Split(string(bytes), "\n"))
+	return parsePrivKeys(logger, strings.Split(string(bytes), "\n"))
 }
 
-func parsePrivKeys(privKeys []string) {
+func parsePrivKeys(logger log.Logger, privKeys []string) (keys []*ecdsa.PrivateKey, addrs []gethcmn.Address) {
 	for _, hexKey := range privKeys {
 		hexKey = strings.TrimSpace(hexKey)
 		if len(hexKey) == 64 {
@@ -95,9 +104,10 @@ func parsePrivKeys(privKeys []string) {
 			}
 
 			addr := ethutils.PrivKeyToAddr(key)
-			faucetKeys = append(faucetKeys, key)
-			faucetAddrs = append(faucetAddrs, addr)
-			fmt.Println("faucet addr: ", addr.Hex())
+			keys = append(keys, key)
+			addrs = append(addrs, addr)
+			logger.Info("faucet account", "addr", addr.Hex())
 		}
 	}
+	return
 }
