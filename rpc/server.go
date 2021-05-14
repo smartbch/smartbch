@@ -24,7 +24,7 @@ type Server struct {
 	rpcAddr      string // listen address of rest-server
 	wsAddr       string // listen address of ws server
 	rpcHttpsAddr string //listen address of https rest-server
-	wsHttpsAddr  string //listen address of https ws server
+	wssAddr      string //listen address of https ws server
 
 	logger  tmlog.Logger
 	backend api.BackendService
@@ -54,7 +54,7 @@ func NewServer(rpcAddr string, wsAddr string,
 		certFile:     certFile,
 		keyFile:      keyFile,
 		rpcHttpsAddr: "tcp://:9545",
-		wsHttpsAddr:  "tcp://:9546",
+		wssAddr:      "tcp://:9546",
 	}
 	return tmservice.NewBaseService(logger, "", impl)
 }
@@ -62,13 +62,13 @@ func NewServer(rpcAddr string, wsAddr string,
 func (server *Server) OnStart() error {
 	apis := rpcapi.GetAPIs(server.backend,
 		server.logger, server.testKeys)
-	if err := server.startHTTP(apis); err != nil {
+	if err := server.startHTTPAndHTTPS(apis); err != nil {
 		return err
 	}
-	return server.startWS(apis)
+	return server.startWSAndWSS(apis)
 }
 
-func (server *Server) startHTTP(apis []gethrpc.API) (err error) {
+func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	server.httpServer = gethrpc.NewServer()
 	if err = registerApis(server.httpServer, apis); err != nil {
 		return err
@@ -95,7 +95,7 @@ func (server *Server) startHTTP(apis []gethrpc.API) (err error) {
 	return nil
 }
 
-func (server *Server) startWS(apis []gethrpc.API) (err error) {
+func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	server.wsServer = gethrpc.NewServer()
 	if err = registerApis(server.wsServer, apis); err != nil {
 		return err
@@ -107,11 +107,19 @@ func (server *Server) startWS(apis []gethrpc.API) (err error) {
 		return err
 	}
 
+	server.wssListener, err = tmrpcserver.Listen(
+		server.wssAddr, tmrpcserver.DefaultConfig())
+	if err != nil {
+		return err
+	}
 	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
 	wsh := server.wsServer.WebsocketHandler(allowedOrigins)
 
 	go tmrpcserver.Serve(server.wsListener, wsh, server.logger,
 		tmrpcserver.DefaultConfig()) // TODO: get config from config file
+
+	go tmrpcserver.ServeTLS(server.wssListener, wsh,
+		server.certFile, server.keyFile,  server.logger, tmrpcserver.DefaultConfig()) // TODO: get config from config file
 	return nil
 }
 
