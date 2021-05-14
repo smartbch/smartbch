@@ -157,6 +157,7 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 	var addr [20]byte
 	var result [64]byte
 	addrMap := make(map[[20]byte]struct{}, len(input)/32)
+	countedAddrs := make(map[[20]byte]struct{}, len(input)/32)
 	for i := 0; i+32 < len(input); i += 32 {
 		copy(addr[:], input[i*32+12:i*32+32])
 		addrMap[addr] = struct{}{}
@@ -167,7 +168,10 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 		_, hasValidator := addrMap[val.Address]
 		_, hasRewardTo := addrMap[val.RewardTo]
 		if hasValidator || hasRewardTo {
-			summedPower += val.VotingPower
+			if _, ok := countedAddrs[val.Address]; !ok {
+				summedPower += val.VotingPower
+				countedAddrs[val.Address] = struct{}{}
+			}
 		}
 		totalPower += val.VotingPower
 	}
