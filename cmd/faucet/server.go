@@ -19,6 +19,9 @@ var (
 	//go:embed html/index.html
 	indexHTML string
 
+	//go:embed html/maintance.html
+	maintenanceHTML string
+
 	//go:embed html/result.html
 	resultHTML string
 )
@@ -36,11 +39,16 @@ type faucetServer struct {
 	rpcClient   rpcClient
 	sendAmt     *big.Int
 	logger      log.Logger
+	maintenance bool
 }
 
 func (s faucetServer) start() {
 	http.HandleFunc("/faucet", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprint(w, indexHTML)
+		if s.maintenance {
+			_, _ = fmt.Fprint(w, maintenanceHTML)
+		} else {
+			_, _ = fmt.Fprint(w, indexHTML)
+		}
 	})
 	http.HandleFunc("/sendBCH", func(w http.ResponseWriter, r *http.Request) {
 		s.sendBCH(w, r)

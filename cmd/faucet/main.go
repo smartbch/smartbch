@@ -26,6 +26,7 @@ func main() {
 	cmd.Flags().String("rpc-url", "https://moeing.app:9545", "testnet RPC URL")
 	cmd.Flags().String("priv-keys-file", "", "private keys file, one key per line")
 	cmd.Flags().String("send-amount", "10000000000000000", "the amount of BCH send per request")
+	cmd.Flags().Bool("maintenance", false, "start in maintenance mode")
 
 	_ = cmd.MarkFlagRequired("port")
 
@@ -63,6 +64,8 @@ func startFaucetServer(cmd *cobra.Command, args []string) error {
 	}
 	logger.Info("flag", "send-amount", sendAmtBig.String())
 
+	isMaintenance, _ := cmd.Flags().GetBool("maintenance")
+
 	var keys []*ecdsa.PrivateKey
 	var addrs []gethcmn.Address
 	if privKeysFile != "" {
@@ -77,6 +80,7 @@ func startFaucetServer(cmd *cobra.Command, args []string) error {
 		faucetAddrs: addrs,
 		sendAmt:     sendAmtBig,
 		logger:      logger,
+		maintenance: isMaintenance,
 		rpcClient: rpcClient{
 			rpcURL: rpcURL,
 			logger: logger,
