@@ -1,20 +1,14 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/privval"
 
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/param"
@@ -56,17 +50,8 @@ func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
 func newApp(logger log.Logger, chainId *uint256.Int) abci.Application {
 	c := cfg.DefaultConfig()
 	c.SetRoot(app.DefaultNodeHome)
-	privValKeyFile := c.PrivValidatorKeyFile()
-	privValStateFile := c.PrivValidatorStateFile()
-	pv := privval.LoadFilePV(privValKeyFile, privValStateFile)
-	var testValidators [10]crypto.PubKey
-	for i := 0; i < 10; i++ {
-		testValidators[i] = ed25519.GenPrivKey().PubKey()
-	}
-	bz, _ := json.Marshal(testValidators)
-	fmt.Printf("testValidator:%s\n", bz)
 	conf := param.DefaultConfig()
 	conf.RetainBlocks = viper.GetInt64(flagRetainBlocks)
-	cetChainApp := app.NewApp(conf, chainId, logger, pv.Key.PubKey)
+	cetChainApp := app.NewApp(conf, chainId, logger)
 	return cetChainApp
 }

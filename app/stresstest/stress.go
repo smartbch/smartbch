@@ -26,6 +26,7 @@ import (
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 type RocksDB = indextree.RocksDB
@@ -173,7 +174,7 @@ func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (app
 		Header: tmproto.Header{
 			Height:          height,
 			Time:            time.Now(),
-			ProposerAddress: _app.TestValidatorPubkey().Address(),
+			ProposerAddress: _app.TestPubkey.Address(),
 		},
 	})
 	for _, tx := range txs {
@@ -257,10 +258,15 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	params.ModbDataPath = modbDir
 	params.UseLiteDB = true
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
-	_app := app.NewApp(params, bigutils.NewU256(1), log.NewNopLogger(), testValidatorPubKey)
+	_app := app.NewApp(params, bigutils.NewU256(1), log.NewNopLogger())
 	genesisData := app.GenesisData{
 		Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
 	}
+	testValidator := &stakingtypes.Validator{}
+	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
+	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+	testValidator.VotingPower = 1
+	genesisData.Validators = append(genesisData.Validators, testValidator)
 	appStateBytes, _ := json.Marshal(genesisData)
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
@@ -268,7 +274,7 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 		ProposerAddress: testValidatorPubKey.Address(),
 	}})
 	_app.Commit()
-	return &testutils.TestApp{_app}
+	return &testutils.TestApp{App: _app, TestPubkey: testValidatorPubKey}
 }
 
 func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, totalNum int, keys []string, fromSize, toSize int) {

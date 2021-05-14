@@ -7,6 +7,7 @@ import (
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -23,6 +24,7 @@ import (
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 const (
@@ -40,6 +42,7 @@ var nopLogger = log.NewNopLogger()
 
 type TestApp struct {
 	*app.App
+	TestPubkey crypto.PubKey
 }
 
 func CreateTestApp(keys ...string) *TestApp {
@@ -53,13 +56,18 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	params.AppDataPath = adsDir
 	params.ModbDataPath = modbDir
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
-	_app := app.NewApp(params, bigutils.NewU256(1), nopLogger,
-		testValidatorPubKey)
+	_app := app.NewApp(params, bigutils.NewU256(1), nopLogger)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
 		Alloc: KeysToGenesisAlloc(testInitAmt, keys),
 	}
+	testValidator := &stakingtypes.Validator{}
+	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
+	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+	testValidator.VotingPower = 1
+	genesisData.Validators = append(genesisData.Validators, testValidator)
+
 	appStateBytes, _ := json.Marshal(genesisData)
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
@@ -67,7 +75,7 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 		ProposerAddress: testValidatorPubKey.Address(),
 	}})
 	_app.Commit()
-	return &TestApp{_app}
+	return &TestApp{_app, testValidatorPubKey}
 }
 
 func (_app *TestApp) Destroy() {
@@ -173,6 +181,10 @@ func (_app *TestApp) GetSep20ToAddressCount(contract, addr gethcmn.Address) int6
 	return ctx.GetSep20ToAddressCount(contract, addr)
 }
 
+func (_app *TestApp) GetTestPubkey() crypto.PubKey {
+	return _app.TestPubkey
+}
+
 func (_app *TestApp) StoreBlocks(blocks ...*modbtypes.Block) {
 	ctx := _app.GetRunTxContext()
 	for _, block := range blocks {
@@ -267,7 +279,7 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 		Header: tmproto.Header{
 			Height:          height,
 			Time:            time.Now(),
-			ProposerAddress: _app.TestValidatorPubkey().Address(),
+			ProposerAddress: _app.TestPubkey.Address(),
 		},
 	})
 	for _, tx := range txs {

@@ -118,8 +118,7 @@ type App struct {
 	testValidatorPubKey crypto.PubKey
 }
 
-func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
-	testValidatorPubKey crypto.PubKey) *App {
+func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {
 
 	app := &App{}
 	/*------set config------*/
@@ -172,7 +171,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 	}
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
-	app.testValidatorPubKey = testValidatorPubKey
 	return app
 }
 
@@ -305,59 +303,40 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		genesisValidators = genesisData.Validators
 	}
 
-	if len(genesisValidators) != 0 {
-		app.currValidators = genesisValidators
-		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
-		if stakingAcc == nil {
-			panic("Cannot find staking contract")
-		}
-		info := stakingtypes.StakingInfo{
-			CurrEpochNum:   0,
-			Validators:     app.currValidators,
-			PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
-		}
-		for i := range info.PendingRewards {
-			info.PendingRewards[i] = &stakingtypes.PendingReward{}
-		}
-		staking.SaveStakingInfo(ctx, stakingAcc, info)
-	} else /*todo: for single node test*/ {
-		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
-		if stakingAcc == nil {
-			panic("Cannot find staking contract")
-		}
-		info := stakingtypes.StakingInfo{
-			CurrEpochNum:   0,
-			Validators:     make([]*stakingtypes.Validator, 1),
-			PendingRewards: make([]*stakingtypes.PendingReward, 1),
-		}
-		info.Validators[0] = &stakingtypes.Validator{}
-		copy(info.Validators[0].Address[:], app.testValidatorPubKey.Address())
-		copy(info.Validators[0].Pubkey[:], app.testValidatorPubKey.Bytes())
-		info.PendingRewards[0] = &stakingtypes.PendingReward{}
-		copy(info.PendingRewards[0].Address[:], app.testValidatorPubKey.Address())
-		staking.SaveStakingInfo(ctx, stakingAcc, info)
+	if len(genesisValidators) == 0 {
+		panic("no genesis validator in genesis.json")
 	}
+
+	app.currValidators = genesisValidators
+	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
+	if stakingAcc == nil {
+		panic("Cannot find staking contract")
+	}
+	info := stakingtypes.StakingInfo{
+		CurrEpochNum:   0,
+		Validators:     app.currValidators,
+		PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
+	}
+	for i := range info.PendingRewards {
+		info.PendingRewards[i] = &stakingtypes.PendingReward{
+			Address: app.currValidators[i].Address,
+		}
+	}
+	staking.SaveStakingInfo(ctx, stakingAcc, info)
 	ctx.Close(true)
 
-	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
-	if len(app.currValidators) != 0 {
-		for i, v := range app.currValidators {
-			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
-			vals[i] = abcitypes.ValidatorUpdate{
-				PubKey: p,
-				Power:  v.VotingPower,
-			}
-			fmt.Printf("inichain validator:%s\n", p.String())
+	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
+	for i, v := range app.currValidators {
+		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
+		valSet[i] = abcitypes.ValidatorUpdate{
+			PubKey: p,
+			Power:  v.VotingPower,
 		}
-	} else {
-		pk, _ := cryptoenc.PubKeyToProto(app.testValidatorPubKey)
-		vals = append(vals, abcitypes.ValidatorUpdate{
-			PubKey: pk,
-			Power:  1,
-		})
+		fmt.Printf("inichain validator:%s\n", p.String())
 	}
+
 	return abcitypes.ResponseInitChain{
-		Validators: vals,
+		Validators: valSet,
 	}
 }
 
@@ -449,26 +428,18 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			app.epochList = app.epochList[1:]
 		}
 	}
-	vals := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
-	if len(app.currValidators) != 0 {
-		for i, v := range app.currValidators {
-			p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
-			vals[i] = abcitypes.ValidatorUpdate{
-				PubKey: p,
-				Power:  v.VotingPower,
-			}
-			fmt.Printf("endblock validator:%v\n", v.Address)
+	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
+	for i, v := range app.currValidators {
+		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
+		valSet[i] = abcitypes.ValidatorUpdate{
+			PubKey: p,
+			Power:  v.VotingPower,
 		}
-	} else {
-		pk, _ := cryptoenc.PubKeyToProto(app.testValidatorPubKey)
-		vals = append(vals, abcitypes.ValidatorUpdate{
-			PubKey: pk,
-			Power:  1,
-		})
+		fmt.Printf("endblock validator:%v\n", v.Address)
 	}
 	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{
-		ValidatorUpdates: vals,
+		ValidatorUpdates: valSet,
 	}
 }
 

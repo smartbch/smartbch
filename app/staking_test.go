@@ -181,7 +181,7 @@ func TestStaking(t *testing.T) {
 		ValMapByPubkey: make(map[[32]byte]*types.Nomination),
 	}
 	var pubkey [32]byte
-	copy(pubkey[:], _app.TestValidatorPubkey().Bytes())
+	copy(pubkey[:], _app.GetTestPubkey().Bytes())
 	e.ValMapByPubkey[pubkey] = &types.Nomination{
 		Pubkey:         pubkey,
 		NominatedCount: 2,

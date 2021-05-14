@@ -153,7 +153,6 @@ func TestStaking(t *testing.T) {
 
 func TestSwitchEpoch(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
-	//key, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
@@ -166,7 +165,7 @@ func TestSwitchEpoch(t *testing.T) {
 		ValMapByPubkey: make(map[[32]byte]*types2.Nomination),
 	}
 	var pubkey [32]byte
-	copy(pubkey[:], _app.TestValidatorPubkey().Bytes())
+	copy(pubkey[:], _app.GetTestPubkey().Bytes())
 	e.ValMapByPubkey[pubkey] = &types2.Nomination{
 		Pubkey:         pubkey,
 		NominatedCount: 1,
@@ -224,9 +223,9 @@ func TestSlash(t *testing.T) {
 	defer _app.Destroy()
 	ctx := _app.GetRunTxContext()
 	var slashedPubkey [32]byte
-	copy(slashedPubkey[:], _app.TestValidatorPubkey().Bytes())
+	copy(slashedPubkey[:], _app.GetTestPubkey().Bytes())
 	stakingAddr := common.Address{}
-	copy(stakingAddr[:], _app.TestValidatorPubkey().Address())
+	copy(stakingAddr[:], _app.GetTestPubkey().Address())
 	ctx.SetAccount(stakingAddr, types.ZeroAccountInfo())
 	stakingAcc, info := staking.LoadStakingAcc(ctx)
 	info.Validators[0].StakedCoins[31] = 100
