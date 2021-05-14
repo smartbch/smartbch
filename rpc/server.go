@@ -119,7 +119,7 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 		tmrpcserver.DefaultConfig()) // TODO: get config from config file
 
 	go tmrpcserver.ServeTLS(server.wssListener, wsh,
-		server.certFile, server.keyFile,  server.logger, tmrpcserver.DefaultConfig()) // TODO: get config from config file
+		server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig()) // TODO: get config from config file
 	return nil
 }
 

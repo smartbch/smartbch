@@ -18,8 +18,8 @@ import (
 
 var (
 	//contract address, 10000
-	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
-	StakingContractSequence uint64 = math.MaxUint64 - 2 /*uint64(-3)*/
+	StakingContractAddress  [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
+	StakingContractSequence uint64   = math.MaxUint64 - 2 /*uint64(-3)*/
 	/*------selector------*/
 	/*interface Staking {
 	    //0x24d1ed5d
