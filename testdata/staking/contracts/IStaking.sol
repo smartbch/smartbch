@@ -8,5 +8,6 @@ interface IStaking {
     function retire() external;
     function increaseMinGasPrice() external;
     function decreaseMinGasPrice() external;
+    function sumVotingPower(address[] calldata addrList) external returns (uint summedPower, uint totalPower);
 
 }

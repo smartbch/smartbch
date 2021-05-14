@@ -37,4 +37,7 @@ contract StakingTest is IStaking {
         require(ok, string(data));
     }
 
+    function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower) {
+        return (0, 0);
+    }
 }

@@ -165,7 +165,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger,
 		app.txEngine.SetContext(app.GetRunTxContext())
 	}
 
-	_, stakingInfo := staking.LoadStakingAcc(*ctx)
+	_, stakingInfo := staking.LoadStakingAcc(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
@@ -319,7 +319,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		for i := range info.PendingRewards {
 			info.PendingRewards[i] = &stakingtypes.PendingReward{}
 		}
-		staking.SaveStakingInfo(*ctx, stakingAcc, info)
+		staking.SaveStakingInfo(ctx, stakingAcc, info)
 	} else /*todo: for single node test*/ {
 		stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 		if stakingAcc == nil {
@@ -335,7 +335,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		copy(info.Validators[0].Pubkey[:], app.testValidatorPubKey.Bytes())
 		info.PendingRewards[0] = &stakingtypes.PendingReward{}
 		copy(info.PendingRewards[0].Address[:], app.testValidatorPubKey.Address())
-		staking.SaveStakingInfo(*ctx, stakingAcc, info)
+		staking.SaveStakingInfo(ctx, stakingAcc, info)
 	}
 	ctx.Close(true)
 
@@ -416,6 +416,9 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 			app.slashValidators = append(app.slashValidators, addr)
 		}
 	}
+	ctx := app.GetRunTxContext()
+	staking.LoadReadonlyValiatorsInfo(ctx)
+	ctx.Close(false)
 	app.logger.Debug("leave begin block!")
 	return abcitypes.ResponseBeginBlock{}
 }
@@ -478,7 +481,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
-	_, info := staking.LoadStakingAcc(*ctx)
+	_, info := staking.LoadStakingAcc(ctx)
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
 	var consAddr [20]byte
 	for _, v := range info.Validators {
@@ -527,7 +530,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 	if app.currHeight != 1 {
-		staking.DistributeFee(*ctx, &blockReward, pubkeyMapByConsAddr[app.lastProposer], voters)
+		staking.DistributeFee(ctx, &blockReward, pubkeyMapByConsAddr[app.lastProposer], voters)
 	}
 	ctx.Close(true)
 
@@ -732,7 +735,7 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	ctx := app.GetRpcContext()
 	defer ctx.Close(false)
 	runner := &ebp.TxRunner{
-		Ctx: *ctx,
+		Ctx: ctx,
 		Tx:  txToRun,
 	}
 	bi := app.blockInfo.Load().(*types.BlockInfo)

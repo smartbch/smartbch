@@ -94,7 +94,7 @@ func TestStaking(t *testing.T) {
 
 	//test create validator through deliver tx
 	ctx := _app.GetRunTxContext()
-	stakingAcc, info := staking.LoadStakingAcc(*ctx)
+	stakingAcc, info := staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
 	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
@@ -102,7 +102,7 @@ func TestStaking(t *testing.T) {
 		staking.StakingContractAddress, 100, dataEncode, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(*ctx)
+	stakingAcc, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, uint64(100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/ +600000 /*extra gas*/), stakingAcc.Balance().Uint64())
 	require.Equal(t, 2, len(info.Validators))
@@ -116,7 +116,7 @@ func TestStaking(t *testing.T) {
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(*ctx)
+	stakingAcc, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
 	var intro [32]byte
@@ -136,10 +136,10 @@ func TestStaking(t *testing.T) {
 	ctx = _app.GetRunTxContext()
 	staking.SaveMinGasPrice(ctx, 100, true)
 	staking.SaveMinGasPrice(ctx, 100, false)
-	acc, info := staking.LoadStakingAcc(*ctx)
+	acc, info := staking.LoadStakingAcc(ctx)
 	info.Validators[1].StakedCoins = staking.MinimumStakingAmount.Bytes32()
 	info.Validators[1].VotingPower = 1000
-	staking.SaveStakingInfo(*ctx, acc, info)
+	staking.SaveStakingInfo(ctx, acc, info)
 	ctx.Close(true)
 	dataEncode = stakingABI.MustPack("increaseMinGasPrice")
 	_app.MakeAndExecTxInBlockWithGasPrice(key1,
@@ -163,7 +163,7 @@ func TestStaking(t *testing.T) {
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(*ctx)
+	stakingAcc, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
 	require.Equal(t, true, info.Validators[1].IsRetiring)
@@ -189,7 +189,7 @@ func TestStaking(t *testing.T) {
 	_app.EpochChan() <- e
 	_app.ExecTxInBlock(nil)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(*ctx)
+	stakingAcc, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, 1, len(info.Validators))
 	require.Equal(t, int64(2), info.Validators[0].VotingPower)

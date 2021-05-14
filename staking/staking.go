@@ -18,8 +18,8 @@ import (
 
 var (
 	//contract address, 10000
-	StakingContractAddress  [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
-	StakingContractSequence uint64   = math.MaxUint64 - 2 /*uint64(-3)*/
+	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
+	StakingContractSequence uint64 = math.MaxUint64 - 2 /*uint64(-3)*/
 	/*------selector------*/
 	/*interface Staking {
 	    //0x24d1ed5d
@@ -28,16 +28,19 @@ var (
 	    function editValidator(address rewardTo, bytes32 introduction) external;
 	    //0xa4874d77
 	    function retire() external;
-		//0xf2016e8e
-		function increaseMinGasPrice() external;
-		//0x696e6ad2
-		function decreaseMinGasPrice() external;
+	    //0xf2016e8e
+	    function increaseMinGasPrice() external;
+	    //0x696e6ad2
+	    function decreaseMinGasPrice() external;
+	    //9ce06909
+	    function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
 	}*/
 	SelectorCreateValidator     [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
 	SelectorEditValidator       [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
 	SelectorRetire              [4]byte = [4]byte{0xa4, 0x87, 0x4d, 0x77}
 	SelectorIncreaseMinGasPrice [4]byte = [4]byte{0xf2, 0x01, 0x6e, 0x8e}
 	SelectorDecreaseMinGasPrice [4]byte = [4]byte{0x69, 0x6e, 0x6a, 0xd2}
+	SelectorSumVotingPower      [4]byte = [4]byte{0x9c, 0xe0, 0x69, 0x09}
 
 	//slot
 	SlotStakingInfo     string = strings.Repeat(string([]byte{0}), 32)
@@ -61,6 +64,7 @@ var (
 	EpochCountBeforeRewardMature int64        = 1
 	BaseProposerPercentage       *uint256.Int = uint256.NewInt().SetUint64(15)
 	ExtraProposerPercentage      *uint256.Int = uint256.NewInt().SetUint64(15)
+
 	//minGasPrice
 	//todo: set to 0 for test, change it for product
 	DefaultMinGasPrice      uint64 = 0 //unit like gwei
@@ -78,6 +82,12 @@ var (
 	MinGasPriceTooSmall               = errors.New("minGasPrice smaller than max")
 	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
 	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
+	InvalidArgument                   = errors.New("invalid argument")
+)
+
+const (
+	SumVotingPowerGasPerByte uint64 = 25
+	SumVotingPowerBaseGas    uint64 = 10000
 )
 
 type StakingContractExecutor struct{}
@@ -99,7 +109,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 
 // Staking functions which can be invoked through smart contract calls
 // The extra gas fee distribute to the miners, not refund
-func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = int(mevmtypes.ReceiptStatusFailed)
 		return
@@ -118,14 +128,52 @@ func (_ *StakingContractExecutor) Execute(ctx mevmtypes.Context, currBlock *mevm
 		return externalOp(ctx, tx, false, true)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
-		return handleMinGasPrice(&ctx, tx.From, true)
+		return handleMinGasPrice(ctx, tx.From, true)
 	case SelectorDecreaseMinGasPrice:
 		//function decreaseMinGasPrice() external;
-		return handleMinGasPrice(&ctx, tx.From, false)
+		return handleMinGasPrice(ctx, tx.From, false)
 	default:
 		status = int(mevmtypes.ReceiptStatusFailed)
 		return
 	}
+}
+
+var readonlyStakingInfo types.StakingInfo
+
+func LoadReadonlyValiatorsInfo(ctx *mevmtypes.Context) {
+	_, readonlyStakingInfo = LoadStakingAcc(ctx)
+}
+
+func (_ *StakingContractExecutor) RequiredGas(input []byte) uint64 {
+	return uint64(len(input))*SumVotingPowerGasPerByte + SumVotingPowerBaseGas
+}
+
+//   function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
+func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
+	if len(input) < 4+32*2 || !bytes.Equal(input[:4], SelectorSumVotingPower[:]) {
+		return nil, InvalidArgument
+	}
+	input = input[4+32*2:] // ignore selector, offset, and length
+	var addr [20]byte
+	var result [64]byte
+	addrMap := make(map[[20]byte]struct{}, len(input)/32)
+	for i := 0; i+32 < len(input); i += 32 {
+		copy(addr[:], input[i*32+12:i*32+32])
+		addrMap[addr] = struct{}{}
+	}
+	summedPower := int64(0)
+	totalPower := int64(0)
+	for _, val := range readonlyStakingInfo.Validators {
+		_, hasValidator := addrMap[val.Address]
+		_, hasRewardTo := addrMap[val.RewardTo]
+		if hasValidator || hasRewardTo {
+			summedPower += val.VotingPower
+		}
+		totalPower += val.VotingPower
+	}
+	uint256.NewInt().SetUint64(uint64(summedPower)).WriteToSlice(result[:32])
+	uint256.NewInt().SetUint64(uint64(totalPower)).WriteToSlice(result[32:])
+	return result[:], nil
 }
 
 func stringFromBytes(bz []byte) string {
@@ -140,7 +188,7 @@ func stringFromBytes(bz []byte) string {
 }
 
 // This function implements the underlying logic for three external functions: createValidator, editValidator and retire
-func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retire bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retire bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = int(mevmtypes.ReceiptStatusFailed)
 	gasUsed = GasOfStakingExternalOp
 	var pubkey [32]byte
@@ -227,7 +275,7 @@ func externalOp(ctx mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retir
 func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	mGP := LoadMinGasPrice(ctx, false)
 	lastMGP := LoadMinGasPrice(ctx, true)
-	_, info := LoadStakingAcc(*ctx)
+	_, info := LoadStakingAcc(ctx)
 	isValidatorOrRewardTo := false
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	for _, v := range activeValidators {
@@ -263,7 +311,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 	return
 }
 
-func LoadStakingAcc(ctx mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
+func LoadStakingAcc(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	stakingAcc = ctx.GetAccount(StakingContractAddress)
 	if stakingAcc == nil {
 		panic("Cannot find staking contract")
@@ -279,7 +327,7 @@ func LoadStakingAcc(ctx mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, i
 	return
 }
 
-func SaveStakingInfo(ctx mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
+func SaveStakingInfo(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	bz, err := info.MarshalMsg(nil)
 	if err != nil {
 		panic(err)
@@ -323,7 +371,7 @@ func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 
 // Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
 func Slash(ctx *mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
-	stakingAcc, info := LoadStakingAcc(*ctx)
+	stakingAcc, info := LoadStakingAcc(ctx)
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
 		return // If tendermint works fine, we'll never reach here
@@ -360,7 +408,7 @@ func incrAllBurnt(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amo
 }
 
 // distribute the collected gas fee to validators who voted for current block
-func DistributeFee(ctx mevmtypes.Context, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
+func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
 	if collectedFee == nil {
 		return
 	}
@@ -458,13 +506,13 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 		}
 		info.PendingRewards = append(info.PendingRewards, pr)
 	}
-	SaveStakingInfo(*ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, stakingAcc, info)
 	return activeValidators
 }
 
 // deliver pending rewards which are mature now to rewardTo
 func endEpoch(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
-	stakingAcc, info = LoadStakingAcc(*ctx)
+	stakingAcc, info = LoadStakingAcc(ctx)
 	info.CurrEpochNum++
 	stakingAccBalance := stakingAcc.Balance()
 
