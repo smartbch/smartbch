@@ -416,9 +416,6 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 			app.slashValidators = append(app.slashValidators, addr)
 		}
 	}
-	ctx := app.GetRunTxContext()
-	staking.LoadReadonlyValiatorsInfo(ctx)
-	ctx.Close(false)
 	app.logger.Debug("leave begin block!")
 	return abcitypes.ResponseBeginBlock{}
 }
@@ -531,6 +528,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	}
 	if app.currHeight != 1 {
 		staking.DistributeFee(ctx, &blockReward, pubkeyMapByConsAddr[app.lastProposer], voters)
+	} else {
+		staking.LoadReadonlyValiatorsInfo(ctx)
 	}
 	ctx.Close(true)
 

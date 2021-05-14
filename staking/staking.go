@@ -138,10 +138,11 @@ func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 	}
 }
 
-var readonlyStakingInfo types.StakingInfo
+var readonlyStakingInfo *types.StakingInfo
 
 func LoadReadonlyValiatorsInfo(ctx *mevmtypes.Context) {
-	_, readonlyStakingInfo = LoadStakingAcc(ctx)
+	_, info := LoadStakingAcc(ctx)
+	readonlyStakingInfo = &info
 }
 
 func (_ *StakingContractExecutor) RequiredGas(input []byte) uint64 {
@@ -485,6 +486,7 @@ func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [
 	coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
 	rwd.Amount = coins.Bytes32()
 
+	readonlyStakingInfo = &info
 	SaveStakingInfo(ctx, stakingAcc, info)
 }
 
