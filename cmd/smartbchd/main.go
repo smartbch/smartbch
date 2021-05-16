@@ -36,6 +36,7 @@ func createSmartbchdCmd() *cobra.Command {
 	}
 	addInitCommands(ctx, rootCmd)
 	rootCmd.AddCommand(StartCmd(ctx, newApp))
+	rootCmd.AddCommand(GenerateConsensusKeyInfoCmd(ctx))
 	rootCmd.AddCommand(GenerateGenesisValidatorCmd(ctx))
 	rootCmd.AddCommand(AddGenesisValidatorCmd(ctx))
 	return rootCmd

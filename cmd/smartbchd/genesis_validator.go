@@ -3,54 +3,99 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/internal/ethutils"
-	"github.com/smartbch/smartbch/staking"
-	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"os"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/types"
-	"os"
+
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
-/*
-type Validator struct {
-	Address      [20]byte `msgp:"address"`   // Validator's address in moeing chain
-	Pubkey       [32]byte `msgp:"pubkey"`    // Validator's pubkey for tendermint
-	RewardTo     [20]byte `msgp:"reward_to"` // where validator's reward goes into
-	VotingPower  int64    `msgp:"voting_power"`
-	Introduction string   `msgp:"introduction"` // a short introduction
-	StakedCoins  [32]byte `msgp:"staked_coins"`
-	IsRetiring   bool     `msgp:"is_retiring"` // whether this validator is in a retiring process
-}
-*/
-// GenerateGenesisValidatorCmd returns add-genesis-validator cobra Command.
-func GenerateGenesisValidatorCmd(ctx *Context) *cobra.Command {
+const (
+	flagAddress      = "validator-address"
+	flagPubkey       = "consensus-pubkey"
+	flagVotingPower  = "voting-power"
+	flagStakingCoin  = "staking-coin"
+	flagIntroduction = "introduction"
+)
+
+func GenerateConsensusKeyInfoCmd(ctx *Context) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "generate-genesis-validator [operator_private_key]",
-		Short: "Generate and print genesis validator info",
-		Args:  cobra.ExactArgs(1),
+		Use:   "generate-consensus-key-info",
+		Short: "Generate and print genesis validator consensus key info",
+		Args:  cobra.ExactArgs(0),
+		Example: `
+smartbchd generate-consensus-key-info
+`,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
 			c.SetRoot(app.DefaultNodeHome)
-			// get private key
-			privateKey, _, err := ethutils.HexToPrivKey(args[0])
+			pk := ed25519.GenPrivKey()
+			fpv := privval.FilePVKey{
+				Address: pk.PubKey().Address(),
+				PubKey:  pk.PubKey(),
+				PrivKey: pk,
+			}
+			jsonBytes, err := tmjson.MarshalIndent(fpv, "", "  ")
 			if err != nil {
 				return err
 			}
+			fmt.Printf("%s\n", string(jsonBytes))
+			return nil
+		},
+	}
+	return cmd
+}
+
+// GenerateGenesisValidatorCmd returns add-genesis-validator cobra Command.
+func GenerateGenesisValidatorCmd(ctx *Context) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "generate-genesis-validator",
+		Short: "Generate and print genesis validator info",
+		Example: `
+smartbchd generate-genesis-validator 
+--validator-address= 
+--consensus-pubkey= 
+--voting-power= 
+--staking-coin=10000000000000 
+--introduction="freeman node"
+`,
+		RunE: func(_ *cobra.Command, args []string) error {
+			c := ctx.Config
+			c.SetRoot(app.DefaultNodeHome)
 			// get validator address
-			addr := ethutils.PrivKeyToAddr(privateKey)
+			addr := common.HexToAddress(viper.GetString(flagAddress))
+			// get pubkey
+			pubKey, _, err := ethutils.HexToPubKey(flagPubkey)
+			if err != nil {
+				return err
+			}
+			// get staking coin
+			sCoin, success := bigutils.ParseU256(viper.GetString(flagStakingCoin))
+			if !success {
+				return errors.New("staking coin parse failed")
+			}
 			// generate new genesis validator
 			genVal := stakingtypes.Validator{
 				Address:      addr,
-				RewardTo:     [20]byte{},
-				VotingPower:  1,
-				Introduction: "genesis_validator",
-				StakedCoins:  staking.InitialStakingAmount.Bytes32(),
+				RewardTo:     addr,
+				VotingPower:  viper.GetInt64(flagVotingPower),
+				Introduction: viper.GetString(flagIntroduction),
+				StakedCoins:  sCoin.Bytes32(),
 				IsRetiring:   false,
 			}
-			copy(genVal.Pubkey[:], privval.LoadFilePV(c.PrivValidatorKeyFile(), c.PrivValidatorStateFile()).Key.PubKey.Bytes())
+			copy(genVal.Pubkey[:], pubKey)
 			// print validator info, add this to genesis manually
 			info, _ := json.Marshal(genVal)
 			//fmt.Printf("%s\n", info)
@@ -59,6 +104,11 @@ func GenerateGenesisValidatorCmd(ctx *Context) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().String(flagAddress, "", "validator address")
+	cmd.Flags().String(flagPubkey, "", "consensus pubkey")
+	cmd.Flags().Int64(flagVotingPower, 0, "voting power")
+	cmd.Flags().String(flagStakingCoin, "0", "staking coin")
+	cmd.Flags().String(flagIntroduction, "genesis validator", "introduction")
 	return cmd
 }
 
