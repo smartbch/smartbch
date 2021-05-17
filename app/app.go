@@ -43,7 +43,6 @@ var _ abcitypes.Application = (*App)(nil)
 
 var (
 	DefaultNodeHome = os.ExpandEnv("$HOME/.smartbchd")
-	DefaultCLIHome  = os.ExpandEnv("$HOME/.smartbchcli")
 )
 
 type ContextMode uint8
@@ -119,7 +118,6 @@ type App struct {
 }
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {
-
 	app := &App{}
 	/*------set config------*/
 	app.retainBlocks = config.RetainBlocks
@@ -747,10 +745,6 @@ func (app *App) Logger() log.Logger {
 func (app *App) WaitLock() {
 	app.mtx.Lock()
 	app.mtx.Unlock()
-}
-
-func (app *App) TestValidatorPubkey() crypto.PubKey {
-	return app.testValidatorPubKey
 }
 
 func (app *App) HistoryStore() modbtypes.DB {
