@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
@@ -27,6 +26,7 @@ const (
 	flagRpcAddr      = "http.addr"
 	flagWsAddr       = "ws.addr"
 	flagRetainBlocks = "retain"
+	flagUnlock       = "unlock"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -45,12 +45,13 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
+	cmd.Flags().String(flagUnlock, "", "Comma separated list of private keys to unlock (only for testing)")
 	return cmd
 }
 
 func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	cfg := ctx.Config
-	chainID, testKeys, err := getChainIDAndTestKeys(ctx)
+	chainID, err := getChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,11 +98,12 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	rpcBackend := api.NewBackend(tmNode, appImpl)
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
+	unlockedKeys := viper.GetString(flagUnlock)
 	//rpcAddr = viper.GetString("")
 	certfileDir := filepath.Join(cfg.RootDir, "config/cert.pem")
 	keyfileDir := filepath.Join(cfg.RootDir, "config/key.pem")
 	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcBackend, certfileDir, keyfileDir,
-		ctx.Logger, testKeys)
+		ctx.Logger, strings.Split(unlockedKeys, ","))
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
@@ -119,31 +121,16 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	select {}
 }
 
-func getChainIDAndTestKeys(ctx *Context) (*uint256.Int, []string, error) {
+func getChainID(ctx *Context) (*uint256.Int, error) {
 	gDoc, err := tmtypes.GenesisDocFromFile(ctx.Config.GenesisFile())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	chainID, err := parseChainID(gDoc.ChainID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	gData := app.GenesisData{}
-	if len(gDoc.AppState) > 0 {
-		err = json.Unmarshal(gDoc.AppState, &gData)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	testKeys := make([]string, 0, len(gData.Alloc))
-	for _, acc := range gData.Alloc {
-		if len(acc.PrivateKey) > 0 {
-			testKeys = append(testKeys, hex.EncodeToString(acc.PrivateKey))
-		}
-	}
-
-	return chainID, testKeys, nil
+	return chainID, nil
 }

@@ -20,7 +20,6 @@ import (
 
 	"github.com/holiman/uint256"
 	abcitypes "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	"github.com/tendermint/tendermint/libs/log"
@@ -112,9 +111,6 @@ type App struct {
 	//genesis data
 	currValidators []*stakingtypes.Validator
 	validators     []ed25519.PubKey
-
-	//test
-	testValidatorPubKey crypto.PubKey
 }
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {

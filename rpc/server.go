@@ -38,19 +38,19 @@ type Server struct {
 	wssListener       net.Listener
 	certFile, keyFile string
 
-	testKeys []string
+	unlockedKeys []string
 }
 
 func NewServer(rpcAddr string, wsAddr string,
 	backend api.BackendService, certFile, keyFile string,
-	logger tmlog.Logger, testKeys []string) tmservice.Service {
+	logger tmlog.Logger, unlockedKeys []string) tmservice.Service {
 
 	impl := &Server{
 		rpcAddr:      rpcAddr,
 		wsAddr:       wsAddr,
 		backend:      backend,
 		logger:       logger,
-		testKeys:     testKeys,
+		unlockedKeys: unlockedKeys,
 		certFile:     certFile,
 		keyFile:      keyFile,
 		rpcHttpsAddr: "tcp://:9545",
@@ -60,8 +60,7 @@ func NewServer(rpcAddr string, wsAddr string,
 }
 
 func (server *Server) OnStart() error {
-	apis := rpcapi.GetAPIs(server.backend,
-		server.logger, server.testKeys)
+	apis := rpcapi.GetAPIs(server.backend, server.logger, server.unlockedKeys)
 	if err := server.startHTTPAndHTTPS(apis); err != nil {
 		return err
 	}
