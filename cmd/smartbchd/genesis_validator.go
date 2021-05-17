@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmjson "github.com/tendermint/tendermint/libs/json"
+	"github.com/tendermint/tendermint/libs/tempfile"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/types"
 
@@ -51,7 +52,11 @@ smartbchd generate-consensus-key-info
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%s\n", string(jsonBytes))
+			err = tempfile.WriteFileAtomic("./priv_validator_key.json", jsonBytes, 0600)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s\n", hex.EncodeToString(pk.PubKey().Bytes()))
 			return nil
 		},
 	}
@@ -79,7 +84,7 @@ smartbchd generate-genesis-validator
 			// get pubkey
 			pubKey, _, err := ethutils.HexToPubKey(viper.GetString(flagPubkey))
 			if err != nil {
-				return err
+				return errors.New("pubkey error: " + err.Error())
 			}
 			// get staking coin
 			sCoin, success := bigutils.ParseU256(viper.GetString(flagStakingCoin))
