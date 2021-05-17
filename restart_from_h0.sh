@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
 export EVMWRAP=libevmwrap.so
+alias smartbchd='go run github.com/smartbch/smartbch/cmd/smartbchd'
 
 rm -rf ~/.smartbchd/
-go run github.com/smartbch/smartbch/cmd/smartbchd init m1 --chain-id 0x2711 \
+smartbchd init m1 --chain-id 0x2711 \
   --init-balance=10000000000000000000 \
   --test-keys="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 0x5a09e9d6be2cdc7de8f6beba300e52823493cd23357b1ca14a9c36764d600f5e,\
@@ -17,7 +18,16 @@ go run github.com/smartbch/smartbch/cmd/smartbchd init m1 --chain-id 0x2711 \
 0xa3ff378a8d766931575df674fbb1024f09f7072653e1aa91641f310b3e1c5275"
 sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' ~/.smartbchd/config/config.toml
 
-export NODIASM=1 
-export NOSTACK=1
-export NOINSTLOG=1
-go run github.com/smartbch/smartbch/cmd/smartbchd start
+v=$(smartbchd generate-genesis-validator \
+  0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9 \
+  --consensus-pubkey 0x1234567812345678123456781234567812345678123456781234567812345678 \
+  --staking-coin 10000000000000000000000 \
+  --voting-power 100000000000
+  )
+
+smartbchd add-genesis-validator $v
+
+#export NODIASM=1
+#export NOSTACK=1
+#export NOINSTLOG=1
+smartbchd start
