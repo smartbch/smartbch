@@ -77,7 +77,7 @@ smartbchd generate-genesis-validator
 			// get validator address
 			addr := common.HexToAddress(viper.GetString(flagAddress))
 			// get pubkey
-			pubKey, _, err := ethutils.HexToPubKey(flagPubkey)
+			pubKey, _, err := ethutils.HexToPubKey(viper.GetString(flagPubkey))
 			if err != nil {
 				return err
 			}
