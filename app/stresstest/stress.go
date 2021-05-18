@@ -116,12 +116,21 @@ func GenKeysToFile(fname string, count int) {
 	}
 	defer f.Close()
 
-	for i := 0; i < count; i++ {
-		if i%10000 == 0 {
-			fmt.Println(i)
+	keys := make([]string, 80000)
+	for i := 0; i < count; i+=8000 {
+		fmt.Println(i)
+		parallelRun(8, func(id int) {
+			for i := id*1000; i < (id+1)*1000; i++ {
+				key, err := crypto.GenerateKey()
+				if err != nil {
+					panic(err)
+				}
+				keys[i] = hex.EncodeToString(crypto.FromECDSA(key))
+			}
+		})
+		for _, key := range keys {
+			fmt.Fprintln(f, key)
 		}
-		key, _ := crypto.GenerateKey()
-		fmt.Fprintln(f, hex.EncodeToString(crypto.FromECDSA(key)))
 	}
 }
 
