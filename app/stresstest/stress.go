@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/coinexchain/randsrc"
@@ -90,10 +91,15 @@ func (db *BlockDB) LoadBlock(height uint32) *Block {
 }
 
 //Replay the blockes stored in db onto _app
-func ReplayBlocks(_app *testutils.TestApp, db *BlockDB, endHeight uint32) {
-	for h := uint32(1); h < endHeight; h++ {
+func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
+	h := uint32(0)
+	for {
+		h++
 		fmt.Printf("Height %d %d\n", h, time.Now().UnixNano())
 		blk := db.LoadBlock(h)
+		if blk == nil {
+			break
+		}
 		appHash := ExecTxsInOneBlock(_app, int64(h), blk.TxList)
 		if !bytes.Equal(appHash, blk.AppHash) {
 			fmt.Printf("ref %#v imp %#v\n", appHash, blk.AppHash)
@@ -111,13 +117,16 @@ func GenKeysToFile(fname string, count int) {
 	defer f.Close()
 
 	for i := 0; i < count; i++ {
+		if i%10000 == 0 {
+			fmt.Println(i)
+		}
 		key, _ := crypto.GenerateKey()
 		fmt.Fprintln(f, hex.EncodeToString(crypto.FromECDSA(key)))
 	}
 }
 
 // read private keys from a file
-func ReadKeysFromFile(fname string) (res []string) {
+func ReadKeysFromFile(fname string, count int) (res []string) {
 	f, err := os.Open(fname)
 	if err != nil {
 		panic(err)
@@ -128,7 +137,7 @@ func ReadKeysFromFile(fname string) (res []string) {
 	scanner.Split(bufio.ScanLines)
 
 	res = make([]string, 0, 8192)
-	for scanner.Scan() {
+	for scanner.Scan() && len(res) < count {
 		//fmt.Printf("Now read %d\n", len(res))
 		txt := scanner.Text()
 		//_, err := crypto.HexToECDSA(txt)
@@ -314,9 +323,22 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	return &testutils.TestApp{App: _app, TestPubkey: testValidatorPubKey}
 }
 
+func parallelRun(workerCount int, fn func(workerID int)) {
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
+		go func(i int) {
+			fn(i)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+}
+
 // record `randBlocks` blocks into db for later replay
 func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlock int) {
-	if toSize%fromSize != 0 {
+	numThreads := 8
+	if toSize%fromSize != 0 || toSize%numThreads != 0 {
 		panic("Invalid sizes")
 	}
 	fanoutSize := toSize / fromSize
@@ -324,12 +346,14 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 		panic("not enough keys")
 	}
 	toAddrs := make([]common.Address, toSize) // to-addresses
-	for i := range toAddrs {
-		if i%10000 == 0 && i != 0 {
-			fmt.Printf("Now we get %d to-addresses\n", i)
+	parallelRun(numThreads, func(id int) {
+		for i := id*toSize/numThreads; i < (id+1)*toSize/numThreads; i++ {
+			if i%10000 == 0 && i != 0 {
+				fmt.Printf("Now worker-%d get %d-th to-address\n", id, i)
+			}
+			toAddrs[i] = KeyToAddr(keys[fromSize+i])
 		}
-		toAddrs[i] = KeyToAddr(keys[fromSize+i])
-	}
+	})
 	keys = keys[:fromSize] // from-priv-keys
 	_app := CreateTestApp(initBalance, keys)
 	txList, contractAddrs := GetDeployTxAndAddrList(_app, keys, creationBytecode)
@@ -348,6 +372,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	blk.TxList = nil
 	blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 	db.SaveBlock(blk)
+	fmt.Printf("================== Contract Created H=%d ===================\n", db.height)
 	// fanout transactions for initializing storage slots and to-addresses
 	for fanoutID := 0; fanoutID < fanoutSize; fanoutID++ {
 		fmt.Printf("fanoutID: %d\n", fanoutID)
@@ -366,6 +391,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	blk.TxList = nil
 	blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 	db.SaveBlock(blk)
+	fmt.Printf("================== Storage Slots Written H=%d ===================\n", db.height)
 	//ShowSlots(_app, toAddrs[0], contractAddrs, fanoutSize)
 	//ShowBalances(_app, keys, toAddrs)
 
@@ -417,7 +443,7 @@ func ShowSlots(_app *testutils.TestApp, caller common.Address, contractAddrs []c
 	}
 }
 
-func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int) {
+func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string) {
 	os.RemoveAll(adsDir)
 	os.RemoveAll(modbDir)
 	os.RemoveAll(blockDir)
@@ -430,38 +456,41 @@ func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int) {
 		return
 	}
 	rs := randsrc.NewRandSrcFromFile(randFilename)
-	keys := ReadKeysFromFile("keys1M.txt")
+	keys := ReadKeysFromFile(fname, fromSize+toSize)
 	fmt.Printf("keys loaded\n")
 	blkDB := NewBlockDB(blockDir)
 	RecordBlocks(blkDB, rs, randBlocks, keys, fromSize, toSize, txPerBlock)
-	fmt.Printf("Finished at height %d\n", blkDB.height)
+	fmt.Printf("!!!Finished at height %d\n", blkDB.height)
 	blkDB.Close()
 }
 
-func RunReplayBlocks(endHeight uint32, fromSize int) {
+func RunReplayBlocks(fromSize int, fname string) {
 	os.RemoveAll(adsDir)
 	os.RemoveAll(modbDir)
 	os.Mkdir(modbDir, 0700)
 
 	blkDB := NewBlockDB(blockDir)
-	keys := ReadKeysFromFile("keys1M.txt")
+	keys := ReadKeysFromFile(fname, fromSize)
 	_app := CreateTestApp(initBalance, keys[:fromSize])
-	ReplayBlocks(_app, blkDB, endHeight)
+	ReplayBlocks(_app, blkDB)
 	blkDB.Close()
 }
 
 // =================
 
 func main() {
-	//randBlocks, fromSize, toSize, txPerBlock, endHeight := 100, 10, 100, 4, 124
-	randBlocks, fromSize, toSize, txPerBlock, endHeight := 100, 5000, 5000_00, 1024, 312
-	//randBlocks, fromSize, toSize, txPerBlock, endHeight := 1000, 50000, 50000_000, 10000,
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 10, 100, 4, "keys1M.txt"
+	randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 5000_00, 1024, "keys1M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
+
 	if os.Args[1] == "gen" {
-		RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock)
+		RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock, fname)
 	} else if os.Args[1] == "replay" {
-		RunReplayBlocks(uint32(endHeight), fromSize)
+		RunReplayBlocks(fromSize, fname)
 	} else if os.Args[1] == "genkeys" {
-		GenKeysToFile("keys1M.txt", 1000*1000)
+		GenKeysToFile("keys1M.txt", 1_000_000)
+	} else if os.Args[1] == "genkeys60" {
+		GenKeysToFile("keys60M.txt", 60_000_000)
 	} else {
 		panic("invalid argument")
 	}

@@ -429,7 +429,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		fmt.Printf("endblock validator:%v\n", v.Address)
+		//fmt.Printf("endblock validator:%v\n", v.Address)
 	}
 	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{

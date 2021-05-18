@@ -31,3 +31,4 @@ cmd/smartbchd/smartbchd
 
 private/
 app/stresstest/stresstest
+*.bak
