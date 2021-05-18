@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -321,24 +322,31 @@ func TestContractAdd(t *testing.T) {
 	param.Lsh(param, 32)
 	param.Or(param, big.NewInt(6))
 	calldata := testAddABI.MustPack("run", addr2, param)
-	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 1200000 /*value*/, calldata, 2 /*gasprice*/)
+	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 120 /*value*/, calldata, 2 /*gasprice*/)
 
 	ctx := _app.GetRpcContext()
-	defer ctx.Close(false)
 	//conAcc := ctx.GetAccount(contractAddr)
 	//seq := conAcc.Sequence()
 	//fmt.Printf("conAcc's Sequence %d\n", seq)
-	//fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().Uint64())
-	require.Equal(t, uint64(1200000), ctx.GetAccount(addr2).Balance().Uint64())
+	fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().Uint64())
+	require.Equal(t, uint64(120), ctx.GetAccount(addr2).Balance().Uint64())
+	ctx.Close(false)
 
-	res := [7]int64{-1, 600000, 0, 0, 600000, 0, 0}
+	res := [7]int64{-1, 60, 0, 0, 60, 0, 0}
 	for i := uint32(1); i <= 6; i++ {
-		calldata = testAddABI.MustPack("get", uint32(i))
-		status, statusStr, retData := _app.Call(addr1, contractAddr, calldata)
+		data := testAddABI.MustPack("get", uint32(i))
+		status, statusStr, retData := _app.Call(addr1, contractAddr, data)
 		n := big.NewInt(0)
 		n.SetBytes(retData[:])
 		require.Equal(t, 0, status)
 		require.Equal(t, "success", statusStr)
 		require.Equal(t, res[i], n.Int64())
 	}
+	_app.ExecTxInBlock(nil)
+	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 2/*value*/, calldata, 1 /*gasprice*/)
+	_app.ExecTxInBlock(nil)
+	ctx = _app.GetRpcContext()
+	require.Equal(t, uint64(122), ctx.GetAccount(addr2).Balance().Uint64())
+	fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().ToBig())
+	ctx.Close(false)
 }

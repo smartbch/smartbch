@@ -286,7 +286,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	ctx := app.GetRunTxContext()
 	var genesisValidators []*stakingtypes.Validator
 	if len(req.AppStateBytes) != 0 {
-		fmt.Printf("appstate:%s\n", req.AppStateBytes)
+		//fmt.Printf("appstate:%s\n", req.AppStateBytes)
 		genesisData := GenesisData{}
 		err := json.Unmarshal(req.AppStateBytes, &genesisData)
 		if err != nil {
