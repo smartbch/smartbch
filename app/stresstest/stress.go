@@ -95,11 +95,11 @@ func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
 	h := uint32(0)
 	for {
 		h++
-		fmt.Printf("Height %d %d\n", h, time.Now().UnixNano())
 		blk := db.LoadBlock(h)
 		if blk == nil {
 			break
 		}
+		fmt.Printf("Height %d txCount %d time %d\n", h, len(blk.TxList), time.Now().UnixNano())
 		appHash := ExecTxsInOneBlock(_app, int64(h), blk.TxList)
 		if !bytes.Equal(appHash, blk.AppHash) {
 			fmt.Printf("ref %#v imp %#v\n", appHash, blk.AppHash)
@@ -116,7 +116,7 @@ func GenKeysToFile(fname string, count int) {
 	}
 	defer f.Close()
 
-	keys := make([]string, 80000)
+	keys := make([]string, 8000)
 	for i := 0; i < count; i+=8000 {
 		fmt.Println(i)
 		parallelRun(8, func(id int) {
