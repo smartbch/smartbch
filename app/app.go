@@ -130,7 +130,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.logger = logger.With("module", "app")
 
 	/*------set engine------*/
-	app.txEngine = ebp.NewEbpTxExec(10, 100, 32, 100, app.signer)
+	app.txEngine = ebp.NewEbpTxExec(/*exeRoundCount*/200, /*runnerNumber*/256, /*parallelNum*/32,
+		/*defaultTxListCap*/5000, app.signer)
 
 	/*------set watcher------*/
 	//todo: lastHeight = latest previous bch mainnet 2016x blocks
