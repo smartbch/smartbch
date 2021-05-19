@@ -25,21 +25,6 @@ import (
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
-const counterContract = `
-// SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0;
-
-contract Counter {
-
-int public counter;
-
-function update(int n) public {
-  counter += n;
-}
-
-}
-`
-
 // code, rtCode, _ := testutils.MustCompileSolStr(counterContract)
 var counterContractCreationBytecode = testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060b28061001f6000396000f3fe60
@@ -50,14 +35,7 @@ bc221a1460375780636299a6ef14604f575b600080fd5b603d606b565b604080
 6673582212205df2a10ba72894ded3e0a7ea8c57a79906cca125c3aafe3c979f
 bd57e662c01d64736f6c634300060c0033
 `)
-var counterContractRuntimeBytecode = testutils.HexToBytes(`
-6080604052348015600f57600080fd5b506004361060325760003560e01c8063
-61bc221a1460375780636299a6ef14604f575b600080fd5b603d606b565b6040
-8051918252519081900360200190f35b60696004803603602081101560635760
-0080fd5b50356071565b005b60005481565b60008054909101905556fea26469
-706673582212205df2a10ba72894ded3e0a7ea8c57a79906cca125c3aafe3c97
-9fbd57e662c01d64736f6c634300060c0033
-`)
+
 var counterContractABI = testutils.MustParseABI(`
 [
   {

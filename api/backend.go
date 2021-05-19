@@ -38,12 +38,12 @@ type apiBackend struct {
 	app  *app.App
 	//gpo *gasprice.Oracle
 
-	chainSideFeed event.Feed
-	chainHeadFeed event.Feed
-	blockProcFeed event.Feed
-	txFeed        event.Feed
-	logsFeed      event.Feed
-	rmLogsFeed    event.Feed
+	//chainSideFeed event.Feed
+	//chainHeadFeed event.Feed
+	//blockProcFeed event.Feed
+	txFeed event.Feed
+	//logsFeed   event.Feed
+	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
 }
 

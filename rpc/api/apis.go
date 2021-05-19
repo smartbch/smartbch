@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	namespaceEth      = "eth"
-	namespaceNet      = "net"
-	namespaceWeb3     = "web3"
-	namespacePersonal = "personal"
-	namespaceEVM      = "evm"
-	namespaceSBCH     = "sbch"
-	namespaceTM       = "tm"
+	namespaceEth  = "eth"
+	namespaceNet  = "net"
+	namespaceWeb3 = "web3"
+	namespaceEVM  = "evm"
+	namespaceSBCH = "sbch"
+	namespaceTM   = "tm"
+	//namespacePersonal = "personal"
 
 	apiVersion = "1.0"
 )

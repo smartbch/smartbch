@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
@@ -37,7 +36,7 @@ type Backend = api.FilterService
 type Filter struct {
 	backend Backend
 
-	db        ethdb.Database
+	//db        ethdb.Database
 	addresses []common.Address
 	topics    [][]common.Hash
 

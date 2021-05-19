@@ -19,7 +19,6 @@
 package filters
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -86,7 +85,7 @@ type subscription struct {
 type EventSystem struct {
 	backend   Backend
 	lightMode bool
-	lastHead  *motypes.Header
+	//lastHead  *motypes.Header
 
 	// Subscriptions
 	txsSub    event.Subscription // Subscription for new transaction event
@@ -343,10 +342,10 @@ func (es *EventSystem) handleRemovedLogs(filters filterIndex, ev core.RemovedLog
 }
 
 func (es *EventSystem) handleTxsEvent(filters filterIndex, ev core.NewTxsEvent) {
-	hashes := make([]common.Hash, 0, len(ev.Txs))
-	for _, tx := range ev.Txs {
-		hashes = append(hashes, tx.Hash())
-	}
+	//hashes := make([]common.Hash, 0, len(ev.Txs))
+	//for _, tx := range ev.Txs {
+	//	hashes = append(hashes, tx.Hash())
+	//}
 	//for _, f := range filters[PendingTransactionsSubscription] {
 	//	f.hashes <- hashes
 	//}
@@ -402,44 +401,44 @@ func (es *EventSystem) lightFilterNewHead(newHeader *motypes.Header, callBack fu
 }
 */
 // filter logs of a single header in light client mode
-func (es *EventSystem) lightFilterLogs(header *motypes.Header, addresses []common.Address, topics [][]common.Hash, remove bool) []*types.Log {
-	if bloomFilter(header.Bloom, addresses, topics) {
-		// Get the logs of the block
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
-		logsList, err := es.backend.GetLogs(ctx, header.Hash())
-		if err != nil {
-			return nil
-		}
-		var unfiltered []*types.Log
-		for _, logs := range logsList {
-			for _, log := range logs {
-				logcopy := *log
-				logcopy.Removed = remove
-				unfiltered = append(unfiltered, &logcopy)
-			}
-		}
-		logs := filterLogs(unfiltered, nil, nil, addresses, topics)
-		if len(logs) > 0 && logs[0].TxHash == (common.Hash{}) {
-			// We have matching but non-derived logs
-			receipts, err := es.backend.GetReceipts(ctx, header.Hash())
-			if err != nil {
-				return nil
-			}
-			unfiltered = unfiltered[:0]
-			for _, receipt := range receipts {
-				for _, log := range receipt.Logs {
-					logcopy := *log
-					logcopy.Removed = remove
-					unfiltered = append(unfiltered, &logcopy)
-				}
-			}
-			logs = filterLogs(unfiltered, nil, nil, addresses, topics)
-		}
-		return logs
-	}
-	return nil
-}
+//func (es *EventSystem) lightFilterLogs(header *motypes.Header, addresses []common.Address, topics [][]common.Hash, remove bool) []*types.Log {
+//	if bloomFilter(header.Bloom, addresses, topics) {
+//		// Get the logs of the block
+//		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+//		defer cancel()
+//		logsList, err := es.backend.GetLogs(ctx, header.Hash())
+//		if err != nil {
+//			return nil
+//		}
+//		var unfiltered []*types.Log
+//		for _, logs := range logsList {
+//			for _, log := range logs {
+//				logcopy := *log
+//				logcopy.Removed = remove
+//				unfiltered = append(unfiltered, &logcopy)
+//			}
+//		}
+//		logs := filterLogs(unfiltered, nil, nil, addresses, topics)
+//		if len(logs) > 0 && logs[0].TxHash == (common.Hash{}) {
+//			// We have matching but non-derived logs
+//			receipts, err := es.backend.GetReceipts(ctx, header.Hash())
+//			if err != nil {
+//				return nil
+//			}
+//			unfiltered = unfiltered[:0]
+//			for _, receipt := range receipts {
+//				for _, log := range receipt.Logs {
+//					logcopy := *log
+//					logcopy.Removed = remove
+//					unfiltered = append(unfiltered, &logcopy)
+//				}
+//			}
+//			logs = filterLogs(unfiltered, nil, nil, addresses, topics)
+//		}
+//		return logs
+//	}
+//	return nil
+//}
 
 // eventLoop (un)installs filters and processes mux events.
 func (es *EventSystem) eventLoop() {
@@ -465,7 +464,7 @@ func (es *EventSystem) eventLoop() {
 			es.handleLogs(index, ev)
 		case ev := <-es.rmLogsCh:
 			es.handleRemovedLogs(index, ev)
-		case _ = <-es.pendingLogsCh:
+		case <-es.pendingLogsCh:
 			//es.handlePendingLogs(index, ev)
 		case ev := <-es.chainCh:
 			es.handleChainEvent(index, ev)

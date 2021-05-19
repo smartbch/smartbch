@@ -77,7 +77,6 @@ type App struct {
 
 	//refresh with block
 	currHeight      int64
-	checkHeight     int64
 	trunk           *store.TrunkStore
 	checkTrunk      *store.TrunkStore
 	block           *types.Block
@@ -110,7 +109,6 @@ type App struct {
 
 	//genesis data
 	currValidators []*stakingtypes.Validator
-	validators     []ed25519.PubKey
 }
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {

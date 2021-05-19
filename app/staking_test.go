@@ -116,7 +116,7 @@ func TestStaking(t *testing.T) {
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	_, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
 	var intro [32]byte
@@ -163,7 +163,7 @@ func TestStaking(t *testing.T) {
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	_, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
 	require.Equal(t, true, info.Validators[1].IsRetiring)
@@ -189,7 +189,7 @@ func TestStaking(t *testing.T) {
 	_app.EpochChan() <- e
 	_app.ExecTxInBlock(nil)
 	ctx = _app.GetRunTxContext()
-	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	_, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
 	require.Equal(t, 1, len(info.Validators))
 	require.Equal(t, int64(2), info.Validators[0].VotingPower)

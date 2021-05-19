@@ -16,8 +16,9 @@ type MockBCHNode struct {
 }
 
 var testValidatorPubkey1 = [32]byte{0x1}
-var testValidatorPubkey2 = [32]byte{0x2}
-var testValidatorPubkey3 = [32]byte{0x3}
+
+//var testValidatorPubkey2 = [32]byte{0x2}
+//var testValidatorPubkey3 = [32]byte{0x3}
 
 func buildMockBCHNodeWithOnlyValidator1() *MockBCHNode {
 	m := &MockBCHNode{
