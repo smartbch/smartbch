@@ -72,8 +72,10 @@ type App struct {
 	retainBlocks int64
 
 	//store
-	root         *store.RootStore
-	historyStore modbtypes.DB
+	mads          *moeingads.MoeingADS
+	root          *store.RootStore
+	numKeptBlocks int64
+	historyStore  modbtypes.DB
 
 	//refresh with block
 	currHeight      int64
@@ -118,7 +120,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.chainId = chainId
 
 	/*------set store------*/
-	app.root = createRootStore(config)
+	app.numKeptBlocks = int64(config.NumKeptBlocks)
+	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config)
 	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
@@ -167,14 +170,14 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	return app
 }
 
-func createRootStore(config *param.ChainConfig) *store.RootStore {
+func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.MoeingADS) {
 	first := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	last := []byte{255, 255, 255, 255, 255, 255, 255, 255}
 	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first, last})
 	if err != nil {
 		panic(err)
 	}
-	return store.NewRootStore(mads, nil)
+	return store.NewRootStore(mads, nil), mads
 }
 
 func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
@@ -546,6 +549,9 @@ func (app *App) refresh() {
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	app.trunk.Close(true)
+	if prevBlkInfo != nil && prevBlkInfo.Number % 100 == 0 && prevBlkInfo.Number > app.numKeptBlocks {
+		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
+	}
 
 	appHash := app.root.GetRootHash()
 	copy(app.block.StateRoot[:], appHash)

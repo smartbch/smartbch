@@ -10,6 +10,7 @@ import (
 const (
 	DefaultRpcEthGetLogsMaxResults = 10000
 	DefaultRetainBlocks            = -1
+	DefaultNumKeptBlocks           = 10000
 )
 
 type ChainConfig struct {
@@ -52,6 +53,9 @@ type ChainConfig struct {
 
 	// Use LiteDB instead of MoDB
 	UseLiteDB bool
+
+	// the number of kept recent blocks
+	NumKeptBlocks int
 }
 
 var (
@@ -68,6 +72,7 @@ func DefaultConfig() *ChainConfig {
 		ModbDataPath:            defaultModbDataPath,
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 		RetainBlocks:            DefaultRetainBlocks,
+		NumKeptBlocks:           DefaultNumKeptBlocks,
 	}
 	c.NodeConfig.TxIndex.Indexer = "null"
 	return c

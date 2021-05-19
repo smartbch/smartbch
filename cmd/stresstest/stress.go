@@ -312,6 +312,7 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	params.AppDataPath = adsDir
 	params.ModbDataPath = modbDir
 	params.UseLiteDB = true
+	params.NumKeptBlocks = 5
 	testValidatorPubKey := ed25519.GenPrivKeyFromSecret([]byte("stress")).PubKey()
 	_app := app.NewApp(params, bigutils.NewU256(0x2711), log.NewNopLogger())
 	genesisData := app.GenesisData{
@@ -491,8 +492,8 @@ func RunReplayBlocks(fromSize int, fname string) {
 
 func main() {
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 10, 100, 4, "keys1M.txt"
-	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 5000_00, 1024, "keys1M.txt"
-	randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
+	randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 5000_000, 1024, "keys6M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
 
 	if os.Args[1] == "gen" {
 		RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock, fname)
