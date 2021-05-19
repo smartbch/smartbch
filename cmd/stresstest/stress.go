@@ -117,7 +117,7 @@ func GenKeysToFile(fname string, count int) {
 	defer f.Close()
 
 	keys := make([]string, 8000)
-	for i := 0; i < count; i+=8000 {
+	for i := 0; i < count; i += 8000 {
 		fmt.Println(i)
 		parallelRun(8, func(id int) {
 			for i := 0; i < 1000; i++ {
@@ -356,7 +356,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	}
 	toAddrs := make([]common.Address, toSize) // to-addresses
 	parallelRun(numThreads, func(id int) {
-		for i := id*toSize/numThreads; i < (id+1)*toSize/numThreads; i++ {
+		for i := id * toSize / numThreads; i < (id+1)*toSize/numThreads; i++ {
 			if i%10000 == 0 && i != 0 {
 				fmt.Printf("Now worker-%d get %d-th to-address\n", id, i)
 			}

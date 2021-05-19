@@ -343,7 +343,7 @@ func TestContractAdd(t *testing.T) {
 		require.Equal(t, res[i], n.Int64())
 	}
 	_app.ExecTxInBlock(nil)
-	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 2/*value*/, calldata, 1 /*gasprice*/)
+	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 2 /*value*/, calldata, 1 /*gasprice*/)
 	_app.ExecTxInBlock(nil)
 	ctx = _app.GetRpcContext()
 	require.Equal(t, uint64(122), ctx.GetAccount(addr2).Balance().Uint64())
