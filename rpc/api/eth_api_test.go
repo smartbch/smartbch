@@ -174,9 +174,6 @@ func TestGetStorageAt(t *testing.T) {
 	_api := createEthAPI(_app)
 
 	ctx := _app.GetRunTxContext()
-	code := bytes.Repeat([]byte{0xff}, 32)
-	code = append(code, 0x12, 0x34)
-
 	seq := ctx.GetAccount(addr).Sequence()
 	sKeyHex := strings.Repeat("abcd", 16)
 	sKey, err := hex.DecodeString(sKeyHex)
@@ -219,6 +216,7 @@ func TestGetBlockByNumAndHash(t *testing.T) {
 	require.Equal(t, getBlockByNumResult, getBlockByHashResult)
 
 	getBlockByNumResultFull, err := _api.GetBlockByNumber(123, true)
+	require.NoError(t, err)
 	require.Len(t, getBlockByNumResultFull["transactions"].([]*rpctypes.Transaction), 3)
 
 	getBlockByHashResultFull, err := _api.GetBlockByHash(hash, true)
@@ -384,7 +382,7 @@ func TestCall_Transfer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 
-	ret, err = _api.Call(ethapi.CallArgs{
+	_, err = _api.Call(ethapi.CallArgs{
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),

@@ -737,6 +737,7 @@ func (app *App) Logger() log.Logger {
 	return app.logger
 }
 
+//nolint
 func (app *App) WaitLock() {
 	app.mtx.Lock()
 	app.mtx.Unlock()
@@ -760,6 +761,7 @@ func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {
 	app.publishNewBlock(mdbBlock)
 }
 
+//nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) {
 	heightStr := os.Getenv("RANDPANICHEIGHT")

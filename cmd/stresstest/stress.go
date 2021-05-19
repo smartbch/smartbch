@@ -419,6 +419,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	//ShowBalances(_app, keys, toAddrs)
 }
 
+//nolint
 func ShowBalances(_app *testutils.TestApp, fromKeys []string, toAddrs []common.Address) {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -437,6 +438,7 @@ func ShowBalances(_app *testutils.TestApp, fromKeys []string, toAddrs []common.A
 	}
 }
 
+//nolint
 func ShowSlots(_app *testutils.TestApp, caller common.Address, contractAddrs []common.Address, fanoutSize int) {
 	for addrSN, addr := range contractAddrs {
 		for i := 0; i < fanoutSize*2; i++ {
