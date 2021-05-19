@@ -13,9 +13,7 @@ import (
 
 func HexToPrivKey(key string) (*ecdsa.PrivateKey, []byte, error) {
 	key = strings.TrimSpace(key)
-	if strings.HasPrefix(key, "0x") {
-		key = key[2:]
-	}
+	key = strings.TrimPrefix(key, "0x")
 	data, err := hex.DecodeString(key)
 	if err != nil {
 		return nil, nil, err
@@ -26,9 +24,7 @@ func HexToPrivKey(key string) (*ecdsa.PrivateKey, []byte, error) {
 
 func HexToPubKey(key string) (ed25519.PubKey, []byte, error) {
 	key = strings.TrimSpace(key)
-	if strings.HasPrefix(key, "0x") {
-		key = key[2:]
-	}
+	key = strings.TrimPrefix(key, "0x")
 	data, err := hex.DecodeString(key)
 	if err != nil {
 		return nil, nil, err

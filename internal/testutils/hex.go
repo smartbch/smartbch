@@ -8,10 +8,7 @@ import (
 )
 
 func HexToHash32(s string) common.Hash {
-	if strings.HasPrefix(s, "0x") {
-		s = s[2:]
-	}
-
+	s = strings.TrimPrefix(s, "0x")
 	bytes, err := hex.DecodeString(s)
 	if err != nil {
 		panic(err)
@@ -24,10 +21,8 @@ func HexToHash32(s string) common.Hash {
 }
 
 func HexToBytes(s string) []byte {
-	if strings.HasPrefix(s, "0x") {
-		s = s[2:]
-	}
 	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "0x")
 	s = strings.ReplaceAll(s, "\n", "")
 
 	bytes, err := hex.DecodeString(s)
