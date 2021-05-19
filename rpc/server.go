@@ -87,10 +87,20 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 
 	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
 	handler := newCorsHandler(server.httpServer, allowedOrigins)
-	go tmrpcserver.Serve(server.httpListener, handler, server.logger,
-		tmrpcserver.DefaultConfig()) // TODO: get config from config file
-	go tmrpcserver.ServeTLS(server.httpsListener, handler,
-		server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig())
+	go func() {
+		err := tmrpcserver.Serve(server.httpListener, handler, server.logger,
+			tmrpcserver.DefaultConfig()) // TODO: get config from config file
+		if err != nil {
+			server.logger.Error(err.Error())
+		}
+	}()
+	go func() {
+		err := tmrpcserver.ServeTLS(server.httpsListener, handler,
+			server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig())
+		if err != nil {
+			server.logger.Error(err.Error())
+		}
+	}()
 	return nil
 }
 
@@ -114,11 +124,21 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
 	wsh := server.wsServer.WebsocketHandler(allowedOrigins)
 
-	go tmrpcserver.Serve(server.wsListener, wsh, server.logger,
-		tmrpcserver.DefaultConfig()) // TODO: get config from config file
+	go func() {
+		err := tmrpcserver.Serve(server.wsListener, wsh, server.logger,
+			tmrpcserver.DefaultConfig()) // TODO: get config from config file
+		if err != nil {
+			server.logger.Error(err.Error())
+		}
+	}()
 
-	go tmrpcserver.ServeTLS(server.wssListener, wsh,
-		server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig()) // TODO: get config from config file
+	go func() {
+		err := tmrpcserver.ServeTLS(server.wssListener, wsh,
+			server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig()) // TODO: get config from config file
+		if err != nil {
+			server.logger.Error(err.Error())
+		}
+	}()
 	return nil
 }
 

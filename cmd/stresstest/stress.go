@@ -453,11 +453,11 @@ func ShowSlots(_app *testutils.TestApp, caller common.Address, contractAddrs []c
 }
 
 func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string) {
-	os.RemoveAll(adsDir)
-	os.RemoveAll(modbDir)
-	os.RemoveAll(blockDir)
-	os.Mkdir(modbDir, 0700)
-	os.Mkdir(blockDir, 0700)
+	_ = os.RemoveAll(adsDir)
+	_ = os.RemoveAll(modbDir)
+	_ = os.RemoveAll(blockDir)
+	_ = os.Mkdir(modbDir, 0700)
+	_ = os.Mkdir(blockDir, 0700)
 
 	randFilename := os.Getenv("RANDFILE")
 	if len(randFilename) == 0 {
@@ -474,9 +474,9 @@ func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string)
 }
 
 func RunReplayBlocks(fromSize int, fname string) {
-	os.RemoveAll(adsDir)
-	os.RemoveAll(modbDir)
-	os.Mkdir(modbDir, 0700)
+	_ = os.RemoveAll(adsDir)
+	_ = os.RemoveAll(modbDir)
+	_ = os.Mkdir(modbDir, 0700)
 
 	blkDB := NewBlockDB(blockDir)
 	keys := ReadKeysFromFile(fname, fromSize)
