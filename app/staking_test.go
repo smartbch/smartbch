@@ -96,7 +96,7 @@ func TestStaking(t *testing.T) {
 	ctx := _app.GetRunTxContext()
 	stakingAcc, info := staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
-	fmt.Printf("before test:%d\n", stakingAcc.Balance().Uint64())
+	fmt.Printf("before test:%d, %d\n", stakingAcc.Balance().Uint64(), info.CurrEpochNum)
 	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
 	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 		staking.StakingContractAddress, 100, dataEncode, 1)
