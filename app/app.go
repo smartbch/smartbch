@@ -549,7 +549,7 @@ func (app *App) refresh() {
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	app.trunk.Close(true)
-	if prevBlkInfo != nil && prevBlkInfo.Number % 100 == 0 && prevBlkInfo.Number > app.numKeptBlocks {
+	if prevBlkInfo != nil && prevBlkInfo.Number%100 == 0 && prevBlkInfo.Number > app.numKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
 	}
 

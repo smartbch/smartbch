@@ -7,11 +7,16 @@ contract EventEmitter {
     event Event2(address indexed addr, uint256 value);
 
     function emitEvent1() public {
-      emit Event1(msg.sender);
+        emit Event1(msg.sender);
     }
 
     function emitEvent2(uint256 n) public {
-      emit Event2(msg.sender, n);
+        emit Event2(msg.sender, n);
+    }
+
+    function emitEvent1ThenRevert() public {
+        emit Event1(msg.sender);
+        require(false, "~~~");
     }
 
 }
