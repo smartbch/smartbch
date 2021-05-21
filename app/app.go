@@ -536,6 +536,10 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("leave post commit!")
 }
 
+func (app *App) GetLastGasUsed() uint64 {
+	return app.lastGasUsed
+}
+
 func (app *App) refresh() {
 	//close old
 	app.checkTrunk.Close(false)

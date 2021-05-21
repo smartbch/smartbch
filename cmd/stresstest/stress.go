@@ -99,8 +99,8 @@ func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
 		if blk == nil {
 			break
 		}
-		fmt.Printf("Height %d txCount %d time %d\n", h, len(blk.TxList), time.Now().UnixNano())
-		appHash := ExecTxsInOneBlock(_app, int64(h), blk.TxList)
+		appHash, lastGasUsed := ExecTxsInOneBlock(_app, int64(h), blk.TxList)
+		fmt.Printf("Height %d txCount %d time %d lastGasUsed %d\n", h, len(blk.TxList), time.Now().UnixNano(), lastGasUsed)
 		if !bytes.Equal(appHash, blk.AppHash) {
 			fmt.Printf("ref %#v imp %#v\n", appHash, blk.AppHash)
 			panic("Incorrect AppHash")
@@ -235,7 +235,7 @@ func GetDeployTxAndAddrList(_app *testutils.TestApp, privKeys []string, creation
 }
 
 // Apply the transaction in txs onto _app, at the `height`-th block. Caller makes sure the heights are increasing.
-func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (appHash []byte) {
+func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (appHash []byte, lastGasUsed uint64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
@@ -250,7 +250,7 @@ func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (app
 	}
 	_app.EndBlock(abci.RequestEndBlock{Height: height})
 	responseCommit := _app.Commit()
-	return responseCommit.Data
+	return responseCommit.Data, _app.GetLastGasUsed()
 }
 
 // Generate some transactions to write two slots in each contract and create to-addresses.
@@ -290,9 +290,12 @@ func GenRandTxList(_app *testutils.TestApp, rs randsrc.RandSrc, txList [][]byte,
 		z := int(rs.GetUint32()) % len(toAddrs)
 		value := int64(rs.GetUint32()) % 2100_0000
 		var slots [6]uint32
-		for fanoutID := 0; fanoutID < len(slots); fanoutID++ {
-			slots[fanoutID] = rs.GetUint32() % uint32(2*fanoutSize)
-		}
+		slots[0] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[1] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[2] = rs.GetUint32() % uint32(2*fanoutSize)
+		slots[3] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[4] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[5] = rs.GetUint32() % uint32(2*fanoutSize)
 		txList[i] = GetTx(_app, fromKeys[x], contractAddrs[y], toAddrs[z], value, slots)
 	}
 	return touchedFrom
@@ -376,11 +379,11 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 		}
 		blk.TxList = txList[:length]
 		txList = txList[length:]
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 		db.SaveBlock(blk)
 	}
 	blk.TxList = nil
-	blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+	blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 	db.SaveBlock(blk)
 	fmt.Printf("================== Contract Created H=%d ===================\n", db.height)
 	// fanout transactions for initializing storage slots and to-addresses
@@ -391,15 +394,15 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 		mid := (start + end) / 2
 		// only half of the from-addresses per block, to avoid incorrect nonce
 		blk.TxList = GenFanoutTxList(_app, keys[:half], contractAddrs[:half], toAddrs[start:mid], fanoutID)
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 		db.SaveBlock(blk)
 		blk.TxList = GenFanoutTxList(_app, keys[half:], contractAddrs[half:], toAddrs[mid:end], fanoutID)
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 		db.SaveBlock(blk)
 	}
 
 	blk.TxList = nil
-	blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+	blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 	db.SaveBlock(blk)
 	fmt.Printf("================== Storage Slots Written H=%d ===================\n", db.height)
 	//ShowSlots(_app, toAddrs[0], contractAddrs, fanoutSize)
@@ -409,9 +412,10 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	blk.TxList = make([][]byte, txPerBlock)
 	lastTouched := make(map[int]struct{})
 	for i := 0; i < randBlocks; i++ {
-		fmt.Printf("RandBlock %d\n", db.height)
 		lastTouched = GenRandTxList(_app, rs, blk.TxList, keys, contractAddrs, toAddrs, lastTouched)
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		var lastGasUsed uint64
+		blk.AppHash, lastGasUsed = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		fmt.Printf("RandBlock %d %d\n", db.height, lastGasUsed)
 		db.SaveBlock(blk)
 	}
 	_app.WaitLock()
@@ -491,8 +495,8 @@ func RunReplayBlocks(fromSize int, fname string) {
 // =================
 
 func main() {
-	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 10, 100, 4, "keys1M.txt"
-	randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 5000_000, 1024, "keys6M.txt"
+	randBlocks, fromSize, toSize, txPerBlock, fname := 100, 16, 160, 4, "keys1M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 5000_000, 1024, "keys6M.txt"
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
 
 	if os.Args[1] == "gen" {
