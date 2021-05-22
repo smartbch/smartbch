@@ -62,6 +62,8 @@ const (
 	GasLimitInvalid      uint32 = 106
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
+
+	PruneEveryN  = 100
 )
 
 type App struct {
@@ -131,8 +133,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.logger = logger.With("module", "app")
 
 	/*------set engine------*/
-	app.txEngine = ebp.NewEbpTxExec( /*exeRoundCount*/ 200 /*runnerNumber*/, 256 /*parallelNum*/, 32,
-		/*defaultTxListCap*/ 5000, app.signer)
+	app.txEngine = ebp.NewEbpTxExec( 200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32 /*parallelNum*/,
+		5000 /*defaultTxListCap*/, app.signer)
 
 	/*------set watcher------*/
 	//todo: lastHeight = latest previous bch mainnet 2016x blocks
@@ -501,7 +503,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	ctx.Close(true)
 
 	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
-
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
@@ -553,7 +554,7 @@ func (app *App) refresh() {
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	app.trunk.Close(true)
-	if prevBlkInfo != nil && prevBlkInfo.Number%100 == 0 && prevBlkInfo.Number > app.numKeptBlocks {
+	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
 	}
 
