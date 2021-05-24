@@ -130,7 +130,7 @@ func TestStaking(t *testing.T) {
 	c.Tx.Data = c.Tx.Data[:95]
 	status, _, _, outData := e.Execute(ctx, nil, c.Tx)
 	require.Equal(t, types.ReceiptStatusFailed, uint64(status))
-	require.Equal(t, staking.InvalidCallData.Error(), string(outData[:]))
+	require.Equal(t, staking.InvalidCallData.Error(), string(outData))
 
 	//invalid selector
 	c.Tx.Data = c.Tx.Data[:3]

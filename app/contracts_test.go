@@ -353,7 +353,7 @@ func TestContractAdd(t *testing.T) {
 		data := testAddABI.MustPack("get", uint32(i))
 		status, statusStr, retData := _app.Call(addr1, contractAddr, data)
 		n := big.NewInt(0)
-		n.SetBytes(retData[:])
+		n.SetBytes(retData)
 		require.Equal(t, 0, status)
 		require.Equal(t, "success", statusStr)
 		require.Equal(t, res[i], n.Int64())

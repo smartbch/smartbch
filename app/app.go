@@ -381,7 +381,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	}
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
-	copy(app.block.StateRoot[:], req.Header.AppHash[:])
+	copy(app.block.StateRoot[:], req.Header.AppHash)
 	//TODO: slash req.ByzantineValidators
 	app.currHeight = req.Header.Height
 	// collect slash info, only double sign
