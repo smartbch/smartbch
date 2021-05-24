@@ -22,4 +22,4 @@ rm -rf ~/.smartbchd/
 
 cp ./priv_validator_key.json ~/.smartbchd/config/
 
-./build/smartbchd start
+#./build/smartbchd start

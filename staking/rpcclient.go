@@ -3,6 +3,7 @@ package staking
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,10 +13,10 @@ import (
 )
 
 const (
-	ReqStrBlockCount = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockcount\", \"params\": [] }"
-	ReqStrBlockHash  = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockhash\", \"params\": [%d] }"
-	ReqStrBlock      = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblock\", \"params\": [\"%s\"] }"
-	ReqStrTx         = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getrawtransaction\", \"params\": [\"%s\", true] }"
+	ReqStrBlockCount = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockcount.Call\", \"params\": [] }"
+	ReqStrBlockHash  = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockhash.Call\", \"params\": [%d] }"
+	ReqStrBlock      = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblock.Call\", \"params\": [\"%s\"] }"
+	ReqStrTx         = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getrawtransaction.Call\", \"params\": [\"%s\"] }"
 	Identifier       = "73424348"
 	Version          = "00"
 )
@@ -26,15 +27,17 @@ type JsonRpcError struct {
 }
 
 type BlockCountResp struct {
-	Result int64         `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
+	Result int64 `json:"result"`
+	//Error  *JsonRpcError `json:"error"`
+	Error string  `json:"error"`
+	Id    string `json:"id"`
 }
 
 type BlockHashResp struct {
-	Result string        `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
+	Result string `json:"result"`
+	//Error  *JsonRpcError `json:"error"`
+	Error string  `json:"error"`
+	Id    string `json:"id"`
 }
 
 type BlockInfo struct {
@@ -57,9 +60,10 @@ type BlockInfo struct {
 }
 
 type BlockInfoResp struct {
-	Result BlockInfo     `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
+	Result BlockInfo `json:"result"`
+	//Error  *JsonRpcError `json:"error"`
+	Error string  `json:"error"`
+	Id    string `json:"id"`
 }
 
 type CoinbaseVin struct {
@@ -89,8 +93,9 @@ type TxInfo struct {
 }
 
 func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, ok bool) {
+	var asm interface{}
 	for _, vout := range ti.VoutList {
-		asm, ok := vout.ScriptPubKey["asm"]
+		asm, ok = vout.ScriptPubKey["asm"]
 		if !ok || asm == nil {
 			continue
 		}
@@ -117,9 +122,10 @@ func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, ok bool) {
 }
 
 type TxInfoResp struct {
-	Result TxInfo        `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
+	Result TxInfo `json:"result"`
+	//Error  *JsonRpcError `json:"error"`
+	Error string  `json:"error"`
+	Id    string `json:"id"`
 }
 
 type RpcClient struct {
@@ -141,11 +147,11 @@ func NewRpcClient(url, user, password string) *RpcClient {
 
 func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 	body := strings.NewReader(reqStr)
-	req, err := http.NewRequest("POST", "http://127.0.0.1:8332/", body)
+	req, err := http.NewRequest("POST", client.url, body)
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(client.user, client.password)
+	//req.SetBasicAuth(client.user, client.password)
 	req.Header.Set("Content-Type", "text/plain;")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -165,11 +171,14 @@ func (client *RpcClient) GetLatestHeight() (height int64) {
 }
 
 func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
+	fmt.Printf("\nBEAR: get block: %d\n\n", height)
 	var hash string
 	hash, client.err = client.getBlockHashOfHeight(height)
 	if client.err != nil {
+		fmt.Printf("\nBEAR: getBlockHash err=%s\n\n", client.err.Error())
 		return nil
 	}
+	fmt.Printf("\nBEAR: getBlockHash hash=%s\n\n", hash)
 	return client.getBCHBlock(hash)
 }
 
@@ -181,8 +190,10 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	var bi *BlockInfo
 	bi, client.err = client.getBlock(hash)
 	if client.err != nil {
+		fmt.Printf("\nBEAR: getBlock err=%s\n\n", client.err.Error())
 		return nil
 	}
+	fmt.Printf("\nBEAR: getBlock blockInfo=%v\n\n", bi)
 	bchBlock := &types.BCHBlock{
 		Height:    bi.Height,
 		Timestamp: bi.Time,
@@ -224,7 +235,12 @@ func (client *RpcClient) getCurrHeight() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
-	return blockCountResp.Result, nil
+	if blockCountResp.Error == "" {
+		err = nil
+	}else {
+		err = errors.New(blockCountResp.Error)
+	}
+	return blockCountResp.Result, err
 }
 
 func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
@@ -232,12 +248,18 @@ func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	fmt.Printf("\nBEAR respData:%s\n\n", respData)
 	var blockHashResp BlockHashResp
 	err = json.Unmarshal(respData, &blockHashResp)
 	if err != nil {
 		return "", err
 	}
-	return blockHashResp.Result, nil
+	if blockHashResp.Error == "" {
+		err = nil
+	}else {
+		err = errors.New(blockHashResp.Error)
+	}
+	return blockHashResp.Result, err
 }
 
 func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
@@ -251,7 +273,12 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &blockInfoResp.Result, nil
+	if blockInfoResp.Error == "" {
+		err = nil
+	}else {
+		err = errors.New(blockInfoResp.Error)
+	}
+	return &blockInfoResp.Result, err
 }
 
 func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
@@ -265,7 +292,12 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &txInfoResp.Result, nil
+	if txInfoResp.Error == "" {
+		err = nil
+	}else {
+		err = errors.New(txInfoResp.Error)
+	}
+	return &txInfoResp.Result, err
 }
 
 func (client *RpcClient) PrintAllOpReturn(startHeight, endHeight int64) {

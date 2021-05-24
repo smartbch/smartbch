@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -135,8 +136,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 		/*defaultTxListCap*/ 5000, app.signer)
 
 	/*------set watcher------*/
-	//todo: lastHeight = latest previous bch mainnet 2016x blocks
-	app.watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
+	client := staking.NewRpcClient("http://127.0.0.1:1234/", "bear", "free")
+	lastWatch2016xHeight := int64(0) 	//todo: lastHeight = latest previous bch mainnet 2016x blocks
+	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
 	go app.watcher.Run()
 
 	/*------set system contract------*/
@@ -431,7 +433,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		//fmt.Printf("endblock validator:%v\n", v.Address)
+		fmt.Printf("\nBEAR: endblock validator pubkey=%s voting powe=%d\n\n", hex.EncodeToString(v.Pubkey[:]), v.VotingPower)
 	}
 	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{

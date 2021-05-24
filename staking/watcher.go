@@ -8,8 +8,11 @@ import (
 )
 
 var (
-	NumBlocksInEpoch       int64 = 2016
+	//NumBlocksInEpoch       int64 = 2016
+	NumBlocksInEpoch       int64 = 10
 	NumBlocksToClearMemory int64 = 100000
+	//WaitingBlockDelayTime  int64 = 5 * 60
+	WaitingBlockDelayTime int64 = 10
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
@@ -49,7 +52,9 @@ func (watcher *Watcher) Run() {
 		blk := watcher.rpcClient.GetBlockByHeight(height)
 		if blk == nil { //make sure connected BCH mainnet node not pruning history blocks, so this case only means height is latest block
 			fmt.Println("wait new block...")
-			watcher.suspended(5 * time.Minute) //delay half of bch mainnet block intervals
+			watcher.suspended(time.Duration(WaitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
+			height--
+			continue
 		}
 		missingBlockHash := watcher.addBlock(blk)
 		//get fork height again to avoid finalize block empty hole
@@ -82,6 +87,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	if !ok {
 		// If parent is init block, return directly
 		if blk.ParentBlk == [32]byte{} {
+			fmt.Printf("\nBEAR: missing parent block\n\n")
 			return nil
 		}
 		return &blk.ParentBlk
@@ -153,6 +159,7 @@ func (watcher *Watcher) generateNewEpoch() {
 	watcher.EpochChan <- epoch
 	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 	watcher.ClearOldData()
+	fmt.Printf("\nBEAR: generate new epoch end\n\n")
 }
 
 func (watcher *Watcher) ClearOldData() {

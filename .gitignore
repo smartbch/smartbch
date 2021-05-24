@@ -23,6 +23,8 @@ rpc/api/testdbdata
 .DS_Store
 *.swp
 *.log
+*.json
+smartbchd
 
 node_modules/
 staking/showopreturn/showopreturn
