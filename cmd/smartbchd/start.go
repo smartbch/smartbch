@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/smartbch/smartbch/param"
+	"github.com/tendermint/tendermint/libs/cli"
 	"path/filepath"
 	"strings"
 
@@ -51,11 +53,18 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 
 func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	cfg := ctx.Config
+	cfg.SetRoot(viper.GetString(cli.HomeFlag))
+	paramConfig := param.DefaultConfig()
+	paramConfig.NodeConfig = cfg
+	paramConfig.AppDataPath = filepath.Join(cfg.RootDir, param.AppDataPath)
+	paramConfig.ModbDataPath = filepath.Join(cfg.RootDir, param.ModbDataPath)
+	paramConfig.RetainBlocks = viper.GetInt64(flagRetainBlocks)
+
 	chainID, err := getChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	_app := appCreator(ctx.Logger, chainID)
+	_app := appCreator(ctx.Logger, chainID, paramConfig)
 	appImpl := _app.(*app.App)
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())

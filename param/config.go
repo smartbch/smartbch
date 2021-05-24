@@ -59,9 +59,12 @@ type ChainConfig struct {
 }
 
 var (
+	AppDataPath  = "app"
+	ModbDataPath = "modb"
+
 	home                = os.ExpandEnv("$HOME/.smartbchd")
-	defaultAppDataPath  = filepath.Join(home, "data", "app")
-	defaultModbDataPath = filepath.Join(home, "data", "modb")
+	defaultAppDataPath  = filepath.Join(home, "data", AppDataPath)
+	defaultModbDataPath = filepath.Join(home, "data", ModbDataPath)
 )
 
 func DefaultConfig() *ChainConfig {

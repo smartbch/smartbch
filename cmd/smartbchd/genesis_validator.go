@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/tendermint/tendermint/libs/cli"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -78,7 +79,7 @@ smartbchd generate-genesis-validator
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
-			c.SetRoot(app.DefaultNodeHome)
+			c.SetRoot(viper.GetString(cli.HomeFlag))
 			// get validator address
 			addr := common.HexToAddress(viper.GetString(flagAddress))
 			// get pubkey
@@ -124,7 +125,7 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			config := ctx.Config
-			config.SetRoot(app.DefaultNodeHome)
+			config.SetRoot(viper.GetString(cli.HomeFlag))
 			// get new validator info
 			s := args[0]
 			// check
