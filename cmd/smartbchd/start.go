@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/smartbch/smartbch/param"
-	"github.com/tendermint/tendermint/libs/cli"
 	"path/filepath"
 	"strings"
 
@@ -12,15 +10,16 @@ import (
 	"github.com/spf13/viper"
 
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
+	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pvm "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	//moetypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/rpc"
 )
 

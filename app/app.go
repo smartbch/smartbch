@@ -63,7 +63,7 @@ const (
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
 
-	PruneEveryN  = 100
+	PruneEveryN = 100
 )
 
 type App struct {
@@ -133,7 +133,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.logger = logger.With("module", "app")
 
 	/*------set engine------*/
-	app.txEngine = ebp.NewEbpTxExec( 200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32 /*parallelNum*/,
+	app.txEngine = ebp.NewEbpTxExec(200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32, /*parallelNum*/
 		5000 /*defaultTxListCap*/, app.signer)
 
 	/*------set watcher------*/
