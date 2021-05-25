@@ -532,10 +532,19 @@ func main() {
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 20000, 20000_000, 10000, "keys23M.txt"
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
 
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: stresstest gen|replay|genkeys|genkeys60")
+		return
+	}
+
 	if os.Args[1] == "gen" {
 		RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock, fname)
 	} else if os.Args[1] == "replay" {
 		RunReplayBlocks(fromSize, fname)
+	} else if os.Args[1] == "replayWS" {
+		RunReplayBlocksWS()
+	} else if os.Args[1] == "genkeys10K" {
+		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
 		GenKeysToFile("keys1M.txt", 1_000_000)
 	} else if os.Args[1] == "genkeys60" {
