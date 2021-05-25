@@ -34,3 +34,4 @@ app/stresstest/stresstest
 *.bak
 testdbdata/
 keys*.txt
+cmd/stresstest/stresstest

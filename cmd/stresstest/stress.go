@@ -90,7 +90,8 @@ func (db *BlockDB) LoadBlock(height uint32) *Block {
 
 //Replay the blocks stored in db onto _app
 func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
-	h := uint32(0)
+	h := uint32(_app.GetLatestBlockNum())
+	fmt.Printf("Start from Block Height: %d\n", h)
 	last := time.Now().UnixNano()
 	for {
 		h++
@@ -106,6 +107,7 @@ func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
 			fmt.Printf("ref %#v imp %#v\n", appHash, blk.AppHash)
 			panic("Incorrect AppHash")
 		}
+		randomPanic(500, 3433)
 	}
 }
 
@@ -350,21 +352,23 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	params.NumKeptBlocks = 5
 	testValidatorPubKey := ed25519.GenPrivKeyFromSecret([]byte("stress")).PubKey()
 	_app := app.NewApp(params, bigutils.NewU256(0x2711), log.NewNopLogger())
-	genesisData := app.GenesisData{
-		Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
-	}
-	testValidator := &stakingtypes.Validator{}
-	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
-	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
-	testValidator.VotingPower = 1
-	genesisData.Validators = append(genesisData.Validators, testValidator)
-	appStateBytes, _ := json.Marshal(genesisData)
+	if _app.GetLatestBlockNum() == 0 {
+		genesisData := app.GenesisData{
+			Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
+		}
+		testValidator := &stakingtypes.Validator{}
+		copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
+		copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+		testValidator.VotingPower = 1
+		genesisData.Validators = append(genesisData.Validators, testValidator)
+		appStateBytes, _ := json.Marshal(genesisData)
 
-	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
-	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		ProposerAddress: testValidatorPubKey.Address(),
-	}})
-	_app.Commit()
+		_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
+		_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+			ProposerAddress: testValidatorPubKey.Address(),
+		}})
+		_app.Commit()
+	}
 	return &testutils.TestApp{App: _app, TestPubkey: testValidatorPubKey}
 }
 
@@ -381,7 +385,7 @@ func parallelRun(workerCount int, fn func(workerID int)) {
 }
 
 // record `randBlocks` blocks into db for later replay
-func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlock int) {
+func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlockIn int) {
 	numThreads := 8
 	if toSize%fromSize != 0 || toSize%numThreads != 0 {
 		panic("Invalid sizes")
@@ -440,10 +444,15 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	//ShowSlots(_app, toAddrs[0], contractAddrs, fanoutSize)
 	//ShowBalances(_app, keys, toAddrs)
 
-	// generate blocks with `txPerBlock` random transactions
-	blk.TxList = make([][]byte, txPerBlock)
+	// change negative value to a random value
 	lastTouched := make(map[int]struct{})
 	for i := 0; i < randBlocks; i++ {
+		txPerBlock := txPerBlockIn
+		if txPerBlockIn < 0 {
+			txPerBlock = 1 + int(rs.GetUint32()) % (-txPerBlockIn)
+		}
+		// generate blocks with `txPerBlock` random transactions
+		blk.TxList = make([][]byte, txPerBlock)
 		lastTouched = GenRandTxList(_app, rs, blk.TxList, keys, contractAddrs, toAddrs, lastTouched)
 		var lastGasUsed uint64
 		blk.AppHash, lastGasUsed = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
@@ -513,7 +522,6 @@ func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string)
 }
 
 func RunReplayBlocks(fromSize int, fname string) {
-	_ = os.RemoveAll(adsDir)
 	_ = os.RemoveAll(modbDir)
 	_ = os.Mkdir(modbDir, 0700)
 
@@ -524,13 +532,28 @@ func RunReplayBlocks(fromSize int, fname string) {
 	blkDB.Close()
 }
 
+func randomPanic(baseNumber, primeNumber int64) {
+	heightStr := os.Getenv("RANDOMPANIC")
+	if heightStr != "YES" {
+		return
+	}
+	go func(sleepMilliseconds int64) {
+		time.Sleep(time.Duration(sleepMilliseconds * int64(time.Millisecond)))
+		s := fmt.Sprintf("random panic after %d millisecond", sleepMilliseconds)
+		fmt.Println(s)
+		panic(s)
+	}(baseNumber + time.Now().UnixNano()%primeNumber)
+}
+
 // =================
 
 func main() {
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 16, 160, 4, "keys1M.txt"
-	randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 1000_000, 1000, "keys6M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 1000_000, 1000, "keys6M.txt"
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 20000, 20000_000, 10000, "keys23M.txt"
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
+
+	randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 500, 100_000, -100, "keys6M.txt"
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: stresstest gen|replay|genkeys|genkeys60")

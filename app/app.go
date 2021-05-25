@@ -63,7 +63,7 @@ const (
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
 
-	PruneEveryN = 100
+	PruneEveryN = 10
 )
 
 type App struct {
@@ -196,21 +196,6 @@ func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 		historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
 	}
 	return
-}
-
-func (app *App) Init(blk *types.Block) {
-	if blk != nil {
-		app.block = blk
-		app.currHeight = app.block.Number
-	}
-	fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
-	app.root.SetHeight(app.currHeight + 1)
-	if app.currHeight != 0 {
-		app.reload()
-	} else {
-		app.txEngine.SetContext(app.GetRunTxContext())
-		fmt.Printf("!!!!!!app init: %v\n", app.txEngine.Context())
-	}
 }
 
 func (app *App) reload() {
