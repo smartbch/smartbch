@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 
@@ -251,8 +252,10 @@ func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, reti
 			val.Introduction = intro
 		}
 		if !coins4staking.IsZero() {
+			fmt.Printf("new staking coin is :%s\n", coins4staking.String())
 			stakedCoins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
 			stakedCoins.Add(stakedCoins, coins4staking)
+			fmt.Printf("previous staking coin %s\n", uint256.NewInt().SetBytes(val.StakedCoins[:]).String())
 			val.StakedCoins = stakedCoins.Bytes32()
 		}
 		if retire {

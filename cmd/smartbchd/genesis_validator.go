@@ -30,6 +30,12 @@ const (
 	flagVotingPower  = "voting-power"
 	flagStakingCoin  = "staking-coin"
 	flagIntroduction = "introduction"
+	flagRewardTo     = "reward-to"
+	flagKey          = "validator-key"
+	flagNonce        = "nonce"
+	flagChainId      = "chain-id"
+	flagGasPrice     = "gas-price"
+	flagVerbose      = "verbose"
 )
 
 func GenerateConsensusKeyInfoCmd(ctx *Context) *cobra.Command {
