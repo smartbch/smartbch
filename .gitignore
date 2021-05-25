@@ -32,3 +32,5 @@ cmd/smartbchd/smartbchd
 private/
 app/stresstest/stresstest
 *.bak
+testdbdata/
+keys*.txt

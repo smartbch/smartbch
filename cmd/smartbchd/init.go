@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,22 +94,21 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 	cmd.Flags().BoolP(FlagOverwrite, "o", false, "overwrite the genesis.json file")
 	cmd.Flags().String(FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
 	cmd.Flags().String(FlagTestKeys, "", "comma separated list of hex private keys used for test")
+	cmd.Flags().String(FlagTestKeysFile, "", "file contains hex private keys, one key per line")
 	cmd.Flags().String(FlagInitBal, "1000000000000000000", "initial balance for test accounts")
 	return cmd
 }
 
 func getAppState() ([]byte, error) {
-	testKeysCSV := viper.GetString(FlagTestKeys)
 	initBalance := viper.GetString(FlagInitBal)
-
 	initBal, ok := bigutils.ParseU256(initBalance)
 	if !ok {
 		return nil, errors.New("invalid init balance")
 	}
 
-	var testKeys []string
-	if testKeysCSV != "" {
-		testKeys = strings.Split(testKeysCSV, ",")
+	testKeys, err := getTestKeys()
+	if err != nil {
+		return nil, err
 	}
 
 	alloc := testutils.KeysToGenesisAlloc(initBal, testKeys)
@@ -118,4 +118,26 @@ func getAppState() ([]byte, error) {
 		return nil, err
 	}
 	return appState, nil
+}
+
+func getTestKeys() ([]string, error) {
+	var testKeys []string
+
+	testKeysCSV := viper.GetString(FlagTestKeys)
+	if testKeysCSV != "" {
+		testKeys = strings.Split(testKeysCSV, ",")
+		return testKeys, nil
+	}
+
+	testKeysFile := viper.GetString(FlagTestKeysFile)
+	if testKeysFile != "" {
+		data, err := ioutil.ReadFile(testKeysFile)
+		if err != nil {
+			return nil, err
+		}
+		testKeys = strings.Split(string(data), "\n")
+		return testKeys, nil
+	}
+
+	return nil, nil
 }
