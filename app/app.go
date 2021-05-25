@@ -419,7 +419,8 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 		//fmt.Println("no new epoch")
 	}
 	if len(app.epochList) != 0 {
-		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+		if app.block.Timestamp > app.epochList[0].EndTime+1*20 /*100 * 10min*/ {
 			ctx := app.GetRunTxContext()
 			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			ctx.Close(true)
