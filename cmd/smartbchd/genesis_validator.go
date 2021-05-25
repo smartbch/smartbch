@@ -134,7 +134,7 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = json.Unmarshal([]byte(info), &v)
+			err = json.Unmarshal(info, &v)
 			if err != nil {
 				return err
 			}

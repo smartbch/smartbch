@@ -350,7 +350,7 @@ func TestContractAdd(t *testing.T) {
 
 	res := [7]int64{-1, 60, 0, 0, 60, 0, 0}
 	for i := uint32(1); i <= 6; i++ {
-		data := testAddABI.MustPack("get", uint32(i))
+		data := testAddABI.MustPack("get", i)
 		status, statusStr, retData := _app.Call(addr1, contractAddr, data)
 		n := big.NewInt(0)
 		n.SetBytes(retData)

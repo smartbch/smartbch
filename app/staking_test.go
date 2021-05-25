@@ -104,7 +104,7 @@ func TestStaking(t *testing.T) {
 	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
-	require.Equal(t, uint64(100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/ +600000 /*extra gas*/), stakingAcc.Balance().Uint64())
+	require.Equal(t, 100+staking.GasOfStakingExternalOp*1 /*gasUsedFee distribute to validators*/ +600000 /*extra gas*/, stakingAcc.Balance().Uint64())
 	require.Equal(t, 2, len(info.Validators))
 	require.True(t, bytes.Equal(addr1[:], info.Validators[1].Address[:]))
 	require.Equal(t, [32]byte{'1'}, info.Validators[1].Pubkey)
