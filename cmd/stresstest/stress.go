@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -89,7 +88,7 @@ func (db *BlockDB) LoadBlock(height uint32) *Block {
 	return &blk
 }
 
-//Replay the blockes stored in db onto _app
+//Replay the blocks stored in db onto _app
 func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
 	h := uint32(0)
 	last := time.Now().UnixNano()
@@ -134,30 +133,6 @@ func GenKeysToFile(fname string, count int) {
 			fmt.Fprintln(f, key)
 		}
 	}
-}
-
-// read private keys from a file
-func ReadKeysFromFile(fname string, count int) (res []string) {
-	f, err := os.Open(fname)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	scanner.Split(bufio.ScanLines)
-
-	res = make([]string, 0, 8192)
-	for scanner.Scan() && len(res) < count {
-		//fmt.Printf("Now read %d\n", len(res))
-		txt := scanner.Text()
-		//_, err := crypto.HexToECDSA(txt)
-		//if err != nil {
-		//	panic(err)
-		//}
-		res = append(res, txt)
-	}
-	return
 }
 
 var testAddABI = testutils.MustParseABI(`
@@ -529,7 +504,7 @@ func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string)
 		return
 	}
 	rs := randsrc.NewRandSrcFromFile(randFilename)
-	keys := ReadKeysFromFile(fname, fromSize+toSize)
+	keys := testutils.ReadKeysFromFile(fname, fromSize+toSize)
 	fmt.Printf("keys loaded\n")
 	blkDB := NewBlockDB(blockDir)
 	RecordBlocks(blkDB, rs, randBlocks, keys, fromSize, toSize, txPerBlock)
@@ -543,7 +518,7 @@ func RunReplayBlocks(fromSize int, fname string) {
 	_ = os.Mkdir(modbDir, 0700)
 
 	blkDB := NewBlockDB(blockDir)
-	keys := ReadKeysFromFile(fname, fromSize)
+	keys := testutils.ReadKeysFromFile(fname, fromSize)
 	_app := CreateTestApp(initBalance, keys[:fromSize])
 	ReplayBlocks(_app, blkDB)
 	blkDB.Close()

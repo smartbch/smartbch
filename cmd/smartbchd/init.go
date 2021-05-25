@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,11 +106,7 @@ func getAppState() ([]byte, error) {
 		return nil, errors.New("invalid init balance")
 	}
 
-	testKeys, err := getTestKeys()
-	if err != nil {
-		return nil, err
-	}
-
+	testKeys := getTestKeys()
 	alloc := testutils.KeysToGenesisAlloc(initBal, testKeys)
 	genData := app.GenesisData{Alloc: alloc}
 	appState, err := json.Marshal(genData)
@@ -120,24 +116,15 @@ func getAppState() ([]byte, error) {
 	return appState, nil
 }
 
-func getTestKeys() ([]string, error) {
-	var testKeys []string
-
+func getTestKeys() []string {
 	testKeysCSV := viper.GetString(FlagTestKeys)
 	if testKeysCSV != "" {
-		testKeys = strings.Split(testKeysCSV, ",")
-		return testKeys, nil
+		return strings.Split(testKeysCSV, ",")
 	}
 
 	testKeysFile := viper.GetString(FlagTestKeysFile)
 	if testKeysFile != "" {
-		data, err := ioutil.ReadFile(testKeysFile)
-		if err != nil {
-			return nil, err
-		}
-		testKeys = strings.Split(string(data), "\n")
-		return testKeys, nil
+		return testutils.ReadKeysFromFile(testKeysFile, math.MaxInt32)
 	}
-
-	return nil, nil
+	return nil
 }
