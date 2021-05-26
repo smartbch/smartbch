@@ -30,7 +30,6 @@ const (
 	flagVotingPower  = "voting-power"
 	flagStakingCoin  = "staking-coin"
 	flagIntroduction = "introduction"
-	flagRewardTo     = "reward-to"
 	flagKey          = "validator-key"
 	flagNonce        = "nonce"
 	flagChainId      = "chain-id"

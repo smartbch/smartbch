@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -62,13 +61,13 @@ smartbchd staking
 			// get pubkey
 			priKey, _, err := ethutils.HexToPrivKey(viper.GetString(flagKey))
 			if err != nil {
-				return errors.New("private key parse error: " + err.Error())
+				return fmt.Errorf("private key parse error: " + err.Error())
 			}
 			addr := ethutils.PrivKeyToAddr(priKey)
 			// get staking coin
 			sCoin, success := bigutils.ParseU256(viper.GetString(flagStakingCoin))
 			if !success {
-				return errors.New("staking coin parse failed")
+				return fmt.Errorf("staking coin parse failed")
 			}
 			// generate edit validator info
 
@@ -81,7 +80,7 @@ smartbchd staking
 			//chainID := ctx.Config.ChainID()
 			chainID, err := parseChainID(viper.GetString(flagChainId))
 			if err != nil {
-				return errors.New(fmt.Sprintf("parse chain id errpr: %s", err.Error()))
+				return fmt.Errorf("parse chain id errpr: %s", err.Error())
 			}
 			to := common.Address(staking.StakingContractAddress)
 			txData := &gethtypes.LegacyTx{
@@ -95,11 +94,11 @@ smartbchd staking
 			tx := gethtypes.NewTx(txData)
 			tx, err = ethutils.SignTx(tx, chainID.ToBig(), priKey)
 			if err != nil {
-				return errors.New(fmt.Sprintf("sign tx errpr: %s", err.Error()))
+				return fmt.Errorf("sign tx errpr: %s", err.Error())
 			}
 			txBytes, err := ethutils.EncodeTx(tx)
 			if err != nil {
-				return errors.New(fmt.Sprintf("encode tx errpr: %s", err.Error()))
+				return fmt.Errorf("encode tx errpr: %s", err.Error())
 			}
 			fmt.Println("0x" + hex.EncodeToString(txBytes))
 			if viper.GetBool(flagVerbose) {
