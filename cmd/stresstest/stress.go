@@ -568,7 +568,11 @@ func main() {
 	} else if os.Args[1] == "replay" {
 		RunReplayBlocks(fromSize, fname)
 	} else if os.Args[1] == "replayWS" {
-		RunReplayBlocksWS()
+		url := "ws://localhost:8546"
+		if len(os.Args) > 2 {
+			url = os.Args[2]
+		}
+		RunReplayBlocksWS(url)
 	} else if os.Args[1] == "genkeys10K" {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
