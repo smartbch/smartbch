@@ -290,6 +290,24 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		panic("no genesis validator in genesis.json")
 	}
 
+	//store all genesis validators even if it is inactive
+	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
+	if stakingAcc == nil {
+		panic("Cannot find staking contract")
+	}
+	info := stakingtypes.StakingInfo{
+		CurrEpochNum:   0,
+		Validators:     genesisValidators,
+		PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
+	}
+	for i := range info.PendingRewards {
+		info.PendingRewards[i] = &stakingtypes.PendingReward{
+			Address: genesisValidators[i].Address,
+		}
+	}
+	staking.SaveStakingInfo(ctx, stakingAcc, info)
+	ctx.Close(true)
+
 	var activeValidator []*stakingtypes.Validator
 	for _, v := range genesisValidators {
 		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
@@ -297,23 +315,6 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		}
 	}
 	app.currValidators = activeValidator
-	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
-	if stakingAcc == nil {
-		panic("Cannot find staking contract")
-	}
-	info := stakingtypes.StakingInfo{
-		CurrEpochNum:   0,
-		Validators:     app.currValidators,
-		PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
-	}
-	for i := range info.PendingRewards {
-		info.PendingRewards[i] = &stakingtypes.PendingReward{
-			Address: app.currValidators[i].Address,
-		}
-	}
-	staking.SaveStakingInfo(ctx, stakingAcc, info)
-	ctx.Close(true)
-
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
