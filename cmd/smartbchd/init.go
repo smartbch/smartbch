@@ -131,6 +131,5 @@ func getTestKeys() []string {
 		keys := testutils.ReadKeysFromFile(testKeyFile, math.MaxInt32)
 		allKeys = append(allKeys, keys...)
 	}
-
-	return nil
+	return allKeys
 }
