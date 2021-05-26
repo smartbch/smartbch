@@ -3,7 +3,7 @@
 
 set -eux
 
-go build -o build/smartbchd ./cmd/smartbchd
+go build  -tags cppbtree -o build/smartbchd ./cmd/smartbchd
 
 # shellcheck disable=SC2088
 HOME="~/.smartbchd"

@@ -129,13 +129,13 @@ func TestStaking(t *testing.T) {
 	// invalid create call
 	c.Tx.Data = c.Tx.Data[:95]
 	status, _, _, outData := e.Execute(ctx, nil, c.Tx)
-	require.Equal(t, types.ReceiptStatusFailed, uint64(status))
+	require.Equal(t, staking.StatusFailed, status)
 	require.Equal(t, staking.InvalidCallData.Error(), string(outData))
 
 	//invalid selector
 	c.Tx.Data = c.Tx.Data[:3]
 	e.Execute(ctx, nil, c.Tx)
-	require.Equal(t, types.ReceiptStatusFailed, uint64(status))
+	require.Equal(t, staking.StatusFailed, status)
 
 	// test edit validator
 	c = buildEditValCallEntry(sender, 102, 12)

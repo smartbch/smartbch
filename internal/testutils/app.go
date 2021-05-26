@@ -24,6 +24,7 @@ import (
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -65,6 +66,7 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	testValidator := &stakingtypes.Validator{}
 	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
 	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+	copy(testValidator.StakedCoins[:], staking.MinimumStakingAmount.Bytes())
 	testValidator.VotingPower = 1
 	genesisData.Validators = append(genesisData.Validators, testValidator)
 

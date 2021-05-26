@@ -290,7 +290,13 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		panic("no genesis validator in genesis.json")
 	}
 
-	app.currValidators = genesisValidators
+	var activeValidator []*stakingtypes.Validator
+	for _, v := range genesisValidators {
+		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
+			activeValidator = append(activeValidator, v)
+		}
+	}
+	app.currValidators = activeValidator
 	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 	if stakingAcc == nil {
 		panic("Cannot find staking contract")
@@ -353,6 +359,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Size:      int64(req.Size()),
 	}
 	copy(app.lastProposer[:], req.Header.ProposerAddress)
+	fmt.Printf("PROPOSER: %s\n", gethcmn.Address(app.lastProposer).String())
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
 			app.lastCommitInfo = append(app.lastCommitInfo, v.Validator.Address) //this is validator consensus address
@@ -410,6 +417,11 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			ctx.Close(true)
 			app.epochList = app.epochList[1:]
 		}
+	} else {
+		ctx := app.GetRunTxContext()
+		_, info := staking.LoadStakingAcc(ctx)
+		app.currValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
+		ctx.Close(false)
 	}
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
@@ -418,7 +430,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		//fmt.Printf("endblock validator:%v\n", v.Address)
+		fmt.Printf("endblock validator:%s\n", gethcmn.Address(v.Address).String())
 	}
 	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{

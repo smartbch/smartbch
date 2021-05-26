@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/smartbch/smartbch/staking"
 	"math/big"
 	"os"
 	"sync"
@@ -360,6 +361,7 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 		testValidator := &stakingtypes.Validator{}
 		copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
 		copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+		copy(testValidator.StakedCoins[:], staking.MinimumStakingAmount.Bytes())
 		testValidator.VotingPower = 1
 		genesisData.Validators = append(genesisData.Validators, testValidator)
 		appStateBytes, _ := json.Marshal(genesisData)
