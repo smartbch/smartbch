@@ -403,26 +403,6 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	//fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter end block!")
-	select {
-	case epoch := <-app.watcher.EpochChan:
-		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
-		app.epochList = append(app.epochList, epoch)
-	default:
-		//fmt.Println("no new epoch")
-	}
-	if len(app.epochList) != 0 {
-		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
-			ctx := app.GetRunTxContext()
-			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
-			ctx.Close(true)
-			app.epochList = app.epochList[1:]
-		}
-	} else {
-		ctx := app.GetRunTxContext()
-		_, info := staking.LoadStakingAcc(ctx)
-		app.currValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
-		ctx.Close(false)
-	}
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -445,6 +425,24 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 
 	ctx := app.GetRunTxContext()
 	_, info := staking.LoadStakingAcc(ctx)
+
+	//update validator set first, maybe it should after slash
+	select {
+	case epoch := <-app.watcher.EpochChan:
+		fmt.Printf("get new epoch in commit, its startHeight is:%d\n", epoch.StartHeight)
+		app.epochList = append(app.epochList, epoch)
+	default:
+		//fmt.Println("no new epoch")
+	}
+	if len(app.epochList) != 0 {
+		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			app.epochList = app.epochList[1:]
+		}
+	} else {
+		app.currValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
+	}
+
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
 	var consAddr [20]byte
 	for _, v := range info.Validators {
@@ -497,6 +495,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	} else {
 		staking.LoadReadonlyValiatorsInfo(ctx)
 	}
+
 	ctx.Close(true)
 
 	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)

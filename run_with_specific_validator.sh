@@ -26,7 +26,7 @@ rm -rf "$HOME"
   --validator-address="$1" \
   --consensus-pubkey=$(./build/smartbchd generate-consensus-key-info) \
   --voting-power=1 \
-  --staking-coin=100000000000000000000 \
+  --staking-coin=1000000000000000000000 \
   --introduction="freeman") \
   --home="$HOME"
 
