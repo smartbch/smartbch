@@ -3,6 +3,7 @@ package testutils
 import (
 	"bufio"
 	"encoding/hex"
+	"fmt"
 	"os"
 
 	"github.com/holiman/uint256"
@@ -47,6 +48,9 @@ func ReadKeysFromFile(fname string, count int) (res []string) {
 	scanner := bufio.NewScanner(f)
 	scanner.Split(bufio.ScanLines)
 
+	i := 1
+	fmt.Println("reading keys from file: " + fname)
+
 	res = make([]string, 0, 8192)
 	for scanner.Scan() && len(res) < count {
 		//fmt.Printf("Now read %d\n", len(res))
@@ -55,7 +59,10 @@ func ReadKeysFromFile(fname string, count int) (res []string) {
 		//if err != nil {
 		//	panic(err)
 		//}
+		fmt.Printf("\r%d", i)
 		res = append(res, txt)
+		i++
 	}
+	fmt.Println("\nfinished reading keys")
 	return
 }

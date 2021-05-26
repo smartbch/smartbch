@@ -121,7 +121,7 @@ func GenKeysToFile(fname string, count int) {
 
 	keys := make([]string, 8000)
 	for i := 0; i < count; i += 8000 {
-		fmt.Println(i)
+		fmt.Printf("\r%d", i)
 		parallelRun(8, func(id int) {
 			for i := 0; i < 1000; i++ {
 				key, err := crypto.GenerateKey()
@@ -135,6 +135,7 @@ func GenKeysToFile(fname string, count int) {
 			fmt.Fprintln(f, key)
 		}
 	}
+	fmt.Println()
 }
 
 var testAddABI = testutils.MustParseABI(`
@@ -449,7 +450,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	for i := 0; i < randBlocks; i++ {
 		txPerBlock := txPerBlockIn
 		if txPerBlockIn < 0 {
-			txPerBlock = 1 + int(rs.GetUint32()) % (-txPerBlockIn)
+			txPerBlock = 1 + int(rs.GetUint32())%(-txPerBlockIn)
 		}
 		// generate blocks with `txPerBlock` random transactions
 		blk.TxList = make([][]byte, txPerBlock)

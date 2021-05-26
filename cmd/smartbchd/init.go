@@ -82,6 +82,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 				return err
 			}
 
+			fmt.Println("saving genesis file ...")
 			if err := ExportGenesisFile(genDoc, genFile); err != nil {
 				return err
 			}
@@ -107,6 +108,8 @@ func getAppState() ([]byte, error) {
 	}
 
 	testKeys := getTestKeys()
+
+	fmt.Println("preparing genesis file ...")
 	alloc := testutils.KeysToGenesisAlloc(initBal, testKeys)
 	genData := app.GenesisData{Alloc: alloc}
 	appState, err := json.Marshal(genData)
@@ -122,9 +125,12 @@ func getTestKeys() []string {
 		return strings.Split(testKeysCSV, ",")
 	}
 
-	testKeysFile := viper.GetString(FlagTestKeysFile)
-	if testKeysFile != "" {
-		return testutils.ReadKeysFromFile(testKeysFile, math.MaxInt32)
+	var allKeys []string
+	testKeyFiles := viper.GetString(FlagTestKeysFile)
+	for _, testKeyFile := range strings.Split(testKeyFiles, ",") {
+		keys := testutils.ReadKeysFromFile(testKeyFile, math.MaxInt32)
+		allKeys = append(allKeys, keys...)
 	}
+
 	return nil
 }

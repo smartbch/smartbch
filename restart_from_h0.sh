@@ -15,12 +15,15 @@ TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 0xa3ff378a8d766931575df674fbb1024f09f7072653e1aa91641f310b3e1c5275"
 
 rm -rf ~/.smartbchd/
+echo 'initializing node ...'
 smartbchd init m1 --chain-id 0x2711 \
   --init-balance=10000000000000000000 \
-  --test-keys=$TEST_KEYS
+  --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
 sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' ~/.smartbchd/config/config.toml
 
+echo 'generating consensus key info ...'
 CPK=$(smartbchd generate-consensus-key-info)
+echo 'generating genesis validator ...'
 VAL=$(smartbchd generate-genesis-validator \
   0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9 \
   --consensus-pubkey $CPK \
@@ -31,9 +34,11 @@ VAL=$(smartbchd generate-genesis-validator \
 
 mv ./priv_validator_key.json ~/.smartbchd/config/
 
+echo 'adding genesis validator ...'
 smartbchd add-genesis-validator $VAL
 
 #export NODIASM=1
 #export NOSTACK=1
 #export NOINSTLOG=1
+echo 'starting node ...'
 smartbchd start --unlock $TEST_KEYS
