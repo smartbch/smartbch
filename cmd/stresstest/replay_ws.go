@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 const (
 	sendRawTxReqFmt = `{"jsonrpc":"2.0", "method":"eth_sendRawTransaction", "params":["%s"], "id":%d}`
+	getTxListReqFmt = `{"jsonrpc":"2.0", "method":"sbch_getTxListByHeight", "params":["0x%x"], "id":%d}`
 )
 
 var reqID uint64
@@ -76,9 +78,11 @@ func getTotalHeight(blkDB *BlockDB) uint32 {
 }
 
 func sendRawTxWithRetry(c *websocket.Conn, tx []byte, logsMsg bool, retryCount int) bool {
+	reqID++
+	req := []byte(fmt.Sprintf(sendRawTxReqFmt, "0x"+hex.EncodeToString(tx), reqID))
 	for i := 0; i < retryCount; i++ {
 		//time.Sleep(100 * time.Millisecond)
-		resp := sendRawTx(c, tx, logsMsg)
+		resp := sendReq(c, req, logsMsg)
 		if !bytes.Contains(resp, []byte("error")) {
 			return true
 		}
@@ -94,14 +98,12 @@ func sendRawTxWithRetry(c *websocket.Conn, tx []byte, logsMsg bool, retryCount i
 	return false
 }
 
-func sendRawTx(c *websocket.Conn, tx []byte, logsMsg bool) []byte {
-	reqID++
-	sendRawTxReq := fmt.Sprintf(sendRawTxReqFmt, "0x"+hex.EncodeToString(tx), reqID)
+func sendReq(c *websocket.Conn, req []byte, logsMsg bool) []byte {
 	if logsMsg {
-		fmt.Println("write:", sendRawTxReq)
+		fmt.Println("write:", string(req))
 	}
 
-	err := c.WriteMessage(websocket.TextMessage, []byte(sendRawTxReq))
+	err := c.WriteMessage(websocket.TextMessage, req)
 	if err != nil {
 		if logsMsg {
 			fmt.Println("write error:", err)
@@ -120,4 +122,52 @@ func sendRawTx(c *websocket.Conn, tx []byte, logsMsg bool) []byte {
 		fmt.Println("read:", string(resp))
 	}
 	return resp
+}
+
+type RespObj struct {
+	Result []TxReceipt `json:"result"`
+}
+type TxReceipt struct {
+	TransactionHash string `json:"transactionHash"`
+	Status          string `json:"status"`
+	StatusStr       string `json:"statusStr"`
+}
+
+func RunQueryTxsWS(url string) {
+	fmt.Println("connecting to ", url)
+
+	c, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	h := 0
+	for {
+		h++
+		reqID++
+		req := []byte(fmt.Sprintf(getTxListReqFmt, reqID, h))
+		resp := sendReq(c, req, false)
+
+		var respObj RespObj
+		if err := json.Unmarshal(resp, &respObj); err != nil {
+			fmt.Println(err.Error())
+		} else {
+			//println("ok")
+		}
+
+		fmt.Printf("height: %d, all tx: %d, failed tx: %d\n",
+			h, len(respObj.Result), getFailedTxCount(respObj))
+	}
+}
+
+func getFailedTxCount(resp RespObj) int {
+	n := 0
+	for _, tx := range resp.Result {
+		//fmt.Println(tx.Status)
+		if tx.Status != "0x1" {
+			n++
+		}
+	}
+	return n
 }

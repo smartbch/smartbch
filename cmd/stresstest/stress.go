@@ -573,6 +573,12 @@ func main() {
 			url = os.Args[2]
 		}
 		RunReplayBlocksWS(url)
+	} else if os.Args[1] == "queryWS" {
+		url := "ws://localhost:8546"
+		if len(os.Args) > 2 {
+			url = os.Args[2]
+		}
+		RunQueryTxsWS(url)
 	} else if os.Args[1] == "genkeys10K" {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
