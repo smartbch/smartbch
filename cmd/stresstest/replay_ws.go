@@ -152,8 +152,6 @@ func RunQueryTxsWS(url string) {
 		var respObj RespObj
 		if err := json.Unmarshal(resp, &respObj); err != nil {
 			fmt.Println(err.Error())
-		} else {
-			//println("ok")
 		}
 
 		fmt.Printf("height: %d, all tx: %d, failed tx: %d\n",
