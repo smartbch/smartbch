@@ -2,6 +2,14 @@
 
 
 
+## v0.1.6 (not released yet)
+
+* JSON-RPC
+
+  * sbch_getTxListByHeight returns more detailed tx info
+
+
+
 ## v0.1.5
 
 * JSON-RPC

@@ -106,6 +106,14 @@ func blockToRpcResp(block *types.Block, txs []*types.Transaction) map[string]int
 	return result
 }
 
+func txsToRpcResp(txs []*types.Transaction) []*rpctypes.Transaction {
+	rpcTxs := make([]*rpctypes.Transaction, len(txs))
+	for i, tx := range txs {
+		rpcTxs[i] = txToRpcResp(tx)
+	}
+	return rpcTxs
+}
+
 func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 	idx := hexutil.Uint64(tx.TransactionIndex)
 	resp := &rpctypes.Transaction{
@@ -127,6 +135,14 @@ func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 	copy(resp.BlockHash[:], tx.BlockHash[:])
 	copy(resp.To[:], tx.To[:])
 	return resp
+}
+
+func txsToReceiptRpcResp(txs []*types.Transaction) []map[string]interface{} {
+	rpcTxs := make([]map[string]interface{}, len(txs))
+	for i, tx := range txs {
+		rpcTxs[i] = txToReceiptRpcResp(tx)
+	}
+	return rpcTxs
 }
 
 func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
@@ -160,14 +176,6 @@ func isZeroAddress(addr [20]byte) bool {
 		}
 	}
 	return true
-}
-
-func txsToRpcResp(txs []*types.Transaction) []*rpctypes.Transaction {
-	rpcTxs := make([]*rpctypes.Transaction, len(txs))
-	for i, tx := range txs {
-		rpcTxs[i] = txToRpcResp(tx)
-	}
-	return rpcTxs
 }
 
 func toCallErr(statusCode int, retData []byte) error {
