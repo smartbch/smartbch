@@ -47,7 +47,7 @@ smartbchd generate-consensus-key-info
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
-			c.SetRoot(app.DefaultNodeHome)
+			c.SetRoot(viper.GetString(cli.HomeFlag))
 			pk := ed25519.GenPrivKey()
 			fpv := privval.FilePVKey{
 				Address: pk.PubKey().Address(),

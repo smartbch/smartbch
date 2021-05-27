@@ -25,11 +25,24 @@ func RunReplayBlocksWS(url string) {
 	defer c.Close()
 
 	blkDB := NewBlockDB(blockDir)
+
+	allBlocks := uint32(1)
+	for blkDB.LoadBlock(allBlocks) != nil {
+		fmt.Printf("\rtotal blocks: %d", allBlocks)
+		allBlocks += 100
+	}
+	allBlocks -= 100
+	for blkDB.LoadBlock(allBlocks) != nil {
+		fmt.Printf("\rtotal blocks: %d", allBlocks)
+		allBlocks++
+	}
+	fmt.Println()
+
 	h := uint32(0)
 	retryCount := 10
 	okTxCount := 0
 	failedTxCount := 0
-	startTime := time.Now().UnixNano()
+	startTime := time.Now().Unix()
 	limiter := time.Tick(1 * time.Millisecond)
 
 	for {
@@ -41,9 +54,13 @@ func RunReplayBlocksWS(url string) {
 
 		for i, tx := range blk.TxList {
 			<-limiter
-			now := time.Now().UnixNano()
-			fmt.Printf("\rblock: %d, tx: %d; total sent tx: %d, total failed tx: %d, tps:%f",
-				h, i, okTxCount, failedTxCount, float64(okTxCount)/(float64(now-startTime)/10e9))
+			tps := 0
+			timeElapsed := time.Now().Unix() - startTime
+			if timeElapsed > 0 {
+				tps = okTxCount / int(timeElapsed)
+			}
+			fmt.Printf("\rblock: %d, tx: %d; total sent tx: %d, total failed tx: %d, time: %ds, tps:%d, progress:%f%%",
+				h, i, okTxCount, failedTxCount, timeElapsed, tps, float64(h)/float64(allBlocks)*100)
 			for i := 0; i < retryCount; i++ {
 				//time.Sleep(100 * time.Millisecond)
 				resp := sendRawTxWS(tx, c, false)
@@ -54,7 +71,7 @@ func RunReplayBlocksWS(url string) {
 
 				// retry
 				if i < retryCount-1 {
-					time.Sleep(10 * time.Millisecond)
+					time.Sleep(50 * time.Millisecond)
 				} else {
 					fmt.Println("failed to send tx:", string(resp))
 					failedTxCount++
