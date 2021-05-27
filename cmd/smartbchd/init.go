@@ -126,21 +126,25 @@ func getTestKeys() []string {
 		return strings.Split(testKeysCSV, ",")
 	}
 
-	var allKeys []string
 	testKeyFiles := viper.GetString(FlagTestKeysFile)
-	for _, testKeyFile := range strings.Split(testKeyFiles, ",") {
-		count := math.MaxInt32
-		if idx := strings.Index(testKeyFile, ":"); idx > 0 {
-			n, err := strconv.ParseInt(testKeyFile[idx+1:], 10, 32)
-			if err != nil {
-				panic(err)
+	if testKeyFiles != "" {
+		var allKeys []string
+		for _, testKeyFile := range strings.Split(testKeyFiles, ",") {
+			count := math.MaxInt32
+			if idx := strings.Index(testKeyFile, ":"); idx > 0 {
+				n, err := strconv.ParseInt(testKeyFile[idx+1:], 10, 32)
+				if err != nil {
+					panic(err)
+				}
+				count = int(n)
+				testKeyFile = testKeyFile[:idx]
 			}
-			count = int(n)
-			testKeyFile = testKeyFile[:idx]
-		}
 
-		keys := testutils.ReadKeysFromFile(testKeyFile, count)
-		allKeys = append(allKeys, keys...)
+			keys := testutils.ReadKeysFromFile(testKeyFile, count)
+			allKeys = append(allKeys, keys...)
+		}
+		return allKeys
 	}
-	return allKeys
+
+	return nil
 }
