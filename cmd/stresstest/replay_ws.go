@@ -30,7 +30,7 @@ func RunReplayBlocksWS(url string) {
 	allBlocks := getTotalHeight(blkDB)
 
 	h := uint32(0)
-	retryCount := 10
+	retryCount := 100
 	okTxCount := 0
 	failedTxCount := 0
 	startTime := time.Now().Unix()
@@ -89,7 +89,7 @@ func sendRawTxWithRetry(c *websocket.Conn, tx []byte, logsMsg bool, retryCount i
 
 		// retry
 		if i < retryCount-1 {
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		} else {
 			fmt.Println("failed to send tx:", string(resp))
 			return false
