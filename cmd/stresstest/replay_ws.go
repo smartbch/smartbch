@@ -15,6 +15,7 @@ import (
 const (
 	sendRawTxReqFmt = `{"jsonrpc":"2.0", "method":"eth_sendRawTransaction", "params":["%s"], "id":%d}`
 	getTxListReqFmt = `{"jsonrpc":"2.0", "method":"sbch_getTxListByHeight", "params":["0x%x"], "id":%d}`
+	getBlkByNumFmt  = `{"jsonrpc":"2.0", "method":"eth_getBlockByNumber", "params":["0x%x", false], "id":%d}`
 )
 
 var reqID uint64
@@ -126,7 +127,7 @@ func sendReq(c *websocket.Conn, req []byte, logsMsg bool) []byte {
 	return resp
 }
 
-type RespObj struct {
+type GetTxListRespObj struct {
 	Result []TxReceipt `json:"result"`
 }
 type TxReceipt struct {
@@ -146,11 +147,10 @@ func RunQueryTxsWS(url string, maxHeight int) {
 	defer c.Close()
 
 	for h := 1; h <= maxHeight; h++ {
-		reqID++
-		req := []byte(fmt.Sprintf(getTxListReqFmt, reqID, h))
+		req := []byte(fmt.Sprintf(getTxListReqFmt, h, h))
 		resp := sendReq(c, req, false)
 
-		var respObj RespObj
+		var respObj GetTxListRespObj
 		if err := json.Unmarshal(resp, &respObj); err != nil {
 			fmt.Println(err.Error())
 		}
@@ -162,7 +162,7 @@ func RunQueryTxsWS(url string, maxHeight int) {
 	}
 }
 
-func getFailedTxCount(resp RespObj) int {
+func getFailedTxCount(resp GetTxListRespObj) int {
 	n := 0
 	for _, tx := range resp.Result {
 		//fmt.Println(tx.Status)
@@ -173,7 +173,7 @@ func getFailedTxCount(resp RespObj) int {
 	return n
 }
 
-func sumGasUsed(resp RespObj) uint64 {
+func sumGasUsed(resp GetTxListRespObj) uint64 {
 	totalGasUsed := uint64(0)
 	for _, tx := range resp.Result {
 		//fmt.Println(tx.Status)
@@ -185,4 +185,39 @@ func sumGasUsed(resp RespObj) uint64 {
 		}
 	}
 	return totalGasUsed
+}
+
+type GetBlkByNumRespObj struct {
+	Result BlockInfo `json:"result"`
+}
+type BlockInfo struct {
+	Number       string   `json:"number"`
+	Size         string   `json:"size"`
+	GasUsed      string   `json:"gasUsed"`
+	Transactions []string `json:"transactions"`
+}
+
+func RunQueryBlocksWS(url string, maxHeight int) {
+	fmt.Println("connecting to ", url)
+
+	c, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	for h := 1; h <= maxHeight; h++ {
+		req := []byte(fmt.Sprintf(getBlkByNumFmt, h, h))
+		resp := sendReq(c, req, false)
+
+		var respObj GetBlkByNumRespObj
+		if err := json.Unmarshal(resp, &respObj); err != nil {
+			fmt.Println(err.Error())
+		}
+
+		size, _ := strconv.ParseUint(strings.TrimPrefix(respObj.Result.Size, "0x"), 16, 32)
+		gasUsed, _ := strconv.ParseUint(strings.TrimPrefix(respObj.Result.GasUsed, "0x"), 16, 32)
+		fmt.Printf("height: %d, all tx: %d, size: %fK, gas used: %fM\n",
+			h, len(respObj.Result.Transactions), float64(size)/1024, float64(gasUsed)/1_000_000)
+	}
 }

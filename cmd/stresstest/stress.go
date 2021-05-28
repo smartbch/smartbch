@@ -570,23 +570,11 @@ func main() {
 	} else if os.Args[1] == "replay" {
 		RunReplayBlocks(fromSize, fname)
 	} else if os.Args[1] == "replayWS" {
-		url := "ws://localhost:8546"
-		if len(os.Args) > 2 {
-			url = os.Args[2]
-		}
-		RunReplayBlocksWS(url)
-	} else if os.Args[1] == "queryWS" {
-		url := "ws://localhost:8546"
-		if len(os.Args) > 2 {
-			url = os.Args[2]
-		}
-		maxHeight := math.MaxUint32
-		if len(os.Args) > 3 {
-			if h, err := strconv.ParseInt(os.Args[3], 10, 32); err == nil {
-				maxHeight = int(h)
-			}
-		}
-		RunQueryTxsWS(url, maxHeight)
+		RunReplayBlocksWS(getWsURL())
+	} else if os.Args[1] == "queryWS" || os.Args[1] == "queryTxsWS" {
+		RunQueryTxsWS(getWsURL(), getMaxHeight())
+	} else if os.Args[1] == "queryBlocksWS" {
+		RunQueryBlocksWS(getWsURL(), getMaxHeight())
 	} else if os.Args[1] == "genkeys10K" {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
@@ -596,6 +584,23 @@ func main() {
 	} else {
 		panic("invalid argument")
 	}
+}
+
+func getWsURL() string {
+	url := "ws://localhost:8546"
+	if len(os.Args) > 2 {
+		url = os.Args[2]
+	}
+	return url
+}
+func getMaxHeight() int {
+	maxHeight := math.MaxUint32
+	if len(os.Args) > 3 {
+		if h, err := strconv.ParseInt(os.Args[3], 10, 32); err == nil {
+			maxHeight = int(h)
+		}
+	}
+	return maxHeight
 }
 
 var creationBytecode = testutils.HexToBytes(`
