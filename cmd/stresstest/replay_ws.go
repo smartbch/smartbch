@@ -91,7 +91,7 @@ func sendRawTxWithRetry(c *websocket.Conn, tx []byte, logsMsg bool, retryCount i
 		if i < retryCount-1 {
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			fmt.Println("failed to send tx:", string(resp))
+			fmt.Println("\nfailed to send tx:", string(resp))
 			return false
 		}
 	}
