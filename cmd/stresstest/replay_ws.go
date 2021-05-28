@@ -34,7 +34,7 @@ func RunReplayBlocksWS(url string) {
 	okTxCount := 0
 	failedTxCount := 0
 	startTime := time.Now().Unix()
-	limiter := time.Tick(1 * time.Millisecond)
+	limiter := time.Tick(3 * time.Millisecond)
 
 	for {
 		h++
