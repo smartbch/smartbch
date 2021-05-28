@@ -337,13 +337,14 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 
 	rbt := rabbit.NewRabbitStore(app.trunk)
 
+	app.logger.Info("air drop", "accounts", len(alloc))
 	for addr, acc := range alloc {
 		amt, _ := uint256.FromBig(acc.Balance)
 		k := types.GetAccountKey(addr)
 		v := types.ZeroAccountInfo()
 		v.UpdateBalance(amt)
 		rbt.Set(k, v.Bytes())
-		app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
+		//app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
 	}
 
 	rbt.Close()
