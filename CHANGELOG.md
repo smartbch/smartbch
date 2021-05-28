@@ -6,7 +6,11 @@
 
 * JSON-RPC
 
-  * sbch_getTxListByHeight returns more detailed tx info
+  * **sbch_getTxListByHeight** returns more detailed tx info
+  * Add placeholder implementation for txpool namespace 
+    * txpool_content
+    * txpool_status
+    * txpool_inspect
 
 
 

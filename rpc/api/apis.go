@@ -9,12 +9,13 @@ import (
 )
 
 const (
-	namespaceEth  = "eth"
-	namespaceNet  = "net"
-	namespaceWeb3 = "web3"
-	namespaceEVM  = "evm"
-	namespaceSBCH = "sbch"
-	namespaceTM   = "tm"
+	namespaceEth    = "eth"
+	namespaceNet    = "net"
+	namespaceWeb3   = "web3"
+	namespaceTxPool = "txpool"
+	namespaceEVM    = "evm"
+	namespaceSBCH   = "sbch"
+	namespaceTM     = "tm"
 	//namespacePersonal = "personal"
 
 	apiVersion = "1.0"
@@ -26,8 +27,9 @@ func GetAPIs(backend sbchapi.BackendService,
 
 	_ethAPI := newEthAPI(backend, testKeys, logger)
 	_netAPI := newNetAPI(backend.ChainId().Uint64())
-	_web3API := web3API{}
 	_filterAPI := filters.NewAPI(backend)
+	_web3API := web3API{}
+	_txPoolAPI := txPoolAPI{}
 	_sbchAPI := newSbchAPI(backend)
 	_evmAPI := newEvmAPI(backend)
 	_tmAPI := newTendermintAPI(backend)
@@ -55,6 +57,12 @@ func GetAPIs(backend sbchapi.BackendService,
 			Namespace: namespaceNet,
 			Version:   apiVersion,
 			Service:   _netAPI,
+			Public:    true,
+		},
+		{
+			Namespace: namespaceTxPool,
+			Version:   apiVersion,
+			Service:   _txPoolAPI,
 			Public:    true,
 		},
 		{
