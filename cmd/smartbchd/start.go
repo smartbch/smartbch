@@ -56,7 +56,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	cfg.SetRoot(viper.GetString(cli.HomeFlag))
 	cfg.TxIndex.Indexer = "null"
 	cfg.Mempool.Size = 20000
-	cfg.Mempool.MaxTxsBytes = 4 * 1024*1024*1024
+	cfg.Mempool.MaxTxsBytes = 4 * 1024 * 1024 * 1024
 	paramConfig.NodeConfig = cfg
 	paramConfig.AppDataPath = filepath.Join(cfg.RootDir, param.AppDataPath)
 	paramConfig.ModbDataPath = filepath.Join(cfg.RootDir, param.ModbDataPath)

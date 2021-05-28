@@ -6,9 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/smartbch/smartbch/staking"
+	"math"
 	"math/big"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,16 +18,17 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
-	"github.com/smartbch/moeingads/indextree"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/smartbch/moeingads/indextree"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -578,7 +580,13 @@ func main() {
 		if len(os.Args) > 2 {
 			url = os.Args[2]
 		}
-		RunQueryTxsWS(url)
+		maxHeight := math.MaxUint32
+		if len(os.Args) > 3 {
+			if h, err := strconv.ParseInt(os.Args[3], 10, 32); err == nil {
+				maxHeight = int(h)
+			}
+		}
+		RunQueryTxsWS(url, maxHeight)
 	} else if os.Args[1] == "genkeys10K" {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {

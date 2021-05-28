@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -50,7 +52,7 @@ func RunReplayBlocksWS(url string) {
 			if timeElapsed > 0 {
 				tps = okTxCount / int(timeElapsed)
 			}
-			fmt.Printf("\rblock: %d, tx: %d; total sent tx: %d, total failed tx: %d, time: %ds, tps:%d, progress:%f%%",
+			fmt.Printf("\rblock: %d, tx: %d; total sent tx: %d, total failed tx: %d, time: %ds, tps: %d, progress: %f%%",
 				h, i, okTxCount, failedTxCount, timeElapsed, tps, float64(h)/float64(allBlocks)*100)
 			if sendRawTxWithRetry(c, tx, false, retryCount) {
 				okTxCount++
@@ -129,11 +131,12 @@ type RespObj struct {
 }
 type TxReceipt struct {
 	TransactionHash string `json:"transactionHash"`
+	GasUsed         string `json:"gasUsed"`
 	Status          string `json:"status"`
 	StatusStr       string `json:"statusStr"`
 }
 
-func RunQueryTxsWS(url string) {
+func RunQueryTxsWS(url string, maxHeight int) {
 	fmt.Println("connecting to ", url)
 
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -142,9 +145,7 @@ func RunQueryTxsWS(url string) {
 	}
 	defer c.Close()
 
-	h := 0
-	for {
-		h++
+	for h := 1; h <= maxHeight; h++ {
 		reqID++
 		req := []byte(fmt.Sprintf(getTxListReqFmt, reqID, h))
 		resp := sendReq(c, req, false)
@@ -154,8 +155,10 @@ func RunQueryTxsWS(url string) {
 			fmt.Println(err.Error())
 		}
 
-		fmt.Printf("height: %d, all tx: %d, failed tx: %d\n",
-			h, len(respObj.Result), getFailedTxCount(respObj))
+		failedTxCount := getFailedTxCount(respObj)
+		totalGasUsed := sumGasUsed(respObj)
+		fmt.Printf("height: %d, all tx: %d, failed tx: %d, total gas used: %d\n",
+			h, len(respObj.Result), failedTxCount, totalGasUsed)
 	}
 }
 
@@ -168,4 +171,18 @@ func getFailedTxCount(resp RespObj) int {
 		}
 	}
 	return n
+}
+
+func sumGasUsed(resp RespObj) uint64 {
+	totalGasUsed := uint64(0)
+	for _, tx := range resp.Result {
+		//fmt.Println(tx.Status)
+		if tx.Status == "0x1" {
+			gasUsed := strings.TrimPrefix(tx.GasUsed, "0x")
+			if n, err := strconv.ParseUint(gasUsed, 16, 32); err == nil {
+				totalGasUsed += n
+			}
+		}
+	}
+	return totalGasUsed
 }
