@@ -390,7 +390,7 @@ func parallelRun(workerCount int, fn func(workerID int)) {
 }
 
 // record `randBlocks` blocks into db for later replay
-func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlockIn int) {
+func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlockIn int, ignoreFanout bool) {
 	numThreads := 8
 	if toSize%fromSize != 0 || toSize%numThreads != 0 {
 		panic("Invalid sizes")
@@ -426,25 +426,27 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	blk.TxList = nil
 	blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 	db.SaveBlock(blk)
-	fmt.Printf("================== Contract Created H=%d ===================\n", db.height)
-	// fanout transactions for initializing storage slots and to-addresses
-	for fanoutID := 0; fanoutID < fanoutSize; fanoutID++ {
-		fmt.Printf("fanoutID: %d\n", fanoutID)
-		start, end := fromSize*fanoutID, fromSize*(fanoutID+1)
-		half := len(keys) / 2
-		mid := (start + end) / 2
-		// only half of the from-addresses per block, to avoid incorrect nonce
-		blk.TxList = GenFanoutTxList(_app, keys[:half], contractAddrs[:half], toAddrs[start:mid], fanoutID)
-		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
-		db.SaveBlock(blk)
-		blk.TxList = GenFanoutTxList(_app, keys[half:], contractAddrs[half:], toAddrs[mid:end], fanoutID)
+	if !ignoreFanout {
+		fmt.Printf("================== Contract Created H=%d ===================\n", db.height)
+		// fanout transactions for initializing storage slots and to-addresses
+		for fanoutID := 0; fanoutID < fanoutSize; fanoutID++ {
+			fmt.Printf("fanoutID: %d\n", fanoutID)
+			start, end := fromSize*fanoutID, fromSize*(fanoutID+1)
+			half := len(keys) / 2
+			mid := (start + end) / 2
+			// only half of the from-addresses per block, to avoid incorrect nonce
+			blk.TxList = GenFanoutTxList(_app, keys[:half], contractAddrs[:half], toAddrs[start:mid], fanoutID)
+			blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+			db.SaveBlock(blk)
+			blk.TxList = GenFanoutTxList(_app, keys[half:], contractAddrs[half:], toAddrs[mid:end], fanoutID)
+			blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+			db.SaveBlock(blk)
+		}
+
+		blk.TxList = nil
 		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 		db.SaveBlock(blk)
 	}
-
-	blk.TxList = nil
-	blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
-	db.SaveBlock(blk)
 	fmt.Printf("================== Storage Slots Written H=%d ===================\n", db.height)
 	//ShowSlots(_app, toAddrs[0], contractAddrs, fanoutSize)
 	//ShowBalances(_app, keys, toAddrs)
@@ -517,11 +519,12 @@ func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string)
 		fmt.Printf("No RANDFILE specified. Exiting...")
 		return
 	}
+	ignoreFanout := os.Getenv("IGNOREFANOUT") == "YES"
 	rs := randsrc.NewRandSrcFromFile(randFilename)
 	keys := testutils.ReadKeysFromFile(fname, fromSize+toSize)
 	fmt.Printf("keys loaded\n")
 	blkDB := NewBlockDB(blockDir)
-	RecordBlocks(blkDB, rs, randBlocks, keys, fromSize, toSize, txPerBlock)
+	RecordBlocks(blkDB, rs, randBlocks, keys, fromSize, toSize, txPerBlock, ignoreFanout)
 	fmt.Printf("!!!Finished at height %d\n", blkDB.height)
 	blkDB.Close()
 }
