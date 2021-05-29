@@ -574,7 +574,7 @@ func main() {
 	} else if os.Args[1] == "queryWS" || os.Args[1] == "queryTxsWS" {
 		RunQueryTxsWS(getWsURL(), getMaxHeight())
 	} else if os.Args[1] == "queryBlocksWS" {
-		RunQueryBlocksWS(getWsURL(), getMaxHeight())
+		RunQueryBlocksWS(getWsURL(), getMaxHeight(), getMinHeight())
 	} else if os.Args[1] == "genkeys10K" {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
@@ -593,6 +593,7 @@ func getWsURL() string {
 	}
 	return url
 }
+
 func getMaxHeight() int {
 	maxHeight := math.MaxUint32
 	if len(os.Args) > 3 {
@@ -601,6 +602,16 @@ func getMaxHeight() int {
 		}
 	}
 	return maxHeight
+}
+
+func getMinHeight() int {
+	minHeight := 1
+	if len(os.Args) > 4 {
+		if h, err := strconv.ParseInt(os.Args[4], 10, 32); err == nil {
+			minHeight = int(h)
+		}
+	}
+	return minHeight
 }
 
 var creationBytecode = testutils.HexToBytes(`

@@ -194,10 +194,12 @@ type BlockInfo struct {
 	Number       string   `json:"number"`
 	Size         string   `json:"size"`
 	GasUsed      string   `json:"gasUsed"`
+	Timestamp    string   `json:"timestamp"`
+	Miner        string   `json:"miner"`
 	Transactions []string `json:"transactions"`
 }
 
-func RunQueryBlocksWS(url string, maxHeight int) {
+func RunQueryBlocksWS(url string, maxHeight int, minHeight int) {
 	fmt.Println("connecting to ", url)
 
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -206,7 +208,8 @@ func RunQueryBlocksWS(url string, maxHeight int) {
 	}
 	defer c.Close()
 
-	for h := 1; h <= maxHeight; h++ {
+	lastT := uint64(0)
+	for h := minHeight; h <= maxHeight; h++ {
 		req := []byte(fmt.Sprintf(getBlkByNumFmt, h, h))
 		resp := sendReq(c, req, false)
 
@@ -217,7 +220,13 @@ func RunQueryBlocksWS(url string, maxHeight int) {
 
 		size, _ := strconv.ParseUint(strings.TrimPrefix(respObj.Result.Size, "0x"), 16, 32)
 		gasUsed, _ := strconv.ParseUint(strings.TrimPrefix(respObj.Result.GasUsed, "0x"), 16, 32)
-		fmt.Printf("height: %d, all tx: %d, size: %fK, gas used: %fM\n",
-			h, len(respObj.Result.Transactions), float64(size)/1024, float64(gasUsed)/1_000_000)
+		t, _ := strconv.ParseUint(strings.TrimPrefix(respObj.Result.Timestamp, "0x"), 16, 32)
+		if t == 0 {
+			break
+		}
+		fmt.Printf("height: %d, time: %s-%d, all tx: %d, size: %fK, gas used: %fM miner: %s\n",
+			h, respObj.Result.Timestamp, t-lastT, len(respObj.Result.Transactions),
+			float64(size)/1024, float64(gasUsed)/1_000_000, respObj.Result.Miner)
+		lastT = t
 	}
 }
