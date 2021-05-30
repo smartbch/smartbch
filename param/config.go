@@ -11,6 +11,8 @@ const (
 	DefaultRpcEthGetLogsMaxResults = 10000
 	DefaultRetainBlocks            = -1
 	DefaultNumKeptBlocks           = 10000
+	DefaultSignatureCache          = 20000
+	DefaultRecheckThreshold        = 1000
 )
 
 type ChainConfig struct {
@@ -56,6 +58,13 @@ type ChainConfig struct {
 
 	// the number of kept recent blocks
 	NumKeptBlocks int
+
+	// the entry count of the signature cache
+	SigCacheSize int
+
+	// How many transactions are allowed to left in the mempool
+	// If more than this threshold, no further transactions can go in mempool
+	RecheckThreshold int
 }
 
 var (
@@ -76,6 +85,8 @@ func DefaultConfig() *ChainConfig {
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 		RetainBlocks:            DefaultRetainBlocks,
 		NumKeptBlocks:           DefaultNumKeptBlocks,
+		SigCacheSize:            DefaultSignatureCache,
+		RecheckThreshold:        DefaultRecheckThreshold,
 	}
 	c.NodeConfig.TxIndex.Indexer = "null"
 	return c

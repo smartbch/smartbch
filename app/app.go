@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -62,8 +63,12 @@ const (
 	GasLimitInvalid      uint32 = 106
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
+	MempoolBusy          uint32 = 109
 
 	PruneEveryN = 10
+
+	BlockMaxBytes = 1024 * 1024 // 1MB
+	BlockMaxGas   = 2000_000_000
 )
 
 type App struct {
@@ -113,10 +118,35 @@ type App struct {
 
 	//genesis data
 	currValidators []*stakingtypes.Validator
+
+	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
+	sigCache     map[gethcmn.Hash]SenderAndHeight
+	sigCacheSize int
+
+	// the senders who send native tokens through sep206 in the last block
+	sep206SenderSet map[gethcmn.Address]struct{}
+	// it shows how many tx remains in the mempool after committing a new block
+	recheckCounter int
+	// if recheckCounter is larger than recheckThreshold, mempool is in a traffic-jam status
+	// and we'd better refuse further transactions
+	recheckThreshold int
+}
+
+// The value entry of signature cache. The Height helps in evicting old entries.
+type SenderAndHeight struct {
+	Sender gethcmn.Address
+	Height int64
 }
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {
 	app := &App{}
+
+	app.recheckThreshold = config.RecheckThreshold
+
+	/*------signature cache------*/
+	app.sigCacheSize = config.SigCacheSize
+	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, app.sigCacheSize)
+
 	/*------set config------*/
 	app.retainBlocks = config.RetainBlocks
 	app.chainId = chainId
@@ -146,6 +176,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	//init PredefinedSystemContractExecutors before tx execute
 	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
+
+	// We make these maps not for realy usage, just to avoid accessing nil-maps
+	app.touchedAddrs = make(map[gethcmn.Address]int)
+	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -226,26 +260,64 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 
 func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx {
 	app.logger.Debug("enter check tx!")
+	if req.Type == abcitypes.CheckTxType_Recheck {
+		app.recheckCounter++ // calculate how many TXs remain in the mempool after a new block
+	} else if app.recheckCounter > app.recheckThreshold {
+		// Refuse to accept new TXs to drain the remain TXs
+		return abcitypes.ResponseCheckTx{Code: MempoolBusy, Info: "mempool is too busy"}
+	}
+	tx := &gethtypes.Transaction{}
+	err := tx.DecodeRLP(rlp.NewStream(bytes.NewReader(req.Tx), 0))
+	if err != nil {
+		return abcitypes.ResponseCheckTx{Code: CannotDecodeTx}
+	}
+	txid := tx.Hash()
+	var sender gethcmn.Address
+	senderAndHeight, ok := app.sigCache[txid]
+	if ok { // cache hit
+		sender = senderAndHeight.Sender
+	} else { // cache miss
+		sender, err = app.signer.Sender(tx)
+		if err != nil {
+			return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
+		}
+		if len(app.sigCache) > app.sigCacheSize { //select one old entry to evict
+			delKey, minHeight, count := gethcmn.Hash{}, int64(math.MaxInt64), 6 /*iterate 6 steps*/
+			for key, value := range app.sigCache {                              //pseudo-random iterate
+				if minHeight > value.Height { //select the oldest entry within a short iteration
+					minHeight, delKey = value.Height, key
+				}
+				if count--; count == 0 {
+					break
+				}
+			}
+			delete(app.sigCache, delKey)
+		}
+		app.sigCache[txid] = SenderAndHeight{sender, app.currHeight} // add to cache
+	}
+	if _, ok := app.touchedAddrs[sender]; ok {
+		// if the sender is touched, it is most likely to have an uncertain nonce, so we reject it
+		return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
+	}
+	if req.Type == abcitypes.CheckTxType_Recheck {
+		// During rechecking, if the sender has not not been touched or lose balance, the tx can pass
+		if _, ok := app.sep206SenderSet[sender]; !ok {
+			return abcitypes.ResponseCheckTx{
+				Code:      abcitypes.CodeTypeOK,
+				GasWanted: int64(tx.Gas()),
+			}
+		}
+	}
+	return app.checkTx(tx, sender)
+}
+
+func (app *App) checkTx(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
-	tx := &gethtypes.Transaction{}
-	err := tx.DecodeRLP(rlp.NewStream(bytes.NewReader(req.Tx), 0))
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotDecodeTx}
-	}
-	sender, err := app.signer.Sender(tx)
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
-	}
-	if req.Type != abcitypes.CheckTxType_Recheck && app.touchedAddrs != nil {
-		if _, ok := app.touchedAddrs[sender]; ok {
-			return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
-		}
-	}
 	//todo: replace with engine param
 	if tx.Gas() > ebp.MaxTxGasLimit {
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
@@ -264,7 +336,10 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	}
 	dirty = true
 	app.logger.Debug("leave check tx!")
-	return abcitypes.ResponseCheckTx{Code: abcitypes.CodeTypeOK}
+	return abcitypes.ResponseCheckTx{
+		Code:      abcitypes.CodeTypeOK,
+		GasWanted: int64(tx.Gas()),
+	}
 }
 
 //TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
@@ -325,8 +400,15 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		fmt.Printf("inichain validator:%s\n", p.String())
 	}
 
+	params := &abcitypes.ConsensusParams{
+		Block: &abcitypes.BlockParams{
+			MaxBytes: BlockMaxBytes,
+			MaxGas:   BlockMaxGas,
+		},
+	}
 	return abcitypes.ResponseInitChain{
-		Validators: valSet,
+		ConsensusParams: params,
+		Validators:      valSet,
 	}
 }
 
@@ -561,6 +643,8 @@ func (app *App) refresh() {
 
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
+		var wg *sync.WaitGroup
+		app.sep206SenderSet, wg = app.getSep206SenderSet()
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -602,8 +686,10 @@ func (app *App) refresh() {
 		}
 		app.historyStore.AddBlock(&blk, -1)
 		app.publishNewBlock(&blk)
+		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}
 	//make new
+	app.recheckCounter = 0 // reset counter before counting the remained TXs which need rechecking
 	app.lastProposer = app.block.Miner
 	app.lastCommitInfo = app.lastCommitInfo[:0]
 	app.root.SetHeight(app.currHeight + 1)
@@ -790,4 +876,28 @@ func (app *App) randomPanic(baseNumber, primeNumber int64) {
 		fmt.Println(s)
 		panic(s)
 	}(baseNumber + time.Now().UnixNano()%primeNumber)
+}
+
+var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
+
+// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
+// through sep206 in the last block
+func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGroup) {
+	res := make(map[gethcmn.Address]struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		for _, tx := range app.txEngine.CommittedTxs() {
+			for _, log := range tx.Logs {
+				if log.Address == sep206Addr && len(log.Topics) == 2 &&
+					log.Topics[0] == modbtypes.TransferEvent {
+					var addr gethcmn.Address
+					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
+					res[addr] = struct{}{}
+				}
+			}
+		}
+		wg.Done()
+	}()
+	return res, &wg
 }
