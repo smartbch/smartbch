@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -199,7 +200,7 @@ type BlockInfo struct {
 	Transactions []string `json:"transactions"`
 }
 
-func RunQueryBlocksWS(url string, maxHeight int, minHeight int) {
+func RunQueryBlocksWS(url string, maxHeight int, minHeight int, genCharts bool) {
 	fmt.Println("connecting to ", url)
 
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -209,6 +210,7 @@ func RunQueryBlocksWS(url string, maxHeight int, minHeight int) {
 	defer c.Close()
 
 	lastT := uint64(0)
+	var blocks []BlockInfo
 	for h := minHeight; h <= maxHeight; h++ {
 		req := []byte(fmt.Sprintf(getBlkByNumFmt, h, h))
 		resp := sendReq(c, req, false)
@@ -228,5 +230,125 @@ func RunQueryBlocksWS(url string, maxHeight int, minHeight int) {
 			h, respObj.Result.Timestamp, t-lastT, len(respObj.Result.Transactions),
 			float64(size)/1024, float64(gasUsed)/1_000_000, respObj.Result.Miner)
 		lastT = t
+
+		if genCharts {
+			blocks = append(blocks, respObj.Result)
+		}
 	}
+
+	if genCharts {
+		genChartsHTML(blocks)
+	}
+}
+
+var chartsTmpl = []byte(`<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable( {{ data_txCount }} );
+        var options = {title: 'TxCount', curveType: 'function', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_txCount'));
+        chart.draw(data, options);
+      }
+    </script>
+	<script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable( {{ data_blockSize }} );
+        var options = {title: 'BlockSize', curveType: 'function', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_blockSize'));
+        chart.draw(data, options);
+      }
+    </script>
+	<script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable( {{ data_gasUsed }} );
+        var options = {title: 'GasUsed', curveType: 'function', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_gasUsed'));
+        chart.draw(data, options);
+      }
+    </script>
+	<script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable( {{ data_blockTime }} );
+        var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="curve_txCount" style="width: 900px; height: 500px"></div>
+    <div id="curve_blockSize" style="width: 900px; height: 500px"></div>
+    <div id="curve_gasUsed" style="width: 900px; height: 500px"></div>
+    <div id="curve_blockTime" style="width: 900px; height: 500px"></div>
+  </body>
+</html>`)
+
+func genChartsHTML(blocks []BlockInfo) {
+	html := bytes.Replace(chartsTmpl, []byte("{{ data_txCount }}"), getTxCountData(blocks), 1)
+	html = bytes.Replace(html, []byte("{{ data_blockSize }}"), getBlockSizeData(blocks), 1)
+	html = bytes.Replace(html, []byte("{{ data_gasUsed }}"), getGasUsedData(blocks), 1)
+	html = bytes.Replace(html, []byte("{{ data_blockTime }}"), getBlockTimeData(blocks), 1)
+	_ = ioutil.WriteFile("./charts.html", html, 0644)
+}
+
+func getTxCountData(blocks []BlockInfo) []byte {
+	var data [][2]interface{}
+	data = append(data, [2]interface{}{"Block", "TxCount"})
+	for _, block := range blocks {
+		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+		data = append(data, [2]interface{}{h, len(block.Transactions)})
+	}
+	s, _ := json.Marshal(data)
+	return s
+}
+func getBlockSizeData(blocks []BlockInfo) []byte {
+	var data [][2]interface{}
+	data = append(data, [2]interface{}{"Block", "BlockSize"})
+	for _, block := range blocks {
+		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+		size, _ := strconv.ParseUint(strings.TrimPrefix(block.Size, "0x"), 16, 32)
+		data = append(data, [2]interface{}{h, size})
+	}
+	s, _ := json.Marshal(data)
+	return s
+}
+func getGasUsedData(blocks []BlockInfo) []byte {
+	var data [][2]interface{}
+	data = append(data, [2]interface{}{"Block", "GasUsed"})
+	for _, block := range blocks {
+		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+		gasUsed, _ := strconv.ParseUint(strings.TrimPrefix(block.GasUsed, "0x"), 16, 32)
+		data = append(data, [2]interface{}{h, gasUsed})
+	}
+	s, _ := json.Marshal(data)
+	return s
+}
+func getBlockTimeData(blocks []BlockInfo) []byte {
+	var data [][2]interface{}
+	data = append(data, [2]interface{}{"Block", "BlockTime"})
+	lastTime := uint64(0)
+	for _, block := range blocks {
+		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+		t, _ := strconv.ParseUint(strings.TrimPrefix(block.Timestamp, "0x"), 16, 32)
+		if lastTime > 0 {
+			data = append(data, [2]interface{}{h, t - lastTime})
+		}
+		lastTime = t
+	}
+	s, _ := json.Marshal(data)
+	return s
 }

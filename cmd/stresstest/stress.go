@@ -577,7 +577,7 @@ func main() {
 	} else if os.Args[1] == "queryWS" || os.Args[1] == "queryTxsWS" {
 		RunQueryTxsWS(getWsURL(), getMaxHeight())
 	} else if os.Args[1] == "queryBlocksWS" {
-		RunQueryBlocksWS(getWsURL(), getMaxHeight(), getMinHeight())
+		RunQueryBlocksWS(getWsURL(), getMaxHeight(), getMinHeight(), len(os.Args) > 5)
 	} else if os.Args[1] == "genkeys10K" {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
