@@ -67,8 +67,8 @@ const (
 
 	PruneEveryN = 10
 
-	BlockMaxBytes = 1024 * 1024 // 1MB
-	BlockMaxGas   = 2000_000_000
+	BlockMaxBytes = 24 * 1024 * 1024 // 24MB
+	BlockMaxGas   = 900_000_000_000
 )
 
 type App struct {
