@@ -177,7 +177,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
-	// We make these maps not for realy usage, just to avoid accessing nil-maps
+	// We make these maps not for really usage, just to avoid accessing nil-maps
 	app.touchedAddrs = make(map[gethcmn.Address]int)
 	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
 
