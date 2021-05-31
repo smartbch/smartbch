@@ -21,6 +21,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/smartbch/moeingads/indextree"
@@ -587,9 +588,19 @@ func main() {
 		GenKeysToFile("keys1M.txt", 1_000_000)
 	} else if os.Args[1] == "genkeys60" {
 		GenKeysToFile("keys60M.txt", 60_000_000)
+	} else if os.Args[1] == "showNodeKey" {
+		showNodeKey(os.Args[2])
 	} else {
 		panic("invalid argument")
 	}
+}
+
+func showNodeKey(fname string) {
+	nodeKey, err := p2p.LoadNodeKey(fname)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("P2P Node ID is %s\n", nodeKey.ID())
 }
 
 func getWsURL() string {
