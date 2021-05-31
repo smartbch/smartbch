@@ -21,7 +21,8 @@ const (
 
 var reqID uint64
 
-func RunReplayBlocksWS(url string) {
+func RunReplayBlocksWS(url string, fromHeight, fromTx int) {
+	fmt.Println("fromHeight:", fromHeight, "fromTx:", fromTx)
 	fmt.Println("connecting to ", url)
 
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -40,14 +41,24 @@ func RunReplayBlocksWS(url string) {
 	startTime := time.Now().Unix()
 	limiter := time.Tick(3 * time.Millisecond)
 
+blockLoop:
 	for {
 		h++
+		if h < uint32(fromHeight) {
+			continue blockLoop
+		}
+
 		blk := blkDB.LoadBlock(h)
 		if blk == nil {
 			break
 		}
 
+	txLoop:
 		for i, tx := range blk.TxList {
+			if h == uint32(fromHeight) && i < fromTx {
+				continue txLoop
+			}
+
 			<-limiter
 			tps := 0
 			timeElapsed := time.Now().Unix() - startTime
