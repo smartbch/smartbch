@@ -17,7 +17,24 @@ To run smartBCH via `docker-compose` you can execute the commands below! Note, t
 docker-compose run smartbch gen-test-keys -n 10 > test-keys.txt
 
 # Init the node, include the keys from the last step as a comma separated list.
-docker-compose run smartbch init mynode --chain-id 0x1 --init-balance=10000000000000000000 --test-keys=`paste -d, -s test-keys.txt`
+docker-compose run smartbch init mynode --chain-id 0x2711 \
+    --init-balance=10000000000000000000 \
+    --test-keys=`paste -d, -s test-keys.txt` \
+    --home=/root/.smartbchd
+
+# Generate consensus key info
+CPK=$(docker-compose run -w /root/.smartbchd/config smartbch generate-consensus-key-info)
+
+# Generate genesis validator
+K1=$(head -1 test-keys.txt)
+VAL=$(docker-compose run smartbch generate-genesis-validator $K1 \
+  --consensus-pubkey $CPK \
+  --staking-coin 10000000000000000000000 \
+  --voting-power 1 \
+  --introduction "tester" \
+  --home /root/.smartbchd
+  )
+docker-compose run smartbch add-genesis-validator --home=/root/.smartbchd $VAL
 
 # Start it up, you are all set!
 docker-compose up
