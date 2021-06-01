@@ -317,12 +317,19 @@ func genChartsHTML(blocks []BlockInfo) {
 	_ = ioutil.WriteFile("./charts.html", html, 0644)
 }
 
+const blockBundleSize = 100
+
 func getTxCountData(blocks []BlockInfo) []byte {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "TxCount"})
-	for _, block := range blocks {
-		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
-		data = append(data, [2]interface{}{h, len(block.Transactions)})
+	sum := 0
+	for i, block := range blocks {
+		sum += len(block.Transactions)
+		if (i+1) % blockBundleSize == 0 {
+			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+			data = append(data, [2]interface{}{h, sum})
+			sum = 0
+		}
 	}
 	s, _ := json.Marshal(data)
 	return s
@@ -330,10 +337,15 @@ func getTxCountData(blocks []BlockInfo) []byte {
 func getBlockSizeData(blocks []BlockInfo) []byte {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "BlockSize"})
-	for _, block := range blocks {
-		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+	sum := 0
+	for i, block := range blocks {
 		size, _ := strconv.ParseUint(strings.TrimPrefix(block.Size, "0x"), 16, 32)
-		data = append(data, [2]interface{}{h, size})
+		sum += int(size)
+		if (i+1) % blockBundleSize == 0 {
+			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+			data = append(data, [2]interface{}{h, sum})
+			sum = 0
+		}
 	}
 	s, _ := json.Marshal(data)
 	return s
@@ -341,10 +353,15 @@ func getBlockSizeData(blocks []BlockInfo) []byte {
 func getGasUsedData(blocks []BlockInfo) []byte {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "GasUsed"})
-	for _, block := range blocks {
-		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+	sum := 0
+	for i, block := range blocks {
 		gasUsed, _ := strconv.ParseUint(strings.TrimPrefix(block.GasUsed, "0x"), 16, 32)
-		data = append(data, [2]interface{}{h, gasUsed})
+		sum += int(gasUsed)
+		if (i+1) % blockBundleSize == 0 {
+			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+			data = append(data, [2]interface{}{h, sum})
+			sum = 0
+		}
 	}
 	s, _ := json.Marshal(data)
 	return s
@@ -353,13 +370,15 @@ func getBlockTimeData(blocks []BlockInfo) []byte {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "BlockTime"})
 	lastTime := uint64(0)
-	for _, block := range blocks {
-		h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
-		t, _ := strconv.ParseUint(strings.TrimPrefix(block.Timestamp, "0x"), 16, 32)
-		if lastTime > 0 {
-			data = append(data, [2]interface{}{h, t - lastTime})
+	for i, block := range blocks {
+		if i % blockBundleSize == 1 {
+			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
+			t, _ := strconv.ParseUint(strings.TrimPrefix(block.Timestamp, "0x"), 16, 32)
+			if lastTime > 0 {
+				data = append(data, [2]interface{}{h, t - lastTime})
+			}
+			lastTime = t
 		}
-		lastTime = t
 	}
 	s, _ := json.Marshal(data)
 	return s
