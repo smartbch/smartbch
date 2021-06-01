@@ -23,7 +23,8 @@ docker-compose run smartbch init mynode --chain-id 0x2711 \
     --home=/root/.smartbchd
 
 # Generate consensus key info
-CPK=$(docker-compose run -w /root/.smartbchd/config smartbch generate-consensus-key-info)
+CPK=$(docker-compose run -w /root/.smartbchd/ smartbch generate-consensus-key-info)
+docker-compose run --entrypoint mv smartbch /root/.smartbchd/priv_validator_key.json /root/.smartbchd/config
 
 # Generate genesis validator
 K1=$(head -1 test-keys.txt)
