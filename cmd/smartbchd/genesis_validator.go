@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -132,7 +133,7 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 			config := ctx.Config
 			config.SetRoot(viper.GetString(cli.HomeFlag))
 			// get new validator info
-			s := args[0]
+			s := strings.TrimSpace(args[0])
 			// check
 			v := stakingtypes.Validator{}
 			info, err := hex.DecodeString(s)
