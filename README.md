@@ -14,10 +14,10 @@ To run smartBCH via `docker-compose` you can execute the commands below! Note, t
 
 ```
 # Generate a set of 10 test keys.
-docker-compose run smartbch gen-test-keys -n 10
+docker-compose run smartbch gen-test-keys -n 10 > test-keys.txt
 
 # Init the node, include the keys from the last step as a comma separated list.
-docker-compose run smartbch init mynode --chain-id 0x1 --init-balance=10000000000000000000 --test-keys="KEY1,KEY2,KEY3,ETC"
+docker-compose run smartbch init mynode --chain-id 0x1 --init-balance=10000000000000000000 --test-keys=`paste -d, -s test-keys.txt`
 
 # Start it up, you are all set!
 docker-compose up
