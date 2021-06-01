@@ -325,7 +325,7 @@ func getTxCountData(blocks []BlockInfo) []byte {
 	sum := 0
 	for i, block := range blocks {
 		sum += len(block.Transactions)
-		if (i+1) % blockBundleSize == 0 {
+		if (i+1)%blockBundleSize == 0 {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			data = append(data, [2]interface{}{h, sum})
 			sum = 0
@@ -341,7 +341,7 @@ func getBlockSizeData(blocks []BlockInfo) []byte {
 	for i, block := range blocks {
 		size, _ := strconv.ParseUint(strings.TrimPrefix(block.Size, "0x"), 16, 32)
 		sum += int(size)
-		if (i+1) % blockBundleSize == 0 {
+		if (i+1)%blockBundleSize == 0 {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			data = append(data, [2]interface{}{h, sum})
 			sum = 0
@@ -357,7 +357,7 @@ func getGasUsedData(blocks []BlockInfo) []byte {
 	for i, block := range blocks {
 		gasUsed, _ := strconv.ParseUint(strings.TrimPrefix(block.GasUsed, "0x"), 16, 32)
 		sum += int(gasUsed)
-		if (i+1) % blockBundleSize == 0 {
+		if (i+1)%blockBundleSize == 0 {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			data = append(data, [2]interface{}{h, sum})
 			sum = 0
@@ -371,7 +371,7 @@ func getBlockTimeData(blocks []BlockInfo) []byte {
 	data = append(data, [2]interface{}{"Block", "BlockTime"})
 	lastTime := uint64(0)
 	for i, block := range blocks {
-		if i % blockBundleSize == 1 {
+		if i%blockBundleSize == 1 {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			t, _ := strconv.ParseUint(strings.TrimPrefix(block.Timestamp, "0x"), 16, 32)
 			if lastTime > 0 {
