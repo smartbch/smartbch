@@ -38,5 +38,6 @@ VAL=$(docker-compose run smartbch generate-genesis-validator $K1 \
 docker-compose run smartbch add-genesis-validator --home=/root/.smartbchd $VAL
 
 # Start it up, you are all set!
+# Note that the above generated 10 accounts are not unlocked, you have to operate them through private keys
 docker-compose up
 ```
