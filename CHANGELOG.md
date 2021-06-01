@@ -2,7 +2,7 @@
 
 
 
-## v0.1.6 (not released yet)
+## v0.1.6
 
 * JSON-RPC
 
