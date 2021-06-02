@@ -23,7 +23,7 @@ require (
 	github.com/prometheus/common v0.21.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.7.0
-	github.com/smartbch/moeingads v0.1.2-0.20210529030049-8a9751f4d351
+	github.com/smartbch/moeingads v0.1.3-0.20210602104040-2931890cefe7
 	github.com/smartbch/moeingdb v0.1.3-0.20210522150827-e623c968bfad
 	github.com/smartbch/moeingevm v0.1.6-0.20210522150426-5cf0d3d04e43
 	github.com/spf13/afero v1.6.0 // indirect
