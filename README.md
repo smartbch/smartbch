@@ -20,7 +20,7 @@ docker-compose run smartbch gen-test-keys -n 10 > test-keys.txt
 docker-compose run smartbch init mynode --chain-id 0x2711 \
     --init-balance=10000000000000000000 \
     --test-keys=`paste -d, -s test-keys.txt` \
-    --home=/root/.smartbchd
+    --home=/root/.smartbchd --overwrite
 
 # Generate consensus key info
 CPK=$(docker-compose run -w /root/.smartbchd/ smartbch generate-consensus-key-info)
