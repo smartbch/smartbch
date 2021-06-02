@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	adsDir  = "./testdbdata"
-	modbDir = "./modbdata"
+	testAdsDir  = "./testdbdata"
+	testMoDbDir = "./modbdata"
 )
 
 const (
@@ -51,11 +51,11 @@ func CreateTestApp(keys ...string) *TestApp {
 }
 
 func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
-	_ = os.RemoveAll(adsDir)
-	_ = os.RemoveAll(modbDir)
+	_ = os.RemoveAll(testAdsDir)
+	_ = os.RemoveAll(testMoDbDir)
 	params := param.DefaultConfig()
-	params.AppDataPath = adsDir
-	params.ModbDataPath = modbDir
+	params.AppDataPath = testAdsDir
+	params.ModbDataPath = testMoDbDir
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
 	_app := app.NewApp(params, bigutils.NewU256(1), nopLogger)
 	//_app.Init(nil)
@@ -82,8 +82,8 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 
 func (_app *TestApp) Destroy() {
 	_app.Stop()
-	_ = os.RemoveAll(adsDir)
-	_ = os.RemoveAll(modbDir)
+	_ = os.RemoveAll(testAdsDir)
+	_ = os.RemoveAll(testMoDbDir)
 }
 
 func (_app *TestApp) WaitMS(n int64) {

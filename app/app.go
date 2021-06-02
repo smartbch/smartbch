@@ -234,7 +234,6 @@ func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 
 func (app *App) reload() {
 	app.txEngine.SetContext(app.GetRunTxContext())
-	fmt.Printf("!!!!!!app reload: %v\n", app.txEngine.Context())
 	if app.block != nil {
 		app.mtx.Lock()
 		bi := app.syncBlockInfo()
@@ -243,7 +242,6 @@ func (app *App) reload() {
 }
 
 func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
-	fmt.Printf("Info app.block.Number %d\n", app.block.Number)
 	return abcitypes.ResponseInfo{
 		LastBlockHeight:  app.block.Number,
 		LastBlockAppHash: app.root.GetRootHash(),
