@@ -81,27 +81,27 @@ func getTotalHeight(blkDB *BlockDB) uint32 {
 	return h
 }
 
-func sendRawTxWithRetry(c *websocket.Conn, tx []byte, logsMsg bool, retryCount int) bool {
-	reqID++
-	req := []byte(fmt.Sprintf(sendRawTxReqFmt, "0x"+hex.EncodeToString(tx), reqID))
-	for i := 0; i < retryCount; i++ {
-		//time.Sleep(100 * time.Millisecond)
-		resp := sendReq(c, req, logsMsg)
-		if !bytes.Contains(resp, []byte("error")) {
-			return true
-		}
-
-		// retry
-		if i < retryCount-1 {
-			time.Sleep(200 * time.Millisecond)
-			fmt.Println("\nfailed to send tx:", string(resp))
-		} else {
-			fmt.Println("\nfailed to send tx:", string(resp))
-			return false
-		}
-	}
-	return false
-}
+//func sendRawTxWithRetry(c *websocket.Conn, tx []byte, logsMsg bool, retryCount int) bool {
+//	reqID++
+//	req := []byte(fmt.Sprintf(sendRawTxReqFmt, "0x"+hex.EncodeToString(tx), reqID))
+//	for i := 0; i < retryCount; i++ {
+//		//time.Sleep(100 * time.Millisecond)
+//		resp := sendReq(c, req, logsMsg)
+//		if !bytes.Contains(resp, []byte("error")) {
+//			return true
+//		}
+//
+//		// retry
+//		if i < retryCount-1 {
+//			time.Sleep(200 * time.Millisecond)
+//			fmt.Println("\nfailed to send tx:", string(resp))
+//		} else {
+//			fmt.Println("\nfailed to send tx:", string(resp))
+//			return false
+//		}
+//	}
+//	return false
+//}
 
 func sendReq(c *websocket.Conn, req []byte, logsMsg bool) []byte {
 	if logsMsg {
