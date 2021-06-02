@@ -10,13 +10,17 @@ import (
 	"strings"
 	"time"
 
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gorilla/websocket"
+
+	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
 const (
 	sendRawTxReqFmt = `{"jsonrpc":"2.0", "method":"eth_sendRawTransaction", "params":["%s"], "id":%d}`
 	getTxListReqFmt = `{"jsonrpc":"2.0", "method":"sbch_getTxListByHeight", "params":["0x%x"], "id":%d}`
 	getBlkByNumFmt  = `{"jsonrpc":"2.0", "method":"eth_getBlockByNumber", "params":["0x%x", false], "id":%d}`
+	getNonceFmt     = `{"jsonrpc":"2.0", "method":"eth_getTransactionCount", "params":["%s","latest"], "id":%d}`
 )
 
 var reqID uint64
@@ -34,45 +38,30 @@ func RunReplayBlocksWS(url string, fromHeight, fromTx int) {
 	blkDB := NewBlockDB(blockDir)
 	allBlocks := getTotalHeight(blkDB)
 
-	h := uint32(0)
-	retryCount := 1000000
+	h := uint32(fromHeight)
 	okTxCount := 0
-	failedTxCount := 0
 	startTime := time.Now().Unix()
-	limiter := time.Tick(3 * time.Millisecond)
 
-blockLoop:
 	for {
-		h++
-		if h < uint32(fromHeight) {
-			continue blockLoop
-		}
-
 		blk := blkDB.LoadBlock(h)
 		if blk == nil {
 			break
 		}
 
-	txLoop:
-		for i, tx := range blk.TxList {
-			if h == uint32(fromHeight) && i < fromTx {
-				continue txLoop
-			}
-
-			<-limiter
-			tps := 0
-			timeElapsed := time.Now().Unix() - startTime
-			if timeElapsed > 0 {
-				tps = okTxCount / int(timeElapsed)
-			}
-			fmt.Printf("\rblock: %d, tx: %d; total sent tx: %d, total failed tx: %d, time: %ds, tps: %d, progress: %f%%",
-				h, i, okTxCount, failedTxCount, timeElapsed, tps, float64(h)/float64(allBlocks)*100)
-			if sendRawTxWithRetry(c, tx, false, retryCount) {
-				okTxCount++
-			} else {
-				failedTxCount++
-			}
+		txList := blk.TxList
+		if h == uint32(fromHeight) && fromTx < len(blk.TxList) {
+			txList = blk.TxList[fromTx:]
 		}
+		sendRawTxList(c, txList, false)
+		okTxCount += len(txList)
+		tps := 0
+		timeElapsed := time.Now().Unix() - startTime
+		if timeElapsed > 0 {
+			tps = okTxCount / int(timeElapsed)
+		}
+		fmt.Printf("\rblock: %d, total sent tx: %d, time: %ds, tps: %d, progress: %f%%",
+			h, okTxCount, timeElapsed, tps, float64(h)/float64(allBlocks)*100)
+		h++
 	}
 	fmt.Println("\nDONE!")
 }
@@ -142,6 +131,9 @@ func sendReq(c *websocket.Conn, req []byte, logsMsg bool) []byte {
 
 type GetTxListRespObj struct {
 	Result []TxReceipt `json:"result"`
+}
+type GetNonceRespObj struct {
+	Result string `json:"result"`
 }
 type TxReceipt struct {
 	TransactionHash string `json:"transactionHash"`
@@ -382,4 +374,84 @@ func getBlockTimeData(blocks []BlockInfo) []byte {
 	}
 	s, _ := json.Marshal(data)
 	return s
+}
+
+func sendRawTxList(c *websocket.Conn, txList [][]byte, logsMsg bool) {
+	remainList := make([]int, len(txList))
+	for i := range remainList {
+		remainList[i] = i
+	}
+	for counter := 0; counter < 100; counter++ {
+		remainList = sendRawTxSubList(c, txList, remainList, logsMsg)
+		if len(remainList) == 0 { // retry until no tx is remained
+			break
+		}
+		fmt.Printf("\nRetry for remain. #%d %v\n", counter, remainList)
+	}
+}
+
+func sendRawTxSubList(c *websocket.Conn, txList [][]byte, idxList []int, logsMsg bool) []int {
+	checkList := make([]int, 0, len(idxList))
+	//limiter := time.Tick(3 * time.Millisecond)
+	for _, idx := range idxList {
+		tx := txList[idx]
+		reqID++
+		req := []byte(fmt.Sprintf(sendRawTxReqFmt, "0x"+hex.EncodeToString(tx), reqID))
+		resp := sendReq(c, req, logsMsg)
+		// retry until the mempool is not busy
+		hasRetry := false
+		for bytes.Contains(resp, []byte("mempool is too busy")) {
+			time.Sleep(200 * time.Millisecond)
+			if !hasRetry {
+				fmt.Println("")
+			}
+			fmt.Printf("=")
+			hasRetry = true
+			resp = sendReq(c, req, logsMsg)
+		}
+		if hasRetry {
+			fmt.Println("")
+		}
+
+		// this transaction was sent before, no need to send again
+		if bytes.Contains(resp, []byte("tx nonce is smaller")) ||
+			bytes.Contains(resp, []byte("tx already exists in cache")) {
+			continue
+		}
+		checkList = append(checkList, idx)
+		if bytes.Contains(resp, []byte("error")) {
+			fmt.Printf("ERR %s\n", string(resp))
+		}
+	}
+	remainList := make([]int, 0, len(idxList)/3)
+	signer := gethtypes.NewEIP155Signer(chainId.ToBig())
+	// Now we make sure the on-chain nonce has already been updated
+	for _, idx := range checkList {
+		tx, err := ethutils.DecodeTx(txList[idx])
+		if err != nil {
+			panic(err)
+		}
+		sender, err := signer.Sender(tx)
+		if err != nil {
+			panic(err)
+		}
+		reqID++
+		req := []byte(fmt.Sprintf(getNonceFmt, sender.String(), reqID))
+		resp := sendReq(c, req, logsMsg)
+		var respObj GetNonceRespObj
+		if err := json.Unmarshal(resp, &respObj); err != nil {
+			fmt.Printf("Why %s\n", string(resp))
+			fmt.Println(err.Error())
+		}
+		nonce, err := strconv.ParseUint(respObj.Result[2:] /*ignore 0x*/, 16, 32)
+		if err != nil {
+			panic(err)
+		}
+		if nonce != tx.Nonce()+1 {
+			// if the nonce was not updated, the tx is remained and will be sent again
+			remainList = append(remainList, idx)
+		}
+	}
+	fmt.Printf("CheckList(%d) done\n", len(checkList))
+	return remainList
 }

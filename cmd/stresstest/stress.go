@@ -43,6 +43,7 @@ const (
 
 var num1e18 = uint256.NewInt().SetUint64(1_000_000_000_000_000_000)
 var initBalance = uint256.NewInt().Mul(num1e18, num1e18)
+var chainId = bigutils.NewU256(0x2711)
 
 type Block struct {
 	AppHash []byte
@@ -356,7 +357,7 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	params.UseLiteDB = true
 	params.NumKeptBlocks = 5
 	testValidatorPubKey := ed25519.GenPrivKeyFromSecret([]byte("stress")).PubKey()
-	_app := app.NewApp(params, bigutils.NewU256(0x2711), log.NewNopLogger())
+	_app := app.NewApp(params, chainId, log.NewNopLogger())
 	if _app.GetLatestBlockNum() == 0 {
 		genesisData := app.GenesisData{
 			Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
