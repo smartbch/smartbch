@@ -254,50 +254,74 @@ var chartsTmpl = []byte(`<html>
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_txCount }} );
-        var options = {title: 'TxCount', curveType: 'function', legend: { position: 'bottom' }};
+        var options = {title: 'TxCount', legend: { position: 'bottom' }};
         var chart = new google.visualization.LineChart(document.getElementById('curve_txCount'));
         chart.draw(data, options);
       }
+    </script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_blockSize }} );
-        var options = {title: 'BlockSize', curveType: 'function', legend: { position: 'bottom' }};
+        var options = {title: 'BlockSize', legend: { position: 'bottom' }};
         var chart = new google.visualization.LineChart(document.getElementById('curve_blockSize'));
         chart.draw(data, options);
       }
+    </script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_gasUsed }} );
-        var options = {title: 'GasUsed', curveType: 'function', legend: { position: 'bottom' }};
+        var options = {title: 'GasUsed', legend: { position: 'bottom' }};
         var chart = new google.visualization.LineChart(document.getElementById('curve_gasUsed'));
         chart.draw(data, options);
       }
 
+    </script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_blockTime }} );
-        var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
+        var options = {title: 'BlockTime', legend: { position: 'bottom' }};
         var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
         chart.draw(data, options);
+      }
+    </script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_TPS }} );
-        var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
-        var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
+        var options = {title: 'TPS', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_TPS'));
         chart.draw(data, options);
+      }
+    </script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_gas_per_sec }} );
-        var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
-        var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
+        var options = {title: 'Gas/Second', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_gas_per_sec'));
         chart.draw(data, options);
       }
     </script>
   </head>
   <body>
-    <div id="curve_txCount" style="width: 900px; height: 500px"></div>
-    <div id="curve_blockSize" style="width: 900px; height: 500px"></div>
-    <div id="curve_gasUsed" style="width: 900px; height: 500px"></div>
-    <div id="curve_blockTime" style="width: 900px; height: 500px"></div>
+    <div id="curve_txCount" style="width: 1600px; height: 500px"></div>
+    <div id="curve_blockSize" style="width: 1600px; height: 500px"></div>
+    <div id="curve_gasUsed" style="width: 1600px; height: 500px"></div>
+    <div id="curve_blockTime" style="width: 1600px; height: 500px"></div>
+    <div id="curve_TPS" style="width: 1600px; height: 500px"></div>
+    <div id="curve_gas_per_sec" style="width: 1600px; height: 500px"></div>
   </body>
 </html>`)
 
@@ -313,10 +337,10 @@ func genChartsHTML(blocks []BlockInfo) {
 	html = bytes.Replace(html, []byte("{{ data_blockTime }}"), timeBz, 1)
 	var dataTPS, dataGPS [][2]interface{}
 	dataTPS = append(dataTPS, [2]interface{}{"Block", "TPS"})
-	dataGPS = append(dataGPS, [2]interface{}{"Block", "GPS"})
-	for h := 0; h < len(timeList); h += blockBundleSize {
-		dataTPS = append(dataTPS, [2]interface{}{h, float64(txCountList[h]) / float64(timeList[h])})
-		dataGPS = append(dataGPS, [2]interface{}{h, float64(gasList[h]) / float64(timeList[h])})
+	dataGPS = append(dataGPS, [2]interface{}{"Block", "gas/sec"})
+	for h := 0; h < len(timeList); h++ {
+		dataTPS = append(dataTPS, [2]interface{}{h*blockBundleSize, float64(txCountList[h]) / float64(timeList[h])})
+		dataGPS = append(dataGPS, [2]interface{}{h*blockBundleSize, float64(gasList[h]) / float64(timeList[h])})
 	}
 	bzTPS, _ := json.Marshal(dataTPS)
 	bzGPS, _ := json.Marshal(dataGPS)
