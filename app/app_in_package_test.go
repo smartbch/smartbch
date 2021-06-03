@@ -51,7 +51,7 @@ func TestAppReload(t *testing.T) {
 	}
 	_app.reload()
 	_app.mtx.Lock()
-	_app.mtx.Unlock()
+	_app.mtx.Unlock() //nolint
 	bi := _app.blockInfo.Load().(*types.BlockInfo)
 	require.Equal(t, _app.block.Number, bi.Number)
 	require.Equal(t, _app.block.Timestamp, bi.Timestamp)

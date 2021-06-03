@@ -339,8 +339,8 @@ func genChartsHTML(blocks []BlockInfo) {
 	dataTPS = append(dataTPS, [2]interface{}{"Block", "TPS"})
 	dataGPS = append(dataGPS, [2]interface{}{"Block", "gas/sec"})
 	for h := 0; h < len(timeList); h++ {
-		dataTPS = append(dataTPS, [2]interface{}{h*blockBundleSize, float64(txCountList[h]) / float64(timeList[h])})
-		dataGPS = append(dataGPS, [2]interface{}{h*blockBundleSize, float64(gasList[h]) / float64(timeList[h])})
+		dataTPS = append(dataTPS, [2]interface{}{h * blockBundleSize, float64(txCountList[h]) / float64(timeList[h])})
+		dataGPS = append(dataGPS, [2]interface{}{h * blockBundleSize, float64(gasList[h]) / float64(timeList[h])})
 	}
 	bzTPS, _ := json.Marshal(dataTPS)
 	bzGPS, _ := json.Marshal(dataGPS)
