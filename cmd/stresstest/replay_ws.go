@@ -258,10 +258,6 @@ var chartsTmpl = []byte(`<html>
         var chart = new google.visualization.LineChart(document.getElementById('curve_txCount'));
         chart.draw(data, options);
       }
-    </script>
-	<script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart']});
-      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_blockSize }} );
@@ -269,10 +265,6 @@ var chartsTmpl = []byte(`<html>
         var chart = new google.visualization.LineChart(document.getElementById('curve_blockSize'));
         chart.draw(data, options);
       }
-    </script>
-	<script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart']});
-      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_gasUsed }} );
@@ -280,13 +272,21 @@ var chartsTmpl = []byte(`<html>
         var chart = new google.visualization.LineChart(document.getElementById('curve_gasUsed'));
         chart.draw(data, options);
       }
-    </script>
-	<script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart']});
-      google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable( {{ data_blockTime }} );
+        var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
+        chart.draw(data, options);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable( {{ data_TPS }} );
+        var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
+        var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
+        chart.draw(data, options);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable( {{ data_gas_per_sec }} );
         var options = {title: 'BlockTime', curveType: 'function', legend: { position: 'bottom' }};
         var chart = new google.visualization.LineChart(document.getElementById('curve_blockTime'));
         chart.draw(data, options);
@@ -301,17 +301,31 @@ var chartsTmpl = []byte(`<html>
   </body>
 </html>`)
 
+const blockBundleSize = 100
+
 func genChartsHTML(blocks []BlockInfo) {
-	html := bytes.Replace(chartsTmpl, []byte("{{ data_txCount }}"), getTxCountData(blocks), 1)
+	txCountBz, txCountList := getTxCountData(blocks)
+	html := bytes.Replace(chartsTmpl, []byte("{{ data_txCount }}"), txCountBz, 1)
 	html = bytes.Replace(html, []byte("{{ data_blockSize }}"), getBlockSizeData(blocks), 1)
-	html = bytes.Replace(html, []byte("{{ data_gasUsed }}"), getGasUsedData(blocks), 1)
-	html = bytes.Replace(html, []byte("{{ data_blockTime }}"), getBlockTimeData(blocks), 1)
+	gasBz, gasList := getGasUsedData(blocks)
+	html = bytes.Replace(html, []byte("{{ data_gasUsed }}"), gasBz, 1)
+	timeBz, timeList := getBlockTimeData(blocks)
+	html = bytes.Replace(html, []byte("{{ data_blockTime }}"), timeBz, 1)
+	var dataTPS, dataGPS [][2]interface{}
+	dataTPS = append(dataTPS, [2]interface{}{"Block", "TPS"})
+	dataGPS = append(dataGPS, [2]interface{}{"Block", "GPS"})
+	for h := 0; h < len(timeList); h += blockBundleSize {
+		dataTPS = append(dataTPS, [2]interface{}{h, float64(txCountList[h]) / float64(timeList[h])})
+		dataGPS = append(dataGPS, [2]interface{}{h, float64(gasList[h]) / float64(timeList[h])})
+	}
+	bzTPS, _ := json.Marshal(dataTPS)
+	bzGPS, _ := json.Marshal(dataGPS)
+	html = bytes.Replace(html, []byte("{{ data_TPS }}"), bzTPS, 1)
+	html = bytes.Replace(html, []byte("{{ data_gas_per_sec }}"), bzGPS, 1)
 	_ = ioutil.WriteFile("./charts.html", html, 0644)
 }
 
-const blockBundleSize = 100
-
-func getTxCountData(blocks []BlockInfo) []byte {
+func getTxCountData(blocks []BlockInfo) (bz []byte, txCountList []int) {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "TxCount"})
 	sum := 0
@@ -320,11 +334,12 @@ func getTxCountData(blocks []BlockInfo) []byte {
 		if (i+1)%blockBundleSize == 0 {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			data = append(data, [2]interface{}{h, sum})
+			txCountList = append(txCountList, sum)
 			sum = 0
 		}
 	}
-	s, _ := json.Marshal(data)
-	return s
+	bz, _ = json.Marshal(data)
+	return
 }
 func getBlockSizeData(blocks []BlockInfo) []byte {
 	var data [][2]interface{}
@@ -342,7 +357,7 @@ func getBlockSizeData(blocks []BlockInfo) []byte {
 	s, _ := json.Marshal(data)
 	return s
 }
-func getGasUsedData(blocks []BlockInfo) []byte {
+func getGasUsedData(blocks []BlockInfo) (bz []byte, gasList []int) {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "GasUsed"})
 	sum := 0
@@ -352,13 +367,14 @@ func getGasUsedData(blocks []BlockInfo) []byte {
 		if (i+1)%blockBundleSize == 0 {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			data = append(data, [2]interface{}{h, sum})
+			gasList = append(gasList, sum)
 			sum = 0
 		}
 	}
-	s, _ := json.Marshal(data)
-	return s
+	bz, _ = json.Marshal(data)
+	return
 }
-func getBlockTimeData(blocks []BlockInfo) []byte {
+func getBlockTimeData(blocks []BlockInfo) (bz []byte, timeList []int) {
 	var data [][2]interface{}
 	data = append(data, [2]interface{}{"Block", "BlockTime"})
 	lastTime := uint64(0)
@@ -367,13 +383,14 @@ func getBlockTimeData(blocks []BlockInfo) []byte {
 			h, _ := strconv.ParseUint(strings.TrimPrefix(block.Number, "0x"), 16, 32)
 			t, _ := strconv.ParseUint(strings.TrimPrefix(block.Timestamp, "0x"), 16, 32)
 			if lastTime > 0 {
+				timeList = append(timeList, int(t-lastTime))
 				data = append(data, [2]interface{}{h, t - lastTime})
 			}
 			lastTime = t
 		}
 	}
-	s, _ := json.Marshal(data)
-	return s
+	bz, _ = json.Marshal(data)
+	return
 }
 
 func sendRawTxList(c *websocket.Conn, txList [][]byte, logsMsg bool) {
