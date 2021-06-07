@@ -1,6 +1,8 @@
 package api
 
 import (
+	"math"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -20,6 +22,7 @@ type SbchAPI interface {
 	QueryTxByAddr(addr gethcmn.Address, startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*rpctypes.Transaction, error)
 	QueryLogs(addr gethcmn.Address, topics []gethcmn.Hash, startHeight, endHeight gethrpc.BlockNumber, limit hexutil.Uint64) ([]*gethtypes.Log, error)
 	GetTxListByHeight(height gethrpc.BlockNumber) ([]map[string]interface{}, error)
+	GetTxListByHeightWithRange(height gethrpc.BlockNumber, start, end hexutil.Uint64) ([]map[string]interface{}, error)
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 }
@@ -37,10 +40,14 @@ func (sbch sbchAPI) GetStandbyTxQueue() {
 }
 
 func (sbch sbchAPI) GetTxListByHeight(height gethrpc.BlockNumber) ([]map[string]interface{}, error) {
+	return sbch.GetTxListByHeightWithRange(height, 0, math.MaxInt32)
+}
+
+func (sbch sbchAPI) GetTxListByHeightWithRange(height gethrpc.BlockNumber, start, end hexutil.Uint64) ([]map[string]interface{}, error) {
 	if height == gethrpc.LatestBlockNumber {
 		height = gethrpc.BlockNumber(sbch.backend.LatestHeight())
 	}
-	txs, err := sbch.backend.GetTxListByHeight(uint32(height))
+	txs, err := sbch.backend.GetTxListByHeightWithRange(uint32(height), int(start), int(end))
 	if err != nil {
 		return nil, err
 	}

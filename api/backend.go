@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/tendermint/tendermint/crypto"
+	"math"
 	"math/big"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/node"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -225,10 +226,13 @@ func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Ha
 }
 
 func (backend *apiBackend) GetTxListByHeight(height uint32) (tx []*types.Transaction, err error) {
+	return backend.GetTxListByHeightWithRange(height, 0, math.MaxInt32)
+}
+func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
-	return ctx.GetTxListByHeight(height)
+	return ctx.GetTxListByHeightWithRange(height, start, end)
 }
 
 func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {
