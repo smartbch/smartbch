@@ -52,9 +52,10 @@ type Epoch struct {
 // This struct is stored in the world state.
 // All the staking-related operations manipulate it.
 type StakingInfo struct {
-	CurrEpochNum   int64            `msgp:"curr_epoch_num"`
-	Validators     []*Validator     `msgp:"validators"`
-	PendingRewards []*PendingReward `msgp:"pending_rewards"`
+	CurrEpochNum     int64            `msgp:"curr_epoch_num"`
+	Validators       []*Validator     `msgp:"validators"`
+	ValidatorsUpdate []*Validator     `msgp:"validators_update"`
+	PendingRewards   []*PendingReward `msgp:"pending_rewards"`
 }
 
 type Validator struct {

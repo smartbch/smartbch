@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
-
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
+	"github.com/stretchr/testify/require"
 )
 
 var stakingABI = testutils.MustParseABI(`
@@ -194,6 +192,54 @@ func TestStaking(t *testing.T) {
 	require.Equal(t, 1, len(info.Validators))
 	require.Equal(t, int64(2), info.Validators[0].VotingPower)
 }
+
+//func TestStakingUpdate(t *testing.T) {
+//	key1, addr1 := testutils.GenKeyAndAddr()
+//	key2, _ := testutils.GenKeyAndAddr()
+//	_app := testutils.CreateTestApp(key1, key2)
+//	defer _app.Destroy()
+//
+//	//config test param
+//	staking.InitialStakingAmount = uint256.NewInt().SetUint64(1)
+//	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
+//
+//	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
+//	_app.MakeAndExecTxInBlockWithGasPrice(key1,
+//		staking.StakingContractAddress, 100, dataEncode, 1)
+//	_app.WaitMS(50)
+//
+//	ctx := _app.GetContext(app.RunTxMode)
+//	acc, info := staking.LoadStakingAcc(ctx)
+//	info.Validators[1].VotingPower = 2
+//	staking.SaveStakingInfo(ctx, acc, info)
+//	ctx.Close(true)
+//
+//	_app.AddTxsInBlock(_app.BlockNum() + 1)
+//
+//	require.Equal(t, 1, len(_app.App.ValidatorUpdate()))
+//	require.Equal(t, addr1, common.Address(_app.App.ValidatorUpdate()[0].Address))
+//
+//	res := _app.EndBlock(abcitypes.RequestEndBlock{})
+//	require.Equal(t, 1, len(res.ValidatorUpdates))
+//	require.Equal(t, 2, int(res.ValidatorUpdates[0].Power))
+//
+//	dataEncode = stakingABI.MustPack("retire")
+//	_app.MakeAndExecTxInBlockWithGasPrice(key1,
+//		staking.StakingContractAddress, 100, dataEncode, 1)
+//	_app.WaitMS(50)
+//
+//	require.Equal(t, 1, len(_app.App.ValidatorUpdate()))
+//	require.Equal(t, addr1, common.Address(_app.App.ValidatorUpdate()[0].Address))
+//	require.Equal(t, int64(0), _app.App.ValidatorUpdate()[0].VotingPower)
+//
+//	ctx = _app.GetRunTxContext()
+//	_, info = staking.LoadStakingAcc(ctx)
+//	require.Equal(t, 2, len(info.Validators))
+//	require.Equal(t, int64(1), info.Validators[0].VotingPower)
+//	require.Equal(t, true, info.Validators[1].IsRetiring)
+//	require.Equal(t, addr1, common.Address(info.ValidatorsUpdate[0].Address))
+//	ctx.Close(false)
+//}
 
 func TestCallStakingMethodsFromContract(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()

@@ -117,7 +117,8 @@ type App struct {
 	logger log.Logger
 
 	//genesis data
-	currValidators []*stakingtypes.Validator
+	currValidators  []*stakingtypes.Validator
+	validatorUpdate []*stakingtypes.Validator
 
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache     map[gethcmn.Hash]SenderAndHeight
@@ -198,6 +199,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 
 	_, stakingInfo := staking.LoadStakingAcc(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
+	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
@@ -485,8 +487,8 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	//fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter end block!")
-	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
-	for i, v := range app.currValidators {
+	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
+	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 		valSet[i] = abcitypes.ValidatorUpdate{
 			PubKey: p,
@@ -501,29 +503,11 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
-	//fmt.Printf("Commit!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
 	_, info := staking.LoadStakingAcc(ctx)
-
-	//update validator set first, maybe it should after slash
-	select {
-	case epoch := <-app.watcher.EpochChan:
-		fmt.Printf("get new epoch in commit, its startHeight is:%d\n", epoch.StartHeight)
-		app.epochList = append(app.epochList, epoch)
-	default:
-		//fmt.Println("no new epoch")
-	}
-	if len(app.epochList) != 0 {
-		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
-			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
-			app.epochList = app.epochList[1:]
-		}
-	} else {
-		app.currValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
-	}
 
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
 	var consAddr [20]byte
@@ -578,7 +562,29 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		staking.LoadReadonlyValiatorsInfo(ctx)
 	}
 
+	select {
+	case epoch := <-app.watcher.EpochChan:
+		fmt.Printf("get new epoch in commit, its startHeight is:%d\n", epoch.StartHeight)
+		app.epochList = append(app.epochList, epoch)
+	default:
+		//fmt.Println("no new epoch")
+	}
+	var newValidators []*stakingtypes.Validator
+	if len(app.epochList) != 0 {
+		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			app.epochList = app.epochList[1:]
+		}
+	} else {
+		newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
+	}
+	app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
+	acc, newInfo := staking.LoadStakingAcc(ctx)
+	newInfo.ValidatorsUpdate = app.validatorUpdate
+	staking.SaveStakingInfo(ctx, acc, newInfo)
 	ctx.Close(true)
+
+	app.currValidators = newValidators
 
 	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
 	app.refresh()
@@ -844,6 +850,10 @@ func (app *App) BlockNum() int64 {
 	return app.block.Number
 }
 
+func (app *App) ValidatorUpdate() []*stakingtypes.Validator {
+	return app.validatorUpdate
+}
+
 func (app *App) EpochChan() chan *stakingtypes.Epoch {
 	return app.watcher.EpochChan
 }
@@ -898,4 +908,34 @@ func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGr
 		wg.Done()
 	}()
 	return res, &wg
+}
+
+func GetUpdateValidatorSet(currentValidators, newValidators []*stakingtypes.Validator) []*stakingtypes.Validator {
+	var currentSet = make(map[gethcmn.Address]bool)
+	var newSet = make(map[gethcmn.Address]*stakingtypes.Validator)
+	var updatedList = make([]*stakingtypes.Validator, 0, len(currentValidators))
+	for _, v := range currentValidators {
+		currentSet[v.Address] = true
+	}
+	for _, v := range newValidators {
+		newSet[v.Address] = v
+	}
+	for _, v := range currentValidators {
+		if newSet[v.Address] == nil {
+			removedV := *v
+			removedV.VotingPower = 0
+			updatedList = append(updatedList, &removedV)
+		} else if v.VotingPower != newSet[v.Address].VotingPower {
+			updatedV := *newSet[v.Address]
+			updatedList = append(updatedList, &updatedV)
+			delete(newSet, v.Address)
+		} else {
+			delete(newSet, v.Address)
+		}
+	}
+	for _, v := range newSet {
+		addedV := *v
+		updatedList = append(updatedList, &addedV)
+	}
+	return updatedList
 }

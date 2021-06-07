@@ -814,33 +814,64 @@ func (z *StakingInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 					}
 				}
 			}
-		case "PendingRewards":
+		case "ValidatorsUpdate":
 			var zb0003 uint32
 			zb0003, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "ValidatorsUpdate")
+				return
+			}
+			if cap(z.ValidatorsUpdate) >= int(zb0003) {
+				z.ValidatorsUpdate = (z.ValidatorsUpdate)[:zb0003]
+			} else {
+				z.ValidatorsUpdate = make([]*Validator, zb0003)
+			}
+			for za0002 := range z.ValidatorsUpdate {
+				if dc.IsNil() {
+					err = dc.ReadNil()
+					if err != nil {
+						err = msgp.WrapError(err, "ValidatorsUpdate", za0002)
+						return
+					}
+					z.ValidatorsUpdate[za0002] = nil
+				} else {
+					if z.ValidatorsUpdate[za0002] == nil {
+						z.ValidatorsUpdate[za0002] = new(Validator)
+					}
+					err = z.ValidatorsUpdate[za0002].DecodeMsg(dc)
+					if err != nil {
+						err = msgp.WrapError(err, "ValidatorsUpdate", za0002)
+						return
+					}
+				}
+			}
+		case "PendingRewards":
+			var zb0004 uint32
+			zb0004, err = dc.ReadArrayHeader()
 			if err != nil {
 				err = msgp.WrapError(err, "PendingRewards")
 				return
 			}
-			if cap(z.PendingRewards) >= int(zb0003) {
-				z.PendingRewards = (z.PendingRewards)[:zb0003]
+			if cap(z.PendingRewards) >= int(zb0004) {
+				z.PendingRewards = (z.PendingRewards)[:zb0004]
 			} else {
-				z.PendingRewards = make([]*PendingReward, zb0003)
+				z.PendingRewards = make([]*PendingReward, zb0004)
 			}
-			for za0002 := range z.PendingRewards {
+			for za0003 := range z.PendingRewards {
 				if dc.IsNil() {
 					err = dc.ReadNil()
 					if err != nil {
-						err = msgp.WrapError(err, "PendingRewards", za0002)
+						err = msgp.WrapError(err, "PendingRewards", za0003)
 						return
 					}
-					z.PendingRewards[za0002] = nil
+					z.PendingRewards[za0003] = nil
 				} else {
-					if z.PendingRewards[za0002] == nil {
-						z.PendingRewards[za0002] = new(PendingReward)
+					if z.PendingRewards[za0003] == nil {
+						z.PendingRewards[za0003] = new(PendingReward)
 					}
-					err = z.PendingRewards[za0002].DecodeMsg(dc)
+					err = z.PendingRewards[za0003].DecodeMsg(dc)
 					if err != nil {
-						err = msgp.WrapError(err, "PendingRewards", za0002)
+						err = msgp.WrapError(err, "PendingRewards", za0003)
 						return
 					}
 				}
@@ -858,9 +889,9 @@ func (z *StakingInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 3
+	// map header, size 4
 	// write "CurrEpochNum"
-	err = en.Append(0x83, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
+	err = en.Append(0x84, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
 	if err != nil {
 		return
 	}
@@ -893,6 +924,30 @@ func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
 			}
 		}
 	}
+	// write "ValidatorsUpdate"
+	err = en.Append(0xb0, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x73, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.ValidatorsUpdate)))
+	if err != nil {
+		err = msgp.WrapError(err, "ValidatorsUpdate")
+		return
+	}
+	for za0002 := range z.ValidatorsUpdate {
+		if z.ValidatorsUpdate[za0002] == nil {
+			err = en.WriteNil()
+			if err != nil {
+				return
+			}
+		} else {
+			err = z.ValidatorsUpdate[za0002].EncodeMsg(en)
+			if err != nil {
+				err = msgp.WrapError(err, "ValidatorsUpdate", za0002)
+				return
+			}
+		}
+	}
 	// write "PendingRewards"
 	err = en.Append(0xae, 0x50, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x77, 0x61, 0x72, 0x64, 0x73)
 	if err != nil {
@@ -903,16 +958,16 @@ func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "PendingRewards")
 		return
 	}
-	for za0002 := range z.PendingRewards {
-		if z.PendingRewards[za0002] == nil {
+	for za0003 := range z.PendingRewards {
+		if z.PendingRewards[za0003] == nil {
 			err = en.WriteNil()
 			if err != nil {
 				return
 			}
 		} else {
-			err = z.PendingRewards[za0002].EncodeMsg(en)
+			err = z.PendingRewards[za0003].EncodeMsg(en)
 			if err != nil {
-				err = msgp.WrapError(err, "PendingRewards", za0002)
+				err = msgp.WrapError(err, "PendingRewards", za0003)
 				return
 			}
 		}
@@ -923,9 +978,9 @@ func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *StakingInfo) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 3
+	// map header, size 4
 	// string "CurrEpochNum"
-	o = append(o, 0x83, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
+	o = append(o, 0x84, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
 	o = msgp.AppendInt64(o, z.CurrEpochNum)
 	// string "Validators"
 	o = append(o, 0xaa, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x73)
@@ -941,16 +996,30 @@ func (z *StakingInfo) MarshalMsg(b []byte) (o []byte, err error) {
 			}
 		}
 	}
+	// string "ValidatorsUpdate"
+	o = append(o, 0xb0, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x73, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.ValidatorsUpdate)))
+	for za0002 := range z.ValidatorsUpdate {
+		if z.ValidatorsUpdate[za0002] == nil {
+			o = msgp.AppendNil(o)
+		} else {
+			o, err = z.ValidatorsUpdate[za0002].MarshalMsg(o)
+			if err != nil {
+				err = msgp.WrapError(err, "ValidatorsUpdate", za0002)
+				return
+			}
+		}
+	}
 	// string "PendingRewards"
 	o = append(o, 0xae, 0x50, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x77, 0x61, 0x72, 0x64, 0x73)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.PendingRewards)))
-	for za0002 := range z.PendingRewards {
-		if z.PendingRewards[za0002] == nil {
+	for za0003 := range z.PendingRewards {
+		if z.PendingRewards[za0003] == nil {
 			o = msgp.AppendNil(o)
 		} else {
-			o, err = z.PendingRewards[za0002].MarshalMsg(o)
+			o, err = z.PendingRewards[za0003].MarshalMsg(o)
 			if err != nil {
-				err = msgp.WrapError(err, "PendingRewards", za0002)
+				err = msgp.WrapError(err, "PendingRewards", za0003)
 				return
 			}
 		}
@@ -1012,32 +1081,62 @@ func (z *StakingInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					}
 				}
 			}
-		case "PendingRewards":
+		case "ValidatorsUpdate":
 			var zb0003 uint32
 			zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "PendingRewards")
+				err = msgp.WrapError(err, "ValidatorsUpdate")
 				return
 			}
-			if cap(z.PendingRewards) >= int(zb0003) {
-				z.PendingRewards = (z.PendingRewards)[:zb0003]
+			if cap(z.ValidatorsUpdate) >= int(zb0003) {
+				z.ValidatorsUpdate = (z.ValidatorsUpdate)[:zb0003]
 			} else {
-				z.PendingRewards = make([]*PendingReward, zb0003)
+				z.ValidatorsUpdate = make([]*Validator, zb0003)
 			}
-			for za0002 := range z.PendingRewards {
+			for za0002 := range z.ValidatorsUpdate {
 				if msgp.IsNil(bts) {
 					bts, err = msgp.ReadNilBytes(bts)
 					if err != nil {
 						return
 					}
-					z.PendingRewards[za0002] = nil
+					z.ValidatorsUpdate[za0002] = nil
 				} else {
-					if z.PendingRewards[za0002] == nil {
-						z.PendingRewards[za0002] = new(PendingReward)
+					if z.ValidatorsUpdate[za0002] == nil {
+						z.ValidatorsUpdate[za0002] = new(Validator)
 					}
-					bts, err = z.PendingRewards[za0002].UnmarshalMsg(bts)
+					bts, err = z.ValidatorsUpdate[za0002].UnmarshalMsg(bts)
 					if err != nil {
-						err = msgp.WrapError(err, "PendingRewards", za0002)
+						err = msgp.WrapError(err, "ValidatorsUpdate", za0002)
+						return
+					}
+				}
+			}
+		case "PendingRewards":
+			var zb0004 uint32
+			zb0004, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "PendingRewards")
+				return
+			}
+			if cap(z.PendingRewards) >= int(zb0004) {
+				z.PendingRewards = (z.PendingRewards)[:zb0004]
+			} else {
+				z.PendingRewards = make([]*PendingReward, zb0004)
+			}
+			for za0003 := range z.PendingRewards {
+				if msgp.IsNil(bts) {
+					bts, err = msgp.ReadNilBytes(bts)
+					if err != nil {
+						return
+					}
+					z.PendingRewards[za0003] = nil
+				} else {
+					if z.PendingRewards[za0003] == nil {
+						z.PendingRewards[za0003] = new(PendingReward)
+					}
+					bts, err = z.PendingRewards[za0003].UnmarshalMsg(bts)
+					if err != nil {
+						err = msgp.WrapError(err, "PendingRewards", za0003)
 						return
 					}
 				}
@@ -1064,12 +1163,20 @@ func (z *StakingInfo) Msgsize() (s int) {
 			s += z.Validators[za0001].Msgsize()
 		}
 	}
-	s += 15 + msgp.ArrayHeaderSize
-	for za0002 := range z.PendingRewards {
-		if z.PendingRewards[za0002] == nil {
+	s += 17 + msgp.ArrayHeaderSize
+	for za0002 := range z.ValidatorsUpdate {
+		if z.ValidatorsUpdate[za0002] == nil {
 			s += msgp.NilSize
 		} else {
-			s += z.PendingRewards[za0002].Msgsize()
+			s += z.ValidatorsUpdate[za0002].Msgsize()
+		}
+	}
+	s += 15 + msgp.ArrayHeaderSize
+	for za0003 := range z.PendingRewards {
+		if z.PendingRewards[za0003] == nil {
+			s += msgp.NilSize
+		} else {
+			s += z.PendingRewards[za0003].Msgsize()
 		}
 	}
 	return

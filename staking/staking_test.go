@@ -194,11 +194,21 @@ func TestSwitchEpoch(t *testing.T) {
 	voters[1] = info.Validators[1].Pubkey
 	staking.DistributeFee(ctx, collectedFee, pubkey, voters)
 	stakingAcc, info = staking.LoadStakingAcc(ctx)
-	require.Equal(t, uint64((10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(info.PendingRewards[1].Amount[:]).Uint64())
-	require.Equal(t, uint64(10000-(10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(info.PendingRewards[0].Amount[:]).Uint64())
+
+	var voterReward *types2.PendingReward
+	var proposerReward *types2.PendingReward
+	if info.PendingRewards[1].Address == info.Validators[1].Address {
+		voterReward = info.PendingRewards[1]
+		proposerReward = info.PendingRewards[0]
+	} else {
+		voterReward = info.PendingRewards[0]
+		proposerReward = info.PendingRewards[1]
+	}
+	require.Equal(t, uint64((10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(voterReward.Amount[:]).Uint64())
+	require.Equal(t, uint64(10000-(10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(proposerReward.Amount[:]).Uint64())
 	require.Equal(t, uint64(10100), stakingAcc.Balance().Uint64())
 	//clear validator pendingReward for testing clearUp
-	info.PendingRewards = info.PendingRewards[:1]
+	info.PendingRewards = []*types2.PendingReward{proposerReward}
 	staking.SaveStakingInfo(ctx, stakingAcc, info)
 	rewardTo := info.Validators[0].RewardTo
 	staking.SwitchEpoch(ctx, e)
