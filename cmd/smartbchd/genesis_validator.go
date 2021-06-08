@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/cli"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/tempfile"
 	"github.com/tendermint/tendermint/privval"
@@ -29,6 +31,11 @@ const (
 	flagVotingPower  = "voting-power"
 	flagStakingCoin  = "staking-coin"
 	flagIntroduction = "introduction"
+	flagKey          = "validator-key"
+	flagNonce        = "nonce"
+	flagChainId      = "chain-id"
+	flagGasPrice     = "gas-price"
+	flagVerbose      = "verbose"
 )
 
 func GenerateConsensusKeyInfoCmd(ctx *Context) *cobra.Command {
@@ -41,7 +48,7 @@ smartbchd generate-consensus-key-info
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
-			c.SetRoot(app.DefaultNodeHome)
+			c.SetRoot(viper.GetString(cli.HomeFlag))
 			pk := ed25519.GenPrivKey()
 			fpv := privval.FilePVKey{
 				Address: pk.PubKey().Address(),
@@ -78,7 +85,7 @@ smartbchd generate-genesis-validator
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
-			c.SetRoot(app.DefaultNodeHome)
+			c.SetRoot(viper.GetString(cli.HomeFlag))
 			// get validator address
 			addr := common.HexToAddress(viper.GetString(flagAddress))
 			// get pubkey
@@ -124,16 +131,16 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			config := ctx.Config
-			config.SetRoot(app.DefaultNodeHome)
+			config.SetRoot(viper.GetString(cli.HomeFlag))
 			// get new validator info
-			s := args[0]
+			s := strings.TrimSpace(args[0])
 			// check
 			v := stakingtypes.Validator{}
 			info, err := hex.DecodeString(s)
 			if err != nil {
 				return err
 			}
-			err = json.Unmarshal([]byte(info), &v)
+			err = json.Unmarshal(info, &v)
 			if err != nil {
 				return err
 			}

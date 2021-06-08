@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -10,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -18,16 +18,18 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
-	"github.com/smartbch/moeingads/indextree"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/smartbch/moeingads/indextree"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -41,6 +43,7 @@ const (
 
 var num1e18 = uint256.NewInt().SetUint64(1_000_000_000_000_000_000)
 var initBalance = uint256.NewInt().Mul(num1e18, num1e18)
+var chainId = bigutils.NewU256(0x2711)
 
 type Block struct {
 	AppHash []byte
@@ -90,21 +93,26 @@ func (db *BlockDB) LoadBlock(height uint32) *Block {
 	return &blk
 }
 
-//Replay the blockes stored in db onto _app
+//Replay the blocks stored in db onto _app
 func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
-	h := uint32(0)
+	h := uint32(_app.GetLatestBlockNum())
+	fmt.Printf("Start from Block Height: %d\n", h)
+	last := time.Now().UnixNano()
 	for {
 		h++
 		blk := db.LoadBlock(h)
 		if blk == nil {
 			break
 		}
-		fmt.Printf("Height %d txCount %d time %d\n", h, len(blk.TxList), time.Now().UnixNano())
-		appHash := ExecTxsInOneBlock(_app, int64(h), blk.TxList)
+		appHash, lastGasUsed := ExecTxsInOneBlock(_app, int64(h), blk.TxList)
+		t := time.Now().UnixNano()
+		fmt.Printf("Height: %d txCount: %d time: %d lastGasUsed: %d gas/s: %f billion\n", h, len(blk.TxList), t-last, lastGasUsed, float64(lastGasUsed)/float64(t-last))
+		last = t
 		if !bytes.Equal(appHash, blk.AppHash) {
 			fmt.Printf("ref %#v imp %#v\n", appHash, blk.AppHash)
 			panic("Incorrect AppHash")
 		}
+		randomPanic(500, 3433)
 	}
 }
 
@@ -118,7 +126,7 @@ func GenKeysToFile(fname string, count int) {
 
 	keys := make([]string, 8000)
 	for i := 0; i < count; i += 8000 {
-		fmt.Println(i)
+		fmt.Printf("\r%d", i)
 		parallelRun(8, func(id int) {
 			for i := 0; i < 1000; i++ {
 				key, err := crypto.GenerateKey()
@@ -132,34 +140,29 @@ func GenKeysToFile(fname string, count int) {
 			fmt.Fprintln(f, key)
 		}
 	}
-}
-
-// read private keys from a file
-func ReadKeysFromFile(fname string, count int) (res []string) {
-	f, err := os.Open(fname)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	scanner.Split(bufio.ScanLines)
-
-	res = make([]string, 0, 8192)
-	for scanner.Scan() && len(res) < count {
-		//fmt.Printf("Now read %d\n", len(res))
-		txt := scanner.Text()
-		//_, err := crypto.HexToECDSA(txt)
-		//if err != nil {
-		//	panic(err)
-		//}
-		res = append(res, txt)
-	}
-	return
+	fmt.Println()
 }
 
 var testAddABI = testutils.MustParseABI(`
 [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint32",
+          "name": "offset",
+          "type": "uint32"
+        }
+      ],
+      "name": "run0",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
     {
       "inputs": [
         {
@@ -181,6 +184,34 @@ var testAddABI = testutils.MustParseABI(`
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "addr1",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "addr2",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "param",
+          "type": "uint256"
+        }
+      ],
+      "name": "run2",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "uint32",
           "name": "d",
           "type": "uint32"
@@ -194,14 +225,21 @@ var testAddABI = testutils.MustParseABI(`
           "type": "uint256"
         }
       ],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     }
 ]
 `)
 
-// get a transaction that calls the `run` function
-func GetTx(_app *testutils.TestApp, key string, contractAddr, toAddr common.Address, value int64, slots [6]uint32) []byte {
+// get a transaction that calls the `run0` function
+func GetTx0(_app *testutils.TestApp, key string, contractAddr, toAddr common.Address, value int64, off uint32) []byte {
+	calldata := testAddABI.MustPack("run0", toAddr, off)
+	tx, _ := _app.MakeAndSignTx(key, &contractAddr, value, calldata, 2 /*gasprice*/)
+	return testutils.MustEncodeTx(tx)
+}
+
+// get a transaction that calls the `run2` function
+func GetTx(_app *testutils.TestApp, key string, contractAddr, a0, a1, a2 common.Address, value int64, slots [6]uint32) []byte {
 	param := big.NewInt(int64(slots[0]))
 	param.Lsh(param, 32)
 	param.Or(param, big.NewInt(int64(slots[1])))
@@ -213,14 +251,10 @@ func GetTx(_app *testutils.TestApp, key string, contractAddr, toAddr common.Addr
 	param.Or(param, big.NewInt(int64(slots[4])))
 	param.Lsh(param, 32)
 	param.Or(param, big.NewInt(int64(slots[5])))
-	calldata := testAddABI.MustPack("run", toAddr, param)
+	calldata := testAddABI.MustPack("run2", a0, a1, a2, param)
 	tx, _ := _app.MakeAndSignTx(key, &contractAddr, value, calldata, 2 /*gasprice*/)
 	return testutils.MustEncodeTx(tx)
 }
-
-var creationBytecode = testutils.HexToBytes(`
-	608060405234801561001057600080fd5b506102f1806100206000396000f3fe6080604052600436106100295760003560e01c8063381fd1901461002e578063d8a26e3a14610043575b600080fd5b61004161003c3660046101d4565b610079565b005b34801561004f57600080fd5b5061006361005e36600461020a565b6101bc565b604051610070919061026e565b60405180910390f35b604080516000815260208101918290526001600160a01b038416916123289134916100a49190610235565b600060405180830381858888f193505050503d80600081146100e2576040519150601f19603f3d011682016040523d82523d6000602084013e6100e7565b606091505b505050602081811c63ffffffff81811660009081529283905260408084205491851684529283902054849384901c91606085901c91608086901c9160a087901c9160029134916101379190610277565b6101419190610277565b61014b919061029b565b63ffffffff808616600090815260208190526040808220939093558482168152828120549186168152919091205460029134916101889190610277565b6101929190610277565b61019c919061029b565b63ffffffff90911660009081526020819052604090205550505050505050565b63ffffffff1660009081526020819052604090205490565b600080604083850312156101e6578182fd5b82356001600160a01b03811681146101fc578283fd5b946020939093013593505050565b60006020828403121561021b578081fd5b813563ffffffff8116811461022e578182fd5b9392505050565b60008251815b81811015610255576020818601810151858301520161023b565b818111156102635782828501525b509190910192915050565b90815260200190565b6000821982111561029657634e487b7160e01b81526011600452602481fd5b500190565b6000826102b657634e487b7160e01b81526012600452602481fd5b50049056fea2646970667358221220e66a2e809beccf7e9d31ac11ec547ae76cd13f0c56d68a51d2da6224c706fdd864736f6c63430008000033
-`)
 
 // Each sender in privKeys deploy a smart contract
 func GetDeployTxAndAddrList(_app *testutils.TestApp, privKeys []string, creationBytecode []byte) ([][]byte, []common.Address) {
@@ -235,7 +269,7 @@ func GetDeployTxAndAddrList(_app *testutils.TestApp, privKeys []string, creation
 }
 
 // Apply the transaction in txs onto _app, at the `height`-th block. Caller makes sure the heights are increasing.
-func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (appHash []byte) {
+func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (appHash []byte, lastGasUsed uint64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
@@ -250,7 +284,7 @@ func ExecTxsInOneBlock(_app *testutils.TestApp, height int64, txs [][]byte) (app
 	}
 	_app.EndBlock(abci.RequestEndBlock{Height: height})
 	responseCommit := _app.Commit()
-	return responseCommit.Data
+	return responseCommit.Data, _app.GetLastGasUsed()
 }
 
 // Generate some transactions to write two slots in each contract and create to-addresses.
@@ -260,9 +294,7 @@ func GenFanoutTxList(_app *testutils.TestApp, fromKeys []string, contractAddrs, 
 	}
 	res := make([][]byte, 0, len(toAddrs))
 	for i, fromKey := range fromKeys {
-		a := uint32(math.MaxUint32)
-		slots := [6]uint32{uint32(2 * fanoutID), a, a, uint32(2*fanoutID + 1), a, a}
-		tx := GetTx(_app, fromKey, contractAddrs[i], toAddrs[i], 10000 /*value*/, slots)
+		tx := GetTx0(_app, fromKey, contractAddrs[i], toAddrs[i], 10000 /*value*/, uint32(10*fanoutID))
 		res = append(res, tx)
 	}
 	return res
@@ -287,13 +319,24 @@ func GenRandTxList(_app *testutils.TestApp, rs randsrc.RandSrc, txList [][]byte,
 			x = int(rs.GetUint32()) % len(fromKeys)
 		}
 		y := int(rs.GetUint32()) % len(contractAddrs)
-		z := int(rs.GetUint32()) % len(toAddrs)
+		z0 := int(rs.GetUint32()) % len(toAddrs)
+		z1 := int(rs.GetUint32()) % len(contractAddrs)
+		for z1 == y {
+			z1 = (z1 + 1) % len(contractAddrs)
+		}
+		z2 := int(rs.GetUint32()) % len(contractAddrs)
+		for z2 == y || z2 == z1 {
+			z2 = (z2 + 1) % len(contractAddrs)
+		}
 		value := int64(rs.GetUint32()) % 2100_0000
 		var slots [6]uint32
-		for fanoutID := 0; fanoutID < len(slots); fanoutID++ {
-			slots[fanoutID] = rs.GetUint32() % uint32(2*fanoutSize)
-		}
-		txList[i] = GetTx(_app, fromKeys[x], contractAddrs[y], toAddrs[z], value, slots)
+		slots[0] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[1] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[2] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[3] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[4] = rs.GetUint32() % uint32(10*fanoutSize)
+		slots[5] = rs.GetUint32() % uint32(10*fanoutSize)
+		txList[i] = GetTx(_app, fromKeys[x], contractAddrs[y], toAddrs[z0], contractAddrs[z1], contractAddrs[z2], value, slots)
 	}
 	return touchedFrom
 }
@@ -314,22 +357,25 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	params.UseLiteDB = true
 	params.NumKeptBlocks = 5
 	testValidatorPubKey := ed25519.GenPrivKeyFromSecret([]byte("stress")).PubKey()
-	_app := app.NewApp(params, bigutils.NewU256(0x2711), log.NewNopLogger())
-	genesisData := app.GenesisData{
-		Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
-	}
-	testValidator := &stakingtypes.Validator{}
-	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
-	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
-	testValidator.VotingPower = 1
-	genesisData.Validators = append(genesisData.Validators, testValidator)
-	appStateBytes, _ := json.Marshal(genesisData)
+	_app := app.NewApp(params, chainId, log.NewNopLogger())
+	if _app.GetLatestBlockNum() == 0 {
+		genesisData := app.GenesisData{
+			Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
+		}
+		testValidator := &stakingtypes.Validator{}
+		copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
+		copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+		copy(testValidator.StakedCoins[:], staking.MinimumStakingAmount.Bytes())
+		testValidator.VotingPower = 1
+		genesisData.Validators = append(genesisData.Validators, testValidator)
+		appStateBytes, _ := json.Marshal(genesisData)
 
-	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
-	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		ProposerAddress: testValidatorPubKey.Address(),
-	}})
-	_app.Commit()
+		_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
+		_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+			ProposerAddress: testValidatorPubKey.Address(),
+		}})
+		_app.Commit()
+	}
 	return &testutils.TestApp{App: _app, TestPubkey: testValidatorPubKey}
 }
 
@@ -345,8 +391,11 @@ func parallelRun(workerCount int, fn func(workerID int)) {
 	wg.Wait()
 }
 
+var creationBytecode = testutils.HexToBytes(`
+608060405234801561001057600080fd5b50610be0806100206000396000f3fe60806040526004361061003f5760003560e01c806307b8ae3914610044578063381fd19014610060578063754db9cb1461007c578063d8a26e3a14610098575b600080fd5b61005e600480360381019061005991906107d6565b6100d5565b005b61007a60048036038101906100759190610839565b6103fb565b005b61009660048036038101906100919190610875565b61061f565b005b3480156100a457600080fd5b506100bf60048036038101906100ba91906108b1565b61076f565b6040516100cc9190610969565b60405180910390f35b8373ffffffffffffffffffffffffffffffffffffffff166002346100f99190610a2a565b61232890600067ffffffffffffffff81111561013e577f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b6040519080825280601f01601f1916602001820160405280156101705781602001600182028036833780820191505090505b5060405161017e9190610929565b600060405180830381858888f193505050503d80600081146101bc576040519150601f19603f3d011682016040523d82523d6000602084013e6101c1565b606091505b50505060008082901c90506000602083901c90506000604084901c90506000606085901c90506000608086901c9050600060a087901c90506002346000808863ffffffff1663ffffffff168152602001908152602001600020546000808a63ffffffff1663ffffffff16815260200190815260200160002054610244919061099a565b61024e919061099a565b6102589190610a2a565b6000808663ffffffff1663ffffffff168152602001908152602001600020819055506002346000808563ffffffff1663ffffffff168152602001908152602001600020546000808763ffffffff1663ffffffff168152602001908152602001600020546102c5919061099a565b6102cf919061099a565b6102d99190610a2a565b6000808363ffffffff1663ffffffff168152602001908152602001600020819055508873ffffffffffffffffffffffffffffffffffffffff1663381fd1906003346103249190610a2a565b8a8a6040518463ffffffff1660e01b8152600401610343929190610940565b6000604051808303818588803b15801561035c57600080fd5b505af1158015610370573d6000803e3d6000fd5b50505050508773ffffffffffffffffffffffffffffffffffffffff1663381fd19060093461039e9190610a2a565b8b8a6040518463ffffffff1660e01b81526004016103bd929190610940565b6000604051808303818588803b1580156103d657600080fd5b505af11580156103ea573d6000803e3d6000fd5b505050505050505050505050505050565b8173ffffffffffffffffffffffffffffffffffffffff163461232890600067ffffffffffffffff811115610458577f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b6040519080825280601f01601f19166020018201604052801561048a5781602001600182028036833780820191505090505b506040516104989190610929565b600060405180830381858888f193505050503d80600081146104d6576040519150601f19603f3d011682016040523d82523d6000602084013e6104db565b606091505b50505060008082901c90506000602083901c90506000604084901c90506000606085901c90506000608086901c9050600060a087901c90506002346000808863ffffffff1663ffffffff168152602001908152602001600020546000808a63ffffffff1663ffffffff1681526020019081526020016000205461055e919061099a565b610568919061099a565b6105729190610a2a565b6000808663ffffffff1663ffffffff168152602001908152602001600020819055506002346000808563ffffffff1663ffffffff168152602001908152602001600020546000808763ffffffff1663ffffffff168152602001908152602001600020546105df919061099a565b6105e9919061099a565b6105f39190610a2a565b6000808363ffffffff1663ffffffff168152602001908152602001600020819055505050505050505050565b8173ffffffffffffffffffffffffffffffffffffffff163461232890600067ffffffffffffffff81111561067c577f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b6040519080825280601f01601f1916602001820160405280156106ae5781602001600182028036833780820191505090505b506040516106bc9190610929565b600060405180830381858888f193505050503d80600081146106fa576040519150601f19603f3d011682016040523d82523d6000602084013e6106ff565b606091505b50505060008190505b600a8261071591906109f0565b63ffffffff168163ffffffff16101561076a576003346107359190610a2a565b6000808363ffffffff1663ffffffff16815260200190815260200160002081905550808061076290610ada565b915050610708565b505050565b60008060008363ffffffff1663ffffffff168152602001908152602001600020549050919050565b6000813590506107a681610b65565b92915050565b6000813590506107bb81610b7c565b92915050565b6000813590506107d081610b93565b92915050565b600080600080608085870312156107ec57600080fd5b60006107fa87828801610797565b945050602061080b87828801610797565b935050604061081c87828801610797565b925050606061082d878288016107ac565b91505092959194509250565b6000806040838503121561084c57600080fd5b600061085a85828601610797565b925050602061086b858286016107ac565b9150509250929050565b6000806040838503121561088857600080fd5b600061089685828601610797565b92505060206108a7858286016107c1565b9150509250929050565b6000602082840312156108c357600080fd5b60006108d1848285016107c1565b91505092915050565b6108e381610a5b565b82525050565b60006108f482610984565b6108fe818561098f565b935061090e818560208601610aa7565b80840191505092915050565b61092381610a8d565b82525050565b600061093582846108e9565b915081905092915050565b600060408201905061095560008301856108da565b610962602083018461091a565b9392505050565b600060208201905061097e600083018461091a565b92915050565b600081519050919050565b600081905092915050565b60006109a582610a8d565b91506109b083610a8d565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff038211156109e5576109e4610b07565b5b828201905092915050565b60006109fb82610a97565b9150610a0683610a97565b92508263ffffffff03821115610a1f57610a1e610b07565b5b828201905092915050565b6000610a3582610a8d565b9150610a4083610a8d565b925082610a5057610a4f610b36565b5b828204905092915050565b6000610a6682610a6d565b9050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b600063ffffffff82169050919050565b60005b83811015610ac5578082015181840152602081019050610aaa565b83811115610ad4576000848401525b50505050565b6000610ae582610a97565b915063ffffffff821415610afc57610afb610b07565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b610b6e81610a5b565b8114610b7957600080fd5b50565b610b8581610a8d565b8114610b9057600080fd5b50565b610b9c81610a97565b8114610ba757600080fd5b5056fea2646970667358221220183a8e054a988b975ca4a780ede1d53700bbe19b8ff975f9994f14851cf19c2064736f6c63430008000033`)
+
 // record `randBlocks` blocks into db for later replay
-func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlock int) {
+func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string, fromSize, toSize, txPerBlockIn int, ignoreFanout bool) {
 	numThreads := 8
 	if toSize%fromSize != 0 || toSize%numThreads != 0 {
 		panic("Invalid sizes")
@@ -376,42 +425,50 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 		}
 		blk.TxList = txList[:length]
 		txList = txList[length:]
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 		db.SaveBlock(blk)
 	}
 	blk.TxList = nil
-	blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+	blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
 	db.SaveBlock(blk)
-	fmt.Printf("================== Contract Created H=%d ===================\n", db.height)
-	// fanout transactions for initializing storage slots and to-addresses
-	for fanoutID := 0; fanoutID < fanoutSize; fanoutID++ {
-		fmt.Printf("fanoutID: %d\n", fanoutID)
-		start, end := fromSize*fanoutID, fromSize*(fanoutID+1)
-		half := len(keys) / 2
-		mid := (start + end) / 2
-		// only half of the from-addresses per block, to avoid incorrect nonce
-		blk.TxList = GenFanoutTxList(_app, keys[:half], contractAddrs[:half], toAddrs[start:mid], fanoutID)
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
-		db.SaveBlock(blk)
-		blk.TxList = GenFanoutTxList(_app, keys[half:], contractAddrs[half:], toAddrs[mid:end], fanoutID)
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
-		db.SaveBlock(blk)
-	}
+	if !ignoreFanout {
+		fmt.Printf("================== Contract Created H=%d ===================\n", db.height)
+		// fanout transactions for initializing storage slots and to-addresses
+		for fanoutID := 0; fanoutID < fanoutSize; fanoutID++ {
+			fmt.Printf("fanoutID: %d\n", fanoutID)
+			start, end := fromSize*fanoutID, fromSize*(fanoutID+1)
+			half := len(keys) / 2
+			mid := (start + end) / 2
+			// only half of the from-addresses per block, to avoid incorrect nonce
+			blk.TxList = GenFanoutTxList(_app, keys[:half], contractAddrs[:half], toAddrs[start:mid], fanoutID)
+			blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+			db.SaveBlock(blk)
+			blk.TxList = GenFanoutTxList(_app, keys[half:], contractAddrs[half:], toAddrs[mid:end], fanoutID)
+			blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+			db.SaveBlock(blk)
+		}
 
-	blk.TxList = nil
-	blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
-	db.SaveBlock(blk)
+		blk.TxList = nil
+		blk.AppHash, _ = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		db.SaveBlock(blk)
+	}
 	fmt.Printf("================== Storage Slots Written H=%d ===================\n", db.height)
 	//ShowSlots(_app, toAddrs[0], contractAddrs, fanoutSize)
 	//ShowBalances(_app, keys, toAddrs)
 
-	// generate blocks with `txPerBlock` random transactions
-	blk.TxList = make([][]byte, txPerBlock)
+	// change negative value to a random value
 	lastTouched := make(map[int]struct{})
 	for i := 0; i < randBlocks; i++ {
-		fmt.Printf("RandBlock %d\n", db.height)
+		txPerBlock := txPerBlockIn
+		if txPerBlockIn < 0 {
+			txPerBlock = 1 + int(rs.GetUint32())%(-txPerBlockIn)
+		}
+		// generate blocks with `txPerBlock` random transactions
+		blk.TxList = make([][]byte, txPerBlock)
 		lastTouched = GenRandTxList(_app, rs, blk.TxList, keys, contractAddrs, toAddrs, lastTouched)
-		blk.AppHash = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		var lastGasUsed uint64
+		blk.AppHash, lastGasUsed = ExecTxsInOneBlock(_app, int64(db.height), blk.TxList)
+		fmt.Printf("RandBlock h=%d txcount=%d gas=%d\n", db.height, len(blk.TxList), lastGasUsed)
 		db.SaveBlock(blk)
 	}
 	_app.WaitLock()
@@ -467,43 +524,110 @@ func RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock int, fname string)
 		fmt.Printf("No RANDFILE specified. Exiting...")
 		return
 	}
+	ignoreFanout := os.Getenv("IGNOREFANOUT") == "YES"
 	rs := randsrc.NewRandSrcFromFile(randFilename)
-	keys := ReadKeysFromFile(fname, fromSize+toSize)
+	keys := testutils.ReadKeysFromFile(fname, fromSize+toSize)
 	fmt.Printf("keys loaded\n")
 	blkDB := NewBlockDB(blockDir)
-	RecordBlocks(blkDB, rs, randBlocks, keys, fromSize, toSize, txPerBlock)
+	RecordBlocks(blkDB, rs, randBlocks, keys, fromSize, toSize, txPerBlock, ignoreFanout)
 	fmt.Printf("!!!Finished at height %d\n", blkDB.height)
 	blkDB.Close()
 }
 
 func RunReplayBlocks(fromSize int, fname string) {
-	_ = os.RemoveAll(adsDir)
 	_ = os.RemoveAll(modbDir)
 	_ = os.Mkdir(modbDir, 0700)
 
 	blkDB := NewBlockDB(blockDir)
-	keys := ReadKeysFromFile(fname, fromSize)
+	keys := testutils.ReadKeysFromFile(fname, fromSize)
 	_app := CreateTestApp(initBalance, keys[:fromSize])
 	ReplayBlocks(_app, blkDB)
 	blkDB.Close()
 }
 
+func randomPanic(baseNumber, primeNumber int64) {
+	heightStr := os.Getenv("RANDOMPANIC")
+	if heightStr != "YES" {
+		return
+	}
+	go func(sleepMilliseconds int64) {
+		time.Sleep(time.Duration(sleepMilliseconds * int64(time.Millisecond)))
+		s := fmt.Sprintf("random panic after %d millisecond", sleepMilliseconds)
+		fmt.Println(s)
+		panic(s)
+	}(baseNumber + time.Now().UnixNano()%primeNumber)
+}
+
 // =================
 
 func main() {
-	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 10, 100, 4, "keys1M.txt"
-	randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 5000_000, 1024, "keys6M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 16, 160, 4, "keys1M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 100, 5000, 1000_000, 1000, "keys6M.txt"
+	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 20000, 20000_000, 10000, "keys23M.txt"
 	//randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 50000, 50000_000, 10000, "keys60M.txt"
+
+	randBlocks, fromSize, toSize, txPerBlock, fname := 1000, 500, 100_000, -100, "keys6M.txt"
+
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: stresstest gen|replay|genkeys|genkeys60")
+		return
+	}
 
 	if os.Args[1] == "gen" {
 		RunRecordBlocks(randBlocks, fromSize, toSize, txPerBlock, fname)
 	} else if os.Args[1] == "replay" {
 		RunReplayBlocks(fromSize, fname)
+	} else if os.Args[1] == "replayWS" {
+		RunReplayBlocksWS(getWsURL(), getMinHeight(3), getMinHeight(4))
+	} else if os.Args[1] == "queryWS" || os.Args[1] == "queryTxsWS" {
+		RunQueryTxsWS(getWsURL(), getMaxHeight(3))
+	} else if os.Args[1] == "queryBlocksWS" {
+		RunQueryBlocksWS(getWsURL(), getMaxHeight(3), getMinHeight(4), len(os.Args) > 5)
+	} else if os.Args[1] == "genkeys10K" {
+		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
 		GenKeysToFile("keys1M.txt", 1_000_000)
 	} else if os.Args[1] == "genkeys60" {
 		GenKeysToFile("keys60M.txt", 60_000_000)
+	} else if os.Args[1] == "showNodeKey" {
+		showNodeKey(os.Args[2])
 	} else {
 		panic("invalid argument")
 	}
+}
+
+func showNodeKey(fname string) {
+	nodeKey, err := p2p.LoadNodeKey(fname)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("P2P Node ID is %s\n", nodeKey.ID())
+}
+
+func getWsURL() string {
+	url := "ws://localhost:8546"
+	if len(os.Args) > 2 {
+		url = os.Args[2]
+	}
+	return url
+}
+
+func getMaxHeight(n int) int {
+	maxHeight := math.MaxUint32
+	if len(os.Args) > n {
+		if h, err := strconv.ParseInt(os.Args[n], 10, 32); err == nil {
+			maxHeight = int(h)
+		}
+	}
+	return maxHeight
+}
+
+func getMinHeight(n int) int {
+	minHeight := 1
+	if len(os.Args) > n {
+		if h, err := strconv.ParseInt(os.Args[n], 10, 32); err == nil {
+			minHeight = int(h)
+		}
+	}
+	return minHeight
 }

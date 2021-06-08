@@ -3,10 +3,7 @@ package main
 import (
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
 	abci "github.com/tendermint/tendermint/abci/types"
-	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -14,7 +11,7 @@ import (
 	"github.com/smartbch/smartbch/param"
 )
 
-type AppCreator func(logger log.Logger, chainId *uint256.Int) abci.Application
+type AppCreator func(logger log.Logger, chainId *uint256.Int, config *param.ChainConfig) abci.Application
 
 func main() {
 	rootCmd := createSmartbchdCmd()
@@ -39,6 +36,7 @@ func createSmartbchdCmd() *cobra.Command {
 	rootCmd.AddCommand(GenerateConsensusKeyInfoCmd(ctx))
 	rootCmd.AddCommand(GenerateGenesisValidatorCmd(ctx))
 	rootCmd.AddCommand(AddGenesisValidatorCmd(ctx))
+	rootCmd.AddCommand(StakingCmd(ctx))
 	return rootCmd
 }
 
@@ -48,11 +46,7 @@ func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
 	rootCmd.AddCommand(initCmd, genTestKeysCmd)
 }
 
-func newApp(logger log.Logger, chainId *uint256.Int) abci.Application {
-	c := cfg.DefaultConfig()
-	c.SetRoot(app.DefaultNodeHome)
-	conf := param.DefaultConfig()
-	conf.RetainBlocks = viper.GetInt64(flagRetainBlocks)
-	cetChainApp := app.NewApp(conf, chainId, logger)
+func newApp(logger log.Logger, chainId *uint256.Int, config *param.ChainConfig) abci.Application {
+	cetChainApp := app.NewApp(config, chainId, logger)
 	return cetChainApp
 }

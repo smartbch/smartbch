@@ -129,13 +129,13 @@ func TestStaking(t *testing.T) {
 	// invalid create call
 	c.Tx.Data = c.Tx.Data[:95]
 	status, _, _, outData := e.Execute(ctx, nil, c.Tx)
-	require.Equal(t, types.ReceiptStatusFailed, uint64(status))
-	require.Equal(t, staking.InvalidCallData.Error(), string(outData[:]))
+	require.Equal(t, staking.StatusFailed, status)
+	require.Equal(t, staking.InvalidCallData.Error(), string(outData))
 
 	//invalid selector
 	c.Tx.Data = c.Tx.Data[:3]
 	e.Execute(ctx, nil, c.Tx)
-	require.Equal(t, types.ReceiptStatusFailed, uint64(status))
+	require.Equal(t, staking.StatusFailed, status)
 
 	// test edit validator
 	c = buildEditValCallEntry(sender, 102, 12)
@@ -194,11 +194,21 @@ func TestSwitchEpoch(t *testing.T) {
 	voters[1] = info.Validators[1].Pubkey
 	staking.DistributeFee(ctx, collectedFee, pubkey, voters)
 	stakingAcc, info = staking.LoadStakingAcc(ctx)
-	require.Equal(t, uint64((10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(info.PendingRewards[1].Amount[:]).Uint64())
-	require.Equal(t, uint64(10000-(10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(info.PendingRewards[0].Amount[:]).Uint64())
+
+	var voterReward *types2.PendingReward
+	var proposerReward *types2.PendingReward
+	if info.PendingRewards[1].Address == info.Validators[1].Address {
+		voterReward = info.PendingRewards[1]
+		proposerReward = info.PendingRewards[0]
+	} else {
+		voterReward = info.PendingRewards[0]
+		proposerReward = info.PendingRewards[1]
+	}
+	require.Equal(t, uint64((10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(voterReward.Amount[:]).Uint64())
+	require.Equal(t, uint64(10000-(10000-1500-8500*15/100)/2), uint256.NewInt().SetBytes32(proposerReward.Amount[:]).Uint64())
 	require.Equal(t, uint64(10100), stakingAcc.Balance().Uint64())
 	//clear validator pendingReward for testing clearUp
-	info.PendingRewards = info.PendingRewards[:1]
+	info.PendingRewards = []*types2.PendingReward{proposerReward}
 	staking.SaveStakingInfo(ctx, stakingAcc, info)
 	rewardTo := info.Validators[0].RewardTo
 	staking.SwitchEpoch(ctx, e)

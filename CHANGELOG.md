@@ -2,6 +2,39 @@
 
 
 
+## v0.1.6
+
+* JSON-RPC
+
+  * **sbch_getTxListByHeight** returns more detailed tx info
+  * Add placeholder implementation for txpool namespace 
+    * txpool_content
+    * txpool_status
+    * txpool_inspect
+
+* Add toolkits for stress test
+
+* Mempool
+  * Add signature cache and SEP206 sender set to speed up tx-rechecking
+  * Refuse incoming TXs when a lot of TXs need rechecking
+
+* Consensus
+
+  * Enhance multi-validator support
+  * Customize BlockMaxBytes and BlockMaxGas for testing
+  * Add some staking-related sub commands
+
+* Docker
+
+  * Refine docker scripts
+
+* Storage
+
+  * Sync MoeingADS to fix some bugs
+  * Add pruning calls to MoeingADS
+
+* Move the faucet out from this repo
+
 ## v0.1.5
 
 * JSON-RPC

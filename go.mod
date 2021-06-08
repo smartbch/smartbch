@@ -12,6 +12,7 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/rpc v1.2.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/holiman/uint256 v1.1.1
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -22,9 +23,9 @@ require (
 	github.com/prometheus/common v0.21.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.7.0
-	github.com/smartbch/moeingads v0.1.2-0.20210518084547-0611cf594761
-	github.com/smartbch/moeingdb v0.1.3-0.20210510005805-1a489173a496
-	github.com/smartbch/moeingevm v0.1.6-0.20210514022913-04c3a47e4a64
+	github.com/smartbch/moeingads v0.1.3-0.20210602104040-2931890cefe7
+	github.com/smartbch/moeingdb v0.1.3-0.20210607042417-aa13c0547972
+	github.com/smartbch/moeingevm v0.1.6-0.20210607044901-124180671f80
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3

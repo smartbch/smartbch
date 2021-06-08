@@ -1,7 +1,10 @@
 package testutils
 
 import (
+	"bufio"
 	"encoding/hex"
+	"fmt"
+	"os"
 
 	"github.com/holiman/uint256"
 
@@ -32,4 +35,34 @@ func KeysToGenesisAlloc(balance *uint256.Int, keys []string) gethcore.GenesisAll
 		}
 	}
 	return alloc
+}
+
+// read private keys from a file
+func ReadKeysFromFile(fname string, count int) (res []string) {
+	f, err := os.Open(fname)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Split(bufio.ScanLines)
+
+	i := 1
+	fmt.Println("reading keys from file: " + fname)
+
+	res = make([]string, 0, 8192)
+	for scanner.Scan() && len(res) < count {
+		//fmt.Printf("Now read %d\n", len(res))
+		txt := scanner.Text()
+		//_, err := crypto.HexToECDSA(txt)
+		//if err != nil {
+		//	panic(err)
+		//}
+		fmt.Printf("\r%d", i)
+		res = append(res, txt)
+		i++
+	}
+	fmt.Println("\nfinished reading keys")
+	return
 }

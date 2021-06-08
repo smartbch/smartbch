@@ -10,15 +10,16 @@ import (
 	"github.com/spf13/viper"
 
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
+	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pvm "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	//moetypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/rpc"
 )
 
@@ -50,12 +51,22 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 }
 
 func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
+	paramConfig := param.DefaultConfig()
 	cfg := ctx.Config
+	cfg.SetRoot(viper.GetString(cli.HomeFlag))
+	cfg.TxIndex.Indexer = "null"
+	cfg.Mempool.Size = 10000
+	cfg.Mempool.MaxTxsBytes = 4 * 1024 * 1024 * 1024
+	paramConfig.NodeConfig = cfg
+	paramConfig.AppDataPath = filepath.Join(cfg.RootDir, param.AppDataPath)
+	paramConfig.ModbDataPath = filepath.Join(cfg.RootDir, param.ModbDataPath)
+	paramConfig.RetainBlocks = viper.GetInt64(flagRetainBlocks)
+
 	chainID, err := getChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	_app := appCreator(ctx.Logger, chainID)
+	_app := appCreator(ctx.Logger, chainID, paramConfig)
 	appImpl := _app.(*app.App)
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())

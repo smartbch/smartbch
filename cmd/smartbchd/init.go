@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -81,6 +83,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 				return err
 			}
 
+			fmt.Println("saving genesis file ...")
 			if err := ExportGenesisFile(genDoc, genFile); err != nil {
 				return err
 			}
@@ -93,24 +96,21 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 	cmd.Flags().BoolP(FlagOverwrite, "o", false, "overwrite the genesis.json file")
 	cmd.Flags().String(FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
 	cmd.Flags().String(FlagTestKeys, "", "comma separated list of hex private keys used for test")
+	cmd.Flags().String(FlagTestKeysFile, "", "file contains hex private keys, one key per line")
 	cmd.Flags().String(FlagInitBal, "1000000000000000000", "initial balance for test accounts")
 	return cmd
 }
 
 func getAppState() ([]byte, error) {
-	testKeysCSV := viper.GetString(FlagTestKeys)
 	initBalance := viper.GetString(FlagInitBal)
-
 	initBal, ok := bigutils.ParseU256(initBalance)
 	if !ok {
 		return nil, errors.New("invalid init balance")
 	}
 
-	var testKeys []string
-	if testKeysCSV != "" {
-		testKeys = strings.Split(testKeysCSV, ",")
-	}
+	testKeys := getTestKeys()
 
+	fmt.Println("preparing genesis file ...")
 	alloc := testutils.KeysToGenesisAlloc(initBal, testKeys)
 	genData := app.GenesisData{Alloc: alloc}
 	appState, err := json.Marshal(genData)
@@ -118,4 +118,33 @@ func getAppState() ([]byte, error) {
 		return nil, err
 	}
 	return appState, nil
+}
+
+func getTestKeys() []string {
+	testKeysCSV := viper.GetString(FlagTestKeys)
+	if testKeysCSV != "" {
+		return strings.Split(testKeysCSV, ",")
+	}
+
+	testKeyFiles := viper.GetString(FlagTestKeysFile)
+	if testKeyFiles != "" {
+		var allKeys []string
+		for _, testKeyFile := range strings.Split(testKeyFiles, ",") {
+			count := math.MaxInt32
+			if idx := strings.Index(testKeyFile, ":"); idx > 0 {
+				n, err := strconv.ParseInt(testKeyFile[idx+1:], 10, 32)
+				if err != nil {
+					panic(err)
+				}
+				count = int(n)
+				testKeyFile = testKeyFile[:idx]
+			}
+
+			keys := testutils.ReadKeysFromFile(testKeyFile, count)
+			allKeys = append(allKeys, keys...)
+		}
+		return allKeys
+	}
+
+	return nil
 }

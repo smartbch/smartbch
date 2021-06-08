@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -63,6 +64,12 @@ const (
 	GasLimitInvalid      uint32 = 106
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
+	MempoolBusy          uint32 = 109
+
+	PruneEveryN = 10
+
+	BlockMaxBytes = 24 * 1024 * 1024 // 24MB
+	BlockMaxGas   = 900_000_000_000
 )
 
 type App struct {
@@ -111,11 +118,37 @@ type App struct {
 	logger log.Logger
 
 	//genesis data
-	currValidators []*stakingtypes.Validator
+	currValidators  []*stakingtypes.Validator
+	validatorUpdate []*stakingtypes.Validator
+
+	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
+	sigCache     map[gethcmn.Hash]SenderAndHeight
+	sigCacheSize int
+
+	// the senders who send native tokens through sep206 in the last block
+	sep206SenderSet map[gethcmn.Address]struct{}
+	// it shows how many tx remains in the mempool after committing a new block
+	recheckCounter int
+	// if recheckCounter is larger than recheckThreshold, mempool is in a traffic-jam status
+	// and we'd better refuse further transactions
+	recheckThreshold int
+}
+
+// The value entry of signature cache. The Height helps in evicting old entries.
+type SenderAndHeight struct {
+	Sender gethcmn.Address
+	Height int64
 }
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {
 	app := &App{}
+
+	app.recheckThreshold = config.RecheckThreshold
+
+	/*------signature cache------*/
+	app.sigCacheSize = config.SigCacheSize
+	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, app.sigCacheSize)
+
 	/*------set config------*/
 	app.retainBlocks = config.RetainBlocks
 	app.chainId = chainId
@@ -132,8 +165,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.logger = logger.With("module", "app")
 
 	/*------set engine------*/
-	app.txEngine = ebp.NewEbpTxExec( /*exeRoundCount*/ 200 /*runnerNumber*/, 256 /*parallelNum*/, 32,
-		/*defaultTxListCap*/ 5000, app.signer)
+	app.txEngine = ebp.NewEbpTxExec(200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32, /*parallelNum*/
+		5000 /*defaultTxListCap*/, app.signer)
 
 	/*------set watcher------*/
 	client := staking.NewRpcClient("http://127.0.0.1:1234/", "bear", "free")
@@ -146,6 +179,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	//init PredefinedSystemContractExecutors before tx execute
 	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
+
+	// We make these maps not for really usage, just to avoid accessing nil-maps
+	app.touchedAddrs = make(map[gethcmn.Address]int)
+	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -164,6 +201,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 
 	_, stakingInfo := staking.LoadStakingAcc(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
+	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
@@ -198,24 +236,8 @@ func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 	return
 }
 
-func (app *App) Init(blk *types.Block) {
-	if blk != nil {
-		app.block = blk
-		app.currHeight = app.block.Number
-	}
-	fmt.Printf("!!!!!!get block in newapp:%v,%d\n", app.block.StateRoot, app.block.Number)
-	app.root.SetHeight(app.currHeight + 1)
-	if app.currHeight != 0 {
-		app.reload()
-	} else {
-		app.txEngine.SetContext(app.GetRunTxContext())
-		fmt.Printf("!!!!!!app init: %v\n", app.txEngine.Context())
-	}
-}
-
 func (app *App) reload() {
 	app.txEngine.SetContext(app.GetRunTxContext())
-	fmt.Printf("!!!!!!app reload: %v\n", app.txEngine.Context())
 	if app.block != nil {
 		app.mtx.Lock()
 		bi := app.syncBlockInfo()
@@ -224,7 +246,6 @@ func (app *App) reload() {
 }
 
 func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
-	fmt.Printf("Info app.block.Number %d\n", app.block.Number)
 	return abcitypes.ResponseInfo{
 		LastBlockHeight:  app.block.Number,
 		LastBlockAppHash: app.root.GetRootHash(),
@@ -241,26 +262,64 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 
 func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx {
 	app.logger.Debug("enter check tx!")
+	if req.Type == abcitypes.CheckTxType_Recheck {
+		app.recheckCounter++ // calculate how many TXs remain in the mempool after a new block
+	} else if app.recheckCounter > app.recheckThreshold {
+		// Refuse to accept new TXs to drain the remain TXs
+		return abcitypes.ResponseCheckTx{Code: MempoolBusy, Info: "mempool is too busy"}
+	}
+	tx := &gethtypes.Transaction{}
+	err := tx.DecodeRLP(rlp.NewStream(bytes.NewReader(req.Tx), 0))
+	if err != nil {
+		return abcitypes.ResponseCheckTx{Code: CannotDecodeTx}
+	}
+	txid := tx.Hash()
+	var sender gethcmn.Address
+	senderAndHeight, ok := app.sigCache[txid]
+	if ok { // cache hit
+		sender = senderAndHeight.Sender
+	} else { // cache miss
+		sender, err = app.signer.Sender(tx)
+		if err != nil {
+			return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
+		}
+		if len(app.sigCache) > app.sigCacheSize { //select one old entry to evict
+			delKey, minHeight, count := gethcmn.Hash{}, int64(math.MaxInt64), 6 /*iterate 6 steps*/
+			for key, value := range app.sigCache {                              //pseudo-random iterate
+				if minHeight > value.Height { //select the oldest entry within a short iteration
+					minHeight, delKey = value.Height, key
+				}
+				if count--; count == 0 {
+					break
+				}
+			}
+			delete(app.sigCache, delKey)
+		}
+		app.sigCache[txid] = SenderAndHeight{sender, app.currHeight} // add to cache
+	}
+	if _, ok := app.touchedAddrs[sender]; ok {
+		// if the sender is touched, it is most likely to have an uncertain nonce, so we reject it
+		return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
+	}
+	if req.Type == abcitypes.CheckTxType_Recheck {
+		// During rechecking, if the sender has not not been touched or lose balance, the tx can pass
+		if _, ok := app.sep206SenderSet[sender]; !ok {
+			return abcitypes.ResponseCheckTx{
+				Code:      abcitypes.CodeTypeOK,
+				GasWanted: int64(tx.Gas()),
+			}
+		}
+	}
+	return app.checkTx(tx, sender)
+}
+
+func (app *App) checkTx(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
-	tx := &gethtypes.Transaction{}
-	err := tx.DecodeRLP(rlp.NewStream(bytes.NewReader(req.Tx), 0))
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotDecodeTx}
-	}
-	sender, err := app.signer.Sender(tx)
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
-	}
-	if req.Type != abcitypes.CheckTxType_Recheck && app.touchedAddrs != nil {
-		if _, ok := app.touchedAddrs[sender]; ok {
-			return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
-		}
-	}
 	//todo: replace with engine param
 	if tx.Gas() > ebp.MaxTxGasLimit {
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
@@ -279,7 +338,10 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	}
 	dirty = true
 	app.logger.Debug("leave check tx!")
-	return abcitypes.ResponseCheckTx{Code: abcitypes.CodeTypeOK}
+	return abcitypes.ResponseCheckTx{
+		Code:      abcitypes.CodeTypeOK,
+		GasWanted: int64(tx.Gas()),
+	}
 }
 
 //TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
@@ -305,24 +367,31 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		panic("no genesis validator in genesis.json")
 	}
 
-	app.currValidators = genesisValidators
+	//store all genesis validators even if it is inactive
 	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 	if stakingAcc == nil {
 		panic("Cannot find staking contract")
 	}
 	info := stakingtypes.StakingInfo{
 		CurrEpochNum:   0,
-		Validators:     app.currValidators,
+		Validators:     genesisValidators,
 		PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
 	}
 	for i := range info.PendingRewards {
 		info.PendingRewards[i] = &stakingtypes.PendingReward{
-			Address: app.currValidators[i].Address,
+			Address: genesisValidators[i].Address,
 		}
 	}
 	staking.SaveStakingInfo(ctx, stakingAcc, info)
 	ctx.Close(true)
 
+	var activeValidator []*stakingtypes.Validator
+	for _, v := range genesisValidators {
+		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
+			activeValidator = append(activeValidator, v)
+		}
+	}
+	app.currValidators = activeValidator
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -333,8 +402,15 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		fmt.Printf("inichain validator:%s\n", p.String())
 	}
 
+	params := &abcitypes.ConsensusParams{
+		Block: &abcitypes.BlockParams{
+			MaxBytes: BlockMaxBytes,
+			MaxGas:   BlockMaxGas,
+		},
+	}
 	return abcitypes.ResponseInitChain{
-		Validators: valSet,
+		ConsensusParams: params,
+		Validators:      valSet,
 	}
 }
 
@@ -345,13 +421,14 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 
 	rbt := rabbit.NewRabbitStore(app.trunk)
 
+	app.logger.Info("air drop", "accounts", len(alloc))
 	for addr, acc := range alloc {
 		amt, _ := uint256.FromBig(acc.Balance)
 		k := types.GetAccountKey(addr)
 		v := types.ZeroAccountInfo()
 		v.UpdateBalance(amt)
 		rbt.Set(k, v.Bytes())
-		app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
+		//app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
 	}
 
 	rbt.Close()
@@ -368,6 +445,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Size:      int64(req.Size()),
 	}
 	copy(app.lastProposer[:], req.Header.ProposerAddress)
+	fmt.Printf("PROPOSER: %s\n", gethcmn.Address(app.lastProposer).String())
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
 			app.lastCommitInfo = append(app.lastCommitInfo, v.Validator.Address) //this is validator consensus address
@@ -381,7 +459,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	}
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
-	copy(app.block.StateRoot[:], req.Header.AppHash[:])
+	copy(app.block.StateRoot[:], req.Header.AppHash)
 	//TODO: slash req.ByzantineValidators
 	app.currHeight = req.Header.Height
 	// collect slash info, only double sign
@@ -411,24 +489,8 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	//fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter end block!")
-	select {
-	case epoch := <-app.watcher.EpochChan:
-		fmt.Printf("get new epoch in endblock, its startHeight is:%d\n", epoch.StartHeight)
-		app.epochList = append(app.epochList, epoch)
-	default:
-		//fmt.Println("no new epoch")
-	}
-	if len(app.epochList) != 0 {
-		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
-		if app.block.Timestamp > app.epochList[0].EndTime+1*20 /*100 * 10min*/ {
-			ctx := app.GetRunTxContext()
-			app.currValidators = staking.SwitchEpoch(ctx, app.epochList[0])
-			ctx.Close(true)
-			app.epochList = app.epochList[1:]
-		}
-	}
-	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
-	for i, v := range app.currValidators {
+	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
+	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 		valSet[i] = abcitypes.ValidatorUpdate{
 			PubKey: p,
@@ -443,12 +505,12 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
-	//fmt.Printf("Commit!!!!!!!!!!!!!!!\n")
 	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
 	_, info := staking.LoadStakingAcc(ctx)
+
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
 	var consAddr [20]byte
 	for _, v := range info.Validators {
@@ -501,10 +563,32 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	} else {
 		staking.LoadReadonlyValiatorsInfo(ctx)
 	}
+
+	select {
+	case epoch := <-app.watcher.EpochChan:
+		fmt.Printf("get new epoch in commit, its startHeight is:%d\n", epoch.StartHeight)
+		app.epochList = append(app.epochList, epoch)
+	default:
+		//fmt.Println("no new epoch")
+	}
+	var newValidators []*stakingtypes.Validator
+	if len(app.epochList) != 0 {
+		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			app.epochList = app.epochList[1:]
+		}
+	} else {
+		newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
+	}
+	app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
+	acc, newInfo := staking.LoadStakingAcc(ctx)
+	newInfo.ValidatorsUpdate = app.validatorUpdate
+	staking.SaveStakingInfo(ctx, acc, newInfo)
 	ctx.Close(true)
 
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
+	app.currValidators = newValidators
 
+	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
@@ -539,6 +623,10 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.logger.Debug("leave post commit!")
 }
 
+func (app *App) GetLastGasUsed() uint64 {
+	return app.lastGasUsed
+}
+
 func (app *App) refresh() {
 	//close old
 	app.checkTrunk.Close(false)
@@ -552,7 +640,7 @@ func (app *App) refresh() {
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	app.trunk.Close(true)
-	if prevBlkInfo != nil && prevBlkInfo.Number%100 == 0 && prevBlkInfo.Number > app.numKeptBlocks {
+	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
 	}
 
@@ -561,6 +649,8 @@ func (app *App) refresh() {
 
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
+		var wg *sync.WaitGroup
+		app.sep206SenderSet, wg = app.getSep206SenderSet()
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -602,8 +692,10 @@ func (app *App) refresh() {
 		}
 		app.historyStore.AddBlock(&blk, -1)
 		app.publishNewBlock(&blk)
+		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}
 	//make new
+	app.recheckCounter = 0 // reset counter before counting the remained TXs which need rechecking
 	app.lastProposer = app.block.Miner
 	app.lastCommitInfo = app.lastCommitInfo[:0]
 	app.root.SetHeight(app.currHeight + 1)
@@ -760,6 +852,10 @@ func (app *App) BlockNum() int64 {
 	return app.block.Number
 }
 
+func (app *App) ValidatorUpdate() []*stakingtypes.Validator {
+	return app.validatorUpdate
+}
+
 func (app *App) EpochChan() chan *stakingtypes.Epoch {
 	return app.watcher.EpochChan
 }
@@ -790,4 +886,58 @@ func (app *App) randomPanic(baseNumber, primeNumber int64) {
 		fmt.Println(s)
 		panic(s)
 	}(baseNumber + time.Now().UnixNano()%primeNumber)
+}
+
+var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
+
+// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
+// through sep206 in the last block
+func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGroup) {
+	res := make(map[gethcmn.Address]struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		for _, tx := range app.txEngine.CommittedTxs() {
+			for _, log := range tx.Logs {
+				if log.Address == sep206Addr && len(log.Topics) == 2 &&
+					log.Topics[0] == modbtypes.TransferEvent {
+					var addr gethcmn.Address
+					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
+					res[addr] = struct{}{}
+				}
+			}
+		}
+		wg.Done()
+	}()
+	return res, &wg
+}
+
+func GetUpdateValidatorSet(currentValidators, newValidators []*stakingtypes.Validator) []*stakingtypes.Validator {
+	var currentSet = make(map[gethcmn.Address]bool)
+	var newSet = make(map[gethcmn.Address]*stakingtypes.Validator)
+	var updatedList = make([]*stakingtypes.Validator, 0, len(currentValidators))
+	for _, v := range currentValidators {
+		currentSet[v.Address] = true
+	}
+	for _, v := range newValidators {
+		newSet[v.Address] = v
+	}
+	for _, v := range currentValidators {
+		if newSet[v.Address] == nil {
+			removedV := *v
+			removedV.VotingPower = 0
+			updatedList = append(updatedList, &removedV)
+		} else if v.VotingPower != newSet[v.Address].VotingPower {
+			updatedV := *newSet[v.Address]
+			updatedList = append(updatedList, &updatedV)
+			delete(newSet, v.Address)
+		} else {
+			delete(newSet, v.Address)
+		}
+	}
+	for _, v := range newSet {
+		addedV := *v
+		updatedList = append(updatedList, &addedV)
+	}
+	return updatedList
 }

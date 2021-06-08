@@ -17,7 +17,7 @@ func ConvertBig(v *big.Int) *uint256.Int {
 func BigIntFromSlice32(arr []byte) *big.Int {
 	bz := arr
 	if (arr[0] & 128) != 0 { // prevent overflow to negative
-		bz = append([]byte{0}, arr[:]...)
+		bz = append([]byte{0}, arr...)
 	}
 	res := &big.Int{}
 	res.SetBytes(bz)

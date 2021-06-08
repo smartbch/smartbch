@@ -3,6 +3,7 @@
 export EVMWRAP=libevmwrap.so
 alias smartbchd='go run github.com/smartbch/smartbch/cmd/smartbchd'
 
+NODE_HOME=~/.smartbchd/
 TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 0x5a09e9d6be2cdc7de8f6beba300e52823493cd23357b1ca14a9c36764d600f5e,\
 0x7e01af236f9c9536d9d28b07cea24ccf21e21c9bc9f2b2c11471cd82dbb63162,\
@@ -14,14 +15,17 @@ TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 0x867b73f28bea9a0c83dfc233b8c4e51e0d58197de7482ebf666e40dd7947e2b6,\
 0xa3ff378a8d766931575df674fbb1024f09f7072653e1aa91641f310b3e1c5275"
 
-rm -rf ~/.smartbchd/
-smartbchd init m1 --chain-id 0x2711 \
+rm -rf $NODE_HOME
+echo 'initializing node ...'
+smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
   --init-balance=10000000000000000000 \
-  --test-keys=$TEST_KEYS
-sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' ~/.smartbchd/config/config.toml
+  --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
+sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
 
-CPK=$(smartbchd generate-consensus-key-info)
-VAL=$(smartbchd generate-genesis-validator \
+echo 'generating consensus key info ...'
+CPK=$(smartbchd generate-consensus-key-info --home=$NODE_HOME)
+echo 'generating genesis validator ...'
+VAL=$(smartbchd generate-genesis-validator --home=$NODE_HOME \
   0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9 \
   --consensus-pubkey $CPK \
   --staking-coin 10000000000000000000000 \
@@ -29,11 +33,13 @@ VAL=$(smartbchd generate-genesis-validator \
   --introduction="tester"
   )
 
-mv ./priv_validator_key.json ~/.smartbchd/config/
+mv ./priv_validator_key.json $NODE_HOME/config/
 
-smartbchd add-genesis-validator $VAL
+echo 'adding genesis validator ...'
+smartbchd add-genesis-validator --home=$NODE_HOME $VAL
 
 #export NODIASM=1
 #export NOSTACK=1
 #export NOINSTLOG=1
-smartbchd start --unlock $TEST_KEYS
+echo 'starting node ...'
+smartbchd start --home $NODE_HOME --unlock $TEST_KEYS

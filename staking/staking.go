@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 
@@ -88,6 +89,8 @@ var (
 const (
 	SumVotingPowerGasPerByte uint64 = 25
 	SumVotingPowerBaseGas    uint64 = 10000
+	StatusSuccess            int    = 0
+	StatusFailed             int    = 1
 )
 
 type StakingContractExecutor struct{}
@@ -111,7 +114,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 // The extra gas fee distribute to the miners, not refund
 func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
-		status = int(mevmtypes.ReceiptStatusFailed)
+		status = StatusFailed
 		return
 	}
 	var selector [4]byte
@@ -133,7 +136,7 @@ func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		//function decreaseMinGasPrice() external;
 		return handleMinGasPrice(ctx, tx.From, false)
 	default:
-		status = int(mevmtypes.ReceiptStatusFailed)
+		status = StatusFailed
 		return
 	}
 }
@@ -194,7 +197,7 @@ func stringFromBytes(bz []byte) string {
 
 // This function implements the underlying logic for three external functions: createValidator, editValidator and retire
 func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retire bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = int(mevmtypes.ReceiptStatusFailed)
+	status = StatusFailed
 	gasUsed = GasOfStakingExternalOp
 	var pubkey [32]byte
 	var intro string
@@ -251,8 +254,10 @@ func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, reti
 			val.Introduction = intro
 		}
 		if !coins4staking.IsZero() {
+			fmt.Printf("new staking coin is :%s\n", coins4staking.String())
 			stakedCoins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
 			stakedCoins.Add(stakedCoins, coins4staking)
+			fmt.Printf("previous staking coin %s\n", uint256.NewInt().SetBytes(val.StakedCoins[:]).String())
 			val.StakedCoins = stakedCoins.Bytes32()
 		}
 		if retire {
@@ -273,7 +278,7 @@ func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, reti
 		ctx.SetAccount(StakingContractAddress, stakingAcc)
 	}
 
-	status = int(mevmtypes.ReceiptStatusSuccessful)
+	status = StatusSuccess
 	return
 }
 
@@ -312,7 +317,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 		return
 	}
 	SaveMinGasPrice(ctx, mGP, false)
-	status = int(mevmtypes.ReceiptStatusSuccessful)
+	status = StatusSuccess
 	return
 }
 
