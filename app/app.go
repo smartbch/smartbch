@@ -170,7 +170,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 
 	/*------set watcher------*/
 	client := staking.NewRpcClient("http://127.0.0.1:1234/", "bear", "free")
-	lastWatch2016xHeight := int64(0) 	//todo: lastHeight = latest previous bch mainnet 2016x blocks
+	lastWatch2016xHeight := int64(0) //todo: lastHeight = latest previous bch mainnet 2016x blocks
 	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
 	go app.watcher.Run()
 
@@ -573,9 +573,12 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	}
 	var newValidators []*stakingtypes.Validator
 	if len(app.epochList) != 0 {
-		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+		if app.block.Timestamp > app.epochList[0].EndTime+10 {
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			app.epochList = app.epochList[1:]
+		}else {
+			newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 		}
 	} else {
 		newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
