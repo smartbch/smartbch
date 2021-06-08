@@ -222,6 +222,47 @@ func TestGetTxListByHeight(t *testing.T) {
 	require.Len(t, txs, 1)
 }
 
+func TestGetTxListByHeightWithRange(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	addr1 := gethcmn.Address{0xAD, 0x01}
+	addr2 := gethcmn.Address{0xAD, 0x02}
+	blk1 := testutils.NewMdbBlockBuilder().
+		Height(1).Hash(gethcmn.Hash{0xB1, 0x23}).
+		TxWithAddr(gethcmn.Hash{0xC1}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC2}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC3}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC4}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC5}, addr1, addr2).
+		TxWithAddr(gethcmn.Hash{0xC6}, addr1, addr2).
+		Build()
+
+	_app.StoreBlocks(blk1)
+	_app.WaitMS(100)
+
+	txs, err := _api.GetTxListByHeightWithRange(1, 0, 3)
+	require.NoError(t, err)
+	require.Len(t, txs, 3)
+
+	txs, err = _api.GetTxListByHeightWithRange(1, 1, 3)
+	require.NoError(t, err)
+	require.Len(t, txs, 2)
+
+	txs, err = _api.GetTxListByHeightWithRange(1, 2, 1)
+	require.NoError(t, err)
+	require.Len(t, txs, 1)
+
+	txs, err = _api.GetTxListByHeightWithRange(1, 2, 0)
+	require.NoError(t, err)
+	require.Len(t, txs, 4)
+
+	txs, err = _api.GetTxListByHeightWithRange(1, 9, 10)
+	require.NoError(t, err)
+	require.Len(t, txs, 0)
+}
+
 func TestGetToAddressCount(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()

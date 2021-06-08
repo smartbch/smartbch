@@ -2,6 +2,13 @@
 
 
 
+## v0.1.7 (not released yet)
+
+* JSON-RPC
+  * Add sbch_getTxListByHeightWithRange
+
+
+
 ## v0.1.6
 
 * JSON-RPC
