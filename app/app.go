@@ -574,6 +574,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			app.epochList = app.epochList[1:]
+			newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 		}
 	} else {
 		newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
