@@ -140,7 +140,7 @@ type SenderAndHeight struct {
 	Height int64
 }
 
-func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {
+func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight int64, logger log.Logger) *App {
 	app := &App{}
 
 	app.recheckThreshold = config.RecheckThreshold
@@ -168,12 +168,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.txEngine = ebp.NewEbpTxExec(200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32, /*parallelNum*/
 		5000 /*defaultTxListCap*/, app.signer)
 
-	/*------set watcher------*/
-	client := staking.NewRpcClient("http://127.0.0.1:1234/", "bear", "free")
-	lastWatch2016xHeight := int64(0) //todo: lastHeight = latest previous bch mainnet 2016x blocks
-	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
-	go app.watcher.Run()
-
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
 	//init PredefinedSystemContractExecutors before tx execute
@@ -199,12 +193,22 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 		app.txEngine.SetContext(app.GetRunTxContext())
 	}
 
-	_, stakingInfo := staking.LoadStakingAcc(ctx)
+	acc, stakingInfo := staking.LoadStakingAcc(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
+	if stakingInfo.CurrEpochNum == 0 {
+		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
+		staking.SaveStakingInfo(ctx, acc, stakingInfo)
+	}
+	/*------set watcher------*/
+	client := staking.NewRpcClient("http://127.0.0.1:1234/", "bear", "free")
+	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
+	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
+	go app.watcher.Run()
+
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
 	return app
@@ -577,7 +581,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		if app.block.Timestamp > app.epochList[0].EndTime+10 {
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			app.epochList = app.epochList[1:]
-		}else {
+		} else {
 			newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 		}
 	} else {

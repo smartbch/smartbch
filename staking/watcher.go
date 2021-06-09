@@ -114,10 +114,13 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	}
 	// A new block is finalized
 	watcher.heightToFinalizedBlock[parent.Height] = grandpa
-	if watcher.latestFinalizedHeight+1 != parent.Height {
+	// when node restart, watcher work from latestFinalizedHeight, which are already finalized,
+	// so watcher.latestFinalizedHeight+1 greater than parent.Height here, we not increase the watcher.latestFinalizedHeight
+	if watcher.latestFinalizedHeight+1 < parent.Height {
 		panic("Height Skipped")
+	} else if watcher.latestFinalizedHeight+1 == parent.Height {
+		watcher.latestFinalizedHeight++
 	}
-	watcher.latestFinalizedHeight++
 	// All the blocks for an epoch is ready
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == NumBlocksInEpoch {
 		watcher.generateNewEpoch()

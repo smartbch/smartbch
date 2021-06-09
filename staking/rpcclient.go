@@ -183,7 +183,12 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 }
 
 func (client *RpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
-	return client.getBCHBlock(hex.EncodeToString(hash[:]))
+	//todo: mock hash for fake bch node
+	fmt.Println("get block hash: ", hash)
+	s := hex.EncodeToString(hash[:12])
+	fmt.Println("get block hash string:", s)
+	//return client.getBCHBlock(hex.EncodeToString(hash[:]))
+	return client.getBCHBlock(s)
 }
 
 func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
