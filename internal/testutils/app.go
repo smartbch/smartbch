@@ -57,7 +57,7 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	params.AppDataPath = testAdsDir
 	params.ModbDataPath = testMoDbDir
 	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
-	_app := app.NewApp(params, bigutils.NewU256(1), nopLogger)
+	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{

@@ -132,6 +132,10 @@ type RpcClient struct {
 var _ types.RpcClient = (*RpcClient)(nil)
 
 func NewRpcClient(url, user, password string) *RpcClient {
+	fmt.Println("watcher rpc url:", url)
+	fmt.Println("watcher rpc user:", user)
+	fmt.Println("watcher rpc password:", password)
+
 	return &RpcClient{
 		url:      url,
 		user:     user,
@@ -141,7 +145,7 @@ func NewRpcClient(url, user, password string) *RpcClient {
 
 func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 	body := strings.NewReader(reqStr)
-	req, err := http.NewRequest("POST", "http://127.0.0.1:8332/", body)
+	req, err := http.NewRequest("POST", client.url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +172,7 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	var hash string
 	hash, client.err = client.getBlockHashOfHeight(height)
 	if client.err != nil {
+		fmt.Println("getblockByHeight error:", client.err)
 		return nil
 	}
 	return client.getBCHBlock(hash)

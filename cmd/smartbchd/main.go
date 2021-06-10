@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
@@ -47,6 +48,6 @@ func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
 }
 
 func newApp(logger log.Logger, chainId *uint256.Int, config *param.ChainConfig) abci.Application {
-	cetChainApp := app.NewApp(config, chainId, logger)
+	cetChainApp := app.NewApp(config, chainId, viper.GetInt64(flagGenesisMainnetHeight), logger)
 	return cetChainApp
 }

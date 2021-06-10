@@ -116,15 +116,15 @@ func TestRun(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w := NewWatcher(0, client)
 	go w.Run()
-	time.Sleep(3 * time.Second)
-	require.Equal(t, 0, len(w.epochList))
-	require.Equal(t, int(client.node.height), len(w.hashToBlock))
+	time.Sleep(1 * time.Second)
+	require.Equal(t, 2, len(w.epochList))
+	require.Equal(t, 30, len(w.hashToBlock))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
 		require.True(t, h == b.HashId)
 	}
-	require.Equal(t, 90, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, 20, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(20), w.latestFinalizedHeight)
 }
 
 func TestRunWithNewEpoch(t *testing.T) {

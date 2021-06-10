@@ -65,6 +65,11 @@ type ChainConfig struct {
 	// How many transactions are allowed to left in the mempool
 	// If more than this threshold, no further transactions can go in mempool
 	RecheckThreshold int
+
+	//watcher config
+	MainnetRPCUrl      string
+	MainnetRPCUserName string
+	MainnetRPCPassword string
 }
 
 var (

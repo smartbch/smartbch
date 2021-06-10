@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -139,7 +140,7 @@ type SenderAndHeight struct {
 	Height int64
 }
 
-func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) *App {
+func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight int64, logger log.Logger) *App {
 	app := &App{}
 
 	app.recheckThreshold = config.RecheckThreshold
@@ -167,11 +168,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 	app.txEngine = ebp.NewEbpTxExec(200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32, /*parallelNum*/
 		5000 /*defaultTxListCap*/, app.signer)
 
-	/*------set watcher------*/
-	//todo: lastHeight = latest previous bch mainnet 2016x blocks
-	app.watcher = staking.NewWatcher(0, nil) //todo: add bch mainnet client
-	go app.watcher.Run()
-
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
 	//init PredefinedSystemContractExecutors before tx execute
@@ -197,12 +193,23 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, logger log.Logger) 
 		app.txEngine.SetContext(app.GetRunTxContext())
 	}
 
-	_, stakingInfo := staking.LoadStakingAcc(ctx)
+	acc, stakingInfo := staking.LoadStakingAcc(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
+	if stakingInfo.CurrEpochNum == 0 {
+		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
+		staking.SaveStakingInfo(ctx, acc, stakingInfo)
+	}
+
+	/*------set watcher------*/
+	client := staking.NewRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
+	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
+	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
+	go app.watcher.Run()
+
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
 	return app
@@ -494,7 +501,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		fmt.Printf("endblock validator:%s\n", gethcmn.Address(v.Address).String())
+		fmt.Printf("endblock validator pubkey=%s voting powe=%d\n\n", hex.EncodeToString(v.Pubkey[:]), v.VotingPower)
 	}
 	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{
@@ -571,9 +578,11 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	}
 	var newValidators []*stakingtypes.Validator
 	if len(app.epochList) != 0 {
-		if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
-			staking.SwitchEpoch(ctx, app.epochList[0])
+		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
+		if app.block.Timestamp > app.epochList[0].EndTime+100 /*10 second*/ {
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			app.epochList = app.epochList[1:]
+		} else {
 			newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 		}
 	} else {

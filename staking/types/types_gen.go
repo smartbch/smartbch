@@ -777,6 +777,12 @@ func (z *StakingInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 			return
 		}
 		switch msgp.UnsafeString(field) {
+		case "GenesisMainnetBlockHeight":
+			z.GenesisMainnetBlockHeight, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "GenesisMainnetBlockHeight")
+				return
+			}
 		case "CurrEpochNum":
 			z.CurrEpochNum, err = dc.ReadInt64()
 			if err != nil {
@@ -889,9 +895,19 @@ func (z *StakingInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 4
+	// map header, size 5
+	// write "GenesisMainnetBlockHeight"
+	err = en.Append(0x85, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.GenesisMainnetBlockHeight)
+	if err != nil {
+		err = msgp.WrapError(err, "GenesisMainnetBlockHeight")
+		return
+	}
 	// write "CurrEpochNum"
-	err = en.Append(0x84, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
+	err = en.Append(0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
 	if err != nil {
 		return
 	}
@@ -978,9 +994,12 @@ func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *StakingInfo) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 4
+	// map header, size 5
+	// string "GenesisMainnetBlockHeight"
+	o = append(o, 0x85, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendInt64(o, z.GenesisMainnetBlockHeight)
 	// string "CurrEpochNum"
-	o = append(o, 0x84, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
+	o = append(o, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
 	o = msgp.AppendInt64(o, z.CurrEpochNum)
 	// string "Validators"
 	o = append(o, 0xaa, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x73)
@@ -1045,6 +1064,12 @@ func (z *StakingInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			return
 		}
 		switch msgp.UnsafeString(field) {
+		case "GenesisMainnetBlockHeight":
+			z.GenesisMainnetBlockHeight, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "GenesisMainnetBlockHeight")
+				return
+			}
 		case "CurrEpochNum":
 			z.CurrEpochNum, bts, err = msgp.ReadInt64Bytes(bts)
 			if err != nil {
@@ -1155,7 +1180,7 @@ func (z *StakingInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *StakingInfo) Msgsize() (s int) {
-	s = 1 + 13 + msgp.Int64Size + 11 + msgp.ArrayHeaderSize
+	s = 1 + 26 + msgp.Int64Size + 13 + msgp.Int64Size + 11 + msgp.ArrayHeaderSize
 	for za0001 := range z.Validators {
 		if z.Validators[za0001] == nil {
 			s += msgp.NilSize

@@ -24,10 +24,14 @@ import (
 )
 
 const (
-	flagRpcAddr      = "http.addr"
-	flagWsAddr       = "ws.addr"
-	flagRetainBlocks = "retain"
-	flagUnlock       = "unlock"
+	flagRpcAddr              = "http.addr"
+	flagWsAddr               = "ws.addr"
+	flagRetainBlocks         = "retain"
+	flagUnlock               = "unlock"
+	flagGenesisMainnetHeight = "mainnet-genesis-height"
+	flagMainnetUrl           = "mainnet-url"
+	flagMainnetRpcUser       = "mainnet-user"
+	flagMainnetRpcPassword   = "mainnet-password"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -44,9 +48,14 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	tcmd.AddNodeFlags(cmd)
 	cmd.PersistentFlags().String("log_level", ctx.Config.LogLevel, "Log level")
 	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
+	cmd.Flags().Int64(flagGenesisMainnetHeight, 0, "genesis bch mainnet height for validator voting watched")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
 	cmd.Flags().String(flagUnlock, "", "Comma separated list of private keys to unlock (only for testing)")
+	cmd.Flags().String(flagMainnetUrl, "tcp://:8432", "BCH Mainnet RPC URL")
+	cmd.Flags().String(flagMainnetRpcUser, "user", "BCH Mainnet RPC user name")
+	cmd.Flags().String(flagMainnetRpcPassword, "88888888", "BCH Mainnet RPC user password")
+
 	return cmd
 }
 
@@ -61,6 +70,9 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	paramConfig.AppDataPath = filepath.Join(cfg.RootDir, param.AppDataPath)
 	paramConfig.ModbDataPath = filepath.Join(cfg.RootDir, param.ModbDataPath)
 	paramConfig.RetainBlocks = viper.GetInt64(flagRetainBlocks)
+	paramConfig.MainnetRPCUrl = viper.GetString(flagMainnetUrl)
+	paramConfig.MainnetRPCUserName = viper.GetString(flagMainnetRpcUser)
+	paramConfig.MainnetRPCPassword = viper.GetString(flagMainnetRpcPassword)
 
 	chainID, err := getChainID(ctx)
 	if err != nil {

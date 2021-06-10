@@ -34,7 +34,7 @@ func removeTestDB(_app *App) {
 }
 
 func TestAppReload(t *testing.T) {
-	_app := NewApp(p, uint256.NewInt().SetUint64(1), log.NewNopLogger())
+	_app := NewApp(p, uint256.NewInt().SetUint64(1), 0, log.NewNopLogger())
 	defer removeTestDB(_app)
 	_app.block = &types.Block{
 		Number:           1,
@@ -59,7 +59,7 @@ func TestAppReload(t *testing.T) {
 }
 
 func TestAppInfo(t *testing.T) {
-	_app := NewApp(p, uint256.NewInt().SetUint64(1), log.NewNopLogger())
+	_app := NewApp(p, uint256.NewInt().SetUint64(1), 0, log.NewNopLogger())
 	defer removeTestDB(_app)
 	_app.block.Number = 1
 	res := _app.Info(abcitypes.RequestInfo{})
@@ -68,7 +68,7 @@ func TestAppInfo(t *testing.T) {
 }
 
 func TestCheckTx(t *testing.T) {
-	_app := NewApp(p, uint256.NewInt().SetUint64(1), log.NewNopLogger())
+	_app := NewApp(p, uint256.NewInt().SetUint64(1), 0, log.NewNopLogger())
 	_app.signer = &testcase.DumbSigner{}
 	defer removeTestDB(_app)
 
