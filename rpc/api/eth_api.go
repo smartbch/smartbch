@@ -240,7 +240,7 @@ func (api *ethAPI) GetTransactionByBlockNumberAndIndex(blockNum gethrpc.BlockNum
 func (api *ethAPI) GetTransactionByHash(hash common.Hash) (*rpctypes.Transaction, error) {
 	tx, _, _, _, err := api.backend.GetTransaction(hash)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	return txToRpcResp(tx), nil
 }

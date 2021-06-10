@@ -321,6 +321,10 @@ func TestGetTxByHash(t *testing.T) {
 	tx, err := _api.GetTransactionByHash(gethcmn.Hash{0x78})
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x78}, tx.Hash)
+
+	tx, err = _api.GetTransactionByHash(gethcmn.Hash{0xFF})
+	require.NoError(t, err)
+	require.Nil(t, tx)
 }
 
 func TestGetTxReceipt(t *testing.T) {
