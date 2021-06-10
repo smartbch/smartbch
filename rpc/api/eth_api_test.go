@@ -145,6 +145,11 @@ func TestGetTxCount(t *testing.T) {
 	nonce, err := _api.GetTransactionCount(addr, 0)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(78), *nonce)
+
+	_, addr2 := testutils.GenKeyAndAddr()
+	nonce, err = _api.GetTransactionCount(addr2, 0)
+	require.NoError(t, err)
+	require.Equal(t, hexutil.Uint64(0), *nonce)
 }
 
 func TestGetCode(t *testing.T) {

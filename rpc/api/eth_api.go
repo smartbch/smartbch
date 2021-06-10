@@ -248,10 +248,7 @@ func (api *ethAPI) GetTransactionByHash(hash common.Hash) (*rpctypes.Transaction
 // https://eth.wiki/json-rpc/API#eth_getTransactionCount
 func (api *ethAPI) GetTransactionCount(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Uint64, error) {
 	// ignore blockNumber temporary
-	nonce, err := api.backend.GetNonce(addr)
-	if err != nil {
-		return nil, err
-	}
+	nonce, _ := api.backend.GetNonce(addr)
 	nonceU64 := hexutil.Uint64(nonce)
 	return &nonceU64, nil
 }
