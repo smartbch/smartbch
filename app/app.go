@@ -70,6 +70,8 @@ const (
 
 	BlockMaxBytes = 24 * 1024 * 1024 // 24MB
 	BlockMaxGas   = 900_000_000_000
+
+	DefaultTrunkCacheSize = 200
 )
 
 type App struct {
@@ -157,8 +159,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.numKeptBlocks = int64(config.NumKeptBlocks)
 	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config)
-	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
+	app.trunk = app.root.GetTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
 
 	/*------set util------*/
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
@@ -647,6 +649,7 @@ func (app *App) refresh() {
 	staking.SaveMinGasPrice(ctx, mGP, true)
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
+	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	app.trunk.Close(true)
 	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
@@ -707,8 +710,8 @@ func (app *App) refresh() {
 	app.lastProposer = app.block.Miner
 	app.lastCommitInfo = app.lastCommitInfo[:0]
 	app.root.SetHeight(app.currHeight + 1)
-	app.trunk = app.root.GetTrunkStore().(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore().(*store.TrunkStore)
+	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
 }
 
