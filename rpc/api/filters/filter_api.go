@@ -278,7 +278,10 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 		return nil, err
 	}
 	//fmt.Printf("Why? begin %d end %d logs %#v\n", begin, end, logs)
-	return motypes.ToGethLogs(logs), nil
+	gethLogs := motypes.ToGethLogs(logs)
+	gethLogs = filterLogs(gethLogs, nil, nil, crit.Addresses, crit.Topics)
+
+	return gethLogs, nil
 }
 
 // returnHashes is a helper that will return an empty hash array case the given hash array is nil,

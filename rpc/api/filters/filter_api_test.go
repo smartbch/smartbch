@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -289,6 +290,152 @@ func TestGetLogs_addrFilter(t *testing.T) {
 	logs, err = _api.GetLogs(f3)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
+}
+
+func TestGetLogs_OneTx(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createFiltersAPI(_app)
+
+	blk := testutils.NewMdbBlockBuilder().
+		Height(0x222ef).
+		Hash(gethcmn.HexToHash("0x7b61ffc31c9cbf2365d76d406976cd00694879bdb4ecd7aaa2bde0a11bdf1a4b")).
+		Tx(gethcmn.HexToHash("0x652e16e6f6d7c473488f6b95995dfe68ebb3b413d29f6422e676576eabf261b7"),
+			types.Log{Address: gethcmn.HexToAddress("0xc801a4862e5c877e46065d8547fdb3220ff441f5"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+					gethcmn.HexToHash("0x0000000000000000000000002c4487b596b6034d6a8634616a8fd9934434d20b"),
+					gethcmn.HexToHash("0x000000000000000000000000a112caaefecb231b91779a9e68c12080672fcc81"),
+				},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0xc801a4862e5c877e46065d8547fdb3220ff441f5"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"),
+					gethcmn.HexToHash("0x0000000000000000000000002c4487b596b6034d6a8634616a8fd9934434d20b"),
+					gethcmn.HexToHash("0x000000000000000000000000a207d13e6f65799c9ab42ade81ed49f05b3b6f5d"),
+				},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0x4272d9d470e71f00adb91fbf0ea8276959e4e15d"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+					gethcmn.HexToHash("0x0000000000000000000000002c4487b596b6034d6a8634616a8fd9934434d20b"),
+					gethcmn.HexToHash("0x000000000000000000000000a112caaefecb231b91779a9e68c12080672fcc81"),
+				},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0x4272d9d470e71f00adb91fbf0ea8276959e4e15d"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"),
+					gethcmn.HexToHash("0x0000000000000000000000002c4487b596b6034d6a8634616a8fd9934434d20b"),
+					gethcmn.HexToHash("0x000000000000000000000000a207d13e6f65799c9ab42ade81ed49f05b3b6f5d"),
+				},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+					gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+					gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+				},
+				Data: []byte{0xDA, 0x01},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+					gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
+					gethcmn.HexToHash("0x0000000000000000000000002c4487b596b6034d6a8634616a8fd9934434d20b"),
+				},
+				Data: []byte{0xDA, 0x02},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"),
+					gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				},
+				Data: []byte{0xDA, 0x03},
+			},
+			types.Log{Address: gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81"),
+				Topics: [][32]byte{
+					gethcmn.HexToHash("0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f"),
+					gethcmn.HexToHash("0x000000000000000000000000a207d13e6f65799c9ab42ade81ed49f05b3b6f5d"),
+				},
+				Data: []byte{0xDA, 0x04},
+			},
+		).
+		Build()
+	//_app.AddBlocksToHistory(blk)
+	addBlock(_app, blk)
+
+	logs, err := _api.GetLogs(gethfilters.FilterCriteria{
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(0x222ef + 1),
+		Addresses: []gethcmn.Address{gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81")},
+		// Topics: [] “anything”
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 4)
+	require.Equal(t, []byte{0xDA, 0x01}, logs[0].Data)
+	require.Equal(t, []byte{0xDA, 0x02}, logs[1].Data)
+	require.Equal(t, []byte{0xDA, 0x03}, logs[2].Data)
+	require.Equal(t, []byte{0xDA, 0x04}, logs[3].Data)
+
+	logs, err = _api.GetLogs(gethfilters.FilterCriteria{
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(0x222ef + 1),
+		Addresses: []gethcmn.Address{gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81")},
+		// [A] “A in first position (and anything after)”
+		Topics: [][]gethcmn.Hash{{gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")}},
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 2)
+	require.Equal(t, []byte{0xDA, 0x01}, logs[0].Data)
+	require.Equal(t, []byte{0xDA, 0x02}, logs[1].Data)
+
+	logs, err = _api.GetLogs(gethfilters.FilterCriteria{
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(0x222ef + 1),
+		Addresses: []gethcmn.Address{gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81")},
+		// [null, B] “anything in first position AND B in second position (and anything after)”
+		Topics: [][]gethcmn.Hash{{}, {gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")}},
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 2)
+	require.Equal(t, []byte{0xDA, 0x01}, logs[0].Data)
+	require.Equal(t, []byte{0xDA, 0x03}, logs[1].Data)
+
+	logs, err = _api.GetLogs(gethfilters.FilterCriteria{
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(0x222ef + 1),
+		Addresses: []gethcmn.Address{gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81")},
+		// [A, B] “A in first position AND B in second position (and anything after)”
+		Topics: [][]gethcmn.Hash{
+			{gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")},
+			{gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+	require.Equal(t, []byte{0xDA, 0x02}, logs[0].Data)
+
+	logs, err = _api.GetLogs(gethfilters.FilterCriteria{
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(0x222ef + 1),
+		Addresses: []gethcmn.Address{gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81")},
+		// [[A, B], [A, B]] “(A OR B) in first position AND (A OR B) in second position (and anything after)”
+		Topics: [][]gethcmn.Hash{
+			{
+				gethcmn.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+				gethcmn.HexToHash("0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"),
+			},
+			{
+				gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				gethcmn.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 3)
+	require.Equal(t, []byte{0xDA, 0x01}, logs[0].Data)
+	require.Equal(t, []byte{0xDA, 0x02}, logs[1].Data)
+	require.Equal(t, []byte{0xDA, 0x03}, logs[2].Data)
 }
 
 func createFiltersAPI(_app *testutils.TestApp) PublicFilterAPI {
