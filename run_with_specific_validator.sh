@@ -32,4 +32,5 @@ rm -rf "$HOME"
 
 cp ./priv_validator_key.json "$HOME"/config/
 
-./build/smartbchd start --home="$HOME" --mainnet-url=http://135.181.219.10:8432/ --mainnet-user=user --mainnet-password=
+#./build/smartbchd start --home="$HOME" --mainnet-url=http://135.181.219.10:8432/ --mainnet-genesis-height=20 --mainnet-user=user --mainnet-password=
+./build/smartbchd start --home="$HOME" --mainnet-url=http://127.0.0.1:1234/

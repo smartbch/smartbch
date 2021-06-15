@@ -22,7 +22,7 @@ const (
 
 type JsonRpcError struct {
 	Code    int `json:"code"`
-	Message int `json:"messsage"`
+	Message int `json:"message"`
 }
 
 type BlockCountResp struct {
@@ -88,7 +88,7 @@ type TxInfo struct {
 	BlockTime     int64                    `json:"blocktime"`
 }
 
-func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, ok bool) {
+func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, success bool) {
 	for _, vout := range ti.VoutList {
 		asm, ok := vout.ScriptPubKey["asm"]
 		if !ok || asm == nil {
@@ -111,6 +111,7 @@ func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, ok bool) {
 			continue
 		}
 		copy(pubKey[:], bz)
+		success = true
 		break
 	}
 	return
@@ -229,6 +230,9 @@ func (client *RpcClient) getCurrHeight() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+	if blockCountResp.Error.Code < 0 {
+		return blockCountResp.Result, fmt.Errorf("getCurrHeight error, code:%d, msg:%d\n", blockCountResp.Error.Code, blockCountResp.Error.Message)
+	}
 	return blockCountResp.Result, nil
 }
 
@@ -241,6 +245,9 @@ func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
 	err = json.Unmarshal(respData, &blockHashResp)
 	if err != nil {
 		return "", err
+	}
+	if blockHashResp.Error.Code < 0 {
+		return blockHashResp.Result, fmt.Errorf("getBlockHashOfHeight error, code:%d, msg:%d\n", blockHashResp.Error.Code, blockHashResp.Error.Message)
 	}
 	return blockHashResp.Result, nil
 }
@@ -256,6 +263,9 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if blockInfoResp.Error.Code < 0 {
+		return &blockInfoResp.Result, fmt.Errorf("getBlock error, code:%d, msg:%d\n", blockInfoResp.Error.Code, blockInfoResp.Error.Message)
+	}
 	return &blockInfoResp.Result, nil
 }
 
@@ -269,6 +279,9 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 	err = json.Unmarshal(respData, &txInfoResp)
 	if err != nil {
 		return nil, err
+	}
+	if txInfoResp.Error.Code < 0 {
+		return &txInfoResp.Result, fmt.Errorf("getTx error, code:%d, msg:%d\n", txInfoResp.Error.Code, txInfoResp.Error.Message)
 	}
 	return &txInfoResp.Result, nil
 }

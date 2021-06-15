@@ -501,7 +501,11 @@ func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [
 // switch to a new epoch
 func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator {
 	//check epoch validity first
-	if len(epoch.ValMapByPubkey) < int(NumBlocksInEpoch)*MinVotingPercentPerEpoch/100 {
+	totalNomination := int64(0)
+	for _, n := range epoch.ValMapByPubkey {
+		totalNomination += n.NominatedCount
+	}
+	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
 		fmt.Println("voting count in epoch too small:", len(epoch.ValMapByPubkey))
 		return nil
 	}

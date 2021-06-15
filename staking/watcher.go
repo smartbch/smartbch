@@ -69,6 +69,7 @@ func (watcher *Watcher) Run() {
 			}
 		}
 		for i := 10; missingBlockHash != nil && i > 0; i-- { // if chain reorg happens, we trace the new tip
+			fmt.Println("get missing block:", missingBlockHash)
 			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
 			if blk == nil {
 				panic("BCH mainnet tip should has its parent block")
@@ -91,6 +92,8 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		if blk.ParentBlk == [32]byte{} {
 			return nil
 		}
+		fmt.Println("parent hash:", blk.ParentBlk)
+		fmt.Println("current block height:", blk.Height)
 		return &blk.ParentBlk
 	}
 	// On BCH mainnet, a block need 10 confirmation to finalize
