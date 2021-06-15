@@ -65,6 +65,9 @@ var (
 	EpochCountBeforeRewardMature int64        = 1
 	BaseProposerPercentage       *uint256.Int = uint256.NewInt().SetUint64(15)
 	ExtraProposerPercentage      *uint256.Int = uint256.NewInt().SetUint64(15)
+	//epoch
+	MinVotingPercentPerEpoch        = 10 //10 percent in NumBlocksInEpoch, like 2016 / 10 = 201
+	MinVotingPubKeysPercentPerEpoch = 34 //34 percent in active validators,
 
 	//minGasPrice
 	//todo: set to 0 for test, change it for product
@@ -497,6 +500,17 @@ func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [
 
 // switch to a new epoch
 func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator {
+	//check epoch validity first
+	if len(epoch.ValMapByPubkey) < int(NumBlocksInEpoch)*MinVotingPercentPerEpoch/100 {
+		fmt.Println("voting count in epoch too small:", len(epoch.ValMapByPubkey))
+		return nil
+	}
+	_, info := LoadStakingAcc(ctx)
+	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	if len(epoch.ValMapByPubkey) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
+		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
+		return nil
+	}
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.ValMapByPubkey {
 		pubkey2power[v.Pubkey] = v.NominatedCount
@@ -509,7 +523,7 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	// payback staking coins to rewardTo of useless validators and delete these validators
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
-	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	activeValidators = info.GetActiveValidators(MinimumStakingAmount)
 	for _, val := range activeValidators {
 		pr := &types.PendingReward{
 			Address:  val.Address,

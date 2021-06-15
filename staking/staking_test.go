@@ -156,6 +156,7 @@ func TestSwitchEpoch(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+	staking.MinVotingPercentPerEpoch = 0
 	ctx := _app.GetRunTxContext()
 	//build new epoch
 	e := &types2.Epoch{
