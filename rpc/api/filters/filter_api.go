@@ -273,15 +273,13 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 		end = crit.ToBlock.Int64()
 	}
 
-	logs, err := api.backend.QueryLogs(crit.Addresses, crit.Topics, uint32(begin), uint32(end+1))
+	logs, err := api.backend.QueryLogs(crit.Addresses, crit.Topics, uint32(begin), uint32(end+1), filterFunc)
 	if err != nil {
 		return nil, err
 	}
 	//fmt.Printf("Why? begin %d end %d logs %#v\n", begin, end, logs)
-	gethLogs := motypes.ToGethLogs(logs)
-	gethLogs = filterLogs(gethLogs, nil, nil, crit.Addresses, crit.Topics)
 
-	return gethLogs, nil
+	return motypes.ToGethLogs(logs), nil
 }
 
 // returnHashes is a helper that will return an empty hash array case the given hash array is nil,

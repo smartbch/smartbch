@@ -11,6 +11,10 @@ import (
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
+func filterFunc(addr gethcmn.Address, topics []gethcmn.Hash, addrList []gethcmn.Address, topicsList [][]gethcmn.Hash) (ok bool) {
+	return true
+}
+
 func TestGetBlock(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	defer _app.Destroy()
@@ -60,31 +64,31 @@ func TestQueryLogs(t *testing.T) {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 
-	logs, err := ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{}, 1, 2)
+	logs, err := ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}}, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{}, {topic2}}, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{}, {topic2}}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}, {topic2}}, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1}, [][]gethcmn.Hash{{topic1}, {topic2}}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}}, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{}, {topic2, topic4}}, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{}, {topic2, topic4}}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}, {topic2, topic4}}, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr1, addr2}, [][]gethcmn.Hash{{topic1, topic3}, {topic2, topic4}}, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 }
@@ -112,12 +116,12 @@ func TestGetLogsMaxResults(t *testing.T) {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
 
-	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)
+	logs, err := ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2, filterFunc)
 	require.NoError(t, err)
 	require.Len(t, logs, 10)
 
 	_app.HistoryStore().SetMaxEntryCount(5)
-	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2)
+	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2, filterFunc)
 	require.Equal(t, "too many candidicate entries to be returned, please limit the difference between startHeight and endHeight", err.Error())
 	require.Len(t, logs, 0)
 }

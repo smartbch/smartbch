@@ -266,10 +266,32 @@ func includes(addresses []common.Address, a common.Address) bool {
 	return false
 }
 
+func filterFunc(addr common.Address, topics []common.Hash, addrList []common.Address, topicsList [][]common.Hash) (ok bool) {
+	if len(addrList) > 0 && !includes(addrList, addr) {
+		return false
+	}
+	// If the to filtered topicsList is greater than the amount of topics in logs, skip.
+	if len(topicsList) > len(topics) {
+		return false
+	}
+	for i, sub := range topicsList {
+		match := len(sub) == 0 // empty rule set == wildcard
+		for _, topic := range sub {
+			if topics[i] == topic {
+				match = true
+				break
+			}
+		}
+		if !match {
+			return false
+		}
+	}
+	return true
+}
+
 // filterLogs creates a slice of logs matching the given criteria.
 func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash) []*types.Log {
 	var ret []*types.Log
-Logs:
 	for _, log := range logs {
 		if fromBlock != nil && fromBlock.Int64() >= 0 && fromBlock.Uint64() > log.BlockNumber {
 			continue
@@ -278,26 +300,9 @@ Logs:
 			continue
 		}
 
-		if len(addresses) > 0 && !includes(addresses, log.Address) {
-			continue
+		if filterFunc(log.Address, log.Topics, addresses, topics) {
+			ret = append(ret, log)
 		}
-		// If the to filtered topics is greater than the amount of topics in logs, skip.
-		if len(topics) > len(log.Topics) {
-			continue Logs
-		}
-		for i, sub := range topics {
-			match := len(sub) == 0 // empty rule set == wildcard
-			for _, topic := range sub {
-				if log.Topics[i] == topic {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue Logs
-			}
-		}
-		ret = append(ret, log)
 	}
 	return ret
 }

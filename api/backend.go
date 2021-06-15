@@ -193,11 +193,11 @@ func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.
 	return runner.Status, runner.OutData, gas
 }
 
-func (backend *apiBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32) ([]types.Log, error) {
+func (backend *apiBackend) QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter types.FilterFunc) ([]types.Log, error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
-	return ctx.QueryLogs(addresses, topics, startHeight, endHeight)
+	return ctx.QueryLogs(addresses, topics, startHeight, endHeight, filter)
 }
 
 func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
