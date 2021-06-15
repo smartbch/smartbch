@@ -370,7 +370,7 @@ func TestQueryLogs_limit(t *testing.T) {
 	require.Len(t, logs, 5)
 }
 
-func TestQueryLogs_bug(t *testing.T) {
+func TestQueryLogs_OneTx(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	defer _app.Destroy()
 	_api := createSbchAPI(_app)
