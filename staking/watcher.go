@@ -9,7 +9,7 @@ import (
 
 var (
 	//NumBlocksInEpoch       int64 = 2016
-	NumBlocksInEpoch       int64 = 30
+	NumBlocksInEpoch int64 = 30
 	//NumBlocksToClearMemory int64 = 100000
 	NumBlocksToClearMemory int64 = 1000
 	//WaitingBlockDelayTime  int64 = 5 * 60

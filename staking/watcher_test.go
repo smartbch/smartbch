@@ -118,13 +118,13 @@ func TestRun(t *testing.T) {
 	go w.Run()
 	time.Sleep(1 * time.Second)
 	require.Equal(t, 2, len(w.epochList))
-	require.Equal(t, 30, len(w.hashToBlock))
+	require.Equal(t, 70, len(w.hashToBlock))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
 		require.True(t, h == b.HashId)
 	}
-	require.Equal(t, 20, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(20), w.latestFinalizedHeight)
+	require.Equal(t, 60, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(60), w.latestFinalizedHeight)
 }
 
 func TestRunWithNewEpoch(t *testing.T) {

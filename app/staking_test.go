@@ -189,8 +189,8 @@ func TestStaking(t *testing.T) {
 	ctx = _app.GetRunTxContext()
 	_, info = staking.LoadStakingAcc(ctx)
 	ctx.Close(false)
-	require.Equal(t, 1, len(info.Validators))
-	require.Equal(t, int64(2), info.Validators[0].VotingPower)
+	require.Equal(t, 2, len(info.Validators))
+	require.Equal(t, int64(1), info.Validators[0].VotingPower)
 }
 
 //func TestStakingUpdate(t *testing.T) {

@@ -573,15 +573,17 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 
 	select {
 	case epoch := <-app.watcher.EpochChan:
-		fmt.Printf("get new epoch in commit, its startHeight is:%d\n", epoch.StartHeight)
 		app.epochList = append(app.epochList, epoch)
+		fmt.Printf("get new epoch in commit, its startHeight is:%d, len of epochList:%d\n", epoch.StartHeight, len(app.epochList))
 	default:
 		//fmt.Println("no new epoch")
 	}
 	var newValidators []*stakingtypes.Validator
 	if len(app.epochList) != 0 {
 		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
-		if app.block.Timestamp > app.epochList[0].EndTime+10 /*100 second*/ {
+		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
+		if app.block.Timestamp > app.epochList[0].EndTime+3*10+10 /*100 second*/ {
+			fmt.Printf("switch epoch, height:%d,blockTime:%d,endTime:%d\n", app.block.Number, app.block.Timestamp, app.epochList[0].EndTime)
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			app.epochList = app.epochList[1:]
 		} else {
@@ -591,6 +593,9 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 	}
 	app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
+	for _, v := range app.validatorUpdate {
+		fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
+	}
 	acc, newInfo := staking.LoadStakingAcc(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, acc, newInfo)

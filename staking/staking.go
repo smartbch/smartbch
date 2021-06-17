@@ -534,6 +534,7 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 			EpochNum: info.CurrEpochNum,
 		}
 		info.PendingRewards = append(info.PendingRewards, pr)
+		fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
 	}
 	SaveStakingInfo(ctx, stakingAcc, info)
 	return activeValidators
