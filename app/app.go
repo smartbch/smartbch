@@ -367,7 +367,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		}
 
 		app.createGenesisAccs(genesisData.Alloc)
-		genesisValidators = genesisData.Validators
+		genesisValidators = genesisData.stakingValidators()
 	}
 
 	if len(genesisValidators) == 0 {

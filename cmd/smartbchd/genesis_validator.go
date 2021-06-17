@@ -161,7 +161,7 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			gData.Validators = append(gData.Validators, &v)
+			gData.Validators = append(gData.Validators, app.FromStakingValidator(&v))
 			genDoc.AppState, err = json.Marshal(gData)
 			if err != nil {
 				return err

@@ -22,5 +22,6 @@ func newTendermintAPI(backend api.BackendService) TendermintAPI {
 
 func (tm *tmAPI) NodeInfo() json.RawMessage {
 	nodeInfo := tm.backend.NodeInfo()
-	return marshalNodeInfo(nodeInfo)
+	bytes, _ := json.Marshal(nodeInfo)
+	return bytes
 }

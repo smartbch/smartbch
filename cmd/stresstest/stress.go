@@ -27,7 +27,6 @@ import (
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
-	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 type RocksDB = indextree.RocksDB
@@ -359,7 +358,7 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 		genesisData := app.GenesisData{
 			Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),
 		}
-		testValidator := &stakingtypes.Validator{}
+		testValidator := &app.Validator{}
 		copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
 		copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
 		copy(testValidator.StakedCoins[:], staking.MinimumStakingAmount.Bytes())
