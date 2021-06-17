@@ -210,7 +210,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	client := staking.NewRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
 	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
 	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
-	go app.watcher.Run()
+	catchupChan := make(chan bool, 1)
+	go app.watcher.Run(catchupChan)
+	<-catchupChan
 
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)

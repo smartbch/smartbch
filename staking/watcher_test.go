@@ -115,16 +115,18 @@ func (m *MockEpochConsumer) consume() {
 func TestRun(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w := NewWatcher(0, client)
-	go w.Run()
+	catchupChan := make(chan bool, 1)
+	go w.Run(catchupChan)
+	<-catchupChan
 	time.Sleep(1 * time.Second)
-	require.Equal(t, 2, len(w.epochList))
-	require.Equal(t, 70, len(w.hashToBlock))
+	require.Equal(t, 3, len(w.epochList))
+	require.Equal(t, 100, len(w.hashToBlock))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
 		require.True(t, h == b.HashId)
 	}
-	require.Equal(t, 60, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(60), w.latestFinalizedHeight)
+	require.Equal(t, 90, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(90), w.latestFinalizedHeight)
 }
 
 func TestRunWithNewEpoch(t *testing.T) {
@@ -134,7 +136,9 @@ func TestRunWithNewEpoch(t *testing.T) {
 		w: w,
 	}
 	NumBlocksInEpoch = 10
-	go w.Run()
+	catchupChan := make(chan bool, 1)
+	go w.Run(catchupChan)
+	<-catchupChan
 	go c.consume()
 	time.Sleep(3 * time.Second)
 	//test watcher clear
@@ -162,7 +166,9 @@ func TestRunWithFork(t *testing.T) {
 	w := NewWatcher(0, client)
 	NumBlocksToClearMemory = 100
 	NumBlocksInEpoch = 1000
-	go w.Run()
+	catchupChan := make(chan bool, 1)
+	go w.Run(catchupChan)
+	<-catchupChan
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))
 	require.Equal(t, int(0), len(w.hashToBlock))
