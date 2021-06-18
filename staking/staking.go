@@ -500,27 +500,48 @@ func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [
 
 // switch to a new epoch
 func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator {
-	//check epoch validity first
-	totalNomination := int64(0)
-	for _, n := range epoch.ValMapByPubkey {
-		totalNomination += n.NominatedCount
-	}
-	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
-		fmt.Println("voting count in epoch too small:", len(epoch.ValMapByPubkey))
-		return nil
-	}
-	_, info := LoadStakingAcc(ctx)
-	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if len(epoch.ValMapByPubkey) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
-		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
-		return nil
-	}
+	stakingAcc, info := LoadStakingAcc(ctx)
+	//increase currEpochNum no matter if epoch is valid
+	info.CurrEpochNum++
+	fmt.Printf("curent epoch:%d\n", info.CurrEpochNum)
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.ValMapByPubkey {
 		pubkey2power[v.Pubkey] = v.NominatedCount
 	}
 	// distribute mature pending reward to rewardTo
-	stakingAcc, info := endEpoch(ctx)
+	endEpoch(ctx, stakingAcc, &info)
+	//check epoch validity
+	totalNomination := int64(0)
+	for _, n := range epoch.ValMapByPubkey {
+		totalNomination += n.NominatedCount
+	}
+	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
+		fmt.Println("voting count in epoch too small:", len(epoch.ValMapByPubkey))
+		for _, val := range activeValidators {
+			pr := &types.PendingReward{
+				Address:  val.Address,
+				EpochNum: info.CurrEpochNum,
+			}
+			info.PendingRewards = append(info.PendingRewards, pr)
+			fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
+		}
+		SaveStakingInfo(ctx, stakingAcc, info)
+		return nil
+	}
+	if len(epoch.ValMapByPubkey) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
+		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
+		for _, val := range activeValidators {
+			pr := &types.PendingReward{
+				Address:  val.Address,
+				EpochNum: info.CurrEpochNum,
+			}
+			info.PendingRewards = append(info.PendingRewards, pr)
+			fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
+		}
+		SaveStakingInfo(ctx, stakingAcc, info)
+		return nil
+	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
 	// someone who call retire() before switchEpoch missed this update
 	updateVotingPower(&info, pubkey2power)
@@ -541,11 +562,8 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 }
 
 // deliver pending rewards which are mature now to rewardTo
-func endEpoch(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
-	stakingAcc, info = LoadStakingAcc(ctx)
-	info.CurrEpochNum++
+func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo) {
 	stakingAccBalance := stakingAcc.Balance()
-
 	newPRList := make([]*types.PendingReward, 0, len(info.PendingRewards))
 	valMapByAddr := info.GetValMapByAddr()
 	rewardMap := make(map[[20]byte]*uint256.Int)

@@ -180,8 +180,7 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 }
 
 func (client *RpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
-	//todo: modify to hash[:] later
-	return client.getBCHBlock(hex.EncodeToString(hash[:12]))
+	return client.getBCHBlock(hex.EncodeToString(hash[:]))
 }
 
 func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {

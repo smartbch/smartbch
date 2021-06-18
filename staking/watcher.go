@@ -1,6 +1,7 @@
 package staking
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -78,7 +79,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 			}
 		}
 		for i := 10; missingBlockHash != nil && i > 0; i-- { // if chain reorg happens, we trace the new tip
-			fmt.Println("get missing block:", missingBlockHash)
+			fmt.Println("get missing block:", hex.EncodeToString(missingBlockHash[:]))
 			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
 			if blk == nil {
 				panic("BCH mainnet tip should has its parent block")
