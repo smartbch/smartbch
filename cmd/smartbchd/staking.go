@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	flagRewardTo     = "reward_to"
-	flagType         = "type"
+	flagRewardTo = "reward_to"
+	flagType     = "type"
 )
 
 var stakingABI = testutils.MustParseABI(`
