@@ -534,7 +534,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
-	validatorsMayChange := len(app.slashValidators) != 0
 	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.lastProposer, app.lastVoters, &blockReward)
 	app.slashValidators = app.slashValidators[:0]
 
@@ -551,20 +550,16 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		if app.block.Timestamp > app.epochList[0].EndTime+3*10+10 /*100 second*/ {
 			fmt.Printf("switch epoch, height:%d,blockTime:%d,endTime:%d\n", app.block.Number, app.block.Timestamp, app.epochList[0].EndTime)
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
-			validatorsMayChange = true
 			app.epochList = app.epochList[1:]
 		}
 	}
-	app.validatorUpdate = nil
-	if validatorsMayChange {
-		app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
-		for _, v := range app.validatorUpdate {
-			fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
-		}
-		acc, newInfo := staking.LoadStakingAcc(ctx)
-		newInfo.ValidatorsUpdate = app.validatorUpdate
-		staking.SaveStakingInfo(ctx, acc, newInfo)
+	app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
+	for _, v := range app.validatorUpdate {
+		fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
 	}
+	acc, newInfo := staking.LoadStakingAcc(ctx)
+	newInfo.ValidatorsUpdate = app.validatorUpdate
+	staking.SaveStakingInfo(ctx, acc, newInfo)
 	ctx.Close(true)
 
 	app.currValidators = newValidators
