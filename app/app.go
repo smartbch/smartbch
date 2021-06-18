@@ -359,25 +359,24 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	//fmt.Printf("InitChain!!!!!\n")
 
-	ctx := app.GetRunTxContext()
-	var genesisValidators []*stakingtypes.Validator
-	if len(req.AppStateBytes) != 0 {
-		//fmt.Printf("appstate:%s\n", req.AppStateBytes)
-		genesisData := GenesisData{}
-		err := json.Unmarshal(req.AppStateBytes, &genesisData)
-		if err != nil {
-			panic(err)
-		}
-
-		app.createGenesisAccs(genesisData.Alloc)
-		genesisValidators = genesisData.stakingValidators()
+	if len(req.AppStateBytes) == 0 {
+		panic("no AppStateBytes")
 	}
 
+	genesisData := GenesisData{}
+	err := json.Unmarshal(req.AppStateBytes, &genesisData)
+	if err != nil {
+		panic(err)
+	}
+
+	app.createGenesisAccs(genesisData.Alloc)
+	genesisValidators := genesisData.stakingValidators()
 	if len(genesisValidators) == 0 {
 		panic("no genesis validator in genesis.json")
 	}
 
 	//store all genesis validators even if it is inactive
+	ctx := app.GetRunTxContext()
 	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
 	if stakingAcc == nil {
 		panic("Cannot find staking contract")
@@ -395,13 +394,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	staking.SaveStakingInfo(ctx, stakingAcc, info)
 	ctx.Close(true)
 
-	var activeValidator []*stakingtypes.Validator
-	for _, v := range genesisValidators {
-		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
-			activeValidator = append(activeValidator, v)
-		}
-	}
-	app.currValidators = activeValidator
+	app.currValidators = getActiveValidators(genesisValidators)
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -443,6 +436,16 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 
 	rbt.Close()
 	rbt.WriteBack()
+}
+
+func getActiveValidators(allValidators []*stakingtypes.Validator) []*stakingtypes.Validator {
+	var activeValidators []*stakingtypes.Validator
+	for _, v := range allValidators {
+		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
+			activeValidators = append(activeValidators, v)
+		}
+	}
+	return activeValidators
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
