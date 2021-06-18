@@ -94,7 +94,7 @@ type App struct {
 	block           *types.Block
 	blockInfo       atomic.Value // to store *types.BlockInfo
 	slashValidators [][20]byte
-	lastCommitInfo  [][]byte
+	lastVoters      [][]byte
 	lastProposer    [20]byte
 	lastGasUsed     uint64
 	lastGasRefund   uint256.Int
@@ -195,6 +195,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.txEngine.SetContext(app.GetRunTxContext())
 	}
 
+	/*------set stakingInfo------*/
 	acc, stakingInfo := staking.LoadStakingAcc(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
@@ -359,42 +360,35 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	app.logger.Debug("enter init chain!, id=", req.ChainId)
 	//fmt.Printf("InitChain!!!!!\n")
 
-	if len(req.AppStateBytes) == 0 {
-		panic("no AppStateBytes")
+	ctx := app.GetRunTxContext()
+	var genesisValidators []*stakingtypes.Validator
+	if len(req.AppStateBytes) != 0 {
+		//fmt.Printf("appstate:%s\n", req.AppStateBytes)
+		genesisData := GenesisData{}
+		err := json.Unmarshal(req.AppStateBytes, &genesisData)
+		if err != nil {
+			panic(err)
+		}
+
+		app.createGenesisAccs(genesisData.Alloc)
+		genesisValidators = genesisData.stakingValidators()
 	}
 
-	genesisData := GenesisData{}
-	err := json.Unmarshal(req.AppStateBytes, &genesisData)
-	if err != nil {
-		panic(err)
-	}
-
-	app.createGenesisAccs(genesisData.Alloc)
-	genesisValidators := genesisData.stakingValidators()
 	if len(genesisValidators) == 0 {
 		panic("no genesis validator in genesis.json")
 	}
 
 	//store all genesis validators even if it is inactive
-	ctx := app.GetRunTxContext()
-	stakingAcc := ctx.GetAccount(staking.StakingContractAddress)
-	if stakingAcc == nil {
-		panic("Cannot find staking contract")
-	}
-	info := stakingtypes.StakingInfo{
-		CurrEpochNum:   0,
-		Validators:     genesisValidators,
-		PendingRewards: make([]*stakingtypes.PendingReward, len(app.currValidators)),
-	}
-	for i := range info.PendingRewards {
-		info.PendingRewards[i] = &stakingtypes.PendingReward{
-			Address: genesisValidators[i].Address,
-		}
-	}
-	staking.SaveStakingInfo(ctx, stakingAcc, info)
+	staking.InitStakingInfoFromGenesis(ctx, genesisValidators)
 	ctx.Close(true)
 
-	app.currValidators = getActiveValidators(genesisValidators)
+	var activeValidator []*stakingtypes.Validator
+	for _, v := range genesisValidators {
+		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
+			activeValidator = append(activeValidator, v)
+		}
+	}
+	app.currValidators = activeValidator
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -448,6 +442,7 @@ func getActiveValidators(allValidators []*stakingtypes.Validator) []*stakingtype
 	return activeValidators
 }
 
+
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
 	//fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
 	//app.randomPanic(5000, 7919)
@@ -461,7 +456,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	fmt.Printf("PROPOSER: %s\n", gethcmn.Address(app.lastProposer).String())
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
-			app.lastCommitInfo = append(app.lastCommitInfo, v.Validator.Address) //this is validator consensus address
+			app.lastVoters = append(app.lastVoters, v.Validator.Address) //this is validator consensus address
 		}
 	}
 	copy(app.block.ParentHash[:], req.Header.LastBlockId.Hash)
@@ -522,26 +517,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
-	_, info := staking.LoadStakingAcc(ctx)
-
-	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
-	var consAddr [20]byte
-	for _, v := range info.Validators {
-		copy(consAddr[:], ed25519.PubKey(v.Pubkey[:]).Address().Bytes())
-		pubkeyMapByConsAddr[consAddr] = v.Pubkey
-	}
-	//slash first
-	for _, v := range app.slashValidators {
-		staking.Slash(ctx, pubkeyMapByConsAddr[v], staking.SlashedStakingAmount)
-	}
-	app.slashValidators = nil
 	//distribute previous block gas gee
-	voters := make([][32]byte, len(app.lastCommitInfo))
-	var tmpAddr [20]byte
-	for i, c := range app.lastCommitInfo {
-		copy(tmpAddr[:], c)
-		voters[i] = pubkeyMapByConsAddr[tmpAddr]
-	}
 	var blockReward = app.lastGasFee
 	if !app.lastGasFee.IsZero() {
 		if !app.lastGasRefund.IsZero() {
@@ -556,11 +532,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	if sysB.Cmp(&app.lastGasFee) < 0 {
 		panic("system balance not enough!")
 	}
-	if app.txEngine.StandbyQLen() != 0 {
-		//if sysB.Cmp(uint256.NewInt()) <= 0 {
-		//	panic("system account balance should have some pending gas fee")
-		//}
-	} else {
+	if app.txEngine.StandbyQLen() == 0 {
 		// distribute extra balance to validators
 		blockReward = *sysB
 	}
@@ -571,11 +543,10 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 			panic(err)
 		}
 	}
-	if app.currHeight != 1 {
-		staking.DistributeFee(ctx, &blockReward, pubkeyMapByConsAddr[app.lastProposer], voters)
-	} else {
-		staking.LoadReadonlyValiatorsInfo(ctx)
-	}
+
+	validatorsMayChange := len(app.slashValidators) != 0
+	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.lastProposer, app.lastVoters, &blockReward)
+	app.slashValidators = app.slashValidators[:0]
 
 	select {
 	case epoch := <-app.watcher.EpochChan:
@@ -584,27 +555,26 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	default:
 		//fmt.Println("no new epoch")
 	}
-	var newValidators []*stakingtypes.Validator
 	if len(app.epochList) != 0 {
 		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
 		if app.block.Timestamp > app.epochList[0].EndTime+3*10+10 /*100 second*/ {
 			fmt.Printf("switch epoch, height:%d,blockTime:%d,endTime:%d\n", app.block.Number, app.block.Timestamp, app.epochList[0].EndTime)
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			validatorsMayChange = true
 			app.epochList = app.epochList[1:]
-		} else {
-			newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 		}
-	} else {
-		newValidators = info.GetActiveValidators(staking.MinimumStakingAmount)
 	}
-	app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
-	for _, v := range app.validatorUpdate {
-		fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
+	app.validatorUpdate = nil
+	if validatorsMayChange {
+		app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
+		for _, v := range app.validatorUpdate {
+			fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
+		}
+		acc, newInfo := staking.LoadStakingAcc(ctx)
+		newInfo.ValidatorsUpdate = app.validatorUpdate
+		staking.SaveStakingInfo(ctx, acc, newInfo)
 	}
-	acc, newInfo := staking.LoadStakingAcc(ctx)
-	newInfo.ValidatorsUpdate = app.validatorUpdate
-	staking.SaveStakingInfo(ctx, acc, newInfo)
 	ctx.Close(true)
 
 	app.currValidators = newValidators
@@ -719,7 +689,7 @@ func (app *App) refresh() {
 	//make new
 	app.recheckCounter = 0 // reset counter before counting the remained TXs which need rechecking
 	app.lastProposer = app.block.Miner
-	app.lastCommitInfo = app.lastCommitInfo[:0]
+	app.lastVoters = app.lastVoters[:0]
 	app.root.SetHeight(app.currHeight + 1)
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)

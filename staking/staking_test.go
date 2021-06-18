@@ -193,8 +193,8 @@ func TestSwitchEpoch(t *testing.T) {
 	voters := make([][32]byte, 2)
 	voters[0] = pubkey
 	voters[1] = info.Validators[1].Pubkey
-	staking.DistributeFee(ctx, collectedFee, pubkey, voters)
 	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	staking.DistributeFee(ctx, stakingAcc, &info, collectedFee, pubkey, voters)
 
 	var voterReward *types2.PendingReward
 	var proposerReward *types2.PendingReward
@@ -241,7 +241,7 @@ func TestSlash(t *testing.T) {
 	stakingAcc, info := staking.LoadStakingAcc(ctx)
 	info.Validators[0].StakedCoins[31] = 100
 	staking.SaveStakingInfo(ctx, stakingAcc, info)
-	totalSlashed := staking.Slash(ctx, slashedPubkey, uint256.NewInt().SetUint64(1))
+	totalSlashed := staking.Slash(ctx, stakingAcc, &info, slashedPubkey, uint256.NewInt().SetUint64(1))
 	require.Equal(t, uint64(1), totalSlashed.Uint64())
 	allBurnt := uint256.NewInt()
 	bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotAllBurnt)

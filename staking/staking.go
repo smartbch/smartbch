@@ -10,10 +10,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
-
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -171,7 +171,11 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 	}
 	summedPower := int64(0)
 	totalPower := int64(0)
-	for _, val := range readonlyStakingInfo.Validators {
+	validators := []*types.Validator{}
+	if readonlyStakingInfo != nil {
+		validators = readonlyStakingInfo.Validators
+	}
+	for _, val := range validators {
 		_, hasValidator := addrMap[val.Address]
 		_, hasRewardTo := addrMap[val.RewardTo]
 		if hasValidator || hasRewardTo {
@@ -340,6 +344,24 @@ func LoadStakingAcc(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, 
 	return
 }
 
+func InitStakingInfoFromGenesis(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
+	stakingAcc := ctx.GetAccount(StakingContractAddress)
+	if stakingAcc == nil {
+		panic("Cannot find staking contract")
+	}
+	info := types.StakingInfo{
+		CurrEpochNum:   0,
+		Validators:     genesisValidators,
+		PendingRewards: make([]*types.PendingReward, len(genesisValidators)),
+	}
+	for i := range info.PendingRewards {
+		info.PendingRewards[i] = &types.PendingReward{
+			Address: genesisValidators[i].Address,
+		}
+	}
+	SaveStakingInfo(ctx, stakingAcc, info)
+}
+
 func SaveStakingInfo(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	bz, err := info.MarshalMsg(nil)
 	if err != nil {
@@ -382,9 +404,34 @@ func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 // =========================================================================================
 // Staking functions which cannot be invoked through smart contract calls
 
-// Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
-func Slash(ctx *mevmtypes.Context, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
+func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProposer [20]byte, lastVoters [][]byte, blockReward *uint256.Int) []*types.Validator {
 	stakingAcc, info := LoadStakingAcc(ctx)
+
+	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
+	var consAddr [20]byte
+	for _, v := range info.Validators {
+		copy(consAddr[:], ed25519.PubKey(v.Pubkey[:]).Address().Bytes())
+		pubkeyMapByConsAddr[consAddr] = v.Pubkey
+	}
+	//slash first
+	for _, v := range slashValidators {
+		Slash(ctx, stakingAcc, &info, pubkeyMapByConsAddr[v], SlashedStakingAmount)
+	}
+	voters := make([][32]byte, len(lastVoters))
+	var tmpAddr [20]byte
+	for i, c := range lastVoters {
+		copy(tmpAddr[:], c)
+		voters[i] = pubkeyMapByConsAddr[tmpAddr]
+	}
+	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[lastProposer], voters)
+	newValidators := info.GetActiveValidators(MinimumStakingAmount)
+	SaveStakingInfo(ctx, stakingAcc, info)
+	readonlyStakingInfo = &info
+	return newValidators
+}
+
+// Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
+func Slash(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
 		return // If tendermint works fine, we'll never reach here
@@ -421,13 +468,12 @@ func incrAllBurnt(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amo
 }
 
 // distribute the collected gas fee to validators who voted for current block
-func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
+func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
 	if collectedFee == nil {
 		return
 	}
 
 	// the collected fee is saved as stakingAcc's balance, just as the staked coins
-	stakingAcc, info := LoadStakingAcc(ctx)
 	stakingAccBalance := stakingAcc.Balance()
 	stakingAccBalance.Add(stakingAccBalance, collectedFee)
 	stakingAcc.UpdateBalance(stakingAccBalance)
@@ -493,9 +539,6 @@ func DistributeFee(ctx *mevmtypes.Context, collectedFee *uint256.Int, proposer [
 	coins.Add(coins, proposerExtraFee)
 	coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
 	rwd.Amount = coins.Bytes32()
-
-	readonlyStakingInfo = &info
-	SaveStakingInfo(ctx, stakingAcc, info)
 }
 
 // switch to a new epoch
@@ -558,6 +601,7 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 		fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
 	}
 	SaveStakingInfo(ctx, stakingAcc, info)
+	readonlyStakingInfo = &info
 	return activeValidators
 }
 
