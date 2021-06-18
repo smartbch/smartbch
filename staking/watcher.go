@@ -63,7 +63,9 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		blk := watcher.rpcClient.GetBlockByHeight(height)
 		if blk == nil { //make sure connected BCH mainnet node not pruning history blocks, so this case only means height is latest block
 			fmt.Println("wait new block...")
-			watcher.suspended(time.Duration(WaitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
+			if catchedUp {
+				watcher.suspended(time.Duration(WaitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
+			}
 			height--
 			continue
 		}
