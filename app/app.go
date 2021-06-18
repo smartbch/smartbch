@@ -834,6 +834,9 @@ func (app *App) BlockNum() int64 {
 	return app.block.Number
 }
 
+func (app *App) CurrValidators() []*stakingtypes.Validator {
+	return app.currValidators
+}
 func (app *App) ValidatorUpdate() []*stakingtypes.Validator {
 	return app.validatorUpdate
 }

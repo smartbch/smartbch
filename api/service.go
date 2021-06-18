@@ -105,4 +105,5 @@ type BackendService interface {
 
 	//tendermint info
 	NodeInfo() Info
+	ValidatorsInfo() ValidatorsInfo
 }

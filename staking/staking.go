@@ -638,7 +638,6 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 	}
 	stakingAcc.UpdateBalance(stakingAccBalance)
 	info.PendingRewards = newPRList
-	return
 }
 
 // Clear the old voting powers and assign pubkey2power to validators.
