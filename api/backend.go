@@ -396,7 +396,7 @@ type ValidatorsInfo struct {
 	CurrEpochNum              int64            `json:"currEpochNum"`
 	Validators                []*app.Validator `json:"validators"`
 	ValidatorsUpdate          []*app.Validator `json:"validatorsUpdate"`
-	PendingRewards            []*PendingReward `json:"rendingRewards"`
+	PendingRewards            []*PendingReward `json:"pendingRewards"`
 
 	// App
 	CurrValidators []*app.Validator `json:"currValidators"`
