@@ -561,28 +561,12 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
 		fmt.Println("voting count in epoch too small:", len(epoch.ValMapByPubkey))
-		for _, val := range activeValidators {
-			pr := &types.PendingReward{
-				Address:  val.Address,
-				EpochNum: info.CurrEpochNum,
-			}
-			info.PendingRewards = append(info.PendingRewards, pr)
-			fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
-		}
-		SaveStakingInfo(ctx, stakingAcc, info)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
 		return nil
 	}
 	if len(epoch.ValMapByPubkey) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
 		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
-		for _, val := range activeValidators {
-			pr := &types.PendingReward{
-				Address:  val.Address,
-				EpochNum: info.CurrEpochNum,
-			}
-			info.PendingRewards = append(info.PendingRewards, pr)
-			fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
-		}
-		SaveStakingInfo(ctx, stakingAcc, info)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
 		return nil
 	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
@@ -592,6 +576,11 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
 	activeValidators = info.GetActiveValidators(MinimumStakingAmount)
+	updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
+	return activeValidators
+}
+
+func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*types.Validator, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	for _, val := range activeValidators {
 		pr := &types.PendingReward{
 			Address:  val.Address,
@@ -602,7 +591,6 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	}
 	SaveStakingInfo(ctx, stakingAcc, info)
 	readonlyStakingInfo = &info
-	return activeValidators
 }
 
 // deliver pending rewards which are mature now to rewardTo
