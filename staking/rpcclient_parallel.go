@@ -33,7 +33,7 @@ func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	if height+20 < c.latestHeight {
 		c.rwLock.RLock()
 		block, found := c.preGetBlocks[height]
-		c.rwLock.Unlock()
+		c.rwLock.RUnlock()
 
 		if found {
 			return block
