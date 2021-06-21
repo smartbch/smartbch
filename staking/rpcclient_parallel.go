@@ -44,7 +44,7 @@ func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 			c.preGetMaxH = height + 11
 			fmt.Printf("pre fetch bch blocks: #%d ~ #%d, latest: #%d\n",
 				height+1, height+11, c.latestHeight)
-			go c.getBlocksAsync(height+1, 10)
+			c.getBlocksAsync(height+1, 10)
 		}
 	}
 
