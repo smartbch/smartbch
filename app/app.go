@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -922,5 +923,8 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*stakingtypes.Vali
 		addedV := *v
 		updatedList = append(updatedList, &addedV)
 	}
+	sort.Slice(updatedList, func(i, j int) bool {
+		return gethcmn.Address(updatedList[i].Address).String() < gethcmn.Address(updatedList[j].Address).String()
+	})
 	return updatedList
 }
