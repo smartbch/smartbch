@@ -53,10 +53,13 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 	catchedUp := false
 	for {
 		if !catchedUp && latestHeight <= height {
-			fmt.Println("Catch up!")
-			catchedUp = true
-			catchupChan <- true
-			close(catchupChan)
+			latestHeight = watcher.rpcClient.GetLatestHeight()
+			if latestHeight <= height {
+				fmt.Println("Catch up!")
+				catchedUp = true
+				catchupChan <- true
+				close(catchupChan)
+			}
 		}
 		height++ // to fetch the next block
 		fmt.Println("try to get block height:", height)
