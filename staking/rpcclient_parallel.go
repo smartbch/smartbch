@@ -1,6 +1,7 @@
 package staking
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/smartbch/smartbch/staking/types"
@@ -41,6 +42,8 @@ func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 
 		if c.preGetMaxH < height {
 			c.preGetMaxH = height + 11
+			fmt.Printf("pre fetch bch blocks: #%d ~ #%d, latest: #%d",
+				height+1, height+11, c.latestHeight)
 			go c.getBlocksAsync(height+1, 10)
 		}
 	}
