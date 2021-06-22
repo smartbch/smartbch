@@ -125,13 +125,13 @@ func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 	switch selector {
 	case SelectorCreateValidator:
 		//createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey)
-		return externalOp(ctx, tx, true, false)
+		return createValidator(ctx, tx)
 	case SelectorEditValidator:
 		//editValidator(address rewardTo, bytes32 introduction)
-		return externalOp(ctx, tx, false, false)
+		return editValidator(ctx, tx)
 	case SelectorRetire:
 		//retire()
-		return externalOp(ctx, tx, false, true)
+		return retire(ctx, tx)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
 		return handleMinGasPrice(ctx, tx.From, true)
@@ -202,31 +202,90 @@ func stringFromBytes(bz []byte) string {
 	return string(bz[:i+1])
 }
 
-// This function implements the underlying logic for three external functions: createValidator, editValidator and retire
-func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, retire bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfStakingExternalOp
 	var pubkey [32]byte
 	var intro string
 	var rewardTo [20]byte
-	if !retire { // retire has no arguments
-		callData := tx.Data[4:]
-		if !((create && len(callData) >= 96) || (!create && len(callData) >= 64)) {
-			outData = []byte(InvalidCallData.Error())
-			return
-		}
-		// First argument: rewardTo
-		copy(rewardTo[:], callData[12:])
-		callData = callData[32:]
-		// Second argument: introduction, byte32, limited to 32 byte
-		intro = stringFromBytes(callData[:32])
-		if create {
-			// Third argument: pubkey (only createValidator has it)
-			callData = callData[32:]
-			copy(pubkey[:], callData)
-		}
+	callData := tx.Data[4:]
+	if len(callData) < 96 {
+		outData = []byte(InvalidCallData.Error())
+		return
+	}
+	// First argument: rewardTo
+	copy(rewardTo[:], callData[12:32])
+	// Second argument: introduction, byte32, limited to 32 byte
+	intro = stringFromBytes(callData[32:64])
+	// Third argument: pubkey (only createValidator has it)
+	copy(pubkey[:], callData[64:])
+
+	stakingAcc, info := LoadStakingAcc(ctx)
+
+	if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
+		outData = []byte(types.CreateValidatorCoinLtInitAmount.Error())
+		return
+	}
+	err := info.AddValidator(tx.From, pubkey, intro, tx.Value, rewardTo)
+	if err != nil {
+		outData = []byte(err.Error())
+		return
 	}
 
+	// Now let's update the states
+	SaveStakingInfo(ctx, stakingAcc, info)
+
+	status, outData = transferStakedCoins(ctx, tx, stakingAcc)
+	return
+}
+
+func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfStakingExternalOp
+	var intro string
+	var rewardTo [20]byte
+	callData := tx.Data[4:]
+	if len(callData) < 64 {
+		outData = []byte(InvalidCallData.Error())
+		return
+	}
+	// First argument: rewardTo
+	copy(rewardTo[:], callData[12:32])
+	// Second argument: introduction, byte32, limited to 32 byte
+	intro = stringFromBytes(callData[32:64])
+
+	stakingAcc, info := LoadStakingAcc(ctx)
+
+	val := info.GetValidatorByAddr(tx.From)
+	if val == nil {
+		outData = []byte(NoSuchValidator.Error())
+		return
+	}
+	var bz20Zero [20]byte
+	if !bytes.Equal(rewardTo[:], bz20Zero[:]) {
+		val.RewardTo = rewardTo
+	}
+	if len(intro) != 0 {
+		val.Introduction = intro
+	}
+	coins4staking := uint256.NewInt().SetBytes32(tx.Value[:])
+	if !coins4staking.IsZero() {
+		fmt.Printf("new staking coin is :%s\n", coins4staking.String())
+		stakedCoins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
+		stakedCoins.Add(stakedCoins, coins4staking)
+		fmt.Printf("previous staking coin %s\n", uint256.NewInt().SetBytes(val.StakedCoins[:]).String())
+		val.StakedCoins = stakedCoins.Bytes32()
+	}
+
+	// Now let's update the states
+	SaveStakingInfo(ctx, stakingAcc, info)
+
+	status, outData = transferStakedCoins(ctx, tx, stakingAcc)
+	return
+}
+
+func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingAcc *mevmtypes.AccountInfo) (status int, outData []byte) {
+	status = StatusFailed
 	sender := ctx.GetAccount(tx.From)
 	balance := sender.Balance()
 	coins4staking := uint256.NewInt().SetBytes32(tx.Value[:])
@@ -234,46 +293,6 @@ func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, reti
 		outData = []byte(BalanceNotEnough.Error())
 		return
 	}
-
-	stakingAcc, info := LoadStakingAcc(ctx)
-
-	if create { //createValidator
-		if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
-			outData = []byte(types.CreateValidatorCoinLtInitAmount.Error())
-			return
-		}
-		err := info.AddValidator(tx.From, pubkey, intro, tx.Value, rewardTo)
-		if err != nil {
-			outData = []byte(err.Error())
-			return
-		}
-	} else { // retire or editValidator
-		val := info.GetValidatorByAddr(tx.From)
-		if val == nil {
-			outData = []byte(NoSuchValidator.Error())
-			return
-		}
-		var bz20Zero [20]byte
-		if !bytes.Equal(rewardTo[:], bz20Zero[:]) {
-			val.RewardTo = rewardTo
-		}
-		if len(intro) != 0 {
-			val.Introduction = intro
-		}
-		if !coins4staking.IsZero() {
-			fmt.Printf("new staking coin is :%s\n", coins4staking.String())
-			stakedCoins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
-			stakedCoins.Add(stakedCoins, coins4staking)
-			fmt.Printf("previous staking coin %s\n", uint256.NewInt().SetBytes(val.StakedCoins[:]).String())
-			val.StakedCoins = stakedCoins.Bytes32()
-		}
-		if retire {
-			val.IsRetiring = true
-		}
-	}
-
-	// Now let's update the states
-	SaveStakingInfo(ctx, stakingAcc, info)
 
 	if !coins4staking.IsZero() {
 		balance.Sub(balance, coins4staking)
@@ -284,6 +303,25 @@ func externalOp(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, create bool, reti
 		ctx.SetAccount(tx.From, sender)
 		ctx.SetAccount(StakingContractAddress, stakingAcc)
 	}
+	status = StatusSuccess
+	return
+}
+
+func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfStakingExternalOp
+
+	stakingAcc, info := LoadStakingAcc(ctx)
+
+	val := info.GetValidatorByAddr(tx.From)
+	if val == nil {
+		outData = []byte(NoSuchValidator.Error())
+		return
+	}
+	val.IsRetiring = true
+
+	// Now let's update the states
+	SaveStakingInfo(ctx, stakingAcc, info)
 
 	status = StatusSuccess
 	return
