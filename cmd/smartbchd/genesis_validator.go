@@ -27,11 +27,11 @@ import (
 
 const (
 	flagAddress      = "validator-address"
-	flagPubkey       = "consensus-pubkey"
+	flagConsPubKey   = "consensus-pubkey"
 	flagVotingPower  = "voting-power"
 	flagStakingCoin  = "staking-coin"
 	flagIntroduction = "introduction"
-	flagKey          = "validator-key"
+	flagValKey       = "validator-key"
 	flagNonce        = "nonce"
 	flagChainId      = "chain-id"
 	flagGasPrice     = "gas-price"
@@ -89,7 +89,7 @@ smartbchd generate-genesis-validator
 			// get validator address
 			addr := common.HexToAddress(viper.GetString(flagAddress))
 			// get pubkey
-			pubKey, _, err := ethutils.HexToPubKey(viper.GetString(flagPubkey))
+			pubKey, _, err := ethutils.HexToPubKey(viper.GetString(flagConsPubKey))
 			if err != nil {
 				return errors.New("pubkey error: " + err.Error())
 			}
@@ -117,7 +117,7 @@ smartbchd generate-genesis-validator
 		},
 	}
 	cmd.Flags().String(flagAddress, "", "validator address")
-	cmd.Flags().String(flagPubkey, "", "consensus pubkey")
+	cmd.Flags().String(flagConsPubKey, "", "consensus pubkey")
 	cmd.Flags().Int64(flagVotingPower, 0, "voting power")
 	cmd.Flags().String(flagStakingCoin, "0", "staking coin")
 	cmd.Flags().String(flagIntroduction, "genesis validator", "introduction")
