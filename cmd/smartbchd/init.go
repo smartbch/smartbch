@@ -22,6 +22,14 @@ import (
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
+const (
+	flagChainID      = "chain-id"
+	flagOverwrite    = "overwrite"
+	flagTestKeys     = "test-keys"
+	flagTestKeysFile = "test-keys-file"
+	flagInitBal      = "init-balance"
+)
+
 type printInfo struct {
 	Moniker    string          `json:"moniker" yaml:"moniker"`
 	ChainID    string          `json:"chain_id" yaml:"chain_id"`
@@ -53,7 +61,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 		RunE: func(_ *cobra.Command, args []string) error {
 			config := ctx.Config
 			config.SetRoot(viper.GetString(cli.HomeFlag))
-			chainID := viper.GetString(FlagChainID)
+			chainID := viper.GetString(flagChainID)
 			if chainID == "" {
 				chainID = "test-chain"
 			}
@@ -63,7 +71,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 			}
 			config.Moniker = args[0]
 			genFile := config.GenesisFile()
-			if !viper.GetBool(FlagOverwrite) && FileExists(genFile) {
+			if !viper.GetBool(flagOverwrite) && FileExists(genFile) {
 				return fmt.Errorf("genesis.json file already exists: %v", genFile)
 			}
 			genDoc := &types.GenesisDoc{}
@@ -93,16 +101,16 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 		},
 	}
 	cmd.Flags().String(cli.HomeFlag, defaultNodeHome, "node's home directory")
-	cmd.Flags().BoolP(FlagOverwrite, "o", false, "overwrite the genesis.json file")
-	cmd.Flags().String(FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
-	cmd.Flags().String(FlagTestKeys, "", "comma separated list of hex private keys used for test")
-	cmd.Flags().String(FlagTestKeysFile, "", "file contains hex private keys, one key per line")
-	cmd.Flags().String(FlagInitBal, "1000000000000000000", "initial balance for test accounts")
+	cmd.Flags().BoolP(flagOverwrite, "o", false, "overwrite the genesis.json file")
+	cmd.Flags().String(flagChainID, "", "genesis file chain-id, if left blank will be randomly created")
+	cmd.Flags().String(flagTestKeys, "", "comma separated list of hex private keys used for test")
+	cmd.Flags().String(flagTestKeysFile, "", "file contains hex private keys, one key per line")
+	cmd.Flags().String(flagInitBal, "1000000000000000000", "initial balance for test accounts")
 	return cmd
 }
 
 func getAppState() ([]byte, error) {
-	initBalance := viper.GetString(FlagInitBal)
+	initBalance := viper.GetString(flagInitBal)
 	initBal, ok := bigutils.ParseU256(initBalance)
 	if !ok {
 		return nil, errors.New("invalid init balance")
@@ -121,12 +129,12 @@ func getAppState() ([]byte, error) {
 }
 
 func getTestKeys() []string {
-	testKeysCSV := viper.GetString(FlagTestKeys)
+	testKeysCSV := viper.GetString(flagTestKeys)
 	if testKeysCSV != "" {
 		return strings.Split(testKeysCSV, ",")
 	}
 
-	testKeyFiles := viper.GetString(FlagTestKeysFile)
+	testKeyFiles := viper.GetString(flagTestKeysFile)
 	if testKeyFiles != "" {
 		var allKeys []string
 		for _, testKeyFile := range strings.Split(testKeyFiles, ",") {
