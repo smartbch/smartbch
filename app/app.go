@@ -229,7 +229,10 @@ func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.Mo
 	if err != nil {
 		panic(err)
 	}
-	return store.NewRootStore(mads, nil), mads
+	root := store.NewRootStore(mads, func(k []byte) bool {
+		return len(k) >= 1 && k[0] > (128+64) //only cache the standby queue
+	})
+	return root, mads
 }
 
 func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
