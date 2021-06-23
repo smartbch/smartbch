@@ -882,6 +882,72 @@ func (z *StakingInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 					}
 				}
 			}
+		case "Epochs":
+			var zb0005 uint32
+			zb0005, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "Epochs")
+				return
+			}
+			if cap(z.Epochs) >= int(zb0005) {
+				z.Epochs = (z.Epochs)[:zb0005]
+			} else {
+				z.Epochs = make([]*Epoch, zb0005)
+			}
+			for za0004 := range z.Epochs {
+				if dc.IsNil() {
+					err = dc.ReadNil()
+					if err != nil {
+						err = msgp.WrapError(err, "Epochs", za0004)
+						return
+					}
+					z.Epochs[za0004] = nil
+				} else {
+					if z.Epochs[za0004] == nil {
+						z.Epochs[za0004] = new(Epoch)
+					}
+					var zb0006 uint32
+					zb0006, err = dc.ReadMapHeader()
+					if err != nil {
+						err = msgp.WrapError(err, "Epochs", za0004)
+						return
+					}
+					for zb0006 > 0 {
+						zb0006--
+						field, err = dc.ReadMapKeyPtr()
+						if err != nil {
+							err = msgp.WrapError(err, "Epochs", za0004)
+							return
+						}
+						switch msgp.UnsafeString(field) {
+						case "StartHeight":
+							z.Epochs[za0004].StartHeight, err = dc.ReadInt64()
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004, "StartHeight")
+								return
+							}
+						case "EndTime":
+							z.Epochs[za0004].EndTime, err = dc.ReadInt64()
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004, "EndTime")
+								return
+							}
+						case "Duration":
+							z.Epochs[za0004].Duration, err = dc.ReadInt64()
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004, "Duration")
+								return
+							}
+						default:
+							err = dc.Skip()
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004)
+								return
+							}
+						}
+					}
+				}
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -895,9 +961,9 @@ func (z *StakingInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 5
+	// map header, size 6
 	// write "GenesisMainnetBlockHeight"
-	err = en.Append(0x85, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	err = en.Append(0x86, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	if err != nil {
 		return
 	}
@@ -988,15 +1054,65 @@ func (z *StakingInfo) EncodeMsg(en *msgp.Writer) (err error) {
 			}
 		}
 	}
+	// write "Epochs"
+	err = en.Append(0xa6, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.Epochs)))
+	if err != nil {
+		err = msgp.WrapError(err, "Epochs")
+		return
+	}
+	for za0004 := range z.Epochs {
+		if z.Epochs[za0004] == nil {
+			err = en.WriteNil()
+			if err != nil {
+				return
+			}
+		} else {
+			// map header, size 3
+			// write "StartHeight"
+			err = en.Append(0x83, 0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+			if err != nil {
+				return
+			}
+			err = en.WriteInt64(z.Epochs[za0004].StartHeight)
+			if err != nil {
+				err = msgp.WrapError(err, "Epochs", za0004, "StartHeight")
+				return
+			}
+			// write "EndTime"
+			err = en.Append(0xa7, 0x45, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65)
+			if err != nil {
+				return
+			}
+			err = en.WriteInt64(z.Epochs[za0004].EndTime)
+			if err != nil {
+				err = msgp.WrapError(err, "Epochs", za0004, "EndTime")
+				return
+			}
+			// write "Duration"
+			err = en.Append(0xa8, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e)
+			if err != nil {
+				return
+			}
+			err = en.WriteInt64(z.Epochs[za0004].Duration)
+			if err != nil {
+				err = msgp.WrapError(err, "Epochs", za0004, "Duration")
+				return
+			}
+		}
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *StakingInfo) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 5
+	// map header, size 6
 	// string "GenesisMainnetBlockHeight"
-	o = append(o, 0x85, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = append(o, 0x86, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	o = msgp.AppendInt64(o, z.GenesisMainnetBlockHeight)
 	// string "CurrEpochNum"
 	o = append(o, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
@@ -1041,6 +1157,25 @@ func (z *StakingInfo) MarshalMsg(b []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "PendingRewards", za0003)
 				return
 			}
+		}
+	}
+	// string "Epochs"
+	o = append(o, 0xa6, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Epochs)))
+	for za0004 := range z.Epochs {
+		if z.Epochs[za0004] == nil {
+			o = msgp.AppendNil(o)
+		} else {
+			// map header, size 3
+			// string "StartHeight"
+			o = append(o, 0x83, 0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+			o = msgp.AppendInt64(o, z.Epochs[za0004].StartHeight)
+			// string "EndTime"
+			o = append(o, 0xa7, 0x45, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65)
+			o = msgp.AppendInt64(o, z.Epochs[za0004].EndTime)
+			// string "Duration"
+			o = append(o, 0xa8, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e)
+			o = msgp.AppendInt64(o, z.Epochs[za0004].Duration)
 		}
 	}
 	return
@@ -1166,6 +1301,71 @@ func (z *StakingInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
 					}
 				}
 			}
+		case "Epochs":
+			var zb0005 uint32
+			zb0005, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Epochs")
+				return
+			}
+			if cap(z.Epochs) >= int(zb0005) {
+				z.Epochs = (z.Epochs)[:zb0005]
+			} else {
+				z.Epochs = make([]*Epoch, zb0005)
+			}
+			for za0004 := range z.Epochs {
+				if msgp.IsNil(bts) {
+					bts, err = msgp.ReadNilBytes(bts)
+					if err != nil {
+						return
+					}
+					z.Epochs[za0004] = nil
+				} else {
+					if z.Epochs[za0004] == nil {
+						z.Epochs[za0004] = new(Epoch)
+					}
+					var zb0006 uint32
+					zb0006, bts, err = msgp.ReadMapHeaderBytes(bts)
+					if err != nil {
+						err = msgp.WrapError(err, "Epochs", za0004)
+						return
+					}
+					for zb0006 > 0 {
+						zb0006--
+						field, bts, err = msgp.ReadMapKeyZC(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Epochs", za0004)
+							return
+						}
+						switch msgp.UnsafeString(field) {
+						case "StartHeight":
+							z.Epochs[za0004].StartHeight, bts, err = msgp.ReadInt64Bytes(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004, "StartHeight")
+								return
+							}
+						case "EndTime":
+							z.Epochs[za0004].EndTime, bts, err = msgp.ReadInt64Bytes(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004, "EndTime")
+								return
+							}
+						case "Duration":
+							z.Epochs[za0004].Duration, bts, err = msgp.ReadInt64Bytes(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004, "Duration")
+								return
+							}
+						default:
+							bts, err = msgp.Skip(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "Epochs", za0004)
+								return
+							}
+						}
+					}
+				}
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -1202,6 +1402,14 @@ func (z *StakingInfo) Msgsize() (s int) {
 			s += msgp.NilSize
 		} else {
 			s += z.PendingRewards[za0003].Msgsize()
+		}
+	}
+	s += 7 + msgp.ArrayHeaderSize
+	for za0004 := range z.Epochs {
+		if z.Epochs[za0004] == nil {
+			s += msgp.NilSize
+		} else {
+			s += 1 + 12 + msgp.Int64Size + 8 + msgp.Int64Size + 9 + msgp.Int64Size
 		}
 	}
 	return

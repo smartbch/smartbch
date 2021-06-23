@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 type FilterService interface {
@@ -102,6 +103,7 @@ type BackendService interface {
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
+	GetEpochs(start, end uint64) ([]*types.Epoch, error)
 
 	//tendermint info
 	NodeInfo() Info

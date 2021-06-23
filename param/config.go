@@ -70,6 +70,8 @@ type ChainConfig struct {
 	MainnetRPCUrl      string
 	MainnetRPCUserName string
 	MainnetRPCPassword string
+	SmartBchRPCUrl     string
+	Speedup            bool
 }
 
 var (

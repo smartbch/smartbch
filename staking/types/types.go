@@ -39,6 +39,7 @@ type RpcClient interface {
 	GetLatestHeight() int64
 	GetBlockByHeight(height int64) *BCHBlock
 	GetBlockByHash(hash [32]byte) *BCHBlock
+	GetEpochs(start, end uint64) []*Epoch
 }
 
 // An epoch elects several validators in NumBlocksInEpoch blocks
@@ -57,6 +58,7 @@ type StakingInfo struct {
 	Validators                []*Validator     `msgp:"validators"`
 	ValidatorsUpdate          []*Validator     `msgp:"validators_update"`
 	PendingRewards            []*PendingReward `msgp:"pending_rewards"`
+	Epochs                    []*Epoch         `msgp:"epochs"`
 }
 
 type Validator struct {

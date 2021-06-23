@@ -1,6 +1,7 @@
 package staking
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -95,6 +96,11 @@ func (m MockRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return m.node.blocks[height-1]
 }
 
+func (m MockRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
+	fmt.Printf("mock Rpc not support get Epoch")
+	return nil
+}
+
 var _ types.RpcClient = MockRpcClient{}
 
 type MockEpochConsumer struct {
@@ -114,7 +120,7 @@ func (m *MockEpochConsumer) consume() {
 
 func TestRun(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(0, client)
+	w := NewWatcher(0, client, "", 0, false)
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan
@@ -131,7 +137,7 @@ func TestRun(t *testing.T) {
 
 func TestRunWithNewEpoch(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(0, client)
+	w := NewWatcher(0, client, "", 0, false)
 	c := MockEpochConsumer{
 		w: w,
 	}
@@ -163,7 +169,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 
 func TestRunWithFork(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	w := NewWatcher(0, client)
+	w := NewWatcher(0, client, "", 0, false)
 	NumBlocksToClearMemory = 100
 	NumBlocksInEpoch = 1000
 	catchupChan := make(chan bool, 1)

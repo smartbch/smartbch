@@ -20,25 +20,35 @@ var (
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
 // outputs epoch information through a channel
 type Watcher struct {
-	lastEpochEndHeight     int64
-	latestFinalizedHeight  int64
+	rpcClient         types.RpcClient
+	smartBchRpcClient types.RpcClient
+
+	EpochChan chan *types.Epoch
+
+	lastEpochEndHeight    int64
+	latestFinalizedHeight int64
+	initEpochNum          int64
+
 	hashToBlock            map[[32]byte]*types.BCHBlock
 	heightToFinalizedBlock map[int64]*types.BCHBlock
 	epochList              []*types.Epoch
-	rpcClient              types.RpcClient
-	EpochChan              chan *types.Epoch
+
+	speedup bool
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(lastHeight int64, rpcClient types.RpcClient) *Watcher {
+func NewWatcher(lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, initEpochNum int64, speedup bool) *Watcher {
 	return &Watcher{
 		lastEpochEndHeight:     lastHeight,
 		latestFinalizedHeight:  lastHeight,
+		initEpochNum:           initEpochNum,
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*types.Epoch, 0, 10),
 		rpcClient:              rpcClient,
 		EpochChan:              make(chan *types.Epoch, 100),
+		speedup:                speedup,
+		smartBchRpcClient:      NewRpcClient(smartBchUrl, "", ""),
 	}
 }
 
@@ -50,13 +60,31 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		return
 	}
 	latestHeight := watcher.rpcClient.GetLatestHeight()
-	catchedUp := false
+	catchup := false
+	if watcher.speedup {
+		start := uint64(watcher.initEpochNum)
+		for {
+			if latestHeight < height+NumBlocksInEpoch {
+				fmt.Printf("exit epoch speedup as of height:%d is near latest:%d\n", height, latestHeight)
+				break
+			}
+			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
+			if epochs == nil {
+				fmt.Printf("exit epoch speedup as of epoch is nil, latest epoch is %d\n", start)
+				break
+			}
+			watcher.epochList = append(watcher.epochList, epochs...)
+			height += int64(len(epochs)) * NumBlocksInEpoch
+			start = start + 100
+			fmt.Printf("get epoch start with:%d, length:%d, height update:%d\n", start, len(epochs), height)
+		}
+	}
 	for {
-		if !catchedUp && latestHeight <= height {
+		if !catchup && latestHeight <= height {
 			latestHeight = watcher.rpcClient.GetLatestHeight()
 			if latestHeight <= height {
 				fmt.Println("Catch up!")
-				catchedUp = true
+				catchup = true
 				catchupChan <- true
 				close(catchupChan)
 			}

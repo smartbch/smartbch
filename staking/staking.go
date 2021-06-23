@@ -584,6 +584,7 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	stakingAcc, info := LoadStakingAcc(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
+	info.Epochs = append(info.Epochs, epoch)
 	fmt.Printf("curent epoch:%d\n", info.CurrEpochNum)
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.ValMapByPubkey {

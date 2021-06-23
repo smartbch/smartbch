@@ -32,6 +32,8 @@ const (
 	flagMainnetUrl           = "mainnet-url"
 	flagMainnetRpcUser       = "mainnet-user"
 	flagMainnetRpcPassword   = "mainnet-password"
+	flagSmartBchUrl          = "smartbch-url"
+	flagWatcherSpeedup       = "watcher-speedup"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -55,6 +57,8 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagMainnetUrl, "tcp://:8432", "BCH Mainnet RPC URL")
 	cmd.Flags().String(flagMainnetRpcUser, "user", "BCH Mainnet RPC user name")
 	cmd.Flags().String(flagMainnetRpcPassword, "88888888", "BCH Mainnet RPC user password")
+	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
+	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
 
 	return cmd
 }
@@ -73,6 +77,8 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	paramConfig.MainnetRPCUrl = viper.GetString(flagMainnetUrl)
 	paramConfig.MainnetRPCUserName = viper.GetString(flagMainnetRpcUser)
 	paramConfig.MainnetRPCPassword = viper.GetString(flagMainnetRpcPassword)
+	paramConfig.SmartBchRPCUrl = viper.GetString(flagSmartBchUrl)
+	paramConfig.Speedup = viper.GetBool(flagWatcherSpeedup)
 
 	chainID, err := getChainID(ctx)
 	if err != nil {

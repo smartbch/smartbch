@@ -212,7 +212,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
 	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
 	fmt.Printf("current epoch:%d,lastWatch2016xHeight:%d in NewApp\n", stakingInfo.CurrEpochNum, lastWatch2016xHeight)
-	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client)
+	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)
 	<-catchupChan

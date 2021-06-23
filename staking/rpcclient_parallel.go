@@ -10,11 +10,11 @@ import (
 var _ types.RpcClient = (*ParallelRpcClient)(nil)
 
 type ParallelRpcClient struct {
-	client       *RpcClient
-	rwLock       sync.RWMutex
-	latestHeight int64
-	preGetMaxH   int64
-	preGetBlocks map[int64]*types.BCHBlock
+	client         *RpcClient
+	rwLock         sync.RWMutex
+	latestHeight   int64
+	preGetMaxH     int64
+	preGetBlocks   map[int64]*types.BCHBlock
 }
 
 func NewParallelRpcClient(url, user, password string) types.RpcClient {
@@ -28,6 +28,10 @@ func (c *ParallelRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 func (c *ParallelRpcClient) GetLatestHeight() int64 {
 	c.latestHeight = c.client.GetLatestHeight()
 	return c.latestHeight
+}
+
+func (c *ParallelRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
+	return c.client.getEpochs(start, end)
 }
 
 func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {

@@ -16,6 +16,7 @@ const (
 	ReqStrBlockHash  = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockhash\", \"params\": [%d] }"
 	ReqStrBlock      = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblock\", \"params\": [\"%s\"] }"
 	ReqStrTx         = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getrawtransaction\", \"params\": [\"%s\", true] }"
+	ReqStrEpochs     = "{\"jsonrpc\": \"2.0\", \"id\":1, \"method\": \"sbch_getEpochs\", \"params\": [%d,%d]}"
 	Identifier       = "73424348"
 	Version          = "00"
 )
@@ -183,6 +184,10 @@ func (client *RpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return client.getBCHBlock(hex.EncodeToString(hash[:]))
 }
 
+func (client *RpcClient) GetEpochs(start, end uint64) []*types.Epoch {
+	return client.getEpochs(start, end)
+}
+
 func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	var bi *BlockInfo
 	bi, client.err = client.getBlock(hash)
@@ -284,6 +289,23 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 		return &txInfoResp.Result, fmt.Errorf("getTx error, code:%d, msg:%d\n", txInfoResp.Error.Code, txInfoResp.Error.Message)
 	}
 	return &txInfoResp.Result, nil
+}
+
+func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
+	respData, err := client.sendRequest(fmt.Sprintf(ReqStrEpochs, start, end))
+	if err != nil {
+		fmt.Printf("get epoch error, %s\n", err.Error())
+		return nil
+	}
+	var epochsResp []*types.Epoch
+	fmt.Println(epochsResp)
+	err = json.Unmarshal(respData, &epochsResp)
+	if err != nil {
+		fmt.Printf("get epoch error, %s\n", err.Error())
+		return nil
+	}
+	fmt.Println(epochsResp)
+	return epochsResp
 }
 
 func (client *RpcClient) PrintAllOpReturn(startHeight, endHeight int64) {

@@ -25,6 +25,7 @@ import (
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/staking"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 var _ BackendService = &apiBackend{}
@@ -260,6 +261,22 @@ func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, add
 	defer ctx.Close(false)
 
 	return ctx.GetSep20FromAddressCount(contract, addr)
+}
+
+//[start, end)
+func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
+	ctx := backend.app.GetHistoryOnlyContext()
+	defer ctx.Close(false)
+
+	_, info := staking.LoadStakingAcc(ctx)
+	length := uint64(len(info.Epochs))
+	if end > length {
+		end = length
+	}
+	if start >= end {
+		return nil, errors.New("invalid start")
+	}
+	return info.Epochs[start:end], nil
 }
 
 func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {

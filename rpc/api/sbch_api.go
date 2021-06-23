@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/smartbch/smartbch/staking/types"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
@@ -23,6 +24,7 @@ type SbchAPI interface {
 	GetTxListByHeightWithRange(height gethrpc.BlockNumber, start, end hexutil.Uint64) ([]map[string]interface{}, error)
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
+	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 }
 
 type sbchAPI struct {
@@ -158,4 +160,11 @@ func (sbch sbchAPI) GetSep20AddressCount(kind string, contract, addr gethcmn.Add
 		return hexutil.Uint64(fromCount + toCount)
 	}
 	return hexutil.Uint64(0)
+}
+
+func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error) {
+	if end == 0 {
+		end = start + 10
+	}
+	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }
