@@ -274,7 +274,7 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 		end = length
 	}
 	if start >= end {
-		return nil, errors.New("invalid start or ")
+		return nil, errors.New("invalid start or empty epochs")
 	}
 	return info.Epochs[start:end], nil
 }

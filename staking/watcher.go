@@ -75,9 +75,11 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 			}
 			watcher.epochList = append(watcher.epochList, epochs...)
 			height += int64(len(epochs)) * NumBlocksInEpoch
-			start = start + 100
+			start = start + uint64(len(epochs))
 			fmt.Printf("get epoch start with:%d, length:%d, height update:%d\n", start, len(epochs), height)
 		}
+		watcher.latestFinalizedHeight = height
+		watcher.lastEpochEndHeight = height
 	}
 	for {
 		if !catchup && latestHeight <= height {
