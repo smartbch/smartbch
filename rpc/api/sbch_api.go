@@ -165,22 +165,5 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	if end == 0 {
 		end = start + 10
 	}
-	epochs, err := sbch.backend.GetEpochs(uint64(start), uint64(end))
-	if err != nil {
-		return nil, err
-	}
-	var resp = make([]*types.Epoch, 0, len(epochs))
-	for _, e := range epochs {
-		r := &types.Epoch{
-			StartHeight:    e.StartHeight,
-			EndTime:        e.EndTime,
-			Duration:       e.Duration,
-			ValMapByPubkey: make([]*types.Nomination, 0, len(e.ValMapByPubkey)),
-		}
-		for _, v := range e.ValMapByPubkey {
-			r.ValMapByPubkey = append(r.ValMapByPubkey, v)
-		}
-		resp = append(resp, r)
-	}
-	return resp, nil
+	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }

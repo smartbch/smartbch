@@ -2,6 +2,7 @@ package staking
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -46,7 +47,7 @@ func NewWatcher(lastHeight int64, rpcClient types.RpcClient, smartBchUrl string,
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*types.Epoch, 0, 10),
 		rpcClient:              rpcClient,
-		EpochChan:              make(chan *types.Epoch, 100),
+		EpochChan:              make(chan *types.Epoch, 10000),
 		speedup:                speedup,
 		smartBchRpcClient:      NewRpcClient(smartBchUrl, "", "", "application/json"),
 	}
@@ -73,7 +74,14 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 				fmt.Printf("exit epoch speedup as of epoch is nil, latest epoch is %d\n", start)
 				break
 			}
+			for _, e := range epochs {
+				out, _ := json.Marshal(e)
+				fmt.Println(string(out))
+			}
 			watcher.epochList = append(watcher.epochList, epochs...)
+			for _, e := range epochs {
+				watcher.EpochChan <- e
+			}
 			height += int64(len(epochs)) * NumBlocksInEpoch
 			start = start + uint64(len(epochs))
 			fmt.Printf("get epoch start with:%d, length:%d, height update:%d\n", start, len(epochs), height)
