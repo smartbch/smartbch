@@ -6,6 +6,7 @@
 *.dylib
 *.o
 *.a
+smartbchd
 
 # Test binary, built with `go test -c`
 *.test

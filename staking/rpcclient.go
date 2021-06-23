@@ -291,15 +291,36 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 	return &txInfoResp.Result, nil
 }
 
+type smartBchJsonrpcError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+type smartBchJsonrpcMessage struct {
+	Version string                `json:"jsonrpc,omitempty"`
+	ID      json.RawMessage       `json:"id,omitempty"`
+	Method  string                `json:"method,omitempty"`
+	Params  json.RawMessage       `json:"params,omitempty"`
+	Error   *smartBchJsonrpcError `json:"error,omitempty"`
+	Result  json.RawMessage       `json:"result,omitempty"`
+}
+
 func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
 	respData, err := client.sendRequest(fmt.Sprintf(ReqStrEpochs, start, end))
 	if err != nil {
 		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
 	}
+	fmt.Println(respData)
+	var m smartBchJsonrpcMessage
+	err = json.Unmarshal(respData, &m)
+	if err != nil {
+		fmt.Printf("get epoch rpc result error, %s\n", err.Error())
+		return nil
+	}
 	var epochsResp []*types.Epoch
-	fmt.Println(epochsResp)
-	err = json.Unmarshal(respData, &epochsResp)
+	err = json.Unmarshal(m.Result, &epochsResp)
 	if err != nil {
 		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
