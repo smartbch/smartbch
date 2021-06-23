@@ -213,18 +213,20 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	if client.err != nil {
 		return nil
 	}
-	var coinbase *TxInfo
-	coinbase, client.err = client.getTx(bi.Tx[0])
-	if client.err != nil {
-		return nil
-	}
-	pubKey, ok := coinbase.GetValidatorPubKey()
-	if ok {
-		nomination := types.Nomination{
-			Pubkey:         pubKey,
-			NominatedCount: 1,
+	if bi.Height > 0 {
+		var coinbase *TxInfo
+		coinbase, client.err = client.getTx(bi.Tx[0])
+		if client.err != nil {
+			return nil
 		}
-		bchBlock.Nominations = append(bchBlock.Nominations, nomination)
+		pubKey, ok := coinbase.GetValidatorPubKey()
+		if ok {
+			nomination := types.Nomination{
+				Pubkey:         pubKey,
+				NominatedCount: 1,
+			}
+			bchBlock.Nominations = append(bchBlock.Nominations, nomination)
+		}
 	}
 	return bchBlock
 }
@@ -239,7 +241,7 @@ func (client *RpcClient) getCurrHeight() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
-	if blockCountResp.Error.Code < 0 {
+	if blockCountResp.Error != nil && blockCountResp.Error.Code < 0 {
 		return blockCountResp.Result, fmt.Errorf("getCurrHeight error, code:%d, msg:%d\n", blockCountResp.Error.Code, blockCountResp.Error.Message)
 	}
 	return blockCountResp.Result, nil
@@ -255,7 +257,7 @@ func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if blockHashResp.Error.Code < 0 {
+	if blockHashResp.Error != nil && blockHashResp.Error.Code < 0 {
 		return blockHashResp.Result, fmt.Errorf("getBlockHashOfHeight error, code:%d, msg:%d\n", blockHashResp.Error.Code, blockHashResp.Error.Message)
 	}
 	return blockHashResp.Result, nil
@@ -272,7 +274,7 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if blockInfoResp.Error.Code < 0 {
+	if blockInfoResp.Error != nil && blockInfoResp.Error.Code < 0 {
 		return &blockInfoResp.Result, fmt.Errorf("getBlock error, code:%d, msg:%d\n", blockInfoResp.Error.Code, blockInfoResp.Error.Message)
 	}
 	return &blockInfoResp.Result, nil
@@ -289,7 +291,7 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if txInfoResp.Error.Code < 0 {
+	if txInfoResp.Error != nil && txInfoResp.Error.Code < 0 {
 		return &txInfoResp.Result, fmt.Errorf("getTx error, code:%d, msg:%d\n", txInfoResp.Error.Code, txInfoResp.Error.Message)
 	}
 	return &txInfoResp.Result, nil

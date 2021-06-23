@@ -135,7 +135,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		if blk.ParentBlk == [32]byte{} {
 			return nil
 		}
-		fmt.Println("parent hash:", blk.ParentBlk)
+		fmt.Println("parent hash:", hex.EncodeToString(blk.ParentBlk[:]))
 		fmt.Println("current block height:", blk.Height)
 		return &blk.ParentBlk
 	}
