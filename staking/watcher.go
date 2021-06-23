@@ -178,9 +178,10 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 func (watcher *Watcher) generateNewEpoch() {
 	epoch := &types.Epoch{
 		StartHeight:    watcher.lastEpochEndHeight + 1,
-		ValMapByPubkey: make(map[[32]byte]*types.Nomination),
+		ValMapByPubkey: make([]*types.Nomination, 0, 10),
 	}
 	startTime := int64(1 << 62)
+	var valMapByPubkey = make(map[[32]byte]*types.Nomination)
 	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
 		blk, ok := watcher.heightToFinalizedBlock[i]
 		if !ok {
@@ -193,16 +194,19 @@ func (watcher *Watcher) generateNewEpoch() {
 			startTime = blk.Timestamp
 		}
 		for _, nomination := range blk.Nominations {
-			if _, ok := epoch.ValMapByPubkey[nomination.Pubkey]; !ok {
-				epoch.ValMapByPubkey[nomination.Pubkey] = &nomination
+			if _, ok := valMapByPubkey[nomination.Pubkey]; !ok {
+				valMapByPubkey[nomination.Pubkey] = &nomination
 			}
-			epoch.ValMapByPubkey[nomination.Pubkey].NominatedCount++
+			valMapByPubkey[nomination.Pubkey].NominatedCount++
 		}
 	}
 	epoch.Duration = epoch.EndTime - startTime
 	if len(watcher.epochList) != 0 {
 		lastEpoch := watcher.epochList[len(watcher.epochList)-1]
 		epoch.Duration = epoch.EndTime - lastEpoch.EndTime
+	}
+	for _, v := range valMapByPubkey {
+		epoch.ValMapByPubkey = append(epoch.ValMapByPubkey, v)
 	}
 	watcher.epochList = append(watcher.epochList, epoch)
 	watcher.EpochChan <- epoch

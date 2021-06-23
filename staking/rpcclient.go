@@ -323,27 +323,14 @@ func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
 		fmt.Printf("get epoch rpc result error, %s\n", err.Error())
 		return nil
 	}
-	var epochsResp []*types.EpochResp
+	var epochsResp []*types.Epoch
 	err = json.Unmarshal(m.Result, &epochsResp)
 	if err != nil {
 		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
 	}
 	fmt.Println(epochsResp)
-	var out []*types.Epoch
-	for _, r := range epochsResp {
-		e := &types.Epoch{
-			StartHeight:    r.StartHeight,
-			EndTime:        r.EndTime,
-			Duration:       r.Duration,
-			ValMapByPubkey: make(map[[32]byte]*types.Nomination),
-		}
-		for _, v := range r.ValMapByPubkey {
-			e.ValMapByPubkey[v.Pubkey] = v
-		}
-		out = append(out, e)
-	}
-	return out
+	return epochsResp
 }
 
 func (client *RpcClient) PrintAllOpReturn(startHeight, endHeight int64) {

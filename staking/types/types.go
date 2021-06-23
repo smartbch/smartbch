@@ -47,14 +47,6 @@ type Epoch struct {
 	StartHeight    int64
 	EndTime        int64
 	Duration       int64
-	ValMapByPubkey map[[32]byte]*Nomination
-}
-
-// for rpc
-type EpochResp struct {
-	StartHeight    int64
-	EndTime        int64
-	Duration       int64
 	ValMapByPubkey []*Nomination
 }
 

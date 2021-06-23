@@ -23,7 +23,7 @@ type SbchAPI interface {
 	GetTxListByHeightWithRange(height gethrpc.BlockNumber, start, end hexutil.Uint64) ([]map[string]interface{}, error)
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
-	GetEpochs(start, end hexutil.Uint64) ([]*types.EpochResp, error)
+	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 }
 
 type sbchAPI struct {
@@ -161,7 +161,7 @@ func (sbch sbchAPI) GetSep20AddressCount(kind string, contract, addr gethcmn.Add
 	return hexutil.Uint64(0)
 }
 
-func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.EpochResp, error) {
+func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error) {
 	if end == 0 {
 		end = start + 10
 	}
@@ -169,9 +169,9 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.EpochResp, er
 	if err != nil {
 		return nil, err
 	}
-	var resp = make([]*types.EpochResp, 0, len(epochs))
+	var resp = make([]*types.Epoch, 0, len(epochs))
 	for _, e := range epochs {
-		r := &types.EpochResp{
+		r := &types.Epoch{
 			StartHeight:    e.StartHeight,
 			EndTime:        e.EndTime,
 			Duration:       e.Duration,

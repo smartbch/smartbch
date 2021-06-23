@@ -163,14 +163,14 @@ func TestSwitchEpoch(t *testing.T) {
 		StartHeight:    100,
 		EndTime:        2000,
 		Duration:       1000,
-		ValMapByPubkey: make(map[[32]byte]*types2.Nomination),
+		ValMapByPubkey: make([]*types2.Nomination, 0, 10),
 	}
 	var pubkey [32]byte
 	copy(pubkey[:], _app.GetTestPubkey().Bytes())
-	e.ValMapByPubkey[pubkey] = &types2.Nomination{
+	e.ValMapByPubkey = append(e.ValMapByPubkey, &types2.Nomination{
 		Pubkey:         pubkey,
 		NominatedCount: 1,
-	}
+	})
 	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
 	//add another validator
 	exe := &staking.StakingContractExecutor{}
