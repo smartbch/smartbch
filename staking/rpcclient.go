@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	ReqStrBlockCount = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockcount\", \"params\": [] }"
-	ReqStrBlockHash  = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockhash\", \"params\": [%d] }"
-	ReqStrBlock      = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblock\", \"params\": [\"%s\"] }"
-	ReqStrTx         = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getrawtransaction\", \"params\": [\"%s\", true] }"
-	ReqStrEpochs     = "{\"jsonrpc\": \"2.0\", \"method\": \"sbch_getEpochs\", \"params\": [\"%s\",\"%s\"], \"id\":1}"
+	ReqStrBlockCount = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockcount", "params": [] }`
+	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
+	ReqStrBlock      = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s"] }`
+	ReqStrTx         = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
+	ReqStrEpochs     = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
 	Identifier       = "73424348"
 	Version          = "00"
 )

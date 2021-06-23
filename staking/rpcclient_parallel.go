@@ -10,11 +10,11 @@ import (
 var _ types.RpcClient = (*ParallelRpcClient)(nil)
 
 type ParallelRpcClient struct {
-	client         *RpcClient
-	rwLock         sync.RWMutex
-	latestHeight   int64
-	preGetMaxH     int64
-	preGetBlocks   map[int64]*types.BCHBlock
+	client       *RpcClient
+	rwLock       sync.RWMutex
+	latestHeight int64
+	preGetMaxH   int64
+	preGetBlocks map[int64]*types.BCHBlock
 }
 
 func NewParallelRpcClient(url, user, password string) types.RpcClient {
