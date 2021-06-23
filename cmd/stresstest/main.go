@@ -36,6 +36,8 @@ func main() {
 		GenKeysToFile("keys10K.txt", 10_000)
 	} else if os.Args[1] == "genkeys" {
 		GenKeysToFile("keys1M.txt", 1_000_000)
+	} else if os.Args[1] == "genkeys6" {
+		GenKeysToFile("keys6M.txt", 6_000_000)
 	} else if os.Args[1] == "genkeys60" {
 		GenKeysToFile("keys60M.txt", 60_000_000)
 	} else if os.Args[1] == "showNodeKey" {
