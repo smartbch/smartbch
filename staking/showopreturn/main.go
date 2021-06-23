@@ -11,7 +11,7 @@ import (
 // grep BLOCK data.log  |gawk 'BEGIN {print "["} {print $2","; last=$2} END {print last"]"}' > block.json
 
 func main() {
-	client := staking.NewRpcClient("http://127.0.0.1:8332/", "user", "dummypassword")
+	client := staking.NewRpcClient("http://127.0.0.1:8332/", "user", "dummypassword", "text/plain;")
 
 	client.PrintAllOpReturn(1, 41000)
 	//client.PrintAllOpReturn(519995, 679995)

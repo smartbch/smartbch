@@ -50,6 +50,14 @@ type Epoch struct {
 	ValMapByPubkey map[[32]byte]*Nomination
 }
 
+// for rpc
+type EpochResp struct {
+	StartHeight    int64
+	EndTime        int64
+	Duration       int64
+	ValMapByPubkey []*Nomination
+}
+
 // This struct is stored in the world state.
 // All the staking-related operations manipulate it.
 type StakingInfo struct {

@@ -265,7 +265,7 @@ func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, add
 
 //[start, end)
 func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
-	ctx := backend.app.GetHistoryOnlyContext()
+	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
 	_, info := staking.LoadStakingAcc(ctx)
@@ -274,7 +274,7 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 		end = length
 	}
 	if start >= end {
-		return nil, errors.New("invalid start")
+		return nil, errors.New("invalid start or ")
 	}
 	return info.Epochs[start:end], nil
 }

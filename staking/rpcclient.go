@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -16,7 +18,7 @@ const (
 	ReqStrBlockHash  = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblockhash\", \"params\": [%d] }"
 	ReqStrBlock      = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getblock\", \"params\": [\"%s\"] }"
 	ReqStrTx         = "{\"jsonrpc\": \"1.0\", \"id\":\"smartbch\", \"method\": \"getrawtransaction\", \"params\": [\"%s\", true] }"
-	ReqStrEpochs     = "{\"jsonrpc\": \"2.0\", \"id\":1, \"method\": \"sbch_getEpochs\", \"params\": [%d,%d]}"
+	ReqStrEpochs     = "{\"jsonrpc\": \"2.0\", \"method\": \"sbch_getEpochs\", \"params\": [\"%s\",\"%s\"], \"id\":1}"
 	Identifier       = "73424348"
 	Version          = "00"
 )
@@ -125,23 +127,25 @@ type TxInfoResp struct {
 }
 
 type RpcClient struct {
-	url      string
-	user     string
-	password string
-	err      error
+	url         string
+	user        string
+	password    string
+	err         error
+	contentType string
 }
 
 var _ types.RpcClient = (*RpcClient)(nil)
 
-func NewRpcClient(url, user, password string) *RpcClient {
+func NewRpcClient(url, user, password, contentType string) *RpcClient {
 	fmt.Println("watcher rpc url:", url)
 	fmt.Println("watcher rpc user:", user)
 	fmt.Println("watcher rpc password:", password)
 
 	return &RpcClient{
-		url:      url,
-		user:     user,
-		password: password,
+		url:         url,
+		user:        user,
+		password:    password,
+		contentType: contentType,
 	}
 }
 
@@ -152,7 +156,7 @@ func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 		return nil, err
 	}
 	req.SetBasicAuth(client.user, client.password)
-	req.Header.Set("Content-Type", "text/plain;")
+	req.Header.Set("Content-Type", client.contentType)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -307,26 +311,39 @@ type smartBchJsonrpcMessage struct {
 }
 
 func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
-	respData, err := client.sendRequest(fmt.Sprintf(ReqStrEpochs, start, end))
+	respData, err := client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
 	if err != nil {
 		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
 	}
-	fmt.Println(respData)
+	fmt.Println(string(respData))
 	var m smartBchJsonrpcMessage
 	err = json.Unmarshal(respData, &m)
 	if err != nil {
 		fmt.Printf("get epoch rpc result error, %s\n", err.Error())
 		return nil
 	}
-	var epochsResp []*types.Epoch
+	var epochsResp []*types.EpochResp
 	err = json.Unmarshal(m.Result, &epochsResp)
 	if err != nil {
 		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
 	}
 	fmt.Println(epochsResp)
-	return epochsResp
+	var out []*types.Epoch
+	for _, r := range epochsResp {
+		e := &types.Epoch{
+			StartHeight:    r.StartHeight,
+			EndTime:        r.EndTime,
+			Duration:       r.Duration,
+			ValMapByPubkey: make(map[[32]byte]*types.Nomination),
+		}
+		for _, v := range r.ValMapByPubkey {
+			e.ValMapByPubkey[v.Pubkey] = v
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 func (client *RpcClient) PrintAllOpReturn(startHeight, endHeight int64) {

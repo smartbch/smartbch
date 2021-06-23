@@ -18,7 +18,7 @@ type ParallelRpcClient struct {
 }
 
 func NewParallelRpcClient(url, user, password string) types.RpcClient {
-	return &ParallelRpcClient{client: NewRpcClient(url, user, password)}
+	return &ParallelRpcClient{client: NewRpcClient(url, user, password, "text/plain;")}
 }
 
 func (c *ParallelRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {

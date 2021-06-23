@@ -48,7 +48,7 @@ func NewWatcher(lastHeight int64, rpcClient types.RpcClient, smartBchUrl string,
 		rpcClient:              rpcClient,
 		EpochChan:              make(chan *types.Epoch, 100),
 		speedup:                speedup,
-		smartBchRpcClient:      NewRpcClient(smartBchUrl, "", ""),
+		smartBchRpcClient:      NewRpcClient(smartBchUrl, "", "", "application/json"),
 	}
 }
 

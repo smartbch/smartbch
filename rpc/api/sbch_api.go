@@ -5,11 +5,10 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
-	"github.com/smartbch/smartbch/staking/types"
-
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 var _ SbchAPI = (*sbchAPI)(nil)
@@ -24,7 +23,7 @@ type SbchAPI interface {
 	GetTxListByHeightWithRange(height gethrpc.BlockNumber, start, end hexutil.Uint64) ([]map[string]interface{}, error)
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
-	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	GetEpochs(start, end hexutil.Uint64) ([]*types.EpochResp, error)
 }
 
 type sbchAPI struct {
@@ -162,9 +161,26 @@ func (sbch sbchAPI) GetSep20AddressCount(kind string, contract, addr gethcmn.Add
 	return hexutil.Uint64(0)
 }
 
-func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error) {
+func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.EpochResp, error) {
 	if end == 0 {
 		end = start + 10
 	}
-	return sbch.backend.GetEpochs(uint64(start), uint64(end))
+	epochs, err := sbch.backend.GetEpochs(uint64(start), uint64(end))
+	if err != nil {
+		return nil, err
+	}
+	var resp = make([]*types.EpochResp, 0, len(epochs))
+	for _, e := range epochs {
+		r := &types.EpochResp{
+			StartHeight:    e.StartHeight,
+			EndTime:        e.EndTime,
+			Duration:       e.Duration,
+			ValMapByPubkey: make([]*types.Nomination, 0, len(e.ValMapByPubkey)),
+		}
+		for _, v := range e.ValMapByPubkey {
+			r.ValMapByPubkey = append(r.ValMapByPubkey, v)
+		}
+		resp = append(resp, r)
+	}
+	return resp, nil
 }
