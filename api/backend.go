@@ -265,18 +265,21 @@ func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, add
 
 //[start, end)
 func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	_, info := staking.LoadStakingAcc(ctx)
-	length := uint64(len(info.Epochs))
-	if end > length {
-		end = length
-	}
 	if start >= end {
 		return nil, errors.New("invalid start or empty epochs")
 	}
-	return info.Epochs[start:end], nil
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	result := make([]*stakingtypes.Epoch, 0, end-start)
+	stakingAcc, info := staking.LoadStakingAcc(ctx)
+	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
+		epoch, ok := staking.LoadEpoch(ctx, stakingAcc, epochNum)
+		if ok {
+			result = append(result, &epoch)
+		}
+	}
+	return result, nil
 }
 
 func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {

@@ -96,6 +96,13 @@ const (
 	StatusFailed             int    = 1
 )
 
+func getSlotForEpoch(epochNum int64) string {
+	var buf [32]byte
+	buf[23] = 1
+	binary.BigEndian.PutUint64(buf[24:], uint64(epochNum))
+	return string(buf[:])
+}
+
 type StakingContractExecutor struct{}
 
 var _ mevmtypes.SystemContractExecutor = &StakingContractExecutor{}
@@ -408,6 +415,27 @@ func SaveStakingInfo(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, 
 	ctx.SetStorageAt(stakingAcc.Sequence(), SlotStakingInfo, bz)
 }
 
+func SaveEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, epochNum int64, epoch *types.Epoch) {
+	bz, err := epoch.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(stakingAcc.Sequence(), getSlotForEpoch(epochNum), bz)
+}
+
+func LoadEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, epochNum int64) (epoch types.Epoch, ok bool) {
+	bz := ctx.GetStorageAt(stakingAcc.Sequence(), getSlotForEpoch(epochNum))
+	if bz == nil {
+		return
+	}
+	_, err := epoch.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	ok = true
+	return
+}
+
 func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
 	stakingAcc := ctx.GetAccount(StakingContractAddress)
 	if stakingAcc == nil {
@@ -584,26 +612,27 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	stakingAcc, info := LoadStakingAcc(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
-	info.Epochs = append(info.Epochs, epoch)
+	epoch.Number = info.CurrEpochNum
+	SaveEpoch(ctx, stakingAcc, info.CurrEpochNum, epoch)
 	fmt.Printf("curent epoch:%d\n", info.CurrEpochNum)
 	pubkey2power := make(map[[32]byte]int64)
-	for _, v := range epoch.ValMapByPubkey {
+	for _, v := range epoch.Nominations {
 		pubkey2power[v.Pubkey] = v.NominatedCount
 	}
 	// distribute mature pending reward to rewardTo
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
 	totalNomination := int64(0)
-	for _, n := range epoch.ValMapByPubkey {
+	for _, n := range epoch.Nominations {
 		totalNomination += n.NominatedCount
 	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
-		fmt.Println("voting count in epoch too small:", len(epoch.ValMapByPubkey))
+		fmt.Println("voting count in epoch too small:", len(epoch.Nominations))
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
 		return nil
 	}
-	if len(epoch.ValMapByPubkey) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
+	if len(epoch.Nominations) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
 		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
 		return nil

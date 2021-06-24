@@ -160,14 +160,14 @@ func TestSwitchEpoch(t *testing.T) {
 	ctx := _app.GetRunTxContext()
 	//build new epoch
 	e := &types2.Epoch{
-		StartHeight:    100,
-		EndTime:        2000,
-		Duration:       1000,
-		ValMapByPubkey: make([]*types2.Nomination, 0, 10),
+		StartHeight: 100,
+		EndTime:     2000,
+		Duration:    1000,
+		Nominations: make([]*types2.Nomination, 0, 10),
 	}
 	var pubkey [32]byte
 	copy(pubkey[:], _app.GetTestPubkey().Bytes())
-	e.ValMapByPubkey = append(e.ValMapByPubkey, &types2.Nomination{
+	e.Nominations = append(e.Nominations, &types2.Nomination{
 		Pubkey:         pubkey,
 		NominatedCount: 1,
 	})

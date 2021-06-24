@@ -176,11 +176,11 @@ func TestStaking(t *testing.T) {
 
 	// test switchEpoch
 	e := &types.Epoch{
-		ValMapByPubkey: make([]*types.Nomination, 0, 10),
+		Nominations: make([]*types.Nomination, 0, 10),
 	}
 	var pubkey [32]byte
 	copy(pubkey[:], _app.GetTestPubkey().Bytes())
-	e.ValMapByPubkey = append(e.ValMapByPubkey, &types.Nomination{
+	e.Nominations = append(e.Nominations, &types.Nomination{
 		Pubkey:         pubkey,
 		NominatedCount: 2,
 	})

@@ -1,10 +1,12 @@
 package staking
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
+	"sort"
 
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -188,7 +190,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 func (watcher *Watcher) generateNewEpoch() {
 	epoch := &types.Epoch{
 		StartHeight:    watcher.lastEpochEndHeight + 1,
-		ValMapByPubkey: make([]*types.Nomination, 0, 10),
+		Nominations: make([]*types.Nomination, 0, 10),
 	}
 	startTime := int64(1 << 62)
 	var valMapByPubkey = make(map[[32]byte]*types.Nomination)
@@ -216,8 +218,11 @@ func (watcher *Watcher) generateNewEpoch() {
 		epoch.Duration = epoch.EndTime - lastEpoch.EndTime
 	}
 	for _, v := range valMapByPubkey {
-		epoch.ValMapByPubkey = append(epoch.ValMapByPubkey, v)
+		epoch.Nominations = append(epoch.Nominations, v)
 	}
+	sort.Slice(epoch.Nominations, func(i, j int) bool {
+		return bytes.Compare(epoch.Nominations[i].Pubkey[:],  epoch.Nominations[j].Pubkey[:]) < 0
+	})
 	watcher.epochList = append(watcher.epochList, epoch)
 	watcher.EpochChan <- epoch
 	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight

@@ -44,10 +44,11 @@ type RpcClient interface {
 
 // An epoch elects several validators in NumBlocksInEpoch blocks
 type Epoch struct {
-	StartHeight    int64
-	EndTime        int64
-	Duration       int64
-	ValMapByPubkey []*Nomination
+	Number      int64
+	StartHeight int64
+	EndTime     int64
+	Duration    int64
+	Nominations []*Nomination
 }
 
 // This struct is stored in the world state.
@@ -58,7 +59,6 @@ type StakingInfo struct {
 	Validators                []*Validator     `msgp:"validators"`
 	ValidatorsUpdate          []*Validator     `msgp:"validators_update"`
 	PendingRewards            []*PendingReward `msgp:"pending_rewards"`
-	Epochs                    []*Epoch         `msgp:"epochs"`
 }
 
 type Validator struct {
