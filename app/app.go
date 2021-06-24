@@ -565,13 +565,12 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	acc, newInfo := staking.LoadStakingAcc(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, acc, newInfo)
-	ctx.Close(true)
-
 	if app.logValidatorsInfo {
-		validatorsInfo := app.GetValidatorsInfo()
+		validatorsInfo := app.GetValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
 		fmt.Printf("ValidatorsInfo %v\n", bz)
 	}
+	ctx.Close(true)
 
 	app.currValidators = newValidators
 
@@ -924,7 +923,10 @@ type PendingReward struct {
 func (app *App) GetValidatorsInfo() ValidatorsInfo {
 	ctx := app.GetRpcContext()
 	defer ctx.Close(false)
+	return app.GetValidatorsInfoFromCtx(ctx)
+}
 
+func (app *App) GetValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	_, stakingInfo := staking.LoadStakingAcc(ctx)
 	currValidators := app.CurrValidators()
 	info := ValidatorsInfo{
