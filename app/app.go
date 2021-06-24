@@ -568,7 +568,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	if app.logValidatorsInfo {
 		validatorsInfo := app.GetValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
-		fmt.Printf("ValidatorsInfo %v\n", bz)
+		fmt.Println("ValidatorsInfo:", string(bz))
 	}
 	ctx.Close(true)
 
