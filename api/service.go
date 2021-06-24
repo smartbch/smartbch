@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -107,5 +108,5 @@ type BackendService interface {
 
 	//tendermint info
 	NodeInfo() Info
-	ValidatorsInfo() ValidatorsInfo
+	ValidatorsInfo() app.ValidatorsInfo
 }

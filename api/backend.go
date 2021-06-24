@@ -20,7 +20,6 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/holiman/uint256"
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
