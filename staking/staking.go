@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -741,4 +742,40 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *ty
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
 	//save info out here
 	//SaveStakingInfo(*ctx, stakingAcc, *info)
+}
+
+func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) []*types.Validator {
+	if newValidators == nil {
+		return nil
+	}
+	var currentSet = make(map[common.Address]bool)
+	var newSet = make(map[common.Address]*types.Validator)
+	var updatedList = make([]*types.Validator, 0, len(currentValidators))
+	for _, v := range currentValidators {
+		currentSet[v.Address] = true
+	}
+	for _, v := range newValidators {
+		newSet[v.Address] = v
+	}
+	for _, v := range currentValidators {
+		if newSet[v.Address] == nil {
+			removedV := *v
+			removedV.VotingPower = 0
+			updatedList = append(updatedList, &removedV)
+		} else if v.VotingPower != newSet[v.Address].VotingPower {
+			updatedV := *newSet[v.Address]
+			updatedList = append(updatedList, &updatedV)
+			delete(newSet, v.Address)
+		} else {
+			delete(newSet, v.Address)
+		}
+	}
+	for _, v := range newSet {
+		addedV := *v
+		updatedList = append(updatedList, &addedV)
+	}
+	sort.Slice(updatedList, func(i, j int) bool {
+		return bytes.Compare(updatedList[i].Address[:], updatedList[j].Address[:]) < 0
+	})
+	return updatedList
 }

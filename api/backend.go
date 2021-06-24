@@ -410,46 +410,7 @@ func (backend *apiBackend) NodeInfo() Info {
 	return i
 }
 
-type ValidatorsInfo struct {
-	// StakingInfo
-	GenesisMainnetBlockHeight int64            `json:"genesisMainnetBlockHeight"`
-	CurrEpochNum              int64            `json:"currEpochNum"`
-	Validators                []*app.Validator `json:"validators"`
-	ValidatorsUpdate          []*app.Validator `json:"validatorsUpdate"`
-	PendingRewards            []*PendingReward `json:"pendingRewards"`
 
-	// App
-	CurrValidators []*app.Validator `json:"currValidators"`
-}
-
-type PendingReward struct {
-	Address  common.Address `json:"address"`
-	EpochNum int64          `json:"epochNum"`
-	Amount   string         `json:"amount"`
-}
-
-func (backend *apiBackend) ValidatorsInfo() ValidatorsInfo {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	_, stakingInfo := staking.LoadStakingAcc(ctx)
-	currValidators := backend.app.CurrValidators()
-	info := ValidatorsInfo{
-		GenesisMainnetBlockHeight: stakingInfo.GenesisMainnetBlockHeight,
-		CurrEpochNum:              stakingInfo.CurrEpochNum,
-		Validators:                app.FromStakingValidators(stakingInfo.Validators),
-		ValidatorsUpdate:          app.FromStakingValidators(stakingInfo.ValidatorsUpdate),
-		CurrValidators:            app.FromStakingValidators(currValidators),
-	}
-
-	info.PendingRewards = make([]*PendingReward, len(stakingInfo.PendingRewards))
-	for i, pr := range stakingInfo.PendingRewards {
-		info.PendingRewards[i] = &PendingReward{
-			Address:  pr.Address,
-			EpochNum: pr.EpochNum,
-			Amount:   uint256.NewInt().SetBytes(pr.Amount[:]).String(),
-		}
-	}
-
-	return info
+func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
+	return backend.app.GetValidatorsInfo()
 }

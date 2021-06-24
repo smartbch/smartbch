@@ -9,7 +9,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -557,7 +556,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 			app.epochList = app.epochList[1:]
 		}
 	}
-	app.validatorUpdate = GetUpdateValidatorSet(app.currValidators, newValidators)
+	app.validatorUpdate = staking.GetUpdateValidatorSet(app.currValidators, newValidators)
 	for _, v := range app.validatorUpdate {
 		fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
 	}
@@ -565,6 +564,10 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, acc, newInfo)
 	ctx.Close(true)
+
+	validatorsInfo := app.GetValidatorsInfo()
+	bz, _ := json.Marshal(validatorsInfo)
+	fmt.Printf("ValidatorsInfo %v\n", bz)
 
 	app.currValidators = newValidators
 
@@ -896,38 +899,46 @@ func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGr
 	return res, &wg
 }
 
-func GetUpdateValidatorSet(currentValidators, newValidators []*stakingtypes.Validator) []*stakingtypes.Validator {
-	if newValidators == nil {
-		return nil
+type ValidatorsInfo struct {
+	// StakingInfo
+	GenesisMainnetBlockHeight int64            `json:"genesisMainnetBlockHeight"`
+	CurrEpochNum              int64            `json:"currEpochNum"`
+	Validators                []*Validator `json:"validators"`
+	ValidatorsUpdate          []*Validator `json:"validatorsUpdate"`
+	PendingRewards            []*PendingReward `json:"pendingRewards"`
+
+	// App
+	CurrValidators []*Validator `json:"currValidators"`
+}
+
+type PendingReward struct {
+	Address  gethcmn.Address `json:"address"`
+	EpochNum int64           `json:"epochNum"`
+	Amount   string          `json:"amount"`
+}
+
+func (app *App) GetValidatorsInfo() ValidatorsInfo {
+	ctx := app.GetRpcContext()
+	defer ctx.Close(false)
+
+	_, stakingInfo := staking.LoadStakingAcc(ctx)
+	currValidators := app.CurrValidators()
+	info := ValidatorsInfo{
+		GenesisMainnetBlockHeight: stakingInfo.GenesisMainnetBlockHeight,
+		CurrEpochNum:              stakingInfo.CurrEpochNum,
+		Validators:                FromStakingValidators(stakingInfo.Validators),
+		ValidatorsUpdate:          FromStakingValidators(stakingInfo.ValidatorsUpdate),
+		CurrValidators:            FromStakingValidators(currValidators),
 	}
-	var currentSet = make(map[gethcmn.Address]bool)
-	var newSet = make(map[gethcmn.Address]*stakingtypes.Validator)
-	var updatedList = make([]*stakingtypes.Validator, 0, len(currentValidators))
-	for _, v := range currentValidators {
-		currentSet[v.Address] = true
-	}
-	for _, v := range newValidators {
-		newSet[v.Address] = v
-	}
-	for _, v := range currentValidators {
-		if newSet[v.Address] == nil {
-			removedV := *v
-			removedV.VotingPower = 0
-			updatedList = append(updatedList, &removedV)
-		} else if v.VotingPower != newSet[v.Address].VotingPower {
-			updatedV := *newSet[v.Address]
-			updatedList = append(updatedList, &updatedV)
-			delete(newSet, v.Address)
-		} else {
-			delete(newSet, v.Address)
+
+	info.PendingRewards = make([]*PendingReward, len(stakingInfo.PendingRewards))
+	for i, pr := range stakingInfo.PendingRewards {
+		info.PendingRewards[i] = &PendingReward{
+			Address:  pr.Address,
+			EpochNum: pr.EpochNum,
+			Amount:   uint256.NewInt().SetBytes(pr.Amount[:]).String(),
 		}
 	}
-	for _, v := range newSet {
-		addedV := *v
-		updatedList = append(updatedList, &addedV)
-	}
-	sort.Slice(updatedList, func(i, j int) bool {
-		return gethcmn.Address(updatedList[i].Address).String() < gethcmn.Address(updatedList[j].Address).String()
-	})
-	return updatedList
+
+	return info
 }
