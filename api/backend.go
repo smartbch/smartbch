@@ -410,7 +410,6 @@ func (backend *apiBackend) NodeInfo() Info {
 	return i
 }
 
-
 func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }

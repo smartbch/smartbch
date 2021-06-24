@@ -72,6 +72,7 @@ type ChainConfig struct {
 	MainnetRPCPassword string
 	SmartBchRPCUrl     string
 	Speedup            bool
+	LogValidatorsInfo  bool
 }
 
 var (

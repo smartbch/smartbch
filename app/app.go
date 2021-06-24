@@ -78,8 +78,9 @@ type App struct {
 	mtx sync.Mutex
 
 	//config
-	chainId      *uint256.Int
-	retainBlocks int64
+	chainId           *uint256.Int
+	retainBlocks      int64
+	logValidatorsInfo bool
 
 	//store
 	mads          *moeingads.MoeingADS
@@ -146,6 +147,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app := &App{}
 
 	app.recheckThreshold = config.RecheckThreshold
+	app.logValidatorsInfo = config.LogValidatorsInfo
 
 	/*------signature cache------*/
 	app.sigCacheSize = config.SigCacheSize
@@ -565,9 +567,11 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	staking.SaveStakingInfo(ctx, acc, newInfo)
 	ctx.Close(true)
 
-	validatorsInfo := app.GetValidatorsInfo()
-	bz, _ := json.Marshal(validatorsInfo)
-	fmt.Printf("ValidatorsInfo %v\n", bz)
+	if app.logValidatorsInfo {
+		validatorsInfo := app.GetValidatorsInfo()
+		bz, _ := json.Marshal(validatorsInfo)
+		fmt.Printf("ValidatorsInfo %v\n", bz)
+	}
 
 	app.currValidators = newValidators
 
@@ -903,8 +907,8 @@ type ValidatorsInfo struct {
 	// StakingInfo
 	GenesisMainnetBlockHeight int64            `json:"genesisMainnetBlockHeight"`
 	CurrEpochNum              int64            `json:"currEpochNum"`
-	Validators                []*Validator `json:"validators"`
-	ValidatorsUpdate          []*Validator `json:"validatorsUpdate"`
+	Validators                []*Validator     `json:"validators"`
+	ValidatorsUpdate          []*Validator     `json:"validatorsUpdate"`
 	PendingRewards            []*PendingReward `json:"pendingRewards"`
 
 	// App
