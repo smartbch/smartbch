@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"time"
 	"sort"
+	"time"
 
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -189,7 +189,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 // Generate a new block's information
 func (watcher *Watcher) generateNewEpoch() {
 	epoch := &types.Epoch{
-		StartHeight:    watcher.lastEpochEndHeight + 1,
+		StartHeight: watcher.lastEpochEndHeight + 1,
 		Nominations: make([]*types.Nomination, 0, 10),
 	}
 	startTime := int64(1 << 62)
@@ -221,7 +221,7 @@ func (watcher *Watcher) generateNewEpoch() {
 		epoch.Nominations = append(epoch.Nominations, v)
 	}
 	sort.Slice(epoch.Nominations, func(i, j int) bool {
-		return bytes.Compare(epoch.Nominations[i].Pubkey[:],  epoch.Nominations[j].Pubkey[:]) < 0
+		return bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0
 	})
 	watcher.epochList = append(watcher.epochList, epoch)
 	watcher.EpochChan <- epoch
