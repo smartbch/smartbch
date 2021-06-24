@@ -65,7 +65,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 	latestHeight := watcher.rpcClient.GetLatestHeight()
 	catchup := false
 	if watcher.speedup {
-		start := uint64(watcher.initEpochNum)
+		start := uint64(watcher.initEpochNum) + 1
 		for {
 			if latestHeight < height+NumBlocksInEpoch {
 				fmt.Printf("exit epoch speedup as of height:%d is near latest:%d\n", height, latestHeight)
@@ -73,7 +73,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
 			if epochs == nil {
-				fmt.Printf("exit epoch speedup as of epoch is nil, latest epoch is %d\n", start)
+				fmt.Printf("exit epoch speedup as of epoch is nil, latest epoch want to get is %d\n", start)
 				break
 			}
 			for _, e := range epochs {
@@ -86,7 +86,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 			}
 			height += int64(len(epochs)) * NumBlocksInEpoch
 			start = start + uint64(len(epochs))
-			fmt.Printf("get epoch start with:%d, length:%d, height update:%d\n", start, len(epochs), height)
+			fmt.Printf("get epoch start with:%d, epoch length:%d, newest height after update is:%d\n", start, len(epochs), height)
 		}
 		watcher.latestFinalizedHeight = height
 		watcher.lastEpochEndHeight = height
