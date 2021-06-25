@@ -613,9 +613,20 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	stakingAcc, info := LoadStakingAcc(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
+	fmt.Printf(`
+Epoch in switchEpoch:
+number:%d
+startHeight:%d
+EndTime:%d
+Duration:%d
+CurrentEpochNum:%d
+CurrentSmartBchBlockHeight:%d
+`, epoch.Number, epoch.StartHeight, epoch.EndTime, epoch.Duration, info.CurrEpochNum, ctx.Height)
+	for _, n := range epoch.Nominations {
+		fmt.Printf(`Nomination: [ pubkey:%s, NominatedCount:%d ]`, ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount)
+	}
 	epoch.Number = info.CurrEpochNum
 	SaveEpoch(ctx, stakingAcc, info.CurrEpochNum, epoch)
-	fmt.Printf("curent epoch:%d\n", info.CurrEpochNum)
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.Nominations {
 		pubkey2power[v.Pubkey] = v.NominatedCount
