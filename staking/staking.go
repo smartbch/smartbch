@@ -745,7 +745,11 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *ty
 	//delete useless validator
 	for i, v := range info.Validators {
 		if _, ok := uselessValMap[v.Address]; ok {
-			info.Validators = append(info.Validators[:i], info.Validators[i+1:]...)
+			if i == len(info.Validators)-1 {
+				info.Validators = info.Validators[:i]
+			} else {
+				info.Validators = append(info.Validators[:i], info.Validators[i+1:]...)
+			}
 		}
 	}
 	stakingAcc.UpdateBalance(stakingAccBalance)
