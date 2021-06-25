@@ -162,7 +162,6 @@ func TestSwitchEpoch(t *testing.T) {
 	e := &types2.Epoch{
 		StartHeight: 100,
 		EndTime:     2000,
-		Duration:    1000,
 		Nominations: make([]*types2.Nomination, 0, 10),
 	}
 	var pubkey [32]byte

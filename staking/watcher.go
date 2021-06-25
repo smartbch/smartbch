@@ -212,11 +212,6 @@ func (watcher *Watcher) generateNewEpoch() {
 			valMapByPubkey[nomination.Pubkey].NominatedCount++
 		}
 	}
-	epoch.Duration = epoch.EndTime - startTime
-	if len(watcher.epochList) != 0 {
-		lastEpoch := watcher.epochList[len(watcher.epochList)-1]
-		epoch.Duration = epoch.EndTime - lastEpoch.EndTime
-	}
 	for _, v := range valMapByPubkey {
 		epoch.Nominations = append(epoch.Nominations, v)
 	}

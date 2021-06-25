@@ -47,7 +47,6 @@ type Epoch struct {
 	Number      int64
 	StartHeight int64
 	EndTime     int64
-	Duration    int64
 	Nominations []*Nomination
 }
 

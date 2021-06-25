@@ -618,10 +618,9 @@ Epoch in switchEpoch:
 number:%d
 startHeight:%d
 EndTime:%d
-Duration:%d
 CurrentEpochNum:%d
 CurrentSmartBchBlockHeight:%d
-`, epoch.Number, epoch.StartHeight, epoch.EndTime, epoch.Duration, info.CurrEpochNum, ctx.Height)
+`, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height)
 	for _, n := range epoch.Nominations {
 		fmt.Printf(`Nomination: [ pubkey:%s, NominatedCount:%d ]`, ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount)
 	}

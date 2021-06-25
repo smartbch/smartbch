@@ -361,12 +361,6 @@ func (z *Epoch) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "EndTime")
 				return
 			}
-		case "Duration":
-			z.Duration, err = dc.ReadInt64()
-			if err != nil {
-				err = msgp.WrapError(err, "Duration")
-				return
-			}
 		case "Nominations":
 			var zb0002 uint32
 			zb0002, err = dc.ReadArrayHeader()
@@ -440,9 +434,9 @@ func (z *Epoch) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *Epoch) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 5
+	// map header, size 4
 	// write "Number"
-	err = en.Append(0x85, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
+	err = en.Append(0x84, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
 	if err != nil {
 		return
 	}
@@ -469,16 +463,6 @@ func (z *Epoch) EncodeMsg(en *msgp.Writer) (err error) {
 	err = en.WriteInt64(z.EndTime)
 	if err != nil {
 		err = msgp.WrapError(err, "EndTime")
-		return
-	}
-	// write "Duration"
-	err = en.Append(0xa8, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e)
-	if err != nil {
-		return
-	}
-	err = en.WriteInt64(z.Duration)
-	if err != nil {
-		err = msgp.WrapError(err, "Duration")
 		return
 	}
 	// write "Nominations"
@@ -527,9 +511,9 @@ func (z *Epoch) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *Epoch) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 5
+	// map header, size 4
 	// string "Number"
-	o = append(o, 0x85, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
+	o = append(o, 0x84, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
 	o = msgp.AppendInt64(o, z.Number)
 	// string "StartHeight"
 	o = append(o, 0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
@@ -537,9 +521,6 @@ func (z *Epoch) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "EndTime"
 	o = append(o, 0xa7, 0x45, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65)
 	o = msgp.AppendInt64(o, z.EndTime)
-	// string "Duration"
-	o = append(o, 0xa8, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e)
-	o = msgp.AppendInt64(o, z.Duration)
 	// string "Nominations"
 	o = append(o, 0xab, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.Nominations)))
@@ -593,12 +574,6 @@ func (z *Epoch) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			z.EndTime, bts, err = msgp.ReadInt64Bytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "EndTime")
-				return
-			}
-		case "Duration":
-			z.Duration, bts, err = msgp.ReadInt64Bytes(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "Duration")
 				return
 			}
 		case "Nominations":
@@ -674,7 +649,7 @@ func (z *Epoch) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Epoch) Msgsize() (s int) {
-	s = 1 + 7 + msgp.Int64Size + 12 + msgp.Int64Size + 8 + msgp.Int64Size + 9 + msgp.Int64Size + 12 + msgp.ArrayHeaderSize
+	s = 1 + 7 + msgp.Int64Size + 12 + msgp.Int64Size + 8 + msgp.Int64Size + 12 + msgp.ArrayHeaderSize
 	for za0001 := range z.Nominations {
 		if z.Nominations[za0001] == nil {
 			s += msgp.NilSize

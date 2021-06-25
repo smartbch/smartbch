@@ -159,11 +159,6 @@ func TestRunWithNewEpoch(t *testing.T) {
 	require.Equal(t, 9, len(c.epochList))
 	for i, e := range c.epochList {
 		require.Equal(t, int64(i)*NumBlocksInEpoch+1, e.StartHeight)
-		if i == 0 {
-			require.Equal(t, 60*10*(NumBlocksInEpoch-1), e.Duration)
-		} else {
-			require.Equal(t, 60*10*NumBlocksInEpoch, e.Duration)
-		}
 	}
 }
 
