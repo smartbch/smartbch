@@ -72,7 +72,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 				break
 			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
-			if epochs == nil || len(epochs) == 0 {
+			if len(epochs) == 0 {
 				fmt.Printf("exit epoch speedup as of epoch is nil, latest epoch want to get is %d\n", start)
 				break
 			}
