@@ -484,11 +484,14 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProp
 	for _, v := range slashValidators {
 		Slash(ctx, stakingAcc, &info, pubkeyMapByConsAddr[v], SlashedStakingAmount)
 	}
-	voters := make([][32]byte, len(lastVoters))
+	voters := make([][32]byte, 0, len(lastVoters))
 	var tmpAddr [20]byte
 	for i, c := range lastVoters {
 		copy(tmpAddr[:], c)
-		voters[i] = pubkeyMapByConsAddr[tmpAddr]
+		voter, ok := pubkeyMapByConsAddr[tmpAddr]
+		if ok {
+			voters = append(voters, voter)
+		}
 	}
 	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[lastProposer], voters)
 	newValidators := info.GetActiveValidators(MinimumStakingAmount)
