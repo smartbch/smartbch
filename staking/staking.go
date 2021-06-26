@@ -559,14 +559,14 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		votedPower += val.VotingPower
 	}
 
-	var proposerBaseFee *uint256.Int
-	var proposerExtraFee *uint256.Int
+	proposerBaseFee := uint256.NewInt()
+	proposerExtraFee := uint256.NewInt()
 	if proposer != [32]byte{} {
 		// proposerBaseFee and proposerExtraFee both go to the proposer
-		proposerBaseFee := uint256.NewInt().Mul(collectedFee, BaseProposerPercentage)
+		proposerBaseFee = uint256.NewInt().Mul(collectedFee, BaseProposerPercentage)
 		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt().SetUint64(100))
 		collectedFee.Sub(collectedFee, proposerBaseFee)
-		proposerExtraFee := uint256.NewInt().Mul(collectedFee, ExtraProposerPercentage)
+		proposerExtraFee = uint256.NewInt().Mul(collectedFee, ExtraProposerPercentage)
 		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt().SetUint64(uint64(votedPower)))
 		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt().SetUint64(uint64(100*totalVotingPower)))
 		collectedFee.Sub(collectedFee, proposerExtraFee)
@@ -613,7 +613,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		coins.Add(coins, proposerExtraFee)
 		coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
 		rwd.Amount = coins.Bytes32()
-	}else {
+	} else {
 		if !remainedFee.IsZero() {
 			_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
 		}
