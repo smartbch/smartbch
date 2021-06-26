@@ -192,6 +192,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	app.root.SetHeight(app.currHeight + 1)
 	if app.currHeight != 0 {
+		app.lastProposer = app.block.Miner
 		app.reload()
 	} else {
 		app.txEngine.SetContext(app.GetRunTxContext())
@@ -447,8 +448,9 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Timestamp: req.Header.Time.Unix(),
 		Size:      int64(req.Size()),
 	}
-	copy(app.lastProposer[:], req.Header.ProposerAddress)
-	fmt.Printf("PROPOSER: %s\n", gethcmn.Address(app.lastProposer).String())
+	var miner [20]byte
+	copy(miner[:], req.Header.ProposerAddress)
+	fmt.Printf("proposer in beginBlock: %s, last proposer is: %s\n", gethcmn.Address(miner).String(), gethcmn.Address(app.lastProposer).String())
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
 			app.lastVoters = append(app.lastVoters, v.Validator.Address) //this is validator consensus address

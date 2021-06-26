@@ -486,7 +486,7 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProp
 	}
 	voters := make([][32]byte, 0, len(lastVoters))
 	var tmpAddr [20]byte
-	for i, c := range lastVoters {
+	for _, c := range lastVoters {
 		copy(tmpAddr[:], c)
 		voter, ok := pubkeyMapByConsAddr[tmpAddr]
 		if ok {
@@ -559,15 +559,18 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		votedPower += val.VotingPower
 	}
 
-	// proposerBaseFee and proposerExtraFee both go to the proposer
-	proposerBaseFee := uint256.NewInt().Mul(collectedFee, BaseProposerPercentage)
-	proposerBaseFee.Div(proposerBaseFee, uint256.NewInt().SetUint64(100))
-	collectedFee.Sub(collectedFee, proposerBaseFee)
-	proposerExtraFee := uint256.NewInt().Mul(collectedFee, ExtraProposerPercentage)
-	proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt().SetUint64(uint64(votedPower)))
-	proposerExtraFee.Div(proposerExtraFee, uint256.NewInt().SetUint64(uint64(100*totalVotingPower)))
-	collectedFee.Sub(collectedFee, proposerExtraFee)
-
+	var proposerBaseFee *uint256.Int
+	var proposerExtraFee *uint256.Int
+	if proposer != [32]byte{} {
+		// proposerBaseFee and proposerExtraFee both go to the proposer
+		proposerBaseFee := uint256.NewInt().Mul(collectedFee, BaseProposerPercentage)
+		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt().SetUint64(100))
+		collectedFee.Sub(collectedFee, proposerBaseFee)
+		proposerExtraFee := uint256.NewInt().Mul(collectedFee, ExtraProposerPercentage)
+		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt().SetUint64(uint64(votedPower)))
+		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt().SetUint64(uint64(100*totalVotingPower)))
+		collectedFee.Sub(collectedFee, proposerExtraFee)
+	}
 	rwdMapByAddr := info.GetCurrRewardMapByAddr()
 	remainedFee := collectedFee.Clone()
 	//distribute to the non-proposer voters
@@ -593,22 +596,28 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		rwd.Amount = coins.Bytes32()
 	}
 
-	//distribute to the proposer
-	proposerVal := valMapByPubkey[proposer]
-	rwd := rwdMapByAddr[proposerVal.Address]
-	if rwd == nil {
-		rwd = &types.PendingReward{
-			Address:  proposerVal.Address,
-			EpochNum: info.CurrEpochNum,
-			Amount:   [32]byte{},
+	if proposer != [32]byte{} {
+		//distribute to the proposer
+		proposerVal := valMapByPubkey[proposer]
+		rwd := rwdMapByAddr[proposerVal.Address]
+		if rwd == nil {
+			rwd = &types.PendingReward{
+				Address:  proposerVal.Address,
+				EpochNum: info.CurrEpochNum,
+				Amount:   [32]byte{},
+			}
+			info.PendingRewards = append(info.PendingRewards, rwd)
 		}
-		info.PendingRewards = append(info.PendingRewards, rwd)
+		coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
+		coins.Add(coins, proposerBaseFee)
+		coins.Add(coins, proposerExtraFee)
+		coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
+		rwd.Amount = coins.Bytes32()
+	}else {
+		if !remainedFee.IsZero() {
+			_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
+		}
 	}
-	coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
-	coins.Add(coins, proposerBaseFee)
-	coins.Add(coins, proposerExtraFee)
-	coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
-	rwd.Amount = coins.Bytes32()
 }
 
 // switch to a new epoch
