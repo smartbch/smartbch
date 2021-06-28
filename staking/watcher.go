@@ -13,12 +13,12 @@ import (
 
 var (
 	//NumBlocksInEpoch       int64 = 2016
-	NumBlocksInEpoch int64 = 30
+	NumBlocksInEpoch int64 = 200
 	//NumBlocksToClearMemory int64 = 100000
 	NumBlocksToClearMemory int64 = 1000
 	//WaitingBlockDelayTime  int64 = 5 * 60
 	WaitingBlockDelayTime int64 = 2
-	EpochSwitchDelay      int64 = 4 * 200 * 40
+	EpochSwitchDelay      int64 = 3*80 + 40
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and

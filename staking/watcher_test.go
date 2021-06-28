@@ -125,7 +125,7 @@ func TestRun(t *testing.T) {
 	go w.Run(catchupChan)
 	<-catchupChan
 	time.Sleep(1 * time.Second)
-	require.Equal(t, 3, len(w.epochList))
+	require.Equal(t, 0, len(w.epochList))
 	require.Equal(t, 100, len(w.hashToBlock))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
