@@ -17,6 +17,7 @@ import (
 func main() {
 	if len(os.Args) != 6 {
 		fmt.Println("Usage: showopreturn <rpcURL> <username> <password> <startHeight> <endHeight>")
+		return
 	}
 
 	rpcURL := os.Args[1]
