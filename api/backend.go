@@ -267,7 +267,8 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	if start >= end {
 		return nil, errors.New("invalid start or empty epochs")
 	}
-	ctx := backend.app.GetRpcContext()
+	//ctx := backend.app.GetRpcContext()
+	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	result := make([]*stakingtypes.Epoch, 0, end-start)

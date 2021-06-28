@@ -370,6 +370,17 @@ func TestQueryLogs_limit(t *testing.T) {
 	require.Len(t, logs, 5)
 }
 
+
+func TestGetEpoch(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	epochs, err := _api.GetEpochs(0, 1)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(epochs))
+}
+
 func TestQueryLogs_OneTx(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	defer _app.Destroy()
