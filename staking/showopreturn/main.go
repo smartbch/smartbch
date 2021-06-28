@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/smartbch/smartbch/staking"
 )
 
@@ -11,8 +15,25 @@ import (
 // grep BLOCK data.log  |gawk 'BEGIN {print "["} {print $2","; last=$2} END {print last"]"}' > block.json
 
 func main() {
-	client := staking.NewRpcClient("http://127.0.0.1:8332/", "user", "dummypassword", "text/plain;")
+	if len(os.Args) != 6 {
+		fmt.Println("Usage: showopreturn <rpcURL> <username> <password> <startHeight> <endHeight>")
+	}
 
-	client.PrintAllOpReturn(1, 41000)
+	rpcURL := os.Args[1]
+	rpcUsername := os.Args[2]
+	rpcPassword := os.Args[3]
+
+	startH, err := strconv.ParseInt(os.Args[4], 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	endH, err := strconv.ParseInt(os.Args[5], 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;")
+	client.PrintAllOpReturn(startH, endH)
 	//client.PrintAllOpReturn(519995, 679995)
 }
