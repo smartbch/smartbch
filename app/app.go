@@ -554,7 +554,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	if len(app.epochList) != 0 {
 		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
-		if app.block.Timestamp > app.epochList[0].EndTime+3*10+10 /*100 second*/ {
+		if app.block.Timestamp > app.epochList[0].EndTime+staking.EpochSwitchDelay {
 			fmt.Printf("switch epoch, height:%d,blockTime:%d,endTime:%d\n", app.block.Number, app.block.Timestamp, app.epochList[0].EndTime)
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
 			app.epochList = app.epochList[1:]

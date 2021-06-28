@@ -18,6 +18,7 @@ var (
 	NumBlocksToClearMemory int64 = 1000
 	//WaitingBlockDelayTime  int64 = 5 * 60
 	WaitingBlockDelayTime int64 = 2
+	EpochSwitchDelay      int64 = 4 * 200 * 40
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
