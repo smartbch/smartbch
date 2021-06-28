@@ -2,10 +2,18 @@
 
 
 
-## v0.1.7 (not released yet)
+## v0.2.0 (not released yet)
 
 * JSON-RPC
   * Add sbch_getTxListByHeightWithRange
+  * Add tm_validatorsInfo
+  * Add sbch_getEpochs
+  * Fix bugs of several endpoints
+* Command
+  * Improve `smartbchd staking` command
+* Consensus
+  * Continue to enhance multi-validator support
+  * Integrate with BCHN special testnode
 
 
 
