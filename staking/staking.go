@@ -390,16 +390,10 @@ func LoadStakingAcc(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, 
 	return
 }
 
-func InitStakingInfoFromGenesis(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
-	stakingAcc := ctx.GetAccount(StakingContractAddress)
-	if stakingAcc == nil {
-		panic("Cannot find staking contract")
-	}
-	info := types.StakingInfo{
-		CurrEpochNum:   0,
-		Validators:     genesisValidators,
-		PendingRewards: make([]*types.PendingReward, len(genesisValidators)),
-	}
+func AddGenesisValidatorsInStakingInfo(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
+	stakingAcc, info := LoadStakingAcc(ctx)
+	info.Validators = genesisValidators
+	info.PendingRewards = make([]*types.PendingReward, len(genesisValidators))
 	for i := range info.PendingRewards {
 		info.PendingRewards[i] = &types.PendingReward{
 			Address: genesisValidators[i].Address,

@@ -205,7 +205,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	for _, val := range app.currValidators {
 		fmt.Printf("validator:%v\n", val.Address)
 	}
-	if stakingInfo.CurrEpochNum == 0 {
+	if stakingInfo.CurrEpochNum == 0 && stakingInfo.GenesisMainnetBlockHeight == 0 {
 		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
 		staking.SaveStakingInfo(ctx, acc, stakingInfo)
 	}
@@ -386,7 +386,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 
 	//store all genesis validators even if it is inactive
 	ctx := app.GetRunTxContext()
-	staking.InitStakingInfoFromGenesis(ctx, genesisValidators)
+	staking.AddGenesisValidatorsInStakingInfo(ctx, genesisValidators)
 	ctx.Close(true)
 
 	var activeValidator []*stakingtypes.Validator
