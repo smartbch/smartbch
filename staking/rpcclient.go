@@ -174,6 +174,16 @@ func (client *RpcClient) GetLatestHeight() (height int64) {
 	return
 }
 
+func (client *RpcClient) GetBlockHash(height int64) (string, error) {
+	return client.getBlockHashOfHeight(height)
+}
+func (client *RpcClient) GetBlockInfo(hash string) (*BlockInfo, error) {
+	return client.getBlock(hash)
+}
+func (client *RpcClient) GetTxInfo(hash string) (*TxInfo, error) {
+	return client.getTx(hash)
+}
+
 func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	var hash string
 	hash, client.err = client.getBlockHashOfHeight(height)
@@ -337,45 +347,4 @@ func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
 	}
 	fmt.Println(epochsResp)
 	return epochsResp
-}
-
-func (client *RpcClient) PrintAllOpReturn(startHeight, endHeight int64) {
-	for h := startHeight; h < endHeight; h++ {
-		fmt.Printf("Height: %d\n", h)
-		hash, err := client.getBlockHashOfHeight(h)
-		if err != nil {
-			fmt.Printf("Error when getBlockHashOfHeight %d %s\n", h, err.Error())
-			continue
-		}
-		bi, err := client.getBlock(hash)
-		if err != nil {
-			fmt.Printf("Error when getBlock %d %s\n", h, err.Error())
-			continue
-		}
-		found := false
-		for _, txid := range bi.Tx {
-			tx, err := client.getTx(txid)
-			if err != nil {
-				fmt.Printf("Error when getTx %s %s\n", txid, err.Error())
-				continue
-			}
-			for _, vout := range tx.VoutList {
-				asm, ok := vout.ScriptPubKey["asm"]
-				if !ok || asm == nil {
-					continue
-				}
-				script, ok := asm.(string)
-				if !ok {
-					continue
-				}
-				if strings.HasPrefix(script, "OP_RETURN") {
-					found = true
-					fmt.Println(script)
-				}
-			}
-		}
-		if !found {
-			fmt.Println("OP_RETURN not found!")
-		}
-	}
 }

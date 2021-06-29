@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/smartbch/smartbch/staking"
 )
@@ -35,6 +36,47 @@ func main() {
 	}
 
 	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;")
-	client.PrintAllOpReturn(startH, endH)
+	printAllOpReturn(client, startH, endH)
 	//client.PrintAllOpReturn(519995, 679995)
+}
+
+func printAllOpReturn(client *staking.RpcClient, startHeight, endHeight int64) {
+	for h := startHeight; h < endHeight; h++ {
+		fmt.Printf("Height: %d\n", h)
+		hash, err := client.GetBlockHash(h)
+		if err != nil {
+			fmt.Printf("Error when getBlockHashOfHeight %d %s\n", h, err.Error())
+			continue
+		}
+		bi, err := client.GetBlockInfo(hash)
+		if err != nil {
+			fmt.Printf("Error when getBlock %d %s\n", h, err.Error())
+			continue
+		}
+		found := false
+		for _, txid := range bi.Tx {
+			tx, err := client.GetTxInfo(txid)
+			if err != nil {
+				fmt.Printf("Error when getTx %s %s\n", txid, err.Error())
+				continue
+			}
+			for _, vout := range tx.VoutList {
+				asm, ok := vout.ScriptPubKey["asm"]
+				if !ok || asm == nil {
+					continue
+				}
+				script, ok := asm.(string)
+				if !ok {
+					continue
+				}
+				if strings.HasPrefix(script, "OP_RETURN") {
+					found = true
+					fmt.Println(script)
+				}
+			}
+		}
+		if !found {
+			fmt.Println("OP_RETURN not found!")
+		}
+	}
 }
