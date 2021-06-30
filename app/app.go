@@ -535,7 +535,26 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
-	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.lastProposer, app.lastVoters, &blockReward)
+	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
+	ctx.Close(true)
+
+	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
+	app.refresh()
+	bi := app.syncBlockInfo()
+	go app.postCommit(bi)
+	app.logger.Debug("leave commit!")
+	res := abcitypes.ResponseCommit{
+		Data: append([]byte{}, app.block.StateRoot[:]...),
+	}
+	// prune tendermint history block and state every 100 blocks, maybe param it
+	if app.retainBlocks > 0 && app.currHeight >= app.retainBlocks && (app.currHeight%100 == 0) {
+		res.RetainHeight = app.currHeight - app.retainBlocks + 1
+	}
+	return res
+}
+
+func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *uint256.Int) {
+	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.lastProposer, app.lastVoters, blockReward)
 	app.slashValidators = app.slashValidators[:0]
 
 	select {
@@ -554,6 +573,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 			app.epochList = app.epochList[1:]
 		}
 	}
+
 	app.validatorUpdate = staking.GetUpdateValidatorSet(app.currValidators, newValidators)
 	for _, v := range app.validatorUpdate {
 		fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
@@ -566,23 +586,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		bz, _ := json.Marshal(validatorsInfo)
 		fmt.Println("ValidatorsInfo:", string(bz))
 	}
-	ctx.Close(true)
 
 	app.currValidators = newValidators
-
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
-	app.refresh()
-	bi := app.syncBlockInfo()
-	go app.postCommit(bi)
-	app.logger.Debug("leave commit!")
-	res := abcitypes.ResponseCommit{
-		Data: append([]byte{}, app.block.StateRoot[:]...),
-	}
-	// prune tendermint history block and state every 100 blocks, maybe param it
-	if app.retainBlocks > 0 && app.currHeight >= app.retainBlocks && (app.currHeight%100 == 0) {
-		res.RetainHeight = app.currHeight - app.retainBlocks + 1
-	}
-	return res
 }
 
 func (app *App) syncBlockInfo() *types.BlockInfo {
