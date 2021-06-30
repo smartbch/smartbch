@@ -1,4 +1,4 @@
-package app_test
+package seps_test
 
 import (
 	"math/big"

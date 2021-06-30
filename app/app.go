@@ -36,6 +36,7 @@ import (
 
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/seps"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
@@ -879,8 +880,6 @@ func (app *App) randomPanic(baseNumber, primeNumber int64) {
 	}(baseNumber + time.Now().UnixNano()%primeNumber)
 }
 
-var sep206Addr = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
-
 // Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
 // through sep206 in the last block
 func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGroup) {
@@ -890,7 +889,7 @@ func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGr
 	go func() {
 		for _, tx := range app.txEngine.CommittedTxs() {
 			for _, log := range tx.Logs {
-				if log.Address == sep206Addr && len(log.Topics) == 2 &&
+				if log.Address == seps.SEP206Addr && len(log.Topics) == 2 &&
 					log.Topics[0] == modbtypes.TransferEvent {
 					var addr gethcmn.Address
 					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address

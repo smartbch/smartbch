@@ -1,4 +1,4 @@
-package app_test
+package seps_test
 
 import (
 	"encoding/hex"
@@ -12,10 +12,11 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/seps"
 )
 
 var (
-	sep206Addr        = gethcmn.HexToAddress("0x0000000000000000000000000000000000002711")
+	sep206Addr        = seps.SEP206Addr
 	sep206TotalSupply = big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil)) // 21*10^24
 )
 
