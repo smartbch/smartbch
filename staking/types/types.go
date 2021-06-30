@@ -10,7 +10,21 @@ import (
 
 //go:generate msgp
 
-var MaxActiveValidatorNum = 30
+const MaxActiveValidatorNum = 30
+
+var (
+	CreateValidatorCoinLtInitAmount = errors.New("Validator's staking coin less than init amount")
+	ValidatorAddressAlreadyExists   = errors.New("Validator's address already exists")
+	ValidatorPubkeyAlreadyExists    = errors.New("Validator's pubkey already exists")
+)
+
+// These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
+type RpcClient interface {
+	GetLatestHeight() int64
+	GetBlockByHeight(height int64) *BCHBlock
+	GetBlockByHash(hash [32]byte) *BCHBlock
+	GetEpochs(start, end uint64) []*Epoch
+}
 
 // Currently the first Vout in a coinbase transaction can nominate one validator with one vote
 // In the future it maybe extend to nominate multiple validators with different weights
@@ -34,30 +48,12 @@ func (b *BCHBlock) Equal(o *BCHBlock) bool {
 		b.HashId == o.HashId && b.ParentBlk == o.ParentBlk
 }
 
-// These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
-type RpcClient interface {
-	GetLatestHeight() int64
-	GetBlockByHeight(height int64) *BCHBlock
-	GetBlockByHash(hash [32]byte) *BCHBlock
-	GetEpochs(start, end uint64) []*Epoch
-}
-
 // An epoch elects several validators in NumBlocksInEpoch blocks
 type Epoch struct {
 	Number      int64
 	StartHeight int64
 	EndTime     int64
 	Nominations []*Nomination
-}
-
-// This struct is stored in the world state.
-// All the staking-related operations manipulate it.
-type StakingInfo struct {
-	GenesisMainnetBlockHeight int64            `msgp:"genesis_mainnet_block_height"`
-	CurrEpochNum              int64            `msgp:"curr_epoch_num"`
-	Validators                []*Validator     `msgp:"validators"`
-	ValidatorsUpdate          []*Validator     `msgp:"validators_update"`
-	PendingRewards            []*PendingReward `msgp:"pending_rewards"`
 }
 
 type Validator struct {
@@ -77,11 +73,15 @@ type PendingReward struct {
 	Amount   [32]byte `msgp:"amount"`    // amount of rewards
 }
 
-var (
-	CreateValidatorCoinLtInitAmount = errors.New("Validator's staking coin less than init amount")
-	ValidatorAddressAlreadyExists   = errors.New("Validator's address already exists")
-	ValidatorPubkeyAlreadyExists    = errors.New("Validator's pubkey already exists")
-)
+// This struct is stored in the world state.
+// All the staking-related operations manipulate it.
+type StakingInfo struct {
+	GenesisMainnetBlockHeight int64            `msgp:"genesis_mainnet_block_height"`
+	CurrEpochNum              int64            `msgp:"curr_epoch_num"`
+	Validators                []*Validator     `msgp:"validators"`
+	ValidatorsUpdate          []*Validator     `msgp:"validators_update"`
+	PendingRewards            []*PendingReward `msgp:"pending_rewards"`
+}
 
 // Change si.Validators into a map with pubkeys as keys
 func (si *StakingInfo) GetValMapByPubkey() map[[32]byte]*Validator {
