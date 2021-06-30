@@ -198,19 +198,25 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 // Returns current validators on duty, who must have enough coins staked and be not in a retiring process
 // only update validator voting power on switchEpoch
 func (si *StakingInfo) GetActiveValidators(minStakedCoins *uint256.Int) []*Validator {
-	res := make([]*Validator, 0, len(si.Validators))
-	for _, val := range si.Validators {
-		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
-		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
-			res = append(res, val)
-		}
-	}
+	res := GetActiveValidators(si.Validators, minStakedCoins)
+
 	//sort: 1.voting power; 2.create validator time
 	sort.SliceStable(res, func(i, j int) bool {
 		return res[i].VotingPower > res[j].VotingPower
 	})
 	if len(res) > MaxActiveValidatorNum {
 		res = res[:MaxActiveValidatorNum]
+	}
+	return res
+}
+
+func GetActiveValidators(vals []*Validator, minStakedCoins *uint256.Int) []*Validator {
+	res := make([]*Validator, 0, len(vals))
+	for _, val := range vals {
+		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
+		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
+			res = append(res, val)
+		}
 	}
 	return res
 }

@@ -389,13 +389,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	staking.AddGenesisValidatorsInStakingInfo(ctx, genesisValidators)
 	ctx.Close(true)
 
-	var activeValidator []*stakingtypes.Validator
-	for _, v := range genesisValidators {
-		if uint256.NewInt().SetBytes(v.StakedCoins[:]).Cmp(staking.MinimumStakingAmount) >= 0 && !v.IsRetiring && v.VotingPower > 0 {
-			activeValidator = append(activeValidator, v)
-		}
-	}
-	app.currValidators = activeValidator
+	app.currValidators = stakingtypes.GetActiveValidators(genesisValidators, staking.MinimumStakingAmount)
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
 	for i, v := range app.currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -403,7 +397,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		fmt.Printf("inichain validator:%s\n", p.String())
+		fmt.Printf("initchain validator:%s\n", p.String())
 	}
 
 	params := &abcitypes.ConsensusParams{
