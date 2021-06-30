@@ -582,7 +582,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, acc, newInfo)
 	if app.logValidatorsInfo {
-		validatorsInfo := app.GetValidatorsInfoFromCtx(ctx)
+		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
 		fmt.Println("ValidatorsInfo:", string(bz))
 	}
@@ -903,49 +903,13 @@ func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGr
 	return res, &wg
 }
 
-type ValidatorsInfo struct {
-	// StakingInfo
-	GenesisMainnetBlockHeight int64            `json:"genesisMainnetBlockHeight"`
-	CurrEpochNum              int64            `json:"currEpochNum"`
-	Validators                []*Validator     `json:"validators"`
-	ValidatorsUpdate          []*Validator     `json:"validatorsUpdate"`
-	PendingRewards            []*PendingReward `json:"pendingRewards"`
-
-	// App
-	CurrValidators []*Validator `json:"currValidators"`
-}
-
-type PendingReward struct {
-	Address  gethcmn.Address `json:"address"`
-	EpochNum int64           `json:"epochNum"`
-	Amount   string          `json:"amount"`
-}
-
 func (app *App) GetValidatorsInfo() ValidatorsInfo {
 	ctx := app.GetRpcContext()
 	defer ctx.Close(false)
-	return app.GetValidatorsInfoFromCtx(ctx)
+	return app.getValidatorsInfoFromCtx(ctx)
 }
 
-func (app *App) GetValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
+func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	_, stakingInfo := staking.LoadStakingAcc(ctx)
-	currValidators := app.CurrValidators()
-	info := ValidatorsInfo{
-		GenesisMainnetBlockHeight: stakingInfo.GenesisMainnetBlockHeight,
-		CurrEpochNum:              stakingInfo.CurrEpochNum,
-		Validators:                FromStakingValidators(stakingInfo.Validators),
-		ValidatorsUpdate:          FromStakingValidators(stakingInfo.ValidatorsUpdate),
-		CurrValidators:            FromStakingValidators(currValidators),
-	}
-
-	info.PendingRewards = make([]*PendingReward, len(stakingInfo.PendingRewards))
-	for i, pr := range stakingInfo.PendingRewards {
-		info.PendingRewards[i] = &PendingReward{
-			Address:  pr.Address,
-			EpochNum: pr.EpochNum,
-			Amount:   uint256.NewInt().SetBytes(pr.Amount[:]).String(),
-		}
-	}
-
-	return info
+	return newValidatorsInfo(app.currValidators, stakingInfo)
 }
