@@ -24,9 +24,12 @@ type Server struct {
 
 	rpcAddr      string // listen address of rest-server
 	wsAddr       string // listen address of ws server
-	rpcHttpsAddr string //listen address of https rest-server
-	wssAddr      string //listen address of https ws server
+	rpcHttpsAddr string // listen address of https rest-server
+	wssAddr      string // listen address of https ws server
 	corsDomain   string
+	certFile     string
+	keyFile      string
+	serverConfig *tmrpcserver.Config
 
 	logger  tmlog.Logger
 	backend api.BackendService
@@ -36,26 +39,26 @@ type Server struct {
 	wsServer     *gethrpc.Server
 	wsListener   net.Listener
 
-	httpsListener     net.Listener
-	wssListener       net.Listener
-	certFile, keyFile string
+	httpsListener net.Listener
+	wssListener   net.Listener
 
 	unlockedKeys []string
 }
 
-func NewServer(rpcAddr, wsAddr, corsDomain string,
-	backend api.BackendService, certFile, keyFile string,
+func NewServer(rpcAddr, wsAddr, corsDomain, certFile, keyFile string,
+	serverCfg *tmrpcserver.Config, backend api.BackendService,
 	logger tmlog.Logger, unlockedKeys []string) tmservice.Service {
 
 	impl := &Server{
 		rpcAddr:      rpcAddr,
 		wsAddr:       wsAddr,
 		corsDomain:   corsDomain,
+		certFile:     certFile,
+		keyFile:      keyFile,
+		serverConfig: serverCfg,
 		backend:      backend,
 		logger:       logger,
 		unlockedKeys: unlockedKeys,
-		certFile:     certFile,
-		keyFile:      keyFile,
 		rpcHttpsAddr: "tcp://:9545",
 		wssAddr:      "tcp://:9546",
 	}
@@ -77,13 +80,13 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	}
 
 	server.httpListener, err = tmrpcserver.Listen(
-		server.rpcAddr, tmrpcserver.DefaultConfig())
+		server.rpcAddr, server.serverConfig)
 	if err != nil {
 		return err
 	}
 
 	server.httpsListener, err = tmrpcserver.Listen(
-		server.rpcHttpsAddr, tmrpcserver.DefaultConfig())
+		server.rpcHttpsAddr, server.serverConfig)
 	if err != nil {
 		return err
 	}
@@ -92,7 +95,7 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	handler := newCorsHandler(server.httpServer, allowedOrigins)
 	go func() {
 		err := tmrpcserver.Serve(server.httpListener, handler, server.logger,
-			tmrpcserver.DefaultConfig()) // TODO: get config from config file
+			server.serverConfig)
 		if err != nil {
 			server.logger.Error(err.Error())
 		}
@@ -100,7 +103,7 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	go func() {
 		err := tmrpcserver.ServeTLS(server.httpsListener, handler,
 			server.certFile, server.keyFile, server.logger,
-			tmrpcserver.DefaultConfig()) // TODO: get config from config file
+			server.serverConfig)
 		if err != nil {
 			server.logger.Error(err.Error())
 		}
@@ -115,13 +118,13 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	}
 
 	server.wsListener, err = tmrpcserver.Listen(
-		server.wsAddr, tmrpcserver.DefaultConfig()) // TODO: get config from config file
+		server.wsAddr, server.serverConfig)
 	if err != nil {
 		return err
 	}
 
 	server.wssListener, err = tmrpcserver.Listen(
-		server.wssAddr, tmrpcserver.DefaultConfig())
+		server.wssAddr, server.serverConfig)
 	if err != nil {
 		return err
 	}
@@ -130,7 +133,7 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 
 	go func() {
 		err := tmrpcserver.Serve(server.wsListener, wsh, server.logger,
-			tmrpcserver.DefaultConfig()) // TODO: get config from config file
+			server.serverConfig)
 		if err != nil {
 			server.logger.Error(err.Error())
 		}
@@ -139,7 +142,7 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	go func() {
 		err := tmrpcserver.ServeTLS(server.wssListener, wsh,
 			server.certFile, server.keyFile, server.logger,
-			tmrpcserver.DefaultConfig()) // TODO: get config from config file
+			server.serverConfig)
 		if err != nil {
 			server.logger.Error(err.Error())
 		}
