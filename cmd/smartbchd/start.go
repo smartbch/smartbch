@@ -25,6 +25,7 @@ import (
 
 const (
 	flagRpcAddr              = "http.addr"
+	flagCorsDomain           = "http.corsdomain"
 	flagWsAddr               = "ws.addr"
 	flagRetainBlocks         = "retain"
 	flagUnlock               = "unlock"
@@ -54,6 +55,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().Int64(flagGenesisMainnetHeight, 0, "genesis bch mainnet height for validator voting watched")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
+	cmd.Flags().String(flagCorsDomain, "*", "Comma separated list of domains from which to accept cross origin requests (browser enforced)")
 	cmd.Flags().String(flagUnlock, "", "Comma separated list of private keys to unlock (only for testing)")
 	cmd.Flags().String(flagMainnetUrl, "tcp://:8432", "BCH Mainnet RPC URL")
 	cmd.Flags().String(flagMainnetRpcUser, "user", "BCH Mainnet RPC user name")
@@ -130,11 +132,11 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	rpcBackend := api.NewBackend(tmNode, appImpl)
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
+	corsDomain := viper.GetString(flagCorsDomain)
 	unlockedKeys := viper.GetString(flagUnlock)
-	//rpcAddr = viper.GetString("")
 	certfileDir := filepath.Join(cfg.RootDir, "config/cert.pem")
 	keyfileDir := filepath.Join(cfg.RootDir, "config/key.pem")
-	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcBackend, certfileDir, keyfileDir,
+	rpcServer := rpc.NewServer(rpcAddr, wsAddr, corsDomain, rpcBackend, certfileDir, keyfileDir,
 		ctx.Logger, strings.Split(unlockedKeys, ","))
 
 	if err := rpcServer.Start(); err != nil {

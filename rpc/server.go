@@ -3,6 +3,7 @@ package rpc
 import (
 	"net"
 	"net/http"
+	"strings"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmservice "github.com/tendermint/tendermint/libs/service"
@@ -25,6 +26,7 @@ type Server struct {
 	wsAddr       string // listen address of ws server
 	rpcHttpsAddr string //listen address of https rest-server
 	wssAddr      string //listen address of https ws server
+	corsDomain   string
 
 	logger  tmlog.Logger
 	backend api.BackendService
@@ -41,13 +43,14 @@ type Server struct {
 	unlockedKeys []string
 }
 
-func NewServer(rpcAddr string, wsAddr string,
+func NewServer(rpcAddr, wsAddr, corsDomain string,
 	backend api.BackendService, certFile, keyFile string,
 	logger tmlog.Logger, unlockedKeys []string) tmservice.Service {
 
 	impl := &Server{
 		rpcAddr:      rpcAddr,
 		wsAddr:       wsAddr,
+		corsDomain:   corsDomain,
 		backend:      backend,
 		logger:       logger,
 		unlockedKeys: unlockedKeys,
@@ -85,7 +88,7 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 		return err
 	}
 
-	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
+	allowedOrigins := strings.Split(server.corsDomain, ",")
 	handler := newCorsHandler(server.httpServer, allowedOrigins)
 	go func() {
 		err := tmrpcserver.Serve(server.httpListener, handler, server.logger,
@@ -96,7 +99,8 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	}()
 	go func() {
 		err := tmrpcserver.ServeTLS(server.httpsListener, handler,
-			server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig())
+			server.certFile, server.keyFile, server.logger,
+			tmrpcserver.DefaultConfig()) // TODO: get config from config file
 		if err != nil {
 			server.logger.Error(err.Error())
 		}
@@ -121,7 +125,7 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	if err != nil {
 		return err
 	}
-	allowedOrigins := []string{"*"} // TODO: get from cmd line options or config file
+	allowedOrigins := strings.Split(server.corsDomain, ",")
 	wsh := server.wsServer.WebsocketHandler(allowedOrigins)
 
 	go func() {
@@ -134,7 +138,8 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 
 	go func() {
 		err := tmrpcserver.ServeTLS(server.wssListener, wsh,
-			server.certFile, server.keyFile, server.logger, tmrpcserver.DefaultConfig()) // TODO: get config from config file
+			server.certFile, server.keyFile, server.logger,
+			tmrpcserver.DefaultConfig()) // TODO: get config from config file
 		if err != nil {
 			server.logger.Error(err.Error())
 		}
