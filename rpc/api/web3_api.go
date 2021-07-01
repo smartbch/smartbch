@@ -17,7 +17,7 @@ type web3API struct {
 
 func (w web3API) ClientVersion() string {
 	// TODO: this is temporary implementation
-	return "smart bch 0.0.1"
+	return "smartBCH v0.2.0"
 }
 
 func (w web3API) Sha3(input hexutil.Bytes) hexutil.Bytes {

@@ -19,7 +19,7 @@ import (
 type FilterService interface {
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*motypes.Header, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*motypes.Header, error)
-	GetReceipts(ctx context.Context, blockHash common.Hash) (gethtypes.Receipts, error)
+	GetReceipts(ctx context.Context, blockNum uint64) (gethtypes.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*gethtypes.Log, error)
 
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
@@ -88,9 +88,9 @@ type BackendService interface {
 
 	//Below is added in moeing chain only
 	GetNonce(address common.Address) (uint64, error)
-	GetBalance(address common.Address, height int64) (*big.Int, error)
-	GetCode(contract common.Address, blockNumber int64) (bytecode []byte, codeHash []byte)
-	GetStorageAt(address common.Address, key string, blockNumber int64) []byte
+	GetBalance(address common.Address) (*big.Int, error)
+	GetCode(contract common.Address) (bytecode []byte, codeHash []byte)
+	GetStorageAt(address common.Address, key string) []byte
 	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
 	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter motypes.FilterFunc) ([]motypes.Log, error)

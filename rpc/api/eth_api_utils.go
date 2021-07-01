@@ -14,6 +14,7 @@ import (
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
@@ -57,12 +58,11 @@ func createGethTxFromSendTxArgs(args rpctypes.SendTxArgs) (*gethtypes.Transactio
 		gasLimit = (uint64)(*args.Gas)
 	}
 
-	// TODO: replace with ethutils.NewTx()
 	var tx *gethtypes.Transaction
 	if args.To != nil {
-		tx = gethtypes.NewTransaction(nonce, *args.To, amount, gasLimit, gasPrice, input)
+		tx = ethutils.NewTx(nonce, args.To, amount, gasLimit, gasPrice, input)
 	} else {
-		tx = gethtypes.NewContractCreation(nonce, amount, gasLimit, gasPrice, input)
+		tx = ethutils.NewTx(nonce, nil, amount, gasLimit, gasPrice, input)
 	}
 
 	return tx, nil

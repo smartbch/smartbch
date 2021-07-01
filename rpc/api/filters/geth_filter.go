@@ -46,38 +46,39 @@ type Filter struct {
 	matcher *bloombits.Matcher
 }
 
-// NewRangeFilter creates a new filter which uses a bloom filter on blocks to
-// figure out whether a particular block is interesting or not.
-func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
-	// Flatten the address and topic filter clauses into a single bloombits filter
-	// system. Since the bloombits are not positional, nil topics are permitted,
-	// which get flattened into a nil byte slice.
-	var filters [][][]byte
-	if len(addresses) > 0 {
-		filter := make([][]byte, len(addresses))
-		for i, address := range addresses {
-			filter[i] = address.Bytes()
-		}
-		filters = append(filters, filter)
-	}
-	for _, topicList := range topics {
-		filter := make([][]byte, len(topicList))
-		for i, topic := range topicList {
-			filter[i] = topic.Bytes()
-		}
-		filters = append(filters, filter)
-	}
-	size, _ := backend.BloomStatus()
-
-	// Create a generic filter and convert it into a range filter
-	filter := newFilter(backend, addresses, topics)
-
-	filter.matcher = bloombits.NewMatcher(size, filters)
-	filter.begin = begin
-	filter.end = end
-
-	return filter
-}
+//
+//// NewRangeFilter creates a new filter which uses a bloom filter on blocks to
+//// figure out whether a particular block is interesting or not.
+//func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
+//	// Flatten the address and topic filter clauses into a single bloombits filter
+//	// system. Since the bloombits are not positional, nil topics are permitted,
+//	// which get flattened into a nil byte slice.
+//	var filters [][][]byte
+//	if len(addresses) > 0 {
+//		filter := make([][]byte, len(addresses))
+//		for i, address := range addresses {
+//			filter[i] = address.Bytes()
+//		}
+//		filters = append(filters, filter)
+//	}
+//	for _, topicList := range topics {
+//		filter := make([][]byte, len(topicList))
+//		for i, topic := range topicList {
+//			filter[i] = topic.Bytes()
+//		}
+//		filters = append(filters, filter)
+//	}
+//	size, _ := backend.BloomStatus()
+//
+//	// Create a generic filter and convert it into a range filter
+//	filter := newFilter(backend, addresses, topics)
+//
+//	filter.matcher = bloombits.NewMatcher(size, filters)
+//	filter.begin = begin
+//	filter.end = end
+//
+//	return filter
+//}
 
 // NewBlockFilter creates a new filter which directly inspects the contents of
 // a block to figure out whether it is interesting or not.
@@ -241,7 +242,7 @@ func (f *Filter) checkMatches(ctx context.Context, header *motypes.Header) (logs
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
 		if logs[0].TxHash == (common.Hash{}) {
-			receipts, err := f.backend.GetReceipts(ctx, header.BlockHash)
+			receipts, err := f.backend.GetReceipts(ctx, header.Number)
 			if err != nil {
 				return nil, err
 			}

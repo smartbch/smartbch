@@ -61,12 +61,7 @@ func (backend *apiBackend) ChainId() *big.Int {
 	return backend.app.ChainID().ToBig()
 }
 
-func (backend *apiBackend) GetStorageAt(address common.Address, key string, blockNumber int64) []byte {
-	if blockNumber != int64(rpc.LatestBlockNumber) {
-		// TODO: not supported yet
-		return nil
-	}
-
+func (backend *apiBackend) GetStorageAt(address common.Address, key string) []byte {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
@@ -77,12 +72,7 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string, bloc
 	return ctx.GetStorageAt(acc.Sequence(), key)
 }
 
-func (backend *apiBackend) GetCode(contract common.Address, blockNumber int64) (bytecode []byte, codeHash []byte) {
-	if blockNumber != int64(rpc.LatestBlockNumber) {
-		// TODO: not supported yet
-		return
-	}
-
+func (backend *apiBackend) GetCode(contract common.Address) (bytecode []byte, codeHash []byte) {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
@@ -94,10 +84,10 @@ func (backend *apiBackend) GetCode(contract common.Address, blockNumber int64) (
 	return
 }
 
-func (backend *apiBackend) GetBalance(owner common.Address, height int64) (*big.Int, error) {
+func (backend *apiBackend) GetBalance(owner common.Address) (*big.Int, error) {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
-	b, err := ctx.GetBalance(owner, height)
+	b, err := ctx.GetBalance(owner)
 	if err != nil {
 		return nil, err
 	}
@@ -310,23 +300,35 @@ func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Ha
 		BlockHash: block.Hash,
 	}, nil
 }
-func (backend *apiBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (gethtypes.Receipts, error) {
+func (backend *apiBackend) GetReceipts(ctx context.Context, blockNum uint64) (gethtypes.Receipts, error) {
 	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
 
 	receipts := make([]*gethtypes.Receipt, 0, 8)
 
-	// TODO: query receipts
-	//block, err := appCtx.GetBlockByHash(blockHash)
-	//if err == nil && block != nil {
-	//	for _, txHash := range block.Transactions {
-	//		tx, err := appCtx.GetTxByHash(txHash)
-	//		if err == nil && tx != nil {
-	//			receipts = append(receipts, toGethReceipt(tx))
-	//		}
-	//	}
-	//}
+	txs, err := appCtx.GetTxListByHeight(uint32(blockNum))
+	if err == nil {
+		for _, tx := range txs {
+			receipts = append(receipts, toGethReceipt(tx))
+		}
+	}
+
 	return receipts, nil
+}
+
+func toGethReceipt(tx *types.Transaction) *gethtypes.Receipt {
+	return &gethtypes.Receipt{
+		Status:            tx.Status,
+		CumulativeGasUsed: tx.CumulativeGasUsed,
+		Bloom:             tx.LogsBloom,
+		Logs:              types.ToGethLogs(tx.Logs),
+		TxHash:            tx.Hash,
+		ContractAddress:   tx.ContractAddress,
+		GasUsed:           tx.GasUsed,
+		BlockHash:         tx.BlockHash,
+		BlockNumber:       big.NewInt(tx.BlockNumber),
+		TransactionIndex:  uint(tx.TransactionIndex),
+	}
 }
 
 func (backend *apiBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*gethtypes.Log, error) {
@@ -371,7 +373,7 @@ func (backend *apiBackend) SubscribeRemovedLogsEvent(ch chan<- gethcore.RemovedL
 //}
 
 func (backend *apiBackend) BloomStatus() (uint64, uint64) {
-	return 4096, 0 // TODO: this is temporary implementation
+	return 4096, 0 // this is temporary implementation
 }
 func (backend *apiBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
 	panic("implement me")
