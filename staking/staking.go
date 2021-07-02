@@ -72,12 +72,12 @@ var (
 
 	//minGasPrice
 	//todo: set to 0 for test, change it for product
-	DefaultMinGasPrice      uint64 = 0 //unit like gwei
-	MaxMinGasPriceDeltaRate uint64 = 16
-	MinGasPriceDeltaRate    uint64 = 5 //gas delta rate every tx can change
-	MaxMinGasPrice          uint64 = 500
+	DefaultMinGasPrice          uint64 = 0 //unit like gwei
+	MinGasPriceDeltaRateInBlock uint64 = 16
+	MinGasPriceDeltaRate        uint64 = 5 //gas delta rate every tx can change
+	MinGasPriceUpperBound       uint64 = 500
 	//todo: set to 0 for test, change it for product
-	MinMinGasPrice uint64 = 0
+	MinGasPriceLowerBound uint64 = 0
 
 	/*------error info------*/
 	InvalidCallData                   = errors.New("invalid call data")
@@ -88,15 +88,17 @@ var (
 	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
 	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
 	InvalidArgument                   = errors.New("invalid argument")
+	CreateValidatorCoinLtInitAmount   = errors.New("Validator's staking coin less than init amount")
 )
 
 const (
 	SumVotingPowerGasPerByte uint64 = 25
 	SumVotingPowerBaseGas    uint64 = 10000
-	StatusSuccess            int    = 0
-	StatusFailed             int    = 1
+	StatusSuccess            int    = 0 // because EVMC_SUCCESS = 0,
+	StatusFailed             int    = 1 // because EVMC_FAILURE = 1,
 )
 
+// get a slot number to store an epoch's validators
 func getSlotForEpoch(epochNum int64) string {
 	var buf [32]byte
 	buf[23] = 1
@@ -115,6 +117,7 @@ func (_ *StakingContractExecutor) Init(ctx *mevmtypes.Context) {
 		stakingAcc.UpdateSequence(StakingContractSequence)
 		ctx.SetAccount(StakingContractAddress, stakingAcc)
 	}
+	LoadReadonlyValiatorsInfo(ctx)
 }
 
 func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
@@ -155,10 +158,11 @@ func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 var readonlyStakingInfo *types.StakingInfo
 
 func LoadReadonlyValiatorsInfo(ctx *mevmtypes.Context) {
-	_, info := LoadStakingAcc(ctx)
+	info := LoadStakingInfo(ctx)
 	readonlyStakingInfo = &info
 }
 
+// this functions is called when other contract calls sumVotingPower
 func (_ *StakingContractExecutor) RequiredGas(input []byte) uint64 {
 	return uint64(len(input))*SumVotingPowerGasPerByte + SumVotingPowerBaseGas
 }
@@ -169,13 +173,11 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 		return nil, InvalidArgument
 	}
 	input = input[4+32*2:] // ignore selector, offset, and length
-	var addr [20]byte
-	var result [64]byte
-	addrMap := make(map[[20]byte]struct{}, len(input)/32)
-	countedAddrs := make(map[[20]byte]struct{}, len(input)/32)
+	addrSet := make(map[[20]byte]struct{}, len(input)/32)
 	for i := 0; i+32 < len(input); i += 32 {
+		var addr [20]byte
 		copy(addr[:], input[i*32+12:i*32+32])
-		addrMap[addr] = struct{}{}
+		addrSet[addr] = struct{}{}
 	}
 	summedPower := int64(0)
 	totalPower := int64(0)
@@ -183,55 +185,56 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 	if readonlyStakingInfo != nil {
 		validators = readonlyStakingInfo.Validators
 	}
+	countedAddrs := make(map[[20]byte]struct{}, len(input)/32)
 	for _, val := range validators {
-		_, hasValidator := addrMap[val.Address]
-		_, hasRewardTo := addrMap[val.RewardTo]
+		_, hasValidator := addrSet[val.Address]
+		_, hasRewardTo := addrSet[val.RewardTo]
 		if hasValidator || hasRewardTo {
-			if _, ok := countedAddrs[val.Address]; !ok {
+			if _, ok := countedAddrs[val.Address]; !ok {// a validate cannot be counted twice
 				summedPower += val.VotingPower
 				countedAddrs[val.Address] = struct{}{}
 			}
 		}
 		totalPower += val.VotingPower
 	}
+	var result [64]byte
 	uint256.NewInt().SetUint64(uint64(summedPower)).WriteToSlice(result[:32])
 	uint256.NewInt().SetUint64(uint64(totalPower)).WriteToSlice(result[32:])
 	return result[:], nil
 }
 
+// a string stored in bz with one or more ending '\0' characters
 func stringFromBytes(bz []byte) string {
-	i := len(bz) - 1
-	for i >= 0 {
+	for i := len(bz) - 1; i >= 0; i-- {
 		if bz[i] != 0 {
-			break
+			return string(bz[:i+1])
 		}
-		i--
 	}
-	return string(bz[:i+1])
+	return string(bz)
 }
 
+// create a new validator with rewardTo, intro and pubkey fields, and stake it with some coins
 func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = StatusFailed
+	status = StatusFailed //default status is failed
 	gasUsed = GasOfStakingExternalOp
-	var pubkey [32]byte
-	var intro string
-	var rewardTo [20]byte
 	callData := tx.Data[4:]
 	if len(callData) < 96 {
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
 	// First argument: rewardTo
+	var rewardTo [20]byte
 	copy(rewardTo[:], callData[12:32])
 	// Second argument: introduction, byte32, limited to 32 byte
-	intro = stringFromBytes(callData[32:64])
+	intro := stringFromBytes(callData[32:64])
 	// Third argument: pubkey (only createValidator has it)
+	var pubkey [32]byte
 	copy(pubkey[:], callData[64:])
 
-	stakingAcc, info := LoadStakingAcc(ctx)
+	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 
 	if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
-		outData = []byte(types.CreateValidatorCoinLtInitAmount.Error())
+		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
 		return
 	}
 	err := info.AddValidator(tx.From, pubkey, intro, tx.Value, rewardTo)
@@ -241,28 +244,28 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 	}
 
 	// Now let's update the states
-	SaveStakingInfo(ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, info)
 
 	status, outData = transferStakedCoins(ctx, tx, stakingAcc)
 	return
 }
 
+// edit a new validator's rewardTo and intro fields (pubkey cannot change), and stake it with some more coins
 func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = StatusFailed
+	status = StatusFailed //default status is failed
 	gasUsed = GasOfStakingExternalOp
-	var intro string
-	var rewardTo [20]byte
 	callData := tx.Data[4:]
 	if len(callData) < 64 {
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
 	// First argument: rewardTo
+	var rewardTo [20]byte
 	copy(rewardTo[:], callData[12:32])
 	// Second argument: introduction, byte32, limited to 32 byte
-	intro = stringFromBytes(callData[32:64])
+	intro := stringFromBytes(callData[32:64])
 
-	stakingAcc, info := LoadStakingAcc(ctx)
+	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 
 	val := info.GetValidatorByAddr(tx.From)
 	if val == nil {
@@ -278,22 +281,20 @@ func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, l
 	}
 	coins4staking := uint256.NewInt().SetBytes32(tx.Value[:])
 	if !coins4staking.IsZero() {
-		fmt.Printf("new staking coin is :%s\n", coins4staking.String())
 		stakedCoins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
 		stakedCoins.Add(stakedCoins, coins4staking)
-		fmt.Printf("previous staking coin %s\n", uint256.NewInt().SetBytes(val.StakedCoins[:]).String())
 		val.StakedCoins = stakedCoins.Bytes32()
 	}
 
 	// Now let's update the states
-	SaveStakingInfo(ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, info)
 
 	status, outData = transferStakedCoins(ctx, tx, stakingAcc)
 	return
 }
 
 func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingAcc *mevmtypes.AccountInfo) (status int, outData []byte) {
-	status = StatusFailed
+	status = StatusFailed //default status is failed
 	sender := ctx.GetAccount(tx.From)
 	balance := sender.Balance()
 	coins4staking := uint256.NewInt().SetBytes32(tx.Value[:])
@@ -315,11 +316,12 @@ func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingA
 	return
 }
 
+// a validator marks itself as "retiring", then at the next epoch it will not be elected as a validator
 func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = StatusFailed
+	status = StatusFailed //default status is failed
 	gasUsed = GasOfStakingExternalOp
 
-	stakingAcc, info := LoadStakingAcc(ctx)
+	info := LoadStakingInfo(ctx)
 
 	val := info.GetValidatorByAddr(tx.From)
 	if val == nil {
@@ -329,43 +331,45 @@ func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []m
 	val.IsRetiring = true
 
 	// Now let's update the states
-	SaveStakingInfo(ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, info)
 
 	status = StatusSuccess
 	return
 }
 
 func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed //default status is failed
+	gasUsed = GasOfStakingExternalOp
 	mGP := LoadMinGasPrice(ctx, false)
-	lastMGP := LoadMinGasPrice(ctx, true)
-	_, info := LoadStakingAcc(ctx)
+	lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
+	info := LoadStakingInfo(ctx)
 	isValidatorOrRewardTo := false
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	for _, v := range activeValidators {
 		if v.Address == sender || v.RewardTo == sender {
 			isValidatorOrRewardTo = true
+			break
 		}
 	}
 	if !isValidatorOrRewardTo {
 		outData = []byte(OperatorNotValidator.Error())
 		return
 	}
-	gasUsed = GasOfStakingExternalOp
 	if isIncrease {
 		mGP += MinGasPriceDeltaRate * mGP / 100
 	} else {
 		mGP -= MinGasPriceDeltaRate * mGP / 100
 	}
-	if mGP < MinMinGasPrice {
+	if mGP < MinGasPriceLowerBound {
 		outData = []byte(MinGasPriceTooSmall.Error())
 		return
 	}
-	if mGP > MaxMinGasPrice {
+	if mGP > MinGasPriceUpperBound {
 		outData = []byte(MinGasPriceTooBig.Error())
 		return
 	}
-	if (mGP > lastMGP && 100*(mGP-lastMGP) > MaxMinGasPriceDeltaRate*lastMGP) ||
-		(mGP < lastMGP && 100*(lastMGP-mGP) > MaxMinGasPriceDeltaRate*lastMGP) {
+	if (mGP > lastMGP && 100*(mGP-lastMGP) > MinGasPriceDeltaRateInBlock*lastMGP) ||
+		(mGP < lastMGP && 100*(lastMGP-mGP) > MinGasPriceDeltaRateInBlock*lastMGP) {
 		outData = []byte(MinGasPriceExceedBlockChangeDelta.Error())
 		return
 	}
@@ -374,7 +378,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 	return
 }
 
-func LoadStakingAcc(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
+func LoadStakingAccAndInfo(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
 	stakingAcc = ctx.GetAccount(StakingContractAddress)
 	if stakingAcc == nil {
 		panic("Cannot find staking contract")
@@ -390,8 +394,20 @@ func LoadStakingAcc(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, 
 	return
 }
 
+func LoadStakingInfo(ctx *mevmtypes.Context) (info types.StakingInfo) {
+	bz := ctx.GetStorageAt(StakingContractSequence, SlotStakingInfo)
+	if bz == nil {
+		return types.StakingInfo{}
+	}
+	_, err := info.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
 func AddGenesisValidatorsInStakingInfo(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
-	stakingAcc, info := LoadStakingAcc(ctx)
+	info := LoadStakingInfo(ctx)
 	info.Validators = genesisValidators
 	info.PendingRewards = make([]*types.PendingReward, len(genesisValidators))
 	for i := range info.PendingRewards {
@@ -399,27 +415,27 @@ func AddGenesisValidatorsInStakingInfo(ctx *mevmtypes.Context, genesisValidators
 			Address: genesisValidators[i].Address,
 		}
 	}
-	SaveStakingInfo(ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, info)
 }
 
-func SaveStakingInfo(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
+func SaveStakingInfo(ctx *mevmtypes.Context, info types.StakingInfo) {
 	bz, err := info.MarshalMsg(nil)
 	if err != nil {
 		panic(err)
 	}
-	ctx.SetStorageAt(stakingAcc.Sequence(), SlotStakingInfo, bz)
+	ctx.SetStorageAt(StakingContractSequence, SlotStakingInfo, bz)
 }
 
-func SaveEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, epochNum int64, epoch *types.Epoch) {
+func SaveEpoch(ctx *mevmtypes.Context, epochNum int64, epoch *types.Epoch) {
 	bz, err := epoch.MarshalMsg(nil)
 	if err != nil {
 		panic(err)
 	}
-	ctx.SetStorageAt(stakingAcc.Sequence(), getSlotForEpoch(epochNum), bz)
+	ctx.SetStorageAt(StakingContractSequence, getSlotForEpoch(epochNum), bz)
 }
 
-func LoadEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, epochNum int64) (epoch types.Epoch, ok bool) {
-	bz := ctx.GetStorageAt(stakingAcc.Sequence(), getSlotForEpoch(epochNum))
+func LoadEpoch(ctx *mevmtypes.Context, epochNum int64) (epoch types.Epoch, ok bool) {
+	bz := ctx.GetStorageAt(StakingContractSequence, getSlotForEpoch(epochNum))
 	if bz == nil {
 		return
 	}
@@ -432,41 +448,33 @@ func LoadEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, epochN
 }
 
 func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
-	stakingAcc := ctx.GetAccount(StakingContractAddress)
-	if stakingAcc == nil {
-		panic("Cannot find staking contract")
-	}
 	var bz []byte
 	if isLast {
-		bz = ctx.GetStorageAt(stakingAcc.Sequence(), SlotLastMinGasPrice)
+		bz = ctx.GetStorageAt(StakingContractSequence, SlotLastMinGasPrice)
 	} else {
-		bz = ctx.GetStorageAt(stakingAcc.Sequence(), SlotMinGasPrice)
+		bz = ctx.GetStorageAt(StakingContractSequence, SlotMinGasPrice)
 	}
-	if bz == nil {
+	if len(bz) == 0 {
 		return DefaultMinGasPrice
 	}
 	return binary.BigEndian.Uint64(bz)
 }
 
 func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
-	stakingAcc := ctx.GetAccount(StakingContractAddress)
-	if stakingAcc == nil {
-		panic("Cannot find staking contract")
-	}
 	var b [8]byte
 	binary.BigEndian.PutUint64(b[:], minGP)
 	if isLast {
-		ctx.SetStorageAt(stakingAcc.Sequence(), SlotLastMinGasPrice, b[:])
+		ctx.SetStorageAt(StakingContractSequence, SlotLastMinGasPrice, b[:])
 	} else {
-		ctx.SetStorageAt(stakingAcc.Sequence(), SlotMinGasPrice, b[:])
+		ctx.SetStorageAt(StakingContractSequence, SlotMinGasPrice, b[:])
 	}
 }
 
 // =========================================================================================
-// Staking functions which cannot be invoked through smart contract calls
+// Following staking functions cannot be invoked through smart contract calls
 
 func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProposer [20]byte, lastVoters [][]byte, blockReward *uint256.Int) []*types.Validator {
-	stakingAcc, info := LoadStakingAcc(ctx)
+	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
 	var consAddr [20]byte
@@ -476,7 +484,10 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProp
 	}
 	//slash first
 	for _, v := range slashValidators {
-		Slash(ctx, stakingAcc, &info, pubkeyMapByConsAddr[v], SlashedStakingAmount)
+		pubkey, ok := pubkeyMapByConsAddr[v]
+		if ok {
+			Slash(ctx, &info, pubkey, SlashedStakingAmount)
+		}
 	}
 	voters := make([][32]byte, 0, len(lastVoters))
 	var tmpAddr [20]byte
@@ -489,13 +500,13 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProp
 	}
 	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[lastProposer], voters)
 	newValidators := info.GetActiveValidators(MinimumStakingAmount)
-	SaveStakingInfo(ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, info)
 	readonlyStakingInfo = &info
 	return newValidators
 }
 
 // Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
-func Slash(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
+func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
 		return // If tendermint works fine, we'll never reach here
@@ -514,21 +525,21 @@ func Slash(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *type
 	totalSlashed.Add(totalSlashed, totalCleared)
 
 	// deduct the totalSlashed from stakingAcc and burn them, must no error, not check
-	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
-	incrAllBurnt(ctx, stakingAcc, totalSlashed)
+	ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
+	incrAllBurnt(ctx, totalSlashed)
 	return
 }
 
 // Increase the slot of 'all burnt' inside stakingAcc
-func incrAllBurnt(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, amount *uint256.Int) {
+func incrAllBurnt(ctx *mevmtypes.Context, amount *uint256.Int) {
 	allBurnt := uint256.NewInt()
-	bz := ctx.GetStorageAt(stakingAcc.Sequence(), SlotAllBurnt)
+	bz := ctx.GetStorageAt(StakingContractSequence, SlotAllBurnt)
 	if len(bz) != 0 {
 		allBurnt.SetBytes32(bz)
 	}
 	allBurnt.Add(allBurnt, amount)
 	bz32 := allBurnt.Bytes32()
-	ctx.SetStorageAt(stakingAcc.Sequence(), SlotAllBurnt, bz32[:])
+	ctx.SetStorageAt(StakingContractSequence, SlotAllBurnt, bz32[:])
 }
 
 // distribute the collected gas fee to validators who voted for current block
@@ -542,6 +553,11 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	stakingAccBalance.Add(stakingAccBalance, collectedFee)
 	stakingAcc.UpdateBalance(stakingAccBalance)
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
+
+	//TODO: we need to uncomment these lines to burn half of the collected fees
+	//halfFeeToBurn := uint256.NewInt().Rsh(collectedFee, 1)
+	//collectedFee.Sub(collectedFee, halfFeeToBurn)
+	//ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
 
 	totalVotingPower, votedPower := int64(0), int64(0)
 	for _, val := range info.GetActiveValidators(MinimumStakingAmount) {
@@ -570,7 +586,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	//distribute to the non-proposer voters
 	for _, voter := range voters {
 		if bytes.Equal(proposer[:], voter[:]) {
-			continue
+			continue // proposer will be handled at the next step
 		}
 		val := valMapByPubkey[voter]
 		rwdCoins := uint256.NewInt().Mul(collectedFee, uint256.NewInt().SetUint64(uint64(val.VotingPower)))
@@ -607,16 +623,14 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		coins.Add(coins, proposerExtraFee)
 		coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
 		rwd.Amount = coins.Bytes32()
-	} else {
-		if !remainedFee.IsZero() {
-			_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
-		}
+	} else if !remainedFee.IsZero() {
+		ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
 	}
 }
 
 // switch to a new epoch
 func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator {
-	stakingAcc, info := LoadStakingAcc(ctx)
+	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
 	fmt.Printf(`
@@ -631,7 +645,7 @@ CurrentSmartBchBlockHeight:%d
 		fmt.Printf(`Nomination: [ pubkey:%s, NominatedCount:%d ]`, ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount)
 	}
 	epoch.Number = info.CurrEpochNum
-	SaveEpoch(ctx, stakingAcc, info.CurrEpochNum, epoch)
+	SaveEpoch(ctx, info.CurrEpochNum, epoch)
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.Nominations {
 		pubkey2power[v.Pubkey] = v.NominatedCount
@@ -646,26 +660,26 @@ CurrentSmartBchBlockHeight:%d
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
 		fmt.Println("voting count in epoch too small:", len(epoch.Nominations))
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, info)
 		return nil
 	}
 	if len(epoch.Nominations) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
 		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, info)
 		return nil
 	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
-	// someone who call retire() before switchEpoch missed this update
+	// someone who call retire() before switchEpoch cannot get elected in this update
 	updateVotingPower(&info, pubkey2power)
 	// payback staking coins to rewardTo of useless validators and delete these validators
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
 	activeValidators = info.GetActiveValidators(MinimumStakingAmount)
-	updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info)
+	updatePendingRewardsInNewEpoch(ctx, activeValidators, info)
 	return activeValidators
 }
 
-func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*types.Validator, stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
+func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*types.Validator, info types.StakingInfo) {
 	for _, val := range activeValidators {
 		pr := &types.PendingReward{
 			Address:  val.Address,
@@ -674,7 +688,7 @@ func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*
 		info.PendingRewards = append(info.PendingRewards, pr)
 		fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
 	}
-	SaveStakingInfo(ctx, stakingAcc, info)
+	SaveStakingInfo(ctx, info)
 	readonlyStakingInfo = &info
 }
 
@@ -696,6 +710,7 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 		}
 		rewardMap[val.RewardTo].Add(rewardMap[val.RewardTo], uint256.NewInt().SetBytes32(pr.Amount[:]))
 	}
+	info.PendingRewards = newPRList
 
 	// increase rewardTo's balance and decrease stakingAcc's balance
 	for addr, rwd := range rewardMap {
@@ -710,7 +725,6 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 		ctx.SetAccount(addr, acc)
 	}
 	stakingAcc.UpdateBalance(stakingAccBalance)
-	info.PendingRewards = newPRList
 }
 
 // Clear the old voting powers and assign pubkey2power to validators.
@@ -748,6 +762,8 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *ty
 		acc.UpdateBalance(balance)
 		ctx.SetAccount(val.RewardTo, acc)
 	}
+	stakingAcc.UpdateBalance(stakingAccBalance)
+	ctx.SetAccount(StakingContractAddress, stakingAcc)
 	//delete useless validator
 	if len(uselessValMap) > 0 {
 		newVals := make([]*types.Validator, 0, len(info.Validators))
@@ -759,39 +775,31 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *ty
 		}
 		info.Validators = newVals
 	}
-	stakingAcc.UpdateBalance(stakingAccBalance)
-	ctx.SetAccount(StakingContractAddress, stakingAcc)
-	//save info out here
-	//SaveStakingInfo(*ctx, stakingAcc, *info)
 }
 
 func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) []*types.Validator {
 	if newValidators == nil {
 		return nil
 	}
-	var currentSet = make(map[common.Address]bool)
-	var newSet = make(map[common.Address]*types.Validator)
+	var newValMap = make(map[common.Address]*types.Validator)
 	var updatedList = make([]*types.Validator, 0, len(currentValidators))
-	for _, v := range currentValidators {
-		currentSet[v.Address] = true
-	}
 	for _, v := range newValidators {
-		newSet[v.Address] = v
+		newValMap[v.Address] = v
 	}
 	for _, v := range currentValidators {
-		if newSet[v.Address] == nil {
+		if newValMap[v.Address] == nil {
 			removedV := *v
 			removedV.VotingPower = 0
 			updatedList = append(updatedList, &removedV)
-		} else if v.VotingPower != newSet[v.Address].VotingPower {
-			updatedV := *newSet[v.Address]
+		} else if v.VotingPower != newValMap[v.Address].VotingPower {
+			updatedV := *newValMap[v.Address]
 			updatedList = append(updatedList, &updatedV)
-			delete(newSet, v.Address)
-		} else {
-			delete(newSet, v.Address)
+			delete(newValMap, v.Address)
+		} else { //Same voting power, no need for update
+			delete(newValMap, v.Address)
 		}
 	}
-	for _, v := range newSet {
+	for _, v := range newValMap { // in new set but not in current set
 		addedV := *v
 		updatedList = append(updatedList, &addedV)
 	}

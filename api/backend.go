@@ -271,9 +271,9 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	defer ctx.Close(false)
 
 	result := make([]*stakingtypes.Epoch, 0, end-start)
-	stakingAcc, info := staking.LoadStakingAcc(ctx)
+	info := staking.LoadStakingInfo(ctx)
 	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
-		epoch, ok := staking.LoadEpoch(ctx, stakingAcc, epochNum)
+		epoch, ok := staking.LoadEpoch(ctx, epochNum)
 		if ok {
 			result = append(result, &epoch)
 		}
