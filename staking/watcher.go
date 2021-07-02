@@ -31,7 +31,7 @@ type Watcher struct {
 
 	lastEpochEndHeight    int64
 	latestFinalizedHeight int64
-	initEpochNum          int64
+	lastKnownEpochNum     int64
 
 	hashToBlock            map[[32]byte]*types.BCHBlock
 	heightToFinalizedBlock map[int64]*types.BCHBlock
@@ -41,11 +41,11 @@ type Watcher struct {
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, initEpochNum int64, speedup bool) *Watcher {
+func NewWatcher(lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
 	return &Watcher{
 		lastEpochEndHeight:     lastHeight,
 		latestFinalizedHeight:  lastHeight,
-		initEpochNum:           initEpochNum,
+		lastKnownEpochNum:      lastKnownEpochNum,
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*types.Epoch, 0, 10),
@@ -66,7 +66,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 	latestHeight := watcher.rpcClient.GetLatestHeight()
 	catchup := false
 	if watcher.speedup {
-		start := uint64(watcher.initEpochNum) + 1
+		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestHeight < height+NumBlocksInEpoch {
 				fmt.Printf("exit epoch speedup as of height:%d is near latest:%d\n", height, latestHeight)
@@ -142,7 +142,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	watcher.hashToBlock[blk.HashId] = blk
 	parent, ok := watcher.hashToBlock[blk.ParentBlk]
 	if !ok {
-		// If parent is init block, return directly
+		// If parent is the genesis block, return directly
 		if blk.ParentBlk == [32]byte{} {
 			return nil
 		}
@@ -156,7 +156,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		grandpa, ok = watcher.hashToBlock[parent.ParentBlk]
 		if !ok {
 			if parent.ParentBlk == [32]byte{} {
-				return nil
+				return nil //met genesis in less than 10, nothing to do
 			}
 			return &parent.ParentBlk // actually impossible to reach here
 		}
@@ -200,6 +200,7 @@ func (watcher *Watcher) generateNewEpoch() {
 		if !ok {
 			panic("Missing Block")
 		}
+		//Please note that BCH's timestamp is not always linearly increasing
 		if epoch.EndTime < blk.Timestamp {
 			epoch.EndTime = blk.Timestamp
 		}
@@ -210,7 +211,7 @@ func (watcher *Watcher) generateNewEpoch() {
 			if _, ok := valMapByPubkey[nomination.Pubkey]; !ok {
 				valMapByPubkey[nomination.Pubkey] = &nomination
 			}
-			valMapByPubkey[nomination.Pubkey].NominatedCount++
+			valMapByPubkey[nomination.Pubkey].NominatedCount += nomination.NominatedCount
 		}
 	}
 	for _, v := range valMapByPubkey {
