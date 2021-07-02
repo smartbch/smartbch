@@ -113,22 +113,26 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		}
 		fmt.Println("get bch mainnet block height: ", height)
 		missingBlockHash := watcher.addBlock(blk)
-		//get fork height again to avoid finalize block empty hole
-		if missingBlockHash != nil {
-			height--
-		} else {
-			// release blocks left as of BCH mainnet fork
+		if missingBlockHash == nil {
+			// release blocks left to prevent BCH mainnet forks take too much memory
 			if height%NumBlocksToClearMemory == 0 {
 				watcher.hashToBlock = make(map[[32]byte]*types.BCHBlock)
 			}
+			continue
 		}
+		// follow the forked tip to avoid finalize block empty hole
 		for i := 10; missingBlockHash != nil && i > 0; i-- { // if chain reorg happens, we trace the new tip
-			fmt.Println("get missing block:", hex.EncodeToString(missingBlockHash[:]))
-			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
-			if blk == nil {
+			fmt.Printf("#%d get missing block:%s\n", i, hex.EncodeToString(missingBlockHash[:]))
+			prevBlk := watcher.rpcClient.GetBlockByHash(*missingBlockHash)
+			if prevBlk == nil {
 				panic("BCH mainnet tip should has its parent block")
 			}
-			missingBlockHash = watcher.addBlock(blk)
+			missingBlockHash = watcher.addBlock(prevBlk)
+		}
+		// when we get the forked full branch, we try to add the tip again
+		missingBlockHash = watcher.addBlock(blk)
+		if missingBlockHash != nil {
+			panic(fmt.Sprintf("The parent %s must not be missing", missingBlockHash))
 		}
 	}
 }
@@ -233,14 +237,18 @@ func (watcher *Watcher) ClearOldData() {
 		return
 	}
 	height := watcher.epochList[elLen-1].StartHeight
+	for hash, blk := range watcher.hashToBlock {
+		if blk.Height < height {
+			delete(watcher.hashToBlock, hash)
+		}
+	}
 	height -= 5 * NumBlocksInEpoch
 	for {
-		blk, ok := watcher.heightToFinalizedBlock[height]
+		_, ok := watcher.heightToFinalizedBlock[height]
 		if !ok {
 			break
 		}
 		delete(watcher.heightToFinalizedBlock, height)
-		delete(watcher.hashToBlock, blk.HashId)
 		height--
 	}
 	if elLen > 5 /*param it*/ {
