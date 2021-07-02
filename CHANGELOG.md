@@ -2,6 +2,13 @@
 
 
 
+## v0.2.0 (not released yet)
+
+* Command
+  * Add `smartbchd version` command
+
+
+
 ## v0.2.0
 
 * JSON-RPC
