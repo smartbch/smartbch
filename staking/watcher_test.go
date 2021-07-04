@@ -2,6 +2,7 @@ package staking
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"testing"
 	"time"
 
@@ -120,7 +121,7 @@ func (m *MockEpochConsumer) consume() {
 
 func TestRun(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan
@@ -137,7 +138,7 @@ func TestRun(t *testing.T) {
 
 func TestRunWithNewEpoch(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
 	c := MockEpochConsumer{
 		w: w,
 	}
@@ -164,7 +165,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 
 func TestRunWithFork(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	w := NewWatcher(0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
 	NumBlocksToClearMemory = 100
 	NumBlocksInEpoch = 1000
 	catchupChan := make(chan bool, 1)

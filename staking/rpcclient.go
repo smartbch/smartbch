@@ -137,10 +137,6 @@ type RpcClient struct {
 var _ types.RpcClient = (*RpcClient)(nil)
 
 func NewRpcClient(url, user, password, contentType string) *RpcClient {
-	fmt.Println("watcher rpc url:", url)
-	fmt.Println("watcher rpc user:", user)
-	fmt.Println("watcher rpc password:", password)
-
 	return &RpcClient{
 		url:         url,
 		user:        user,
@@ -188,7 +184,6 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	var hash string
 	hash, client.err = client.getBlockHashOfHeight(height)
 	if client.err != nil {
-		fmt.Println("getblockByHeight error:", client.err)
 		return nil
 	}
 	return client.getBCHBlock(hash)
@@ -280,7 +275,6 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Printf("BLOCK %s\n", string(respData))
 	var blockInfoResp BlockInfoResp
 	err = json.Unmarshal(respData, &blockInfoResp)
 	if err != nil {
@@ -298,7 +292,6 @@ func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Printf("TX %s\n", string(respData))
 	var txInfoResp TxInfoResp
 	err = json.Unmarshal(respData, &txInfoResp)
 	if err != nil {
@@ -329,22 +322,17 @@ type smartBchJsonrpcMessage struct {
 func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
 	respData, err := client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
 	if err != nil {
-		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
 	}
-	fmt.Println(string(respData))
 	var m smartBchJsonrpcMessage
 	err = json.Unmarshal(respData, &m)
 	if err != nil {
-		fmt.Printf("get epoch rpc result error, %s\n", err.Error())
 		return nil
 	}
 	var epochsResp []*types.Epoch
 	err = json.Unmarshal(m.Result, &epochsResp)
 	if err != nil {
-		fmt.Printf("get epoch error, %s\n", err.Error())
 		return nil
 	}
-	fmt.Println(epochsResp)
 	return epochsResp
 }

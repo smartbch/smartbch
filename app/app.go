@@ -176,7 +176,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
 	//init PredefinedSystemContractExecutors before tx execute
-	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
+	ebp.PredefinedSystemContractExecutor = staking.NewStakingContractExecutor(app.logger.With("module", "staking"))
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
 	// We make these maps not for really usage, just to avoid accessing nil-maps
@@ -215,7 +215,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	/*------set watcher------*/
 	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
 	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
+	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastWatch2016xHeight(%d), speedUp(%v)\n",
 		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastWatch2016xHeight, config.Speedup))
 	catchupChan := make(chan bool, 1)
@@ -566,7 +566,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 		if app.block.Timestamp > app.epochList[0].EndTime+staking.EpochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], app.logger)
 			app.epochList = app.epochList[1:]
 		}
 	}
