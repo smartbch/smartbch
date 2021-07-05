@@ -13,7 +13,6 @@ import (
 const MaxActiveValidatorNum = 30
 
 var (
-	CreateValidatorCoinLtInitAmount = errors.New("Validator's staking coin less than init amount")
 	ValidatorAddressAlreadyExists   = errors.New("Validator's address already exists")
 	ValidatorPubkeyAlreadyExists    = errors.New("Validator's pubkey already exists")
 )
@@ -57,7 +56,7 @@ type Epoch struct {
 }
 
 type Validator struct {
-	Address      [20]byte `msgp:"address"`   // Validator's address in moeing chain
+	Address      [20]byte `msgp:"address"`   // Validator's address in smartbch chain
 	Pubkey       [32]byte `msgp:"pubkey"`    // Validator's pubkey for tendermint
 	RewardTo     [20]byte `msgp:"reward_to"` // where validator's reward goes into
 	VotingPower  int64    `msgp:"voting_power"`
@@ -68,7 +67,7 @@ type Validator struct {
 
 // Because EpochCountBeforeRewardMature >= 1, some rewards will be pending for a while before mature
 type PendingReward struct {
-	Address  [20]byte `msgp:"address"`   // Validator's operator address in moeing chain
+	Address  [20]byte `msgp:"address"`   // Validator's operator address in smartbch chain
 	EpochNum int64    `msgp:"epoch_num"` // During which epoch were the rewards got?
 	Amount   [32]byte `msgp:"amount"`    // amount of rewards
 }
@@ -85,7 +84,7 @@ type StakingInfo struct {
 
 // Change si.Validators into a map with pubkeys as keys
 func (si *StakingInfo) GetValMapByPubkey() map[[32]byte]*Validator {
-	res := make(map[[32]byte]*Validator)
+	res := make(map[[32]byte]*Validator, len(si.Validators))
 	for _, val := range si.Validators {
 		res[val.Pubkey] = val
 	}
@@ -94,7 +93,7 @@ func (si *StakingInfo) GetValMapByPubkey() map[[32]byte]*Validator {
 
 // Change si.Validators into a map with addresses as keys
 func (si *StakingInfo) GetValMapByAddr() map[[20]byte]*Validator {
-	res := make(map[[20]byte]*Validator)
+	res := make(map[[20]byte]*Validator, len(si.Validators))
 	for _, val := range si.Validators {
 		res[val.Address] = val
 	}
@@ -103,7 +102,7 @@ func (si *StakingInfo) GetValMapByAddr() map[[20]byte]*Validator {
 
 // Get the pending rewards which are got in current epoch
 func (si *StakingInfo) GetCurrRewardMapByAddr() map[[20]byte]*PendingReward {
-	res := make(map[[20]byte]*PendingReward)
+	res := make(map[[20]byte]*PendingReward, len(si.PendingRewards))
 	for _, pr := range si.PendingRewards {
 		if pr.EpochNum == si.CurrEpochNum {
 			res[pr.Address] = pr
@@ -159,7 +158,7 @@ func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 // there has two scenario one validator may be useless:
 // 1. retire itself with no pending reward
 // 2. inactive validator with no vote power and pending reward in prev epoch,
-//    which may escape slash if it vote nothing after double sign !!!
+//    which may escape slash if it votes nothing after double sign !!!
 //    maybe there should have more epoch not one.
 func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 	res := make(map[[20]byte]struct{})
@@ -178,13 +177,12 @@ func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int) {
 	totalCleared = uint256.NewInt()
 	rwdList := make([]*PendingReward, 0, len(si.PendingRewards))
-	var bz32Zero [32]byte
 	for _, rwd := range si.PendingRewards {
 		if bytes.Equal(rwd.Address[:], addr[:]) {
 			coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
 			totalCleared.Add(totalCleared, coins)
 			if rwd.EpochNum == si.CurrEpochNum { // we still need this entry
-				rwd.Amount = bz32Zero          // just clear the amount
+				rwd.Amount = [32]byte{}          // just clear the amount
 				rwdList = append(rwdList, rwd) // the entry is kept
 			}
 		} else { // rewards of other validators
@@ -200,7 +198,7 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 func (si *StakingInfo) GetActiveValidators(minStakedCoins *uint256.Int) []*Validator {
 	res := GetActiveValidators(si.Validators, minStakedCoins)
 
-	//sort: 1.voting power; 2.create validator time
+	//sort: 1.voting power; 2.create validator time (so stable sort is required)
 	sort.SliceStable(res, func(i, j int) bool {
 		return res[i].VotingPower > res[j].VotingPower
 	})

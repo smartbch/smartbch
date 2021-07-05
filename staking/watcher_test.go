@@ -149,7 +149,8 @@ func TestRunWithNewEpoch(t *testing.T) {
 	go c.consume()
 	time.Sleep(3 * time.Second)
 	//test watcher clear
-	require.Equal(t, 6*int(NumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
+	//require.Equal(t, 6*int(NumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
+	require.Equal(t, 20, len(w.hashToBlock))
 	require.Equal(t, 6*int(NumBlocksInEpoch)-1, len(w.heightToFinalizedBlock))
 	require.Equal(t, 5, len(w.epochList))
 	for h, b := range w.hashToBlock {
@@ -173,7 +174,7 @@ func TestRunWithFork(t *testing.T) {
 	<-catchupChan
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))
-	require.Equal(t, int(0), len(w.hashToBlock))
+	require.Equal(t, int(101), len(w.hashToBlock))
 	require.Equal(t, 90, len(w.heightToFinalizedBlock))
 	require.Equal(t, int64(90), w.latestFinalizedHeight)
 }
