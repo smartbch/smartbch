@@ -19,7 +19,7 @@ const (
 	ReqStrBlock      = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s"] }`
 	ReqStrTx         = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
 	ReqStrEpochs     = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
-	Identifier       = "73424348"
+	Identifier       = "73424348" // ascii code for 'sBCH'
 	Version          = "00"
 )
 

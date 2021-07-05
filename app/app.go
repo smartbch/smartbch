@@ -200,7 +200,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set stakingInfo------*/
-	acc, stakingInfo := staking.LoadStakingAcc(ctx)
+	stakingInfo := staking.LoadStakingInfo(ctx)
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
@@ -209,7 +209,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 	if stakingInfo.CurrEpochNum == 0 && stakingInfo.GenesisMainnetBlockHeight == 0 {
 		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
-		staking.SaveStakingInfo(ctx, acc, stakingInfo)
+		staking.SaveStakingInfo(ctx, stakingInfo)
 	}
 
 	/*------set watcher------*/
@@ -576,9 +576,9 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 		app.logger.Debug(fmt.Sprintf("Updated validator in commit: address(%s), pubkey(%s), voting power: %d",
 			gethcmn.Address(v.Address).String(), ed25519.PubKey(v.Pubkey[:]), v.VotingPower))
 	}
-	acc, newInfo := staking.LoadStakingAcc(ctx)
+	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
-	staking.SaveStakingInfo(ctx, acc, newInfo)
+	staking.SaveStakingInfo(ctx, newInfo)
 	if app.logValidatorsInfo {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
@@ -904,6 +904,6 @@ func (app *App) GetValidatorsInfo() ValidatorsInfo {
 }
 
 func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
-	_, stakingInfo := staking.LoadStakingAcc(ctx)
+	stakingInfo := staking.LoadStakingInfo(ctx)
 	return newValidatorsInfo(app.currValidators, stakingInfo)
 }

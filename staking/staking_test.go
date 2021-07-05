@@ -121,7 +121,7 @@ func TestStaking(t *testing.T) {
 	c := buildCreateValCallEntry(sender, 101, 11, 1)
 	require.True(t, e.IsSystemContract(c.Address))
 	e.Execute(ctx, nil, c.Tx)
-	stakingAcc, info := staking.LoadStakingAcc(ctx)
+	stakingAcc, info := staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, 1+1 /*include app.testValidatorPubKey*/, len(info.Validators))
 	require.True(t, bytes.Equal(sender.Bytes(), info.Validators[1].Address[:]))
 	require.Equal(t, 11, int(info.Validators[1].Introduction[0]))
@@ -141,14 +141,14 @@ func TestStaking(t *testing.T) {
 	// test edit validator
 	c = buildEditValCallEntry(sender, 102, 12)
 	e.Execute(ctx, nil, c.Tx)
-	_, info = staking.LoadStakingAcc(ctx)
+	_, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, 12, int(info.Validators[1].Introduction[0]))
 	require.Equal(t, 200, int(info.Validators[1].StakedCoins[31]))
 
 	// test retire validator
 	c = buildRetireValCallEntry(sender)
 	e.Execute(ctx, nil, c.Tx)
-	_, info = staking.LoadStakingAcc(ctx)
+	_, info = staking.LoadStakingAccAndInfo(ctx)
 	require.True(t, info.Validators[1].IsRetiring)
 }
 
@@ -177,7 +177,7 @@ func TestSwitchEpoch(t *testing.T) {
 	exe.Init(ctx)
 	c := buildCreateValCallEntry(sender, 101, 11, 1)
 	exe.Execute(ctx, nil, c.Tx)
-	stakingAcc, info := staking.LoadStakingAcc(ctx)
+	stakingAcc, info := staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, 1+1 /*include app.testValidatorPubKey*/, len(info.Validators))
 	require.True(t, bytes.Equal(sender.Bytes(), info.Validators[1].Address[:]))
 	acc := ctx.GetAccount(sender)
@@ -188,12 +188,12 @@ func TestSwitchEpoch(t *testing.T) {
 	//test distribute
 	info.Validators[0].VotingPower = 1
 	info.Validators[1].VotingPower = 1
-	staking.SaveStakingInfo(ctx, stakingAcc, info)
+	staking.SaveStakingInfo(ctx, info)
 	collectedFee := uint256.NewInt().SetUint64(10000)
 	voters := make([][32]byte, 2)
 	voters[0] = pubkey
 	voters[1] = info.Validators[1].Pubkey
-	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	staking.DistributeFee(ctx, stakingAcc, &info, collectedFee, pubkey, voters)
 
 	var voterReward *types2.PendingReward
@@ -210,10 +210,10 @@ func TestSwitchEpoch(t *testing.T) {
 	require.Equal(t, uint64(10100), stakingAcc.Balance().Uint64())
 	//clear validator pendingReward for testing clearUp
 	info.PendingRewards = []*types2.PendingReward{proposerReward}
-	staking.SaveStakingInfo(ctx, stakingAcc, info)
+	staking.SaveStakingInfo(ctx, info)
 	rewardTo := info.Validators[0].RewardTo
 	staking.SwitchEpoch(ctx, e, log.NewNopLogger())
-	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64(10000 /*pending reward not transfer to validator as of EpochCountBeforeRewardMature*/), stakingAcc.Balance().Uint64())
 	acc = ctx.GetAccount(sender)
 	//if validator retire in current epoch,
@@ -224,7 +224,7 @@ func TestSwitchEpoch(t *testing.T) {
 	require.Equal(t, uint64(100), rewardAcc.Balance().Uint64())
 
 	staking.SwitchEpoch(ctx, e, log.NewNopLogger())
-	stakingAcc, info = staking.LoadStakingAcc(ctx)
+	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64((10000-1500-8500*15/100)/2), stakingAcc.Balance().Uint64())
 }
 
@@ -238,10 +238,10 @@ func TestSlash(t *testing.T) {
 	stakingAddr := common.Address{}
 	copy(stakingAddr[:], _app.GetTestPubkey().Address())
 	ctx.SetAccount(stakingAddr, types.ZeroAccountInfo())
-	stakingAcc, info := staking.LoadStakingAcc(ctx)
+	info := staking.LoadStakingInfo(ctx)
 	info.Validators[0].StakedCoins[31] = 100
-	staking.SaveStakingInfo(ctx, stakingAcc, info)
-	totalSlashed := staking.Slash(ctx, stakingAcc, &info, slashedPubkey, uint256.NewInt().SetUint64(1))
+	staking.SaveStakingInfo(ctx, info)
+	totalSlashed := staking.Slash(ctx, &info, slashedPubkey, uint256.NewInt().SetUint64(1))
 	require.Equal(t, uint64(1), totalSlashed.Uint64())
 	allBurnt := uint256.NewInt()
 	bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotAllBurnt)
@@ -275,10 +275,10 @@ func TestGasPriceAdjustment(t *testing.T) {
 	require.True(t, bytes.Equal([]byte(staking.OperatorNotValidator.Error()), out))
 
 	//make validator active
-	acc, info := staking.LoadStakingAcc(ctx)
+	info := staking.LoadStakingInfo(ctx)
 	info.Validators[1].StakedCoins = staking.MinimumStakingAmount.Bytes32()
 	info.Validators[1].VotingPower = 1000
-	staking.SaveStakingInfo(ctx, acc, info)
+	staking.SaveStakingInfo(ctx, info)
 
 	//increase gasPrice
 	c = buildChangeMinGasPriceCallEntry(sender, true)

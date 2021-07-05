@@ -34,7 +34,7 @@ type Watcher struct {
 
 	lastEpochEndHeight    int64
 	latestFinalizedHeight int64
-	initEpochNum          int64
+	lastKnownEpochNum     int64
 
 	hashToBlock            map[[32]byte]*types.BCHBlock
 	heightToFinalizedBlock map[int64]*types.BCHBlock
@@ -44,7 +44,7 @@ type Watcher struct {
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, initEpochNum int64, speedup bool) *Watcher {
+func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
 	return &Watcher{
 		logger: logger,
 
@@ -53,7 +53,7 @@ func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, 
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
-		initEpochNum:          initEpochNum,
+		lastKnownEpochNum:     lastKnownEpochNum,
 
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
@@ -73,7 +73,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 	latestHeight := watcher.rpcClient.GetLatestHeight()
 	catchup := false
 	if watcher.speedup {
-		start := uint64(watcher.initEpochNum) + 1
+		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestHeight < height+NumBlocksInEpoch {
 				break
@@ -116,22 +116,26 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		}
 		watcher.logger.Debug("Get bch mainnet block", "height", height)
 		missingBlockHash := watcher.addBlock(blk)
-		//get fork height again to avoid finalize block empty hole
-		if missingBlockHash != nil {
-			height--
-		} else {
-			// release blocks left as of BCH mainnet fork
+		if missingBlockHash == nil {
+			// release blocks left to prevent BCH mainnet forks take too much memory
 			if height%NumBlocksToClearMemory == 0 {
 				watcher.hashToBlock = make(map[[32]byte]*types.BCHBlock)
 			}
+			continue
 		}
+		// follow the forked tip to avoid finalize block empty hole
 		for i := 10; missingBlockHash != nil && i > 0; i-- { // if chain reorg happens, we trace the new tip
 			watcher.logger.Debug("Get missing block", "hash", hex.EncodeToString(missingBlockHash[:]))
-			blk = watcher.rpcClient.GetBlockByHash(*missingBlockHash)
-			if blk == nil {
+			prevBlk := watcher.rpcClient.GetBlockByHash(*missingBlockHash)
+			if prevBlk == nil {
 				panic("BCH mainnet tip should has its parent block")
 			}
-			missingBlockHash = watcher.addBlock(blk)
+			missingBlockHash = watcher.addBlock(prevBlk)
+		}
+		// when we get the forked full branch, we try to add the tip again
+		missingBlockHash = watcher.addBlock(blk)
+		if missingBlockHash != nil {
+			panic(fmt.Sprintf("The parent %s must not be missing", missingBlockHash))
 		}
 	}
 }
@@ -145,7 +149,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	watcher.hashToBlock[blk.HashId] = blk
 	parent, ok := watcher.hashToBlock[blk.ParentBlk]
 	if !ok {
-		// If parent is init block, return directly
+		// If parent is the genesis block, return directly
 		if blk.ParentBlk == [32]byte{} {
 			return nil
 		}
@@ -158,7 +162,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		grandpa, ok = watcher.hashToBlock[parent.ParentBlk]
 		if !ok {
 			if parent.ParentBlk == [32]byte{} {
-				return nil
+				return nil //met genesis in less than 10, nothing to do
 			}
 			return &parent.ParentBlk // actually impossible to reach here
 		}
@@ -201,6 +205,7 @@ func (watcher *Watcher) generateNewEpoch() {
 		if !ok {
 			panic("Missing Block")
 		}
+		//Please note that BCH's timestamp is not always linearly increasing
 		if epoch.EndTime < blk.Timestamp {
 			epoch.EndTime = blk.Timestamp
 		}
@@ -211,7 +216,7 @@ func (watcher *Watcher) generateNewEpoch() {
 			if _, ok := valMapByPubkey[nomination.Pubkey]; !ok {
 				valMapByPubkey[nomination.Pubkey] = &nomination
 			}
-			valMapByPubkey[nomination.Pubkey].NominatedCount++
+			valMapByPubkey[nomination.Pubkey].NominatedCount += nomination.NominatedCount
 		}
 	}
 	for _, v := range valMapByPubkey {
@@ -233,14 +238,18 @@ func (watcher *Watcher) ClearOldData() {
 		return
 	}
 	height := watcher.epochList[elLen-1].StartHeight
+	for hash, blk := range watcher.hashToBlock {
+		if blk.Height < height {
+			delete(watcher.hashToBlock, hash)
+		}
+	}
 	height -= 5 * NumBlocksInEpoch
 	for {
-		blk, ok := watcher.heightToFinalizedBlock[height]
+		_, ok := watcher.heightToFinalizedBlock[height]
 		if !ok {
 			break
 		}
 		delete(watcher.heightToFinalizedBlock, height)
-		delete(watcher.hashToBlock, blk.HashId)
 		height--
 	}
 	if elLen > 5 /*param it*/ {
