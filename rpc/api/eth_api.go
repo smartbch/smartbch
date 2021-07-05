@@ -132,7 +132,7 @@ func (api *ethAPI) GasPrice() *hexutil.Big {
 // https://eth.wiki/json-rpc/API#eth_getBalance
 func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Big, error) {
 	// ignore blockNumber temporary
-	b, err := api.backend.GetBalance(addr, int64(gethrpc.LatestBlockNumber))
+	b, err := api.backend.GetBalance(addr)
 	if err != nil {
 		if err == types.ErrAccNotFound {
 			return (*hexutil.Big)(big.NewInt(0)), nil
@@ -145,7 +145,7 @@ func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber)
 // https://eth.wiki/json-rpc/API#eth_getCode
 func (api *ethAPI) GetCode(addr common.Address, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
 	// ignore blockNumber temporary
-	code, _ := api.backend.GetCode(addr, int64(gethrpc.LatestBlockNumber))
+	code, _ := api.backend.GetCode(addr)
 	return code, nil
 }
 
@@ -154,7 +154,7 @@ func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrp
 	// ignore blockNumber temporary
 	hash := common.HexToHash(key)
 	key = string(hash[:])
-	return api.backend.GetStorageAt(addr, key, int64(gethrpc.LatestBlockNumber)), nil
+	return api.backend.GetStorageAt(addr, key), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByHash
@@ -454,12 +454,6 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 		data = *args.Data
 	}
 
-	//nonce, err := api.GetTransactionCount(from, blockNr)
-	//if err != nil {
-	//	return nil, from, err
-	//}
-
-	// TODO: replace with ethutils.NewTx()
-	tx := gethtypes.NewTransaction(0, to, val, gasLimit, gasPrice, data)
+	tx := ethutils.NewTx(0, &to, val, gasLimit, gasPrice, data)
 	return tx, from, nil
 }

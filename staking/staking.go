@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
@@ -106,7 +107,15 @@ func getSlotForEpoch(epochNum int64) string {
 	return string(buf[:])
 }
 
-type StakingContractExecutor struct{}
+type StakingContractExecutor struct {
+	logger log.Logger
+}
+
+func NewStakingContractExecutor(logger log.Logger) *StakingContractExecutor {
+	return &StakingContractExecutor{
+		logger: logger,
+	}
+}
 
 var _ mevmtypes.SystemContractExecutor = &StakingContractExecutor{}
 
@@ -633,16 +642,16 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator 
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
-	fmt.Printf(`
+	logger.Debug(fmt.Sprintf(`
 Epoch in switchEpoch:
-number:%d
+newPpochNumber:%d
 startHeight:%d
 EndTime:%d
 CurrentEpochNum:%d
 CurrentSmartBchBlockHeight:%d
-`, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height)
+`, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height))
 	for _, n := range epoch.Nominations {
-		fmt.Printf(`Nomination: [ pubkey:%s, NominatedCount:%d ]`, ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount)
+		logger.Debug(fmt.Sprintf("Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
 	}
 	epoch.Number = info.CurrEpochNum
 	SaveEpoch(ctx, info.CurrEpochNum, epoch)
@@ -659,13 +668,13 @@ CurrentSmartBchBlockHeight:%d
 	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
-		fmt.Println("voting count in epoch too small:", len(epoch.Nominations))
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, info)
+		logger.Debug("TotalNomination not big enough", "totalNomination", totalNomination)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info, logger)
 		return nil
 	}
 	if len(epoch.Nominations) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
-		fmt.Println("voting pubKeys not reach activeValidators minimum limit")
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, info)
+		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info, logger)
 		return nil
 	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
@@ -686,7 +695,7 @@ func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*
 			EpochNum: info.CurrEpochNum,
 		}
 		info.PendingRewards = append(info.PendingRewards, pr)
-		fmt.Printf("active validator after switch epoch, address:%s, voting power:%d\n", common.Address(val.Address).String(), val.VotingPower)
+		logger.Debug(fmt.Sprintf("Active validator after switch epoch, address:%s, voting power:%d", common.Address(val.Address).String(), val.VotingPower))
 	}
 	SaveStakingInfo(ctx, info)
 	readonlyStakingInfo = &info
@@ -775,6 +784,8 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *ty
 		}
 		info.Validators = newVals
 	}
+	stakingAcc.UpdateBalance(stakingAccBalance)
+	ctx.SetAccount(StakingContractAddress, stakingAcc)
 }
 
 func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) []*types.Validator {

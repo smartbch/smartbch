@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"sort"
 	"time"
 
@@ -24,6 +25,8 @@ var (
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
 // outputs epoch information through a channel
 type Watcher struct {
+	logger log.Logger
+
 	rpcClient         types.RpcClient
 	smartBchRpcClient types.RpcClient
 
@@ -41,25 +44,29 @@ type Watcher struct {
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
+func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, initEpochNum int64, speedup bool) *Watcher {
 	return &Watcher{
-		lastEpochEndHeight:     lastHeight,
-		latestFinalizedHeight:  lastHeight,
-		lastKnownEpochNum:      lastKnownEpochNum,
+		logger: logger,
+
+		rpcClient:         rpcClient,
+		smartBchRpcClient: NewRpcClient(smartBchUrl, "", "", "application/json"),
+
+		lastEpochEndHeight:    lastHeight,
+		latestFinalizedHeight: lastHeight,
+		initEpochNum:          initEpochNum,
+
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*types.Epoch, 0, 10),
-		rpcClient:              rpcClient,
-		EpochChan:              make(chan *types.Epoch, 10000),
-		speedup:                speedup,
-		smartBchRpcClient:      NewRpcClient(smartBchUrl, "", "", "application/json"),
+
+		EpochChan: make(chan *types.Epoch, 10000),
+		speedup:   speedup,
 	}
 }
 
 // The main function to do a watcher's job. It must be run as a goroutine
 func (watcher *Watcher) Run(catchupChan chan bool) {
 	height := watcher.latestFinalizedHeight
-	//todo: for debug temp
 	if watcher.rpcClient == nil {
 		return
 	}
@@ -69,12 +76,10 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestHeight < height+NumBlocksInEpoch {
-				fmt.Printf("exit epoch speedup as of height:%d is near latest:%d\n", height, latestHeight)
 				break
 			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
 			if len(epochs) == 0 {
-				fmt.Printf("exit epoch speedup as of epoch is nil, latest epoch want to get is %d\n", start)
 				break
 			}
 			for _, e := range epochs {
@@ -87,31 +92,29 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 			}
 			height += int64(len(epochs)) * NumBlocksInEpoch
 			start = start + uint64(len(epochs))
-			fmt.Printf("get epoch start with:%d, epoch length:%d, newest height after update is:%d\n", start, len(epochs), height)
 		}
 		watcher.latestFinalizedHeight = height
 		watcher.lastEpochEndHeight = height
+		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
 	for {
 		if !catchup && latestHeight <= height {
 			latestHeight = watcher.rpcClient.GetLatestHeight()
 			if latestHeight <= height {
-				fmt.Println("Catch up!")
+				watcher.logger.Debug("Catchup")
 				catchup = true
 				catchupChan <- true
 				close(catchupChan)
 			}
 		}
-		height++ // to fetch the next block
-		fmt.Println("try to get block height:", height)
+		height++
 		blk := watcher.rpcClient.GetBlockByHeight(height)
 		if blk == nil { //make sure connected BCH mainnet node not pruning history blocks, so this case only means height is latest block
-			fmt.Println("wait new block...")
 			watcher.suspended(time.Duration(WaitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 			height--
 			continue
 		}
-		fmt.Println("get bch mainnet block height: ", height)
+		watcher.logger.Debug("Get bch mainnet block", "height", height)
 		missingBlockHash := watcher.addBlock(blk)
 		if missingBlockHash == nil {
 			// release blocks left to prevent BCH mainnet forks take too much memory
@@ -122,7 +125,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		}
 		// follow the forked tip to avoid finalize block empty hole
 		for i := 10; missingBlockHash != nil && i > 0; i-- { // if chain reorg happens, we trace the new tip
-			fmt.Printf("#%d get missing block:%s\n", i, hex.EncodeToString(missingBlockHash[:]))
+			watcher.logger.Debug("Get missing block", "hash", hex.EncodeToString(missingBlockHash[:]))
 			prevBlk := watcher.rpcClient.GetBlockByHash(*missingBlockHash)
 			if prevBlk == nil {
 				panic("BCH mainnet tip should has its parent block")
@@ -150,8 +153,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		if blk.ParentBlk == [32]byte{} {
 			return nil
 		}
-		fmt.Println("parent hash:", hex.EncodeToString(blk.ParentBlk[:]))
-		fmt.Println("current block height:", blk.Height)
+		watcher.logger.Debug("Missing parent block", "parent hash", hex.EncodeToString(blk.ParentBlk[:]), "parent height", blk.Height-1)
 		return &blk.ParentBlk
 	}
 	// On BCH mainnet, a block need 10 confirmation to finalize
@@ -185,7 +187,6 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	}
 	// All the blocks for an epoch is ready
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == NumBlocksInEpoch {
-		fmt.Println("finalized height:", watcher.latestFinalizedHeight)
 		watcher.generateNewEpoch()
 	}
 	return nil
@@ -225,6 +226,7 @@ func (watcher *Watcher) generateNewEpoch() {
 		return bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0
 	})
 	watcher.epochList = append(watcher.epochList, epoch)
+	watcher.logger.Debug("Generate new epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
 	watcher.EpochChan <- epoch
 	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 	watcher.ClearOldData()
@@ -232,7 +234,6 @@ func (watcher *Watcher) generateNewEpoch() {
 
 func (watcher *Watcher) ClearOldData() {
 	elLen := len(watcher.epochList)
-	fmt.Println("elLen:", elLen)
 	if elLen == 0 {
 		return
 	}

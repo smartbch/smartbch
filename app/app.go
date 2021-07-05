@@ -176,7 +176,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
 	//init PredefinedSystemContractExecutors before tx execute
-	ebp.PredefinedSystemContractExecutor = &staking.StakingContractExecutor{}
+	ebp.PredefinedSystemContractExecutor = staking.NewStakingContractExecutor(app.logger.With("module", "staking"))
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
 	// We make these maps not for really usage, just to avoid accessing nil-maps
@@ -204,7 +204,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
-		fmt.Printf("validator:%v\n", val.Address)
+		app.logger.Debug(fmt.Sprintf("Load validator in NewApp: address(%s), pubkey(%s), votingPower(%d)",
+			gethcmn.Address(val.Address).String(), ed25519.PubKey(val.Pubkey[:]).String(), val.VotingPower))
 	}
 	if stakingInfo.CurrEpochNum == 0 && stakingInfo.GenesisMainnetBlockHeight == 0 {
 		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
@@ -214,8 +215,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	/*------set watcher------*/
 	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
 	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
-	fmt.Printf("current epoch:%d,lastWatch2016xHeight:%d in NewApp\n", stakingInfo.CurrEpochNum, lastWatch2016xHeight)
-	app.watcher = staking.NewWatcher(lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
+	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
+	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastWatch2016xHeight(%d), speedUp(%v)\n",
+		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastWatch2016xHeight, config.Speedup))
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)
 	<-catchupChan
@@ -364,14 +366,12 @@ func (app *App) checkTx(tx *gethtypes.Transaction, sender gethcmn.Address) abcit
 
 //TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
-	app.logger.Debug("enter init chain!, id=", req.ChainId)
-	//fmt.Printf("InitChain!!!!!\n")
+	app.logger.Debug("InitChain, id=", req.ChainId)
 
 	if len(req.AppStateBytes) == 0 {
 		panic("no AppStateBytes")
 	}
 
-	//fmt.Printf("appstate:%s\n", req.AppStateBytes)
 	genesisData := GenesisData{}
 	err := json.Unmarshal(req.AppStateBytes, &genesisData)
 	if err != nil {
@@ -398,7 +398,8 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		fmt.Printf("initchain validator:%s\n", p.String())
+		app.logger.Debug(fmt.Sprintf("Active genesis validator: address(%s), pubkey(%s), votingPower(%d)\n",
+			gethcmn.Address(v.Address).String(), p.String(), v.VotingPower))
 	}
 
 	params := &abcitypes.ConsensusParams{
@@ -435,9 +436,7 @@ func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
-	//fmt.Printf("BeginBlock!!!!!!!!!!!!!!!\n")
 	//app.randomPanic(5000, 7919)
-	app.logger.Debug("enter begin block!")
 	app.block = &types.Block{
 		Number:    req.Header.Height,
 		Timestamp: req.Header.Time.Unix(),
@@ -445,7 +444,8 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	}
 	var miner [20]byte
 	copy(miner[:], req.Header.ProposerAddress)
-	fmt.Printf("proposer in beginBlock: %s, last proposer is: %s\n", gethcmn.Address(miner).String(), gethcmn.Address(app.lastProposer).String())
+	app.logger.Debug(fmt.Sprintf("current proposer %s, last proposer: %s",
+		gethcmn.Address(miner).String(), gethcmn.Address(app.lastProposer).String()))
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
 			app.lastVoters = append(app.lastVoters, v.Validator.Address) //this is validator consensus address
@@ -471,7 +471,6 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 			app.slashValidators = append(app.slashValidators, addr)
 		}
 	}
-	app.logger.Debug("leave begin block!")
 	return abcitypes.ResponseBeginBlock{}
 }
 
@@ -487,8 +486,6 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
-	//fmt.Printf("EndBlock!!!!!!!!!!!!!!!\n")
-	app.logger.Debug("enter end block!")
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
 	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -496,16 +493,16 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
-		fmt.Printf("endblock validator pubkey=%s voting powe=%d\n\n", hex.EncodeToString(v.Pubkey[:]), v.VotingPower)
+		app.logger.Debug(fmt.Sprintf("Validator updated in EndBlock: pubkey(%s) votingPower(%d)",
+			hex.EncodeToString(v.Pubkey[:]), v.VotingPower))
 	}
-	app.logger.Debug("leave end block!")
 	return abcitypes.ResponseEndBlock{
 		ValidatorUpdates: valSet,
 	}
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
-	app.logger.Debug("enter commit!", "txs", app.txEngine.CollectTxsCount())
+	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectTxsCount())
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
@@ -543,7 +540,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
-	app.logger.Debug("leave commit!")
 	res := abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
 	}
@@ -561,23 +557,24 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	select {
 	case epoch := <-app.watcher.EpochChan:
 		app.epochList = append(app.epochList, epoch)
-		fmt.Printf("get new epoch in commit, its startHeight is:%d, len of epochList:%d\n", epoch.StartHeight, len(app.epochList))
+		app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
+			epoch.Number, epoch.StartHeight, len(app.epochList)))
 	default:
-		//fmt.Println("no new epoch")
 	}
 	if len(app.epochList) != 0 {
-		//if app.block.Timestamp > app.epochList[0].EndTime+100*10*60 /*100 * 10min*/ {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
 		if app.block.Timestamp > app.epochList[0].EndTime+staking.EpochSwitchDelay {
-			fmt.Printf("switch epoch, height:%d,blockTime:%d,endTime:%d\n", app.block.Number, app.block.Timestamp, app.epochList[0].EndTime)
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0])
+			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
+				app.block.Number, app.epochList[0].Number))
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], app.logger)
 			app.epochList = app.epochList[1:]
 		}
 	}
 
 	app.validatorUpdate = staking.GetUpdateValidatorSet(app.currValidators, newValidators)
 	for _, v := range app.validatorUpdate {
-		fmt.Printf("validator update in commit: %s, voting power: %d\n", gethcmn.Address(v.Address).String(), v.VotingPower)
+		app.logger.Debug(fmt.Sprintf("Updated validator in commit: address(%s), pubkey(%s), voting power: %d",
+			gethcmn.Address(v.Address).String(), ed25519.PubKey(v.Pubkey[:]), v.VotingPower))
 	}
 	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
@@ -604,11 +601,9 @@ func (app *App) syncBlockInfo() *types.BlockInfo {
 }
 
 func (app *App) postCommit(bi *types.BlockInfo) {
-	app.logger.Debug("enter post commit!")
 	defer app.mtx.Unlock()
 	app.txEngine.Execute(bi)
 	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
-	app.logger.Debug("leave post commit!")
 }
 
 func (app *App) GetLastGasUsed() uint64 {

@@ -2,6 +2,7 @@ package staking_test
 
 import (
 	"bytes"
+	"github.com/tendermint/tendermint/libs/log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
