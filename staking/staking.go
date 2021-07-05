@@ -485,7 +485,7 @@ func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 // =========================================================================================
 // Following staking functions cannot be invoked through smart contract calls
 
-func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProposer [20]byte, lastVoters [][]byte, blockReward *uint256.Int) []*types.Validator {
+func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, currProposer, lastProposer [20]byte, lastVoters [][]byte, blockReward *uint256.Int) []*types.Validator {
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte)
@@ -510,7 +510,8 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, lastProp
 			voters = append(voters, voter)
 		}
 	}
-	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[lastProposer], voters)
+	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[currProposer],
+		pubkeyMapByConsAddr[lastProposer], voters)
 	newValidators := info.GetActiveValidators(MinimumStakingAmount)
 	SaveStakingInfo(ctx, info)
 	readonlyStakingInfo = &info
@@ -555,7 +556,8 @@ func incrAllBurnt(ctx *mevmtypes.Context, amount *uint256.Int) {
 }
 
 // distribute the collected gas fee to validators who voted for current block
-func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo, collectedFee *uint256.Int, proposer [32]byte /*pubKey*/, voters [][32]byte) {
+func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo,
+	collectedFee *uint256.Int, collector, proposer [32]byte /*pubKey*/, voters [][32]byte) {
 	if collectedFee == nil {
 		return
 	}
@@ -604,40 +606,39 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		rwdCoins := uint256.NewInt().Mul(collectedFee, uint256.NewInt().SetUint64(uint64(val.VotingPower)))
 		rwdCoins.Div(rwdCoins, uint256.NewInt().SetUint64(uint64(votedPower)))
 		remainedFee.Sub(remainedFee, rwdCoins)
-		rwd := rwdMapByAddr[val.Address]
-		if rwd == nil {
-			rwd = &types.PendingReward{
-				Address:  val.Address,
-				EpochNum: info.CurrEpochNum,
-				Amount:   [32]byte{},
-			}
-			info.PendingRewards = append(info.PendingRewards, rwd)
-		}
-		coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
-		coins.Add(coins, rwdCoins)
-		rwd.Amount = coins.Bytes32()
+		distributeToValidator(info, rwdMapByAddr, rwdCoins, val)
 	}
 
 	if proposer != [32]byte{} {
 		//distribute to the proposer
 		proposerVal := valMapByPubkey[proposer]
-		rwd := rwdMapByAddr[proposerVal.Address]
-		if rwd == nil {
-			rwd = &types.PendingReward{
-				Address:  proposerVal.Address,
-				EpochNum: info.CurrEpochNum,
-				Amount:   [32]byte{},
-			}
-			info.PendingRewards = append(info.PendingRewards, rwd)
-		}
-		coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
-		coins.Add(coins, proposerBaseFee)
-		coins.Add(coins, proposerExtraFee)
-		coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
-		rwd.Amount = coins.Bytes32()
+		coins := uint256.NewInt().Add(proposerBaseFee, remainedFee)
+		distributeToValidator(info, rwdMapByAddr, coins, proposerVal)
 	} else if !remainedFee.IsZero() {
 		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
 	}
+
+	if collector != [32]byte{} {
+		distributeToValidator(info, rwdMapByAddr, proposerExtraFee, valMapByPubkey[collector])
+	} else if !proposerExtraFee.IsZero() {
+		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, proposerExtraFee)
+	}
+}
+
+func distributeToValidator(info *types.StakingInfo, rwdMapByAddr map[[20]byte]*types.PendingReward,
+	rwdCoins *uint256.Int, val *types.Validator) {
+	rwd := rwdMapByAddr[val.Address]
+	if rwd == nil {
+		rwd = &types.PendingReward{
+			Address:  val.Address,
+			EpochNum: info.CurrEpochNum,
+			Amount:   [32]byte{},
+		}
+		info.PendingRewards = append(info.PendingRewards, rwd)
+	}
+	coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
+	coins.Add(coins, rwdCoins)
+	rwd.Amount = coins.Bytes32()
 }
 
 // switch to a new epoch

@@ -194,7 +194,7 @@ func TestSwitchEpoch(t *testing.T) {
 	voters[0] = pubkey
 	voters[1] = info.Validators[1].Pubkey
 	stakingAcc, info := staking.LoadStakingAccAndInfo(ctx)
-	staking.DistributeFee(ctx, stakingAcc, &info, collectedFee, pubkey, voters)
+	staking.DistributeFee(ctx, stakingAcc, &info, collectedFee, pubkey, pubkey, voters)
 
 	var voterReward *types2.PendingReward
 	var proposerReward *types2.PendingReward

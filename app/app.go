@@ -80,13 +80,13 @@ type App struct {
 
 	//config
 	chainId           *uint256.Int
-	retainBlocks      int64
+	retainBlocks      int64 // for tendermint to store recent blocks
 	logValidatorsInfo bool
 
 	//store
 	mads          *moeingads.MoeingADS
 	root          *store.RootStore
-	numKeptBlocks int64
+	numKeptBlocks int64 // for moeingads to prune old blocks
 	historyStore  modbtypes.DB
 
 	//refresh with block
@@ -95,12 +95,12 @@ type App struct {
 	checkTrunk      *store.TrunkStore
 	block           *types.Block
 	blockInfo       atomic.Value // to store *types.BlockInfo
-	slashValidators [][20]byte
-	lastVoters      [][]byte
-	lastProposer    [20]byte
-	lastGasUsed     uint64
-	lastGasRefund   uint256.Int
-	lastGasFee      uint256.Int
+	slashValidators [][20]byte   // recorded in BeginBlock, used in commit
+	lastVoters      [][]byte     // recorded in BeginBlock, used in commit
+	lastProposer    [20]byte     // recorded in app.block in BeginBlock, copied here in refresh or NewApp
+	lastGasUsed     uint64       // recorded in last block's postCommit, used in current block's refresh
+	lastGasRefund   uint256.Int  // recorded in last block's postCommit, used in current block's refresh
+	lastGasFee      uint256.Int  // recorded in last block's postCommit, used in current block's refresh
 	lastMinGasPrice uint64
 
 	// feeds
@@ -551,7 +551,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 }
 
 func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *uint256.Int) {
-	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.lastProposer, app.lastVoters, blockReward)
+	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, blockReward)
 	app.slashValidators = app.slashValidators[:0]
 
 	select {
@@ -618,8 +618,8 @@ func (app *App) refresh() {
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	ctx.SetCurrBlockBasicInfo(app.block)
 	//refresh lastMinGasPrice
-	mGP := staking.LoadMinGasPrice(ctx, false)
-	staking.SaveMinGasPrice(ctx, mGP, true)
+	mGP := staking.LoadMinGasPrice(ctx, false) // load current block's gas price
+	staking.SaveMinGasPrice(ctx, mGP, true)    // save it as last block's gas price
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
