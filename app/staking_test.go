@@ -21,6 +21,11 @@ func TestStaking(t *testing.T) {
 	defer _app.Destroy()
 
 	//config test param
+	_init, _min := staking.InitialStakingAmount, staking.MinimumStakingAmount
+	defer func() {
+		staking.InitialStakingAmount = _init
+		staking.MinimumStakingAmount = _min
+	}()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(1)
 	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
 
@@ -125,6 +130,62 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	require.Equal(t, 2, len(info.Validators))
 	require.Equal(t, int64(1), info.Validators[0].VotingPower)
+}
+
+func TestStaking_InvalidSelector(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	data := []byte{1, 2, 3}
+	tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 0, data)
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", staking.InvalidCallData.Error())
+
+	data = []byte{1, 2, 3, 4}
+	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 0, data)
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", staking.InvalidSelector.Error())
+}
+
+func TestCreateValidator(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	_init, _min := staking.InitialStakingAmount, staking.MinimumStakingAmount
+	defer func() {
+		staking.InitialStakingAmount = _init
+		staking.MinimumStakingAmount = _min
+	}()
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(2000)
+	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(1000)
+
+	data := make([]byte, 50)
+	copy(data, staking.SelectorCreateValidator[:])
+	tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 0, data)
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", staking.InvalidCallData.Error())
+
+	data = staking.PackCreateValidator(addr1, [32]byte{}, [32]byte{})
+	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 123, data)
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", staking.CreateValidatorCoinLtInitAmount.Error())
+
+	vals := _app.GetValidatorsInfo()
+	require.Len(t, vals.Validators, 1)
+	data = staking.PackCreateValidator(addr1, [32]byte{}, vals.Validators[0].Pubkey)
+	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", types.ValidatorPubkeyAlreadyExists.Error())
+
+	data = staking.PackCreateValidator(addr1, [32]byte{}, [32]byte{'p', 'b', 'k', '1'})
+	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	data = staking.PackCreateValidator(addr1, [32]byte{}, [32]byte{'p', 'b', 'k', '1'})
+	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", types.ValidatorAddressAlreadyExists.Error())
+
+	vals = _app.GetValidatorsInfo()
+	require.Len(t, vals.CurrValidators, 1)
+	require.Len(t, vals.Validators, 2)
+	require.Equal(t, addr1, vals.Validators[1].Address)
 }
 
 //func TestStakingUpdate(t *testing.T) {

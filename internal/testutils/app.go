@@ -55,17 +55,19 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	params := param.DefaultConfig()
 	params.AppDataPath = testAdsDir
 	params.ModbDataPath = testMoDbDir
-	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
 	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
 		Alloc: KeysToGenesisAlloc(testInitAmt, keys),
 	}
+
 	testValidator := &app.Validator{}
+	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
 	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
 	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
 	copy(testValidator.StakedCoins[:], staking.MinimumStakingAmount.Bytes())
+	testValidator.Introduction = "val0"
 	testValidator.VotingPower = 1
 	genesisData.Validators = append(genesisData.Validators, testValidator)
 
@@ -306,7 +308,7 @@ func (_app *TestApp) WaitNextBlock(currHeight int64) {
 func (_app *TestApp) EnsureTxSuccess(hash gethcmn.Hash) {
 	tx := _app.GetTx(hash)
 	if tx.Status != gethtypes.ReceiptStatusSuccessful || tx.StatusStr != "success" {
-		panic("tx is failed: " + tx.StatusStr)
+		panic("tx is failed, statusStr:" + tx.StatusStr + ", outData:" + string(tx.OutData))
 	}
 }
 func (_app *TestApp) EnsureTxFailed(hash gethcmn.Hash, msg string) {
@@ -316,6 +318,18 @@ func (_app *TestApp) EnsureTxFailed(hash gethcmn.Hash, msg string) {
 	}
 	if tx.StatusStr != msg {
 		panic("expected " + msg + ", got " + tx.StatusStr)
+	}
+}
+func (_app *TestApp) EnsureTxFailedWithOutData(hash gethcmn.Hash, statusStr, outData string) {
+	tx := _app.GetTx(hash)
+	if tx.Status != gethtypes.ReceiptStatusFailed {
+		panic("tx is success")
+	}
+	if tx.StatusStr != statusStr {
+		panic("expected statusStr: " + statusStr + ", got: " + tx.StatusStr)
+	}
+	if string(tx.OutData) != outData {
+		panic("expected outData: " + outData + ", got: " + string(tx.OutData))
 	}
 }
 

@@ -82,6 +82,7 @@ var (
 
 	/*------error info------*/
 	InvalidCallData                   = errors.New("invalid call data")
+	InvalidSelector                   = errors.New("invalid selector")
 	BalanceNotEnough                  = errors.New("balance is not enough")
 	NoSuchValidator                   = errors.New("no such validator")
 	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than max")
@@ -89,7 +90,7 @@ var (
 	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
 	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
 	InvalidArgument                   = errors.New("invalid argument")
-	CreateValidatorCoinLtInitAmount   = errors.New("Validator's staking coin less than init amount")
+	CreateValidatorCoinLtInitAmount   = errors.New("validator's staking coin less than init amount")
 )
 
 const (
@@ -138,6 +139,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = StatusFailed
+		outData = []byte(InvalidCallData.Error())
 		return
 	}
 	var selector [4]byte
@@ -160,6 +162,7 @@ func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		return handleMinGasPrice(ctx, tx.From, false)
 	default:
 		status = StatusFailed
+		outData = []byte(InvalidSelector.Error())
 		return
 	}
 }
