@@ -212,7 +212,7 @@ func TestSwitchEpoch(t *testing.T) {
 	info.PendingRewards = []*types2.PendingReward{proposerReward}
 	staking.SaveStakingInfo(ctx, info)
 	rewardTo := info.Validators[0].RewardTo
-	staking.SwitchEpoch(ctx, e)
+	staking.SwitchEpoch(ctx, e, log.NewNopLogger())
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64(10000 /*pending reward not transfer to validator as of EpochCountBeforeRewardMature*/), stakingAcc.Balance().Uint64())
 	acc = ctx.GetAccount(sender)
@@ -223,7 +223,7 @@ func TestSwitchEpoch(t *testing.T) {
 	rewardAcc := ctx.GetAccount(rewardTo)
 	require.Equal(t, uint64(100), rewardAcc.Balance().Uint64())
 
-	staking.SwitchEpoch(ctx, e)
+	staking.SwitchEpoch(ctx, e, log.NewNopLogger())
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64((10000-1500-8500*15/100)/2), stakingAcc.Balance().Uint64())
 }

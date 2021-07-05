@@ -13,8 +13,8 @@ import (
 const MaxActiveValidatorNum = 30
 
 var (
-	ValidatorAddressAlreadyExists   = errors.New("Validator's address already exists")
-	ValidatorPubkeyAlreadyExists    = errors.New("Validator's pubkey already exists")
+	ValidatorAddressAlreadyExists = errors.New("Validator's address already exists")
+	ValidatorPubkeyAlreadyExists  = errors.New("Validator's pubkey already exists")
 )
 
 // These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
@@ -182,7 +182,7 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 			coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
 			totalCleared.Add(totalCleared, coins)
 			if rwd.EpochNum == si.CurrEpochNum { // we still need this entry
-				rwd.Amount = [32]byte{}          // just clear the amount
+				rwd.Amount = [32]byte{}        // just clear the amount
 				rwdList = append(rwdList, rwd) // the entry is kept
 			}
 		} else { // rewards of other validators

@@ -199,7 +199,7 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 		_, hasValidator := addrSet[val.Address]
 		_, hasRewardTo := addrSet[val.RewardTo]
 		if hasValidator || hasRewardTo {
-			if _, ok := countedAddrs[val.Address]; !ok {// a validate cannot be counted twice
+			if _, ok := countedAddrs[val.Address]; !ok { // a validate cannot be counted twice
 				summedPower += val.VotingPower
 				countedAddrs[val.Address] = struct{}{}
 			}
@@ -638,7 +638,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 }
 
 // switch to a new epoch
-func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) []*types.Validator {
+func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, logger log.Logger) []*types.Validator {
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
@@ -669,12 +669,12 @@ CurrentSmartBchBlockHeight:%d
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
 	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
 		logger.Debug("TotalNomination not big enough", "totalNomination", totalNomination)
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info, logger)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
 	}
 	if len(epoch.Nominations) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, stakingAcc, info, logger)
+		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
 	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
@@ -684,11 +684,11 @@ CurrentSmartBchBlockHeight:%d
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
 	activeValidators = info.GetActiveValidators(MinimumStakingAmount)
-	updatePendingRewardsInNewEpoch(ctx, activeValidators, info)
+	updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 	return activeValidators
 }
 
-func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*types.Validator, info types.StakingInfo) {
+func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*types.Validator, info types.StakingInfo, logger log.Logger) {
 	for _, val := range activeValidators {
 		pr := &types.PendingReward{
 			Address:  val.Address,

@@ -44,7 +44,7 @@ type Watcher struct {
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, initEpochNum int64, speedup bool) *Watcher {
+func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
 	return &Watcher{
 		logger: logger,
 
@@ -53,7 +53,7 @@ func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, 
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
-		initEpochNum:          initEpochNum,
+		lastKnownEpochNum:     lastKnownEpochNum,
 
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
