@@ -9,78 +9,10 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
 )
-
-var stakingABI = ethutils.MustParseABI(`
-[
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "rewardTo",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "introduction",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "pubkey",
-				"type": "bytes32"
-			}
-		],
-		"name": "createValidator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "decreaseMinGasPrice",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "rewardTo",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "introduction",
-				"type": "bytes32"
-			}
-		],
-		"name": "editValidator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "increaseMinGasPrice",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "retire",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	}
-]
-`)
 
 func TestStaking(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
@@ -97,7 +29,7 @@ func TestStaking(t *testing.T) {
 	stakingAcc, info := staking.LoadStakingAccAndInfo(ctx)
 	ctx.Close(false)
 	fmt.Printf("before test:%d, %d\n", stakingAcc.Balance().Uint64(), info.CurrEpochNum)
-	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
+	dataEncode := staking.PackCreateValidator(addr1, [32]byte{'a'}, [32]byte{'1'})
 	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 		staking.StakingContractAddress, 100, dataEncode, 1)
 	_app.WaitMS(50)
@@ -111,7 +43,7 @@ func TestStaking(t *testing.T) {
 	require.Equal(t, uint64(100), uint256.NewInt().SetBytes(info.Validators[1].StakedCoins[:]).Uint64())
 
 	//test edit validator
-	dataEncode = stakingABI.MustPack("editValidator", [32]byte{'b'}, [32]byte{'2'})
+	dataEncode = staking.PackEditValidator([20]byte{'b'}, [32]byte{'2'})
 	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
@@ -141,7 +73,7 @@ func TestStaking(t *testing.T) {
 	info.Validators[1].VotingPower = 1000
 	staking.SaveStakingInfo(ctx, info)
 	ctx.Close(true)
-	dataEncode = stakingABI.MustPack("increaseMinGasPrice")
+	dataEncode = staking.PackIncreaseMinGasPrice()
 	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
@@ -158,7 +90,7 @@ func TestStaking(t *testing.T) {
 	_app.ExecTxInBlock(nil)
 	_app.WaitMS(50)
 
-	dataEncode = stakingABI.MustPack("retire")
+	dataEncode = staking.PackRetire()
 	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 		staking.StakingContractAddress, 0, dataEncode, 1)
 	_app.WaitMS(50)
@@ -205,7 +137,7 @@ func TestStaking(t *testing.T) {
 //	staking.InitialStakingAmount = uint256.NewInt().SetUint64(1)
 //	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
 //
-//	dataEncode := stakingABI.MustPack("createValidator", addr1, [32]byte{'a'}, [32]byte{'1'})
+//	dataEncode := staking.PackCreateValidator(addr1, [32]byte{'a'}, [32]byte{'1'})
 //	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 //		staking.StakingContractAddress, 100, dataEncode, 1)
 //	_app.WaitMS(50)
@@ -225,7 +157,7 @@ func TestStaking(t *testing.T) {
 //	require.Equal(t, 1, len(res.ValidatorUpdates))
 //	require.Equal(t, 2, int(res.ValidatorUpdates[0].Power))
 //
-//	dataEncode = stakingABI.MustPack("retire")
+//	dataEncode = staking.PackRetire()()
 //	_app.MakeAndExecTxInBlockWithGasPrice(key1,
 //		staking.StakingContractAddress, 100, dataEncode, 1)
 //	_app.WaitMS(50)
@@ -263,11 +195,11 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 	intro := [32]byte{'i', 'n', 't', 'r', 'o'}
 	pubKey := [32]byte{'p', 'u', 'b', 'k', 'e', 'y'}
 	testCases := [][]byte{
-		stakingABI.MustPack("createValidator", addr1, intro, pubKey),
-		stakingABI.MustPack("editValidator", addr1, intro),
-		stakingABI.MustPack("retire"),
-		stakingABI.MustPack("increaseMinGasPrice"),
-		stakingABI.MustPack("decreaseMinGasPrice"),
+		staking.PackCreateValidator(addr1, intro, pubKey),
+		staking.PackEditValidator(addr1, intro),
+		staking.PackRetire(),
+		staking.PackIncreaseMinGasPrice(),
+		staking.ABI.MustPack("decreaseMinGasPrice"),
 	}
 
 	for _, testCase := range testCases {

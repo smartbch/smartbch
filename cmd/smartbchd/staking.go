@@ -24,73 +24,6 @@ const (
 	flagType     = "type"
 )
 
-var stakingABI = ethutils.MustParseABI(`
-[
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "rewardTo",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "introduction",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "pubkey",
-				"type": "bytes32"
-			}
-		],
-		"name": "createValidator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "decreaseMinGasPrice",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "rewardTo",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "introduction",
-				"type": "bytes32"
-			}
-		],
-		"name": "editValidator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "increaseMinGasPrice",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "retire",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	}
-]
-`)
-
 func StakingCmd(ctx *Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "staking",
@@ -127,7 +60,7 @@ smartbchd staking
 
 			fType := viper.GetString(flagType)
 			if fType == "retire" {
-				data := stakingABI.MustPack("retire")
+				data := staking.PackRetire()
 				return printSignedTx(big.NewInt(0), data, nonce, priKey, chainID.ToBig())
 			}
 
@@ -146,7 +79,7 @@ smartbchd staking
 				rewardTo = ethutils.PrivKeyToAddr(priKey)
 			}
 			if fType == "edit" {
-				data := stakingABI.MustPack("editValidator", rewardTo, intro)
+				data := staking.PackEditValidator(rewardTo, intro)
 				return printSignedTx(sCoin.ToBig(), data, nonce, priKey, chainID.ToBig())
 			}
 
@@ -161,7 +94,7 @@ smartbchd staking
 				}
 				var pubkey [32]byte
 				copy(pubkey[:], pk)
-				data := stakingABI.MustPack("createValidator", rewardTo, intro, pubkey)
+				data := staking.PackCreateValidator(rewardTo, intro, pubkey)
 				return printSignedTx(sCoin.ToBig(), data, nonce, priKey, chainID.ToBig())
 			}
 
