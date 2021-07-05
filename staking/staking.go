@@ -534,7 +534,7 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 	totalSlashed.Add(totalSlashed, totalCleared)
 
 	// deduct the totalSlashed from stakingAcc and burn them, must no error, not check
-	ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
+	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
 	incrAllBurnt(ctx, totalSlashed)
 	return
 }
@@ -633,7 +633,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		coins.Add(coins, remainedFee) // remainedFee may be non-zero because of rounding errors
 		rwd.Amount = coins.Bytes32()
 	} else if !remainedFee.IsZero() {
-		ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
+		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
 	}
 }
 

@@ -177,7 +177,7 @@ func TestSwitchEpoch(t *testing.T) {
 	exe.Init(ctx)
 	c := buildCreateValCallEntry(sender, 101, 11, 1)
 	exe.Execute(ctx, nil, c.Tx)
-	stakingAcc, info := staking.LoadStakingAccAndInfo(ctx)
+	_, info := staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, 1+1 /*include app.testValidatorPubKey*/, len(info.Validators))
 	require.True(t, bytes.Equal(sender.Bytes(), info.Validators[1].Address[:]))
 	acc := ctx.GetAccount(sender)
@@ -193,7 +193,7 @@ func TestSwitchEpoch(t *testing.T) {
 	voters := make([][32]byte, 2)
 	voters[0] = pubkey
 	voters[1] = info.Validators[1].Pubkey
-	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
+	stakingAcc, info := staking.LoadStakingAccAndInfo(ctx)
 	staking.DistributeFee(ctx, stakingAcc, &info, collectedFee, pubkey, voters)
 
 	var voterReward *types2.PendingReward
