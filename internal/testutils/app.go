@@ -91,6 +91,13 @@ func (_app *TestApp) WaitMS(n int64) {
 	time.Sleep(time.Duration(n) * time.Millisecond)
 }
 
+func (_app *TestApp) GetMinGasPrice(isLast bool) uint64 {
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+
+	return staking.LoadMinGasPrice(ctx, isLast)
+}
+
 func (_app *TestApp) GetNonce(addr gethcmn.Address) uint64 {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)

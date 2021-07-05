@@ -85,3 +85,6 @@ func PackRetire() []byte {
 func PackIncreaseMinGasPrice() []byte {
 	return ABI.MustPack("increaseMinGasPrice")
 }
+func PackDecreaseMinGasPrice() []byte {
+	return ABI.MustPack("decreaseMinGasPrice")
+}

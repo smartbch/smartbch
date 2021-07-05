@@ -243,12 +243,12 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 	var pubkey [32]byte
 	copy(pubkey[:], callData[64:])
 
-	stakingAcc, info := LoadStakingAccAndInfo(ctx)
-
 	if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
 		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
 		return
 	}
+
+	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	err := info.AddValidator(tx.From, pubkey, intro, tx.Value, rewardTo)
 	if err != nil {
 		outData = []byte(err.Error())
