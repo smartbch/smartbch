@@ -69,9 +69,6 @@ const (
 
 	PruneEveryN = 10
 
-	BlockMaxBytes = 24 * 1024 * 1024 // 24MB
-	BlockMaxGas   = 900_000_000_000
-
 	DefaultTrunkCacheSize = 200
 )
 
@@ -170,8 +167,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.logger = logger.With("module", "app")
 
 	/*------set engine------*/
-	app.txEngine = ebp.NewEbpTxExec(200 /*exeRoundCount*/, 256 /*runnerNumber*/, 32, /*parallelNum*/
-		5000 /*defaultTxListCap*/, app.signer)
+	app.txEngine = ebp.NewEbpTxExec(
+		param.EbpExeRoundCount,
+		param.EbpRunnerNumber,
+		param.EbpParallelNum,
+		5000 /*not consensus relevant*/, app.signer)
 
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
@@ -214,7 +214,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set watcher------*/
 	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
-	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + staking.NumBlocksInEpoch*stakingInfo.CurrEpochNum
+	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + param.WatcherNumBlocksInEpoch*stakingInfo.CurrEpochNum
 	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastWatch2016xHeight(%d), speedUp(%v)\n",
 		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastWatch2016xHeight, config.Speedup))
@@ -404,8 +404,8 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 
 	params := &abcitypes.ConsensusParams{
 		Block: &abcitypes.BlockParams{
-			MaxBytes: BlockMaxBytes,
-			MaxGas:   BlockMaxGas,
+			MaxBytes: param.BlockMaxBytes,
+			MaxGas:   param.BlockMaxGas,
 		},
 	}
 	return abcitypes.ResponseInitChain{
@@ -460,7 +460,6 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash)
-	//TODO: slash req.ByzantineValidators
 	app.currHeight = req.Header.Height
 	// collect slash info, only double sign
 	var addr [20]byte
@@ -475,13 +474,11 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 }
 
 func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeliverTx {
-	app.logger.Debug("enter deliver tx!", "txlen", len(req.Tx))
 	app.block.Size += int64(req.Size())
 	tx, err := ethutils.DecodeTx(req.Tx)
 	if err == nil {
 		app.txEngine.CollectTx(tx)
 	}
-	app.logger.Debug("leave deliver tx!")
 	return abcitypes.ResponseDeliverTx{Code: abcitypes.CodeTypeOK}
 }
 
@@ -563,7 +560,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	}
 	if len(app.epochList) != 0 {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
-		if app.block.Timestamp > app.epochList[0].EndTime+staking.EpochSwitchDelay {
+		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], app.logger)

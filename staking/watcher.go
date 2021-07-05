@@ -5,21 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/tendermint/tendermint/libs/log"
 	"sort"
 	"time"
 
-	"github.com/smartbch/smartbch/staking/types"
-)
+	"github.com/tendermint/tendermint/libs/log"
 
-var (
-	//NumBlocksInEpoch       int64 = 2016
-	NumBlocksInEpoch int64 = 200
-	//NumBlocksToClearMemory int64 = 100000
-	NumBlocksToClearMemory int64 = 1000
-	//WaitingBlockDelayTime  int64 = 5 * 60
-	WaitingBlockDelayTime int64 = 2
-	EpochSwitchDelay      int64 = 3*80 + 40
+	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
@@ -75,7 +67,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 	if watcher.speedup {
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
-			if latestHeight < height+NumBlocksInEpoch {
+			if latestHeight < height+param.WatcherNumBlocksInEpoch {
 				break
 			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
@@ -90,7 +82,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 			for _, e := range epochs {
 				watcher.EpochChan <- e
 			}
-			height += int64(len(epochs)) * NumBlocksInEpoch
+			height += int64(len(epochs)) * param.WatcherNumBlocksInEpoch
 			start = start + uint64(len(epochs))
 		}
 		watcher.latestFinalizedHeight = height
@@ -110,7 +102,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		height++
 		blk := watcher.rpcClient.GetBlockByHeight(height)
 		if blk == nil { //make sure connected BCH mainnet node not pruning history blocks, so this case only means height is latest block
-			watcher.suspended(time.Duration(WaitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
+			watcher.suspended(time.Duration(param.WatcherWaitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 			height--
 			continue
 		}
@@ -118,7 +110,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		missingBlockHash := watcher.addBlock(blk)
 		if missingBlockHash == nil {
 			// release blocks left to prevent BCH mainnet forks take too much memory
-			if height%NumBlocksToClearMemory == 0 {
+			if height%param.WatcherNumBlocksToClearMemory == 0 {
 				watcher.hashToBlock = make(map[[32]byte]*types.BCHBlock)
 			}
 			continue
@@ -186,7 +178,7 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 		watcher.latestFinalizedHeight++
 	}
 	// All the blocks for an epoch is ready
-	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == NumBlocksInEpoch {
+	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == param.WatcherNumBlocksInEpoch {
 		watcher.generateNewEpoch()
 	}
 	return nil
@@ -243,7 +235,7 @@ func (watcher *Watcher) ClearOldData() {
 			delete(watcher.hashToBlock, hash)
 		}
 	}
-	height -= 5 * NumBlocksInEpoch
+	height -= 5 * param.WatcherNumBlocksInEpoch
 	for {
 		_, ok := watcher.heightToFinalizedBlock[height]
 		if !ok {

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/hex"
+	"github.com/smartbch/smartbch/param"
 	"math"
 	"math/big"
 	"strings"
@@ -20,7 +21,6 @@ import (
 	"github.com/smartbch/moeingevm/types"
 
 	"github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
@@ -212,7 +212,7 @@ func TestGetBlockByNumAndHash(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(123), getBlockByNumResult["number"])
 	require.Equal(t, hexutil.Bytes(hash[:]), getBlockByNumResult["hash"])
-	require.Equal(t, hexutil.Uint64(app.BlockMaxGas), getBlockByNumResult["gasLimit"])
+	require.Equal(t, hexutil.Uint64(param.BlockMaxGas), getBlockByNumResult["gasLimit"])
 	require.Equal(t, hexutil.Uint64(0), getBlockByNumResult["gasUsed"])
 	require.Equal(t, hexutil.Bytes(nil), getBlockByNumResult["extraData"])
 	require.Equal(t, "0x0000000000000000", getBlockByNumResult["nonce"].(hexutil.Bytes).String())

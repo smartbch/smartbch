@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/smartbch/smartbch/param"
 	"math/big"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
@@ -84,7 +84,7 @@ func blockToRpcResp(block *types.Block, txs []*types.Transaction) map[string]int
 		"totalDifficulty":  hexutil.Uint64(0),
 		"extraData":        hexutil.Bytes(nil),
 		"size":             hexutil.Uint64(block.Size),
-		"gasLimit":         hexutil.Uint64(app.BlockMaxGas),
+		"gasLimit":         hexutil.Uint64(param.BlockMaxGas),
 		"gasUsed":          hexutil.Uint64(block.GasUsed),
 		"timestamp":        hexutil.Uint64(block.Timestamp),
 		"transactions":     types.ToGethHashes(block.Transactions),

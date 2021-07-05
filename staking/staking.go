@@ -16,6 +16,7 @@ import (
 
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -63,13 +64,6 @@ var (
 		uint256.NewInt().SetUint64(10),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
 	GasOfStakingExternalOp uint64 = 400_000
-	//reward
-	EpochCountBeforeRewardMature int64        = 1
-	BaseProposerPercentage       *uint256.Int = uint256.NewInt().SetUint64(15)
-	ExtraProposerPercentage      *uint256.Int = uint256.NewInt().SetUint64(15)
-	//epoch
-	MinVotingPercentPerEpoch        = 10 //10 percent in NumBlocksInEpoch, like 2016 / 10 = 201
-	MinVotingPubKeysPercentPerEpoch = 34 //34 percent in active validators,
 
 	//minGasPrice
 	//todo: set to 0 for test, change it for product
@@ -587,10 +581,10 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	proposerExtraFee := uint256.NewInt()
 	if proposer != [32]byte{} {
 		// proposerBaseFee and proposerExtraFee both go to the proposer
-		proposerBaseFee = uint256.NewInt().Mul(collectedFee, BaseProposerPercentage)
+		proposerBaseFee = uint256.NewInt().Mul(collectedFee, param.StakingBaseProposerPercentage)
 		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt().SetUint64(100))
 		collectedFee.Sub(collectedFee, proposerBaseFee)
-		proposerExtraFee = uint256.NewInt().Mul(collectedFee, ExtraProposerPercentage)
+		proposerExtraFee = uint256.NewInt().Mul(collectedFee, param.StakingExtraProposerPercentage)
 		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt().SetUint64(uint64(votedPower)))
 		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt().SetUint64(uint64(100*totalVotingPower)))
 		collectedFee.Sub(collectedFee, proposerExtraFee)
@@ -671,12 +665,12 @@ CurrentSmartBchBlockHeight:%d
 		totalNomination += n.NominatedCount
 	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if totalNomination < NumBlocksInEpoch*int64(MinVotingPercentPerEpoch)/100 {
+	if totalNomination < param.WatcherNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
 		logger.Debug("TotalNomination not big enough", "totalNomination", totalNomination)
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
 	}
-	if len(epoch.Nominations) < len(activeValidators)*MinVotingPubKeysPercentPerEpoch/100 {
+	if len(epoch.Nominations) < len(activeValidators)*param.StakingMinVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
@@ -713,7 +707,7 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 	rewardMap := make(map[[20]byte]*uint256.Int)
 	// summarize all the mature rewards
 	for _, pr := range info.PendingRewards {
-		if pr.EpochNum >= info.CurrEpochNum-EpochCountBeforeRewardMature {
+		if pr.EpochNum >= info.CurrEpochNum-param.StakingEpochCountBeforeRewardMature {
 			newPRList = append(newPRList, pr) //not mature yet
 			continue
 		}

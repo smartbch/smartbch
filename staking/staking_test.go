@@ -2,16 +2,17 @@ package staking_test
 
 import (
 	"bytes"
-	"github.com/tendermint/tendermint/libs/log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	types2 "github.com/smartbch/smartbch/staking/types"
 )
@@ -157,7 +158,7 @@ func TestSwitchEpoch(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
-	staking.MinVotingPercentPerEpoch = 0
+	param.StakingMinVotingPercentPerEpoch = 0
 	ctx := _app.GetRunTxContext()
 	//build new epoch
 	e := &types2.Epoch{
