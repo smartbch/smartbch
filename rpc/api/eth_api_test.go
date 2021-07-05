@@ -21,6 +21,7 @@ import (
 
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
@@ -37,7 +38,7 @@ bc221a1460375780636299a6ef14604f575b600080fd5b603d606b565b604080
 bd57e662c01d64736f6c634300060c0033
 `)
 
-var counterContractABI = testutils.MustParseABI(`
+var counterContractABI = ethutils.MustParseABI(`
 [
   {
 	"inputs": [],

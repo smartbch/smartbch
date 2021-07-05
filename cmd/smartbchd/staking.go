@@ -16,7 +16,6 @@ import (
 
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
-	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 )
 
@@ -25,7 +24,7 @@ const (
 	flagType     = "type"
 )
 
-var stakingABI = testutils.MustParseABI(`
+var stakingABI = ethutils.MustParseABI(`
 [
 	{
 		"inputs": [

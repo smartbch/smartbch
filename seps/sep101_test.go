@@ -8,10 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
-var _sep101ABI = testutils.MustParseABI(`
+var _sep101ABI = ethutils.MustParseABI(`
 [
 {
   "inputs": [

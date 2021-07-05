@@ -7,13 +7,15 @@ import (
 
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/require"
+
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
-	"github.com/stretchr/testify/require"
 )
 
-var stakingABI = testutils.MustParseABI(`
+var stakingABI = ethutils.MustParseABI(`
 [
 	{
 		"inputs": [

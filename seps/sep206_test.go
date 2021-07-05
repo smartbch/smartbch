@@ -11,6 +11,7 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/seps"
 )
@@ -20,7 +21,7 @@ var (
 	sep206TotalSupply = big.NewInt(0).Mul(big.NewInt(21), big.NewInt(0).Exp(big.NewInt(10), big.NewInt(24), nil)) // 21*10^24
 )
 
-var sep206ABI = testutils.MustParseABI(`
+var sep206ABI = ethutils.MustParseABI(`
 [
 {
   "anonymous": false,

@@ -1,4 +1,4 @@
-package testutils
+package ethutils
 
 import (
 	"strings"
@@ -6,18 +6,18 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
-type ABI4Test struct {
+type ABIWrapper struct {
 	_abi abi.ABI
 }
 
-func (a ABI4Test) GetABI() abi.ABI {
+func (a ABIWrapper) GetABI() abi.ABI {
 	return a._abi
 }
 
-func (a ABI4Test) Pack(name string, args ...interface{}) ([]byte, error) {
+func (a ABIWrapper) Pack(name string, args ...interface{}) ([]byte, error) {
 	return a._abi.Pack(name, args...)
 }
-func (a ABI4Test) MustPack(name string, args ...interface{}) []byte {
+func (a ABIWrapper) MustPack(name string, args ...interface{}) []byte {
 	bytes, err := a._abi.Pack(name, args...)
 	if err != nil {
 		panic(err)
@@ -25,7 +25,7 @@ func (a ABI4Test) MustPack(name string, args ...interface{}) []byte {
 	return bytes
 }
 
-func (a ABI4Test) MustUnpack(name string, data []byte) []interface{} {
+func (a ABIWrapper) MustUnpack(name string, data []byte) []interface{} {
 	ret, err := a._abi.Unpack(name, data)
 	if err != nil {
 		panic(err)
@@ -33,10 +33,10 @@ func (a ABI4Test) MustUnpack(name string, data []byte) []interface{} {
 	return ret
 }
 
-func MustParseABI(abiJSON string) ABI4Test {
+func MustParseABI(abiJSON string) ABIWrapper {
 	_abi, err := abi.JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		panic(err)
 	}
-	return ABI4Test{_abi}
+	return ABIWrapper{_abi}
 }

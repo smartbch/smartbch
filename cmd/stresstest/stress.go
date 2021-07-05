@@ -24,6 +24,7 @@ import (
 	"github.com/smartbch/moeingads/indextree"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
@@ -139,7 +140,7 @@ func GenKeysToFile(fname string, count int) {
 	fmt.Println()
 }
 
-var testAddABI = testutils.MustParseABI(`
+var testAddABI = ethutils.MustParseABI(`
 [
     {
       "inputs": [

@@ -13,6 +13,7 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/smartbch/smartbch/internal/bigutils"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -271,7 +272,7 @@ func TestEstimateGas(t *testing.T) {
 	require.True(t, gas > 0)
 }
 
-var testAddABI = testutils.MustParseABI(`
+var testAddABI = ethutils.MustParseABI(`
 [
     {
       "inputs": [
