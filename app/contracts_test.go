@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -51,7 +52,7 @@ c664736f6c634300060c0033
 
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp0(bigutils.NewU256(1000000000), key)
+	_app := testutils.CreateTestApp0(bigutils.NewU256(1000000000), ed25519.GenPrivKey().PubKey(), key)
 	defer _app.Destroy()
 
 	// see testdata/basic/contracts/EventEmitter.sol

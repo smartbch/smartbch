@@ -2,14 +2,18 @@ package app_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
 
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
@@ -124,7 +128,7 @@ func TestStaking(t *testing.T) {
 		Pubkey:         pubkey,
 		NominatedCount: 2,
 	})
-	_app.EpochChan() <- e
+	_app.AddEpochForTest(e)
 	_app.ExecTxInBlock(nil)
 	ctx = _app.GetRunTxContext()
 	_, info = staking.LoadStakingAccAndInfo(ctx)
@@ -152,13 +156,9 @@ func TestCreateValidator(t *testing.T) {
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	_init, _min := staking.InitialStakingAmount, staking.MinimumStakingAmount
-	defer func() {
-		staking.InitialStakingAmount = _init
-		staking.MinimumStakingAmount = _min
-	}()
+	_initAmt := staking.InitialStakingAmount
+	defer func() { staking.InitialStakingAmount = _initAmt }()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(2000)
-	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(1000)
 
 	data := make([]byte, 90)
 	copy(data, staking.SelectorCreateValidator[:])
@@ -199,13 +199,9 @@ func TestEditValidator(t *testing.T) {
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	_init, _min := staking.InitialStakingAmount, staking.MinimumStakingAmount
-	defer func() {
-		staking.InitialStakingAmount = _init
-		staking.MinimumStakingAmount = _min
-	}()
+	_initAmt := staking.InitialStakingAmount
+	defer func() { staking.InitialStakingAmount = _initAmt }()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(2000)
-	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(1000)
 
 	data := make([]byte, 60)
 	copy(data, staking.SelectorEditValidator[:])
@@ -239,13 +235,9 @@ func TestRetireValidator(t *testing.T) {
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	_init, _min := staking.InitialStakingAmount, staking.MinimumStakingAmount
-	defer func() {
-		staking.InitialStakingAmount = _init
-		staking.MinimumStakingAmount = _min
-	}()
+	_initAmt := staking.InitialStakingAmount
+	defer func() { staking.InitialStakingAmount = _initAmt }()
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(2000)
-	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(1000)
 
 	data := staking.PackRetire()
 	tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 123, data)
@@ -360,5 +352,82 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 		txQuery := _app.GetTx(tx.Hash())
 		require.Equal(t, gethtypes.ReceiptStatusFailed, txQuery.Status)
 		require.Equal(t, "revert", txQuery.StatusStr)
+	}
+}
+
+func TestMoreStaking(t *testing.T) {
+	_initAmt := staking.InitialStakingAmount
+	_minAmt := staking.MinimumStakingAmount
+	defer func() {
+		staking.InitialStakingAmount = _initAmt
+		staking.MinimumStakingAmount = _minAmt
+	}()
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(2000)
+	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(2000)
+
+	valPubKey := ed25519.GenPrivKey().PubKey()
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	key3, addr3 := testutils.GenKeyAndAddr()
+
+	var stateRoot []byte
+	for i := 0; i < 5; i++ {
+		println("----------")
+		_app := testutils.CreateTestApp0(
+			bigutils.NewU256(testutils.DefaultInitBalance),
+			valPubKey, key1, key2, key3)
+
+		var pubKey0 [32]byte
+		copy(pubKey0[:], _app.TestPubkey.Bytes())
+		pubKey1 := [32]byte{'p', 'b', 'k', '1'}
+		pubKey2 := [32]byte{'p', 'b', 'k', '2'}
+		pubKey3 := [32]byte{'p', 'b', 'k', '3'}
+
+		data := staking.PackCreateValidator(addr1, [32]byte{'v', 'a', 'l', '1'}, pubKey1)
+		tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
+		_app.EnsureTxSuccess(tx.Hash())
+
+		data = staking.PackCreateValidator(addr2, [32]byte{'v', 'a', 'l', '2'}, pubKey2)
+		tx, _ = _app.MakeAndExecTxInBlock(key2, staking.StakingContractAddress, 2001, data)
+		_app.EnsureTxSuccess(tx.Hash())
+
+		data = staking.PackCreateValidator(addr3, [32]byte{'v', 'a', 'l', '3'}, pubKey3)
+		tx, _ = _app.MakeAndExecTxInBlock(key3, staking.StakingContractAddress, 2001, data)
+		_app.EnsureTxSuccess(tx.Hash())
+
+		vals := _app.GetValidatorsInfo()
+		require.Len(t, vals.Validators, 4)
+		require.Len(t, vals.CurrValidators, 1)
+		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
+		require.Equal(t, int64(0), vals.Validators[1].VotingPower)
+		require.Equal(t, int64(0), vals.Validators[2].VotingPower)
+		require.Equal(t, int64(0), vals.Validators[3].VotingPower)
+
+		_app.AddEpochForTest(&types.Epoch{
+			Nominations: []*types.Nomination{
+				{Pubkey: pubKey0, NominatedCount: 300},
+				{Pubkey: pubKey1, NominatedCount: 400},
+				{Pubkey: pubKey2, NominatedCount: 500},
+				{Pubkey: pubKey3, NominatedCount: 200},
+			},
+		})
+		_app.ExecTxsInBlock()
+
+		vals = _app.GetValidatorsInfo()
+		require.Len(t, vals.Validators, 4)
+		require.Len(t, vals.CurrValidators, 4)
+		require.Equal(t, int64(300), vals.Validators[0].VotingPower)
+		require.Equal(t, int64(400), vals.Validators[1].VotingPower)
+		require.Equal(t, int64(500), vals.Validators[2].VotingPower)
+		require.Equal(t, int64(200), vals.Validators[3].VotingPower)
+
+		_app.Destroy()
+		if i == 0 {
+			stateRoot = _app.StateRoot
+		} else {
+			println(hex.EncodeToString(stateRoot))
+			//require.Equal(t, hex.EncodeToString(stateRoot),
+			//	hex.EncodeToString(_app.StateRoot))
+		}
 	}
 }

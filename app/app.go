@@ -843,8 +843,8 @@ func (app *App) ValidatorUpdate() []*stakingtypes.Validator {
 	return app.validatorUpdate
 }
 
-func (app *App) EpochChan() chan *stakingtypes.Epoch {
-	return app.watcher.EpochChan
+func (app *App) AddEpochForTest(e *stakingtypes.Epoch) {
+	app.watcher.EpochChan <- e
 }
 
 func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {

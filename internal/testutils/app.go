@@ -42,14 +42,15 @@ var nopLogger = log.NewNopLogger()
 
 type TestApp struct {
 	*app.App
+	StateRoot  []byte
 	TestPubkey crypto.PubKey
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(bigutils.NewU256(DefaultInitBalance), keys...)
+	return CreateTestApp0(bigutils.NewU256(DefaultInitBalance), ed25519.GenPrivKey().PubKey(), keys...)
 }
 
-func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
+func CreateTestApp0(testInitAmt *uint256.Int, valPubKey crypto.PubKey, keys ...string) *TestApp {
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
 	params := param.DefaultConfig()
@@ -63,9 +64,8 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 	}
 
 	testValidator := &app.Validator{}
-	testValidatorPubKey := ed25519.GenPrivKey().PubKey()
-	copy(testValidator.Address[:], testValidatorPubKey.Address().Bytes())
-	copy(testValidator.Pubkey[:], testValidatorPubKey.Bytes())
+	copy(testValidator.Address[:], valPubKey.Address().Bytes())
+	copy(testValidator.Pubkey[:], valPubKey.Bytes())
 	copy(testValidator.StakedCoins[:], staking.MinimumStakingAmount.Bytes())
 	testValidator.Introduction = "val0"
 	testValidator.VotingPower = 1
@@ -75,10 +75,11 @@ func CreateTestApp0(testInitAmt *uint256.Int, keys ...string) *TestApp {
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		ProposerAddress: testValidatorPubKey.Address(),
+		ProposerAddress: valPubKey.Address(),
 	}})
-	_app.Commit()
-	return &TestApp{_app, testValidatorPubKey}
+	stateRoot := _app.Commit().Data
+	//println("StateRoot", hex.EncodeToString(stateRoot))
+	return &TestApp{App: _app, TestPubkey: valPubKey, StateRoot: stateRoot}
 }
 
 func (_app *TestApp) Destroy() {
@@ -298,7 +299,8 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 		})
 	}
 	_app.EndBlock(abci.RequestEndBlock{Height: height})
-	_app.Commit()
+	_app.StateRoot = _app.Commit().Data
+	//println("StateRoot", hex.EncodeToString(_app.StateRoot))
 	_app.WaitLock()
 	return height
 }
@@ -308,7 +310,8 @@ func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	})
 	_app.DeliverTx(abci.RequestDeliverTx{})
 	_app.EndBlock(abci.RequestEndBlock{Height: currHeight + 1})
-	_app.Commit()
+	_app.StateRoot = _app.Commit().Data
+	//println("StateRoot", hex.EncodeToString(_app.StateRoot))
 	_app.WaitLock()
 }
 
