@@ -67,7 +67,8 @@ const (
 	HasPendingTx         uint32 = 108
 	MempoolBusy          uint32 = 109
 
-	PruneEveryN = 10
+	PruneEveryN        = 10
+	ChangeRetainEveryN = 100
 
 	DefaultTrunkCacheSize = 200
 )
@@ -94,7 +95,7 @@ type App struct {
 	blockInfo       atomic.Value // to store *types.BlockInfo
 	slashValidators [][20]byte   // recorded in BeginBlock, used in Commit
 	lastVoters      [][]byte     // recorded in BeginBlock, used in Commit
-	lastProposer    [20]byte     // recorded in app.block in BeginBlock, copied here in refresh or NewApp
+	lastProposer    [20]byte     // recorded in app.block in BeginBlock, copied here in refresh
 	lastGasUsed     uint64       // recorded in last block's postCommit, used in current block's refresh
 	lastGasRefund   uint256.Int  // recorded in last block's postCommit, used in current block's refresh
 	lastGasFee      uint256.Int  // recorded in last block's postCommit, used in current block's refresh
@@ -192,7 +193,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.block = &types.Block{}
 	}
 
-	app.root.SetHeight(app.currHeight + 1)
+	app.root.SetHeight(app.currHeight)
 	if app.currHeight != 0 {
 		app.restartPostCommit()
 	} else {
@@ -440,10 +441,9 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Timestamp: req.Header.Time.Unix(),
 		Size:      int64(req.Size()),
 	}
-	var miner [20]byte
-	copy(miner[:], req.Header.ProposerAddress)
+	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	app.logger.Debug(fmt.Sprintf("current proposer %s, last proposer: %s",
-		gethcmn.Address(miner).String(), gethcmn.Address(app.lastProposer).String()))
+		gethcmn.Address(app.block.Miner).String(), gethcmn.Address(app.lastProposer).String()))
 	for _, v := range req.LastCommitInfo.GetVotes() {
 		if v.SignedLastBlock {
 			app.lastVoters = append(app.lastVoters, v.Validator.Address) //this is validator consensus address
@@ -455,7 +455,6 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	if len(req.Header.DataHash) >= 8 {
 		app.reorderSeed = int64(binary.LittleEndian.Uint64(req.Header.DataHash[0:8]))
 	}
-	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash)
 	app.currHeight = req.Header.Height
@@ -481,6 +480,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
+	// app.validatorUpdate is recorded in Commit and used in the next block's EndBlock
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
 	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -501,14 +501,12 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
-	//distribute previous block gas gee
+	//distribute previous block gas fee
 	var blockReward = app.lastGasFee
-	if !app.lastGasFee.IsZero() {
-		if !app.lastGasRefund.IsZero() {
-			err := ebp.SubSystemAccBalance(ctx, &app.lastGasRefund)
-			if err != nil {
-				panic(err)
-			}
+	if !app.lastGasRefund.IsZero() {
+		err := ebp.SubSystemAccBalance(ctx, &app.lastGasRefund)
+		if err != nil {
+			panic(err)
 		}
 	}
 	//invariant check for fund safe
@@ -538,8 +536,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	res := abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
 	}
-	// prune tendermint history block and state every 100 blocks, maybe param it
-	if app.retainBlocks > 0 && app.currHeight >= app.retainBlocks && (app.currHeight%100 == 0) {
+	// prune tendermint history block and state every ChangeRetainEveryN blocks
+	if app.retainBlocks > 0 && app.currHeight >= app.retainBlocks && (app.currHeight%ChangeRetainEveryN == 0) {
 		res.RetainHeight = app.currHeight - app.retainBlocks + 1
 	}
 	return res
@@ -618,7 +616,7 @@ func (app *App) refresh() {
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
-	app.trunk.Close(true)
+	app.trunk.Close(true) //write cached KVs back to app.root
 	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
 	}
@@ -633,51 +631,26 @@ func (app *App) refresh() {
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
-		blk := modbtypes.Block{
+		prevBlk4MoDB := modbtypes.Block{
 			Height: prevBlkInfo.Number,
 		}
-		prevBlkInfo.Transactions = make([][32]byte, len(app.txEngine.CommittedTxs()))
-		for i, tx := range app.txEngine.CommittedTxs() {
-			prevBlkInfo.Transactions[i] = tx.Hash
-		}
+		prevBlkInfo.Transactions = app.txEngine.CommittedTxIds()
 		blkInfo, err := prevBlkInfo.MarshalMsg(nil)
 		if err != nil {
 			panic(err)
 		}
-		copy(blk.BlockHash[:], prevBlkInfo.Hash[:])
-		blk.BlockInfo = blkInfo
-		blk.TxList = make([]modbtypes.Tx, len(app.txEngine.CommittedTxs()))
-		for i, tx := range app.txEngine.CommittedTxs() {
-			t := modbtypes.Tx{}
-			copy(t.HashId[:], tx.Hash[:])
-			copy(t.SrcAddr[:], tx.From[:])
-			copy(t.DstAddr[:], tx.To[:])
-			txContent, err := tx.MarshalMsg(nil)
-			if err != nil {
-				panic(err)
-			}
-			t.Content = txContent
-			t.LogList = make([]modbtypes.Log, len(tx.Logs))
-			for j, l := range tx.Logs {
-				copy(t.LogList[j].Address[:], l.Address[:])
-				if len(l.Topics) != 0 {
-					t.LogList[j].Topics = make([][32]byte, len(l.Topics))
-				}
-				for k, topic := range l.Topics {
-					copy(t.LogList[j].Topics[k][:], topic[:])
-				}
-			}
-			blk.TxList[i] = t
-		}
-		app.historyStore.AddBlock(&blk, -1)
-		app.publishNewBlock(&blk)
+		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
+		prevBlk4MoDB.BlockInfo = blkInfo
+		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
+		app.historyStore.AddBlock(&prevBlk4MoDB, -1)
+		app.publishNewBlock(&prevBlk4MoDB)
 		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}
 	//make new
 	app.recheckCounter = 0 // reset counter before counting the remained TXs which need rechecking
 	app.lastProposer = app.block.Miner
 	app.lastVoters = app.lastVoters[:0]
-	app.root.SetHeight(app.currHeight + 1)
+	app.root.SetHeight(app.currHeight)
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
