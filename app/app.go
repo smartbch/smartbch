@@ -92,42 +92,42 @@ type App struct {
 	checkTrunk      *store.TrunkStore
 	block           *types.Block
 	blockInfo       atomic.Value // to store *types.BlockInfo
-	slashValidators [][20]byte   // recorded in BeginBlock, used in commit
-	lastVoters      [][]byte     // recorded in BeginBlock, used in commit
+	slashValidators [][20]byte   // recorded in BeginBlock, used in Commit
+	lastVoters      [][]byte     // recorded in BeginBlock, used in Commit
 	lastProposer    [20]byte     // recorded in app.block in BeginBlock, copied here in refresh or NewApp
 	lastGasUsed     uint64       // recorded in last block's postCommit, used in current block's refresh
 	lastGasRefund   uint256.Int  // recorded in last block's postCommit, used in current block's refresh
 	lastGasFee      uint256.Int  // recorded in last block's postCommit, used in current block's refresh
-	lastMinGasPrice uint64
+	lastMinGasPrice uint64       // recorded in refresh, used in next block's CheckTx and Commit
 
 	// feeds
-	chainFeed event.Feed
-	logsFeed  event.Feed
+	chainFeed event.Feed // For pub&sub new blocks
+	logsFeed  event.Feed // For pub&sub new logs
 	scope     event.SubscriptionScope
 
 	//engine
 	txEngine     ebp.TxExecutor
-	reorderSeed  int64
-	touchedAddrs map[gethcmn.Address]int
+	reorderSeed  int64                   // recorded in BeginBlock, used in Commit
+	touchedAddrs map[gethcmn.Address]int // recorded in Commint, used in next block's CheckTx
 
 	//watcher
 	watcher   *staking.Watcher
-	epochList []*stakingtypes.Epoch
+	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
 
 	//util
 	signer gethtypes.Signer
 	logger log.Logger
 
 	//genesis data
-	currValidators  []*stakingtypes.Validator
-	validatorUpdate []*stakingtypes.Validator
+	currValidators  []*stakingtypes.Validator // it is needed to compute validatorUpdate
+	validatorUpdate []*stakingtypes.Validator // tendermint wants to know validators whose voting power change
 
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache     map[gethcmn.Hash]SenderAndHeight
 	sigCacheSize int
 
 	// the senders who send native tokens through sep206 in the last block
-	sep206SenderSet map[gethcmn.Address]struct{}
+	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
 	// if recheckCounter is larger than recheckThreshold, mempool is in a traffic-jam status
@@ -194,7 +194,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.root.SetHeight(app.currHeight + 1)
 	if app.currHeight != 0 {
 		app.lastProposer = app.block.Miner
-		app.reload()
+		app.restartPostCommit()
 	} else {
 		app.txEngine.SetContext(app.GetRunTxContext())
 	}
@@ -209,7 +209,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 	if stakingInfo.CurrEpochNum == 0 && stakingInfo.GenesisMainnetBlockHeight == 0 {
 		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
-		staking.SaveStakingInfo(ctx, stakingInfo)
+		staking.SaveStakingInfo(ctx, stakingInfo) // only executed at genesis
 	}
 
 	/*------set watcher------*/
@@ -228,9 +228,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 }
 
 func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.MoeingADS) {
-	first := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	last := []byte{255, 255, 255, 255, 255, 255, 255, 255}
-	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first, last})
+	first := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
+	last := [8]byte{255, 255, 255, 255, 255, 255, 255, 255}
+	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first[:], last[:]})
 	if err != nil {
 		panic(err)
 	}
@@ -247,7 +247,9 @@ func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 	} else {
 		if _, err := os.Stat(modbDir); os.IsNotExist(err) {
 			_ = os.MkdirAll(path.Join(modbDir, "data"), 0700)
-			historyStore = modb.CreateEmptyMoDB(modbDir, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+			var seed [8]byte // use current time as moeingdb's hash seed
+			binary.LittleEndian.PutUint64(seed[:], uint64(time.Now().UnixNano()))
+			historyStore = modb.CreateEmptyMoDB(modbDir, seed)
 		} else {
 			historyStore = modb.NewMoDB(modbDir)
 		}
@@ -256,13 +258,10 @@ func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 	return
 }
 
-func (app *App) reload() {
+func (app *App) restartPostCommit() {
 	app.txEngine.SetContext(app.GetRunTxContext())
-	if app.block != nil {
-		app.mtx.Lock()
-		bi := app.syncBlockInfo()
-		app.postCommit(bi)
-	}
+	app.mtx.Lock()
+	app.postCommit(app.syncBlockInfo())
 }
 
 func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
@@ -273,11 +272,11 @@ func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
 }
 
 func (app *App) SetOption(option abcitypes.RequestSetOption) abcitypes.ResponseSetOption {
-	return abcitypes.ResponseSetOption{}
+	return abcitypes.ResponseSetOption{} // take it as a nop
 }
 
 func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
-	return abcitypes.ResponseQuery{Code: abcitypes.CodeTypeOK}
+	return abcitypes.ResponseQuery{Code: abcitypes.CodeTypeOK} // take it as a nop
 }
 
 func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx {
@@ -285,7 +284,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	if req.Type == abcitypes.CheckTxType_Recheck {
 		app.recheckCounter++ // calculate how many TXs remain in the mempool after a new block
 	} else if app.recheckCounter > app.recheckThreshold {
-		// Refuse to accept new TXs to drain the remain TXs
+		// Refuse to accept new TXs on P2P to drain the remain TXs in mempool
 		return abcitypes.ResponseCheckTx{Code: MempoolBusy, Info: "mempool is too busy"}
 	}
 	tx := &gethtypes.Transaction{}

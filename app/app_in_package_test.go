@@ -49,7 +49,7 @@ func TestAppReload(t *testing.T) {
 		Timestamp:        666,
 		Transactions:     nil,
 	}
-	_app.reload()
+	_app.restartPostCommit()
 	_app.mtx.Lock()
 	_app.mtx.Unlock() //nolint
 	bi := _app.blockInfo.Load().(*types.BlockInfo)
