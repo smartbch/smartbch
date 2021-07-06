@@ -41,15 +41,7 @@ func (g GenesisData) stakingValidators() []*stakingtypes.Validator {
 func FromStakingValidators(vs []*stakingtypes.Validator) []*Validator {
 	ret := make([]*Validator, len(vs))
 	for i, v := range vs {
-		ret[i] = &Validator{
-			Address:      v.Address,
-			Pubkey:       v.Pubkey,
-			RewardTo:     v.RewardTo,
-			VotingPower:  v.VotingPower,
-			Introduction: v.Introduction,
-			StakedCoins:  v.StakedCoins,
-			IsRetiring:   v.IsRetiring,
-		}
+		ret[i] = FromStakingValidator(v)
 	}
 	return ret
 }

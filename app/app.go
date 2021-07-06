@@ -185,15 +185,15 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
-	app.block = &types.Block{}
 	if prevBlk != nil {
-		app.block.Number = prevBlk.Number
+		app.block = prevBlk
 		app.currHeight = app.block.Number
+	} else {
+		app.block = &types.Block{}
 	}
 
 	app.root.SetHeight(app.currHeight + 1)
 	if app.currHeight != 0 {
-		app.lastProposer = app.block.Miner
 		app.restartPostCommit()
 	} else {
 		app.txEngine.SetContext(app.GetRunTxContext())
@@ -363,7 +363,6 @@ func (app *App) checkTx(tx *gethtypes.Transaction, sender gethcmn.Address) abcit
 	}
 }
 
-//TODO: if the last height is not 0, we must run app.txEngine.Execute(&bi) here!!
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
 	app.logger.Debug("InitChain, id=", req.ChainId)
 
@@ -377,7 +376,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		panic(err)
 	}
 
-	app.createGenesisAccs(genesisData.Alloc)
+	app.createGenesisAccounts(genesisData.Alloc)
 	genesisValidators := genesisData.stakingValidators()
 
 	if len(genesisValidators) == 0 {
@@ -413,7 +412,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	}
 }
 
-func (app *App) createGenesisAccs(alloc gethcore.GenesisAlloc) {
+func (app *App) createGenesisAccounts(alloc gethcore.GenesisAlloc) {
 	if len(alloc) == 0 {
 		return
 	}
