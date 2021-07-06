@@ -11,6 +11,7 @@ const (
 	DefaultRpcEthGetLogsMaxResults = 10000
 	DefaultRetainBlocks            = -1
 	DefaultNumKeptBlocks           = 10000
+	DefaultNumKeptBlocksInMoDB     = -1
 	DefaultSignatureCache          = 20000
 	DefaultRecheckThreshold        = 1000
 )
@@ -56,8 +57,11 @@ type ChainConfig struct {
 	// Use LiteDB instead of MoDB
 	UseLiteDB bool
 
-	// the number of kept recent blocks
+	// the number of kept recent blocks for moeingads
 	NumKeptBlocks int
+
+	// the number of kept recent blocks for moeingdb
+	NumKeptBlocksInMoDB int
 
 	// the entry count of the signature cache
 	SigCacheSize int
@@ -93,6 +97,7 @@ func DefaultConfig() *ChainConfig {
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 		RetainBlocks:            DefaultRetainBlocks,
 		NumKeptBlocks:           DefaultNumKeptBlocks,
+		NumKeptBlocksInMoDB:     DefaultNumKeptBlocksInMoDB,
 		SigCacheSize:            DefaultSignatureCache,
 		RecheckThreshold:        DefaultRecheckThreshold,
 	}

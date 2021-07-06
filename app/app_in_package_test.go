@@ -12,7 +12,6 @@ import (
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 
-	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/evmwrap/testcase"
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -106,7 +105,7 @@ func TestCheckTx(t *testing.T) {
 
 	//test gas too large
 	_app.recheckThreshold = 10
-	tx = ethutils.NewTx(2, &addr, big.NewInt(100), ebp.MaxTxGasLimit+1, big.NewInt(10), nil)
+	tx = ethutils.NewTx(2, &addr, big.NewInt(100), param.MaxTxGasLimit+1, big.NewInt(10), nil)
 	signedTx, _ = tx.WithSignature(_app.signer, addr.Bytes())
 	data, _ = ethutils.EncodeTx(signedTx)
 	r.Tx = data

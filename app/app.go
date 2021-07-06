@@ -82,10 +82,11 @@ type App struct {
 	logValidatorsInfo bool
 
 	//store
-	mads          *moeingads.MoeingADS
-	root          *store.RootStore
-	numKeptBlocks int64 // for moeingads to prune old blocks
-	historyStore  modbtypes.DB
+	mads                *moeingads.MoeingADS
+	root                *store.RootStore
+	numKeptBlocks       int64 // for moeingads to prune old blocks
+	numKeptBlocksInMoDB int64 // for moeingdb to prune old blocks
+	historyStore        modbtypes.DB
 
 	//refresh with block
 	currHeight      int64
@@ -158,6 +159,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set store------*/
 	app.numKeptBlocks = int64(config.NumKeptBlocks)
+	app.numKeptBlocksInMoDB = int64(config.NumKeptBlocksInMoDB)
 	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config)
 	app.trunk = app.root.GetTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
@@ -215,7 +217,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set watcher------*/
 	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
-	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + param.WatcherNumBlocksInEpoch*stakingInfo.CurrEpochNum
+	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + param.NumBlocksInEpoch*stakingInfo.CurrEpochNum
 	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastWatch2016xHeight(%d), speedUp(%v)\n",
 		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastWatch2016xHeight, config.Speedup))
@@ -340,8 +342,7 @@ func (app *App) checkTx(tx *gethtypes.Transaction, sender gethcmn.Address) abcit
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
-	//todo: replace with engine param
-	if tx.Gas() > ebp.MaxTxGasLimit {
+	if tx.Gas() > param.MaxTxGasLimit {
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
 	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
@@ -529,7 +530,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice)
+	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)
@@ -559,7 +560,8 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], app.logger)
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], app.logger,
+				param.StakingMinVotingPercentPerEpoch, param.StakingMinVotingPubKeysPercentPerEpoch)
 			app.epochList = app.epochList[1:]
 		}
 	}
@@ -616,7 +618,7 @@ func (app *App) refresh() {
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
-	app.trunk.Close(true) //write cached KVs back to app.root
+	app.trunk.Close(true)                  //write cached KVs back to app.root
 	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
 	}
@@ -626,8 +628,8 @@ func (app *App) refresh() {
 
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
-		var wg *sync.WaitGroup
-		app.sep206SenderSet, wg = app.getSep206SenderSet()
+		var wg sync.WaitGroup
+		app.sep206SenderSet = app.getSep206SenderSet(&wg)
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -642,7 +644,11 @@ func (app *App) refresh() {
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
-		app.historyStore.AddBlock(&prevBlk4MoDB, -1)
+		if app.numKeptBlocksInMoDB > 0 && app.currHeight > app.numKeptBlocksInMoDB {
+			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.numKeptBlocksInMoDB)
+		} else {
+			app.historyStore.AddBlock(&prevBlk4MoDB, -1) // do not prune moeingdb
+		}
 		app.publishNewBlock(&prevBlk4MoDB)
 		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}
@@ -656,36 +662,36 @@ func (app *App) refresh() {
 	app.txEngine.SetContext(app.GetRunTxContext())
 }
 
+// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
+// through sep206 in the last block
+func (app *App) getSep206SenderSet(wg *sync.WaitGroup) map[gethcmn.Address]struct{} {
+	res := make(map[gethcmn.Address]struct{})
+	wg.Add(1)
+	go func() {
+		for _, tx := range app.txEngine.CommittedTxs() {
+			for _, log := range tx.Logs {
+				if log.Address == seps.SEP206Addr && len(log.Topics) == 2 &&
+					log.Topics[0] == modbtypes.TransferEvent {
+					var addr gethcmn.Address
+					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
+					res[addr] = struct{}{}
+				}
+			}
+		}
+		wg.Done()
+	}()
+	return res
+}
+
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
 	if mdbBlock == nil {
 		return
 	}
-	chainEvent := types.ChainEvent{
-		Hash: mdbBlock.BlockHash,
-		BlockHeader: &types.Header{
-			Number:    uint64(mdbBlock.Height),
-			BlockHash: mdbBlock.BlockHash,
-		},
-		Block: mdbBlock,
-		Logs:  collectAllGethLogs(mdbBlock),
-	}
+	chainEvent := types.BlockToChainEvent(mdbBlock)
 	app.chainFeed.Send(chainEvent)
 	if len(chainEvent.Logs) > 0 {
 		app.logsFeed.Send(chainEvent.Logs)
 	}
-}
-
-func collectAllGethLogs(mdbBlock *modbtypes.Block) []*gethtypes.Log {
-	logs := make([]*gethtypes.Log, 0, 8)
-	for _, mdbTx := range mdbBlock.TxList {
-		for _, mdbLog := range mdbTx.LogList {
-			logs = append(logs, &gethtypes.Log{
-				Address: mdbLog.Address,
-				Topics:  types.ToGethHashes(mdbLog.Topics),
-			})
-		}
-	}
-	return logs
 }
 
 func (app *App) ListSnapshots(snapshots abcitypes.RequestListSnapshots) abcitypes.ResponseListSnapshots {
@@ -791,7 +797,7 @@ func (app *App) Logger() log.Logger {
 }
 
 //nolint
-func (app *App) WaitLock() {
+func (app *App) WaitLock() { // wait for postCommit to finish
 	app.mtx.Lock()
 	app.mtx.Unlock()
 }
@@ -804,18 +810,18 @@ func (app *App) BlockNum() int64 {
 	return app.block.Number
 }
 
-func (app *App) CurrValidators() []*stakingtypes.Validator {
+func (app *App) CurrValidators() []*stakingtypes.Validator { // not thread-safe, used only in test
 	return app.currValidators
 }
-func (app *App) ValidatorUpdate() []*stakingtypes.Validator {
+func (app *App) ValidatorUpdate() []*stakingtypes.Validator { // not thread-safe, used only in test
 	return app.validatorUpdate
 }
 
-func (app *App) AddEpochForTest(e *stakingtypes.Epoch) {
+func (app *App) AddEpochForTest(e *stakingtypes.Epoch) { // breaks normal function, only used in test
 	app.watcher.EpochChan <- e
 }
 
-func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {
+func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) { // breaks normal function, only used in test
 	app.historyStore.AddBlock(mdbBlock, -1)
 	app.historyStore.AddBlock(nil, -1) // To Flush
 	app.publishNewBlock(mdbBlock)
@@ -823,7 +829,7 @@ func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) {
 
 //nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
-func (app *App) randomPanic(baseNumber, primeNumber int64) {
+func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal function, only used in test
 	heightStr := os.Getenv("RANDPANICHEIGHT")
 	if len(heightStr) == 0 {
 		return
@@ -841,28 +847,6 @@ func (app *App) randomPanic(baseNumber, primeNumber int64) {
 		fmt.Println(s)
 		panic(s)
 	}(baseNumber + time.Now().UnixNano()%primeNumber)
-}
-
-// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
-// through sep206 in the last block
-func (app *App) getSep206SenderSet() (map[gethcmn.Address]struct{}, *sync.WaitGroup) {
-	res := make(map[gethcmn.Address]struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		for _, tx := range app.txEngine.CommittedTxs() {
-			for _, log := range tx.Logs {
-				if log.Address == seps.SEP206Addr && len(log.Topics) == 2 &&
-					log.Topics[0] == modbtypes.TransferEvent {
-					var addr gethcmn.Address
-					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
-					res[addr] = struct{}{}
-				}
-			}
-		}
-		wg.Done()
-	}()
-	return res, &wg
 }
 
 func (app *App) GetValidatorsInfo() ValidatorsInfo {

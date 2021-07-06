@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
-	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -143,7 +142,8 @@ func TestRunWithNewEpoch(t *testing.T) {
 	c := MockEpochConsumer{
 		w: w,
 	}
-	param.WatcherNumBlocksInEpoch = 10
+	numBlocksInEpoch := 10
+	w.SetNumBlocksInEpoch(int64(numBlocksInEpoch))
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan
@@ -152,7 +152,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 	//test watcher clear
 	//require.Equal(t, 6*int(WatcherNumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
 	require.Equal(t, 20, len(w.hashToBlock))
-	require.Equal(t, 6*int(param.WatcherNumBlocksInEpoch)-1, len(w.heightToFinalizedBlock))
+	require.Equal(t, 6*numBlocksInEpoch-1, len(w.heightToFinalizedBlock))
 	require.Equal(t, 5, len(w.epochList))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
@@ -161,15 +161,15 @@ func TestRunWithNewEpoch(t *testing.T) {
 	require.Equal(t, int64(90), w.latestFinalizedHeight)
 	require.Equal(t, 9, len(c.epochList))
 	for i, e := range c.epochList {
-		require.Equal(t, int64(i)*param.WatcherNumBlocksInEpoch+1, e.StartHeight)
+		require.Equal(t, int64(i*numBlocksInEpoch)+1, e.StartHeight)
 	}
 }
 
 func TestRunWithFork(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
 	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
-	param.WatcherNumBlocksToClearMemory = 100
-	param.WatcherNumBlocksInEpoch = 1000
+	w.SetNumBlocksToClearMemory(100)
+	w.SetNumBlocksInEpoch(1000)
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan

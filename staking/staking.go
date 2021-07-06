@@ -579,10 +579,12 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	proposerExtraFee := uint256.NewInt()
 	if proposer != [32]byte{} {
 		// proposerBaseFee and proposerExtraFee both go to the proposer
-		proposerBaseFee = uint256.NewInt().Mul(collectedFee, param.StakingBaseProposerPercentage)
+		proposerBaseFee = uint256.NewInt().Mul(collectedFee,
+			uint256.NewInt().SetUint64(param.StakingBaseProposerPercentage))
 		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt().SetUint64(100))
 		collectedFee.Sub(collectedFee, proposerBaseFee)
-		proposerExtraFee = uint256.NewInt().Mul(collectedFee, param.StakingExtraProposerPercentage)
+		proposerExtraFee = uint256.NewInt().Mul(collectedFee,
+			uint256.NewInt().SetUint64(param.StakingExtraProposerPercentage))
 		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt().SetUint64(uint64(votedPower)))
 		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt().SetUint64(uint64(100*totalVotingPower)))
 		collectedFee.Sub(collectedFee, proposerExtraFee)
@@ -634,7 +636,8 @@ func distributeToValidator(info *types.StakingInfo, rwdMapByAddr map[[20]byte]*t
 }
 
 // switch to a new epoch
-func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, logger log.Logger) []*types.Validator {
+func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, logger log.Logger,
+	minVotingPercentPerEpoch, minVotingPubKeysPercentPerEpoch int) []*types.Validator {
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
@@ -663,12 +666,12 @@ CurrentSmartBchBlockHeight:%d
 		totalNomination += n.NominatedCount
 	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if totalNomination < param.WatcherNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
+	if totalNomination < param.NumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
 		logger.Debug("TotalNomination not big enough", "totalNomination", totalNomination)
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
 	}
-	if len(epoch.Nominations) < len(activeValidators)*param.StakingMinVotingPubKeysPercentPerEpoch/100 {
+	if len(epoch.Nominations) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
