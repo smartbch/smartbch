@@ -297,7 +297,7 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
-			Time:            _app.StartTime.Add(BlockInterval),
+			Time:            _app.StartTime.Add(BlockInterval * time.Duration(height)),
 			ProposerAddress: _app.TestPubkey.Address(),
 		},
 	})
@@ -316,7 +316,10 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 }
 func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{Height: currHeight + 1},
+		Header: tmproto.Header{
+			Height: currHeight + 1,
+			Time:   _app.StartTime.Add(BlockInterval * time.Duration(currHeight+1)),
+		},
 	})
 	_app.DeliverTx(abci.RequestDeliverTx{})
 	_app.EndBlock(abci.RequestEndBlock{Height: currHeight + 1})
