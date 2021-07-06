@@ -15,6 +15,10 @@ type ValidatorsInfo struct {
 	ValidatorsUpdate          []*Validator     `json:"validatorsUpdate"`
 	PendingRewards            []*PendingReward `json:"pendingRewards"`
 
+	// MinGasPrice
+	MinGasPrice     uint64 `json:"minGasPrice"`
+	LastMinGasPrice uint64 `json:"lastMinGasPrice"`
+
 	// App
 	CurrValidators []*Validator `json:"currValidators"`
 }
@@ -26,7 +30,8 @@ type PendingReward struct {
 }
 
 func newValidatorsInfo(currValidators []*stakingtypes.Validator,
-	stakingInfo stakingtypes.StakingInfo) ValidatorsInfo {
+	stakingInfo stakingtypes.StakingInfo,
+	minGasPrice, lastMinGasPrice uint64) ValidatorsInfo {
 
 	info := ValidatorsInfo{
 		GenesisMainnetBlockHeight: stakingInfo.GenesisMainnetBlockHeight,
@@ -34,6 +39,8 @@ func newValidatorsInfo(currValidators []*stakingtypes.Validator,
 		Validators:                FromStakingValidators(stakingInfo.Validators),
 		ValidatorsUpdate:          FromStakingValidators(stakingInfo.ValidatorsUpdate),
 		CurrValidators:            FromStakingValidators(currValidators),
+		MinGasPrice:               minGasPrice,
+		LastMinGasPrice:           lastMinGasPrice,
 	}
 
 	info.PendingRewards = make([]*PendingReward, len(stakingInfo.PendingRewards))

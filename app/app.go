@@ -901,5 +901,7 @@ func (app *App) GetValidatorsInfo() ValidatorsInfo {
 
 func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	stakingInfo := staking.LoadStakingInfo(ctx)
-	return newValidatorsInfo(app.currValidators, stakingInfo)
+	minGasPrice := staking.LoadMinGasPrice(ctx, false)
+	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
+	return newValidatorsInfo(app.currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
 }
