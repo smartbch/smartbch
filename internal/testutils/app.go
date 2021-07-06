@@ -1,7 +1,9 @@
 package testutils
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"time"
@@ -35,6 +37,8 @@ const (
 const (
 	DefaultGasLimit    = 1000000
 	DefaultInitBalance = uint64(10000000)
+	BlockInterval      = 5 * time.Second
+	debug              = false
 )
 
 // var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -42,15 +46,16 @@ var nopLogger = log.NewNopLogger()
 
 type TestApp struct {
 	*app.App
-	StateRoot  []byte
 	TestPubkey crypto.PubKey
+	StateRoot  []byte
+	StartTime  time.Time
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(bigutils.NewU256(DefaultInitBalance), ed25519.GenPrivKey().PubKey(), keys...)
+	return CreateTestApp0(time.Now(), bigutils.NewU256(DefaultInitBalance), ed25519.GenPrivKey().PubKey(), keys...)
 }
 
-func CreateTestApp0(testInitAmt *uint256.Int, valPubKey crypto.PubKey, keys ...string) *TestApp {
+func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey crypto.PubKey, keys ...string) *TestApp {
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
 	params := param.DefaultConfig()
@@ -75,11 +80,14 @@ func CreateTestApp0(testInitAmt *uint256.Int, valPubKey crypto.PubKey, keys ...s
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Time:            startTime,
 		ProposerAddress: valPubKey.Address(),
 	}})
 	stateRoot := _app.Commit().Data
-	//println("StateRoot", hex.EncodeToString(stateRoot))
-	return &TestApp{App: _app, TestPubkey: valPubKey, StateRoot: stateRoot}
+	if debug {
+		fmt.Println("h: 0 StateRoot:", hex.EncodeToString(stateRoot))
+	}
+	return &TestApp{App: _app, TestPubkey: valPubKey, StateRoot: stateRoot, StartTime: startTime}
 }
 
 func (_app *TestApp) Destroy() {
@@ -289,7 +297,7 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 	_app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          height,
-			Time:            time.Now(),
+			Time:            _app.StartTime.Add(BlockInterval),
 			ProposerAddress: _app.TestPubkey.Address(),
 		},
 	})
@@ -300,7 +308,9 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 	}
 	_app.EndBlock(abci.RequestEndBlock{Height: height})
 	_app.StateRoot = _app.Commit().Data
-	//println("StateRoot", hex.EncodeToString(_app.StateRoot))
+	if debug {
+		fmt.Println("h:", height, "StateRoot:", hex.EncodeToString(_app.StateRoot))
+	}
 	_app.WaitLock()
 	return height
 }
@@ -311,7 +321,9 @@ func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	_app.DeliverTx(abci.RequestDeliverTx{})
 	_app.EndBlock(abci.RequestEndBlock{Height: currHeight + 1})
 	_app.StateRoot = _app.Commit().Data
-	//println("StateRoot", hex.EncodeToString(_app.StateRoot))
+	if debug {
+		fmt.Println("h:", currHeight+1, "StateRoot:", hex.EncodeToString(_app.StateRoot))
+	}
 	_app.WaitLock()
 }
 

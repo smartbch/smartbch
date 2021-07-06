@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -52,7 +53,8 @@ c664736f6c634300060c0033
 
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp0(bigutils.NewU256(1000000000), ed25519.GenPrivKey().PubKey(), key)
+	_app := testutils.CreateTestApp0(time.Now(),
+		bigutils.NewU256(1000000000), ed25519.GenPrivKey().PubKey(), key)
 	defer _app.Destroy()
 
 	// see testdata/basic/contracts/EventEmitter.sol

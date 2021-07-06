@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
@@ -355,7 +356,7 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 	}
 }
 
-func TestMoreStaking(t *testing.T) {
+func TestStakingDetermination(t *testing.T) {
 	_initAmt := staking.InitialStakingAmount
 	_minAmt := staking.MinimumStakingAmount
 	defer func() {
@@ -370,10 +371,11 @@ func TestMoreStaking(t *testing.T) {
 	key2, addr2 := testutils.GenKeyAndAddr()
 	key3, addr3 := testutils.GenKeyAndAddr()
 
+	startTime := time.Now()
 	var stateRoot []byte
 	for i := 0; i < 5; i++ {
-		println("----------")
-		_app := testutils.CreateTestApp0(
+		//println("----------")
+		_app := testutils.CreateTestApp0(startTime,
 			bigutils.NewU256(testutils.DefaultInitBalance),
 			valPubKey, key1, key2, key3)
 
@@ -425,9 +427,9 @@ func TestMoreStaking(t *testing.T) {
 		if i == 0 {
 			stateRoot = _app.StateRoot
 		} else {
-			println(hex.EncodeToString(stateRoot))
-			//require.Equal(t, hex.EncodeToString(stateRoot),
-			//	hex.EncodeToString(_app.StateRoot))
+			//println(hex.EncodeToString(stateRoot))
+			require.Equal(t, hex.EncodeToString(stateRoot),
+				hex.EncodeToString(_app.StateRoot))
 		}
 	}
 }
