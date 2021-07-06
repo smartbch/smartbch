@@ -78,6 +78,10 @@ func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey cry
 
 	appStateBytes, _ := json.Marshal(genesisData)
 
+	//reset config for test
+	staking.DefaultMinGasPrice = 0
+	staking.MinGasPriceLowerBound = 0
+
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		Time:            startTime,

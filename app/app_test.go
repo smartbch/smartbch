@@ -22,6 +22,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/staking"
 )
 
 //func TestMain(m *testing.M) {
@@ -37,6 +38,7 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestTransferOK(t *testing.T) {
+	staking.DefaultMinGasPrice = 0
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)

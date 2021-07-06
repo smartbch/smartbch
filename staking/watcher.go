@@ -127,7 +127,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		// when we get the forked full branch, we try to add the tip again
 		missingBlockHash = watcher.addBlock(blk)
 		if missingBlockHash != nil {
-			panic(fmt.Sprintf("The parent %s must not be missing", missingBlockHash))
+			panic(fmt.Sprintf("The parent %s must not be missing", hex.EncodeToString(missingBlockHash[:])))
 		}
 	}
 }

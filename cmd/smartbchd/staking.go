@@ -22,6 +22,12 @@ import (
 const (
 	flagRewardTo = "reward-to"
 	flagType     = "type"
+
+	create              = "create"
+	edit                = "edit"
+	retire              = "retire"
+	increaseMinGasPrice = "increase"
+	decreaseMinGasPrice = "decrease"
 )
 
 func StakingCmd(ctx *Context) *cobra.Command {
@@ -59,8 +65,14 @@ smartbchd staking
 			}
 
 			fType := viper.GetString(flagType)
-			if fType == "retire" {
+			if fType == retire {
 				data := staking.PackRetire()
+				return printSignedTx(big.NewInt(0), data, nonce, priKey, chainID.ToBig())
+			} else if fType == increaseMinGasPrice {
+				data := staking.PackIncreaseMinGasPrice()
+				return printSignedTx(big.NewInt(0), data, nonce, priKey, chainID.ToBig())
+			} else if fType == decreaseMinGasPrice {
+				data := staking.PackDecreaseMinGasPrice()
 				return printSignedTx(big.NewInt(0), data, nonce, priKey, chainID.ToBig())
 			}
 
@@ -78,12 +90,12 @@ smartbchd staking
 			if rewardTo.String() == "" {
 				rewardTo = ethutils.PrivKeyToAddr(priKey)
 			}
-			if fType == "edit" {
+			if fType == edit {
 				data := staking.PackEditValidator(rewardTo, intro)
 				return printSignedTx(sCoin.ToBig(), data, nonce, priKey, chainID.ToBig())
 			}
 
-			if fType == "create" {
+			if fType == create {
 				pubKeyHex := viper.GetString(flagConsPubKey)
 				if pubKeyHex == "" {
 					return errors.New(flagConsPubKey + " is missing")
@@ -107,7 +119,7 @@ smartbchd staking
 	cmd.Flags().Int64(flagVotingPower, 0, "voting power")
 	cmd.Flags().String(flagStakingCoin, "0", "staking coin")
 	cmd.Flags().String(flagRewardTo, "", "validator rewardTo address")
-	cmd.Flags().String(flagType, "", "validator function type, including create, edit, retire")
+	cmd.Flags().String(flagType, "", "validator function type, including create, edit, retire, increase, decrease")
 	cmd.Flags().String(flagIntroduction, "genesis validator", "introduction")
 	cmd.Flags().Bool(flagVerbose, false, "display verbose information")
 	cmd.Flags().Uint64(flagGasPrice, 1, "specify gas price")

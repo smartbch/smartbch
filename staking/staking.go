@@ -66,13 +66,11 @@ var (
 	GasOfStakingExternalOp uint64 = 400_000
 
 	//minGasPrice
-	//todo: set to 0 for test, change it for product
-	DefaultMinGasPrice          uint64 = 0 //unit like gwei
+	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
 	MinGasPriceDeltaRateInBlock uint64 = 16
-	MinGasPriceDeltaRate        uint64 = 5 //gas delta rate every tx can change
-	MinGasPriceUpperBound       uint64 = 500
-	//todo: set to 0 for test, change it for product
-	MinGasPriceLowerBound uint64 = 0
+	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every tx can change
+	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
+	MinGasPriceLowerBound       uint64 = 1_000_000_000   //1gwei
 
 	/*------error info------*/
 	InvalidCallData                   = errors.New("invalid call data")
