@@ -128,7 +128,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 
 // Staking functions which can be invoked through smart contract calls
 // The extra gas fee distribute to the miners, not refund
-func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = StatusFailed
 		outData = []byte(InvalidCallData.Error())
@@ -148,10 +148,10 @@ func (_ *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		return retire(ctx, tx)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
-		return handleMinGasPrice(ctx, tx.From, true)
+		return handleMinGasPrice(ctx, tx.From, true, s.logger)
 	case SelectorDecreaseMinGasPrice:
 		//function decreaseMinGasPrice() external;
-		return handleMinGasPrice(ctx, tx.From, false)
+		return handleMinGasPrice(ctx, tx.From, false, s.logger)
 	default:
 		status = StatusFailed
 		outData = []byte(InvalidSelector.Error())
@@ -341,7 +341,7 @@ func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []m
 	return
 }
 
-func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
 	gasUsed = GasOfStakingExternalOp
 	mGP := LoadMinGasPrice(ctx, false)
@@ -356,6 +356,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 		}
 	}
 	if !isValidatorOrRewardTo {
+		logger.Debug("sender is not active validator or its rewardTo", "sender", sender.String())
 		outData = []byte(OperatorNotValidator.Error())
 		return
 	}
@@ -364,6 +365,8 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 	} else {
 		mGP -= MinGasPriceDeltaRate * mGP / 100
 	}
+	logger.Debug(fmt.Sprintf("mGP(%d),lastMGP(%d),increase(%v)", mGP, lastMGP, isIncrease))
+
 	if mGP < MinGasPriceLowerBound {
 		outData = []byte(MinGasPriceTooSmall.Error())
 		return
