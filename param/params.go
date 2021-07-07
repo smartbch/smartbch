@@ -7,22 +7,22 @@ const (
 	BlockMaxGas   int64 = 900_000_000_000
 
 	/**ebp consensus params**/
-	EbpExeRoundCount = 200
-	EbpRunnerNumber  = 256
-	EbpParallelNum   = 32
+	EbpExeRoundCount int = 200
+	EbpRunnerNumber  int = 256
+	EbpParallelNum   int = 32
 
 	// gas limit for each transaction
-	MaxTxGasLimit = 1000_0000
+	MaxTxGasLimit uint64 = 1000_0000
 
 	/**staking consensus params**/
 	StakingEpochSwitchDelay int64 = 3*80 + 40
 	// reward params
-	StakingEpochCountBeforeRewardMature int64 = 1
-	StakingBaseProposerPercentage             = 15
-	StakingExtraProposerPercentage            = 15
+	StakingEpochCountBeforeRewardMature int64  = 1
+	StakingBaseProposerPercentage       uint64 = 15
+	StakingExtraProposerPercentage      uint64 = 15
 
 	// epoch params
-	StakingMinVotingPercentPerEpoch              = 10 //10 percent in NumBlocksInEpoch, like 2016 / 10 = 201
-	StakingMinVotingPubKeysPercentPerEpoch       = 34 //34 percent in active validators,
+	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in NumBlocksInEpoch, like 2016 / 10 = 201
+	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,
 	NumBlocksInEpoch                       int64 = 200
 )
