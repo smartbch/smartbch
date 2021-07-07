@@ -114,7 +114,7 @@ var _ mevmtypes.SystemContractExecutor = &StakingContractExecutor{}
 
 func (_ *StakingContractExecutor) Init(ctx *mevmtypes.Context) {
 	stakingAcc := ctx.GetAccount(StakingContractAddress)
-	if stakingAcc == nil {
+	if stakingAcc == nil { // only executed at genesis
 		stakingAcc = mevmtypes.ZeroAccountInfo()
 		stakingAcc.UpdateSequence(StakingContractSequence)
 		ctx.SetAccount(StakingContractAddress, stakingAcc)

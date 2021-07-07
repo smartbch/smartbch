@@ -47,15 +47,6 @@ var (
 	DefaultNodeHome = os.ExpandEnv("$HOME/.smartbchd")
 )
 
-type ContextMode uint8
-
-const (
-	CheckTxMode     ContextMode = iota
-	RunTxMode       ContextMode = iota
-	RpcMode         ContextMode = iota
-	HistoryOnlyMode ContextMode = iota
-)
-
 const (
 	CannotDecodeTx       uint32 = 101
 	CannotRecoverSender  uint32 = 102
@@ -182,7 +173,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	ebp.PredefinedSystemContractExecutor = staking.NewStakingContractExecutor(app.logger.With("module", "staking"))
 	ebp.PredefinedSystemContractExecutor.Init(ctx)
 
-	// We make these maps not for really usage, just to avoid accessing nil-maps
+	// We assign empty maps to them just to avoid accessing nil-maps.
+	// Commit will assign meaningful contents to them
 	app.touchedAddrs = make(map[gethcmn.Address]int)
 	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
 
@@ -217,10 +209,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set watcher------*/
 	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
-	lastWatch2016xHeight := stakingInfo.GenesisMainnetBlockHeight + param.NumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastWatch2016xHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
-	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastWatch2016xHeight(%d), speedUp(%v)\n",
-		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastWatch2016xHeight, config.Speedup))
+	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.NumBlocksInEpoch*stakingInfo.CurrEpochNum
+	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
+	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
+		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.Speedup))
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)
 	<-catchupChan
@@ -282,6 +274,22 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 	return abcitypes.ResponseQuery{Code: abcitypes.CodeTypeOK} // take it as a nop
 }
 
+func (app *App) sigCacheAdd(txid gethcmn.Hash, value SenderAndHeight) {
+	if len(app.sigCache) > app.sigCacheSize { //select one old entry to evict
+		delKey, minHeight, count := gethcmn.Hash{}, int64(math.MaxInt64), 6 /*iterate 6 steps*/
+		for key, value := range app.sigCache {                              //pseudo-random iterate
+			if minHeight > value.Height { //select the oldest entry within a short iteration
+				minHeight, delKey = value.Height, key
+			}
+			if count--; count == 0 {
+				break
+			}
+		}
+		delete(app.sigCache, delKey)
+	}
+	app.sigCache[txid] = value
+}
+
 func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx {
 	app.logger.Debug("enter check tx!")
 	if req.Type == abcitypes.CheckTxType_Recheck {
@@ -305,19 +313,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		if err != nil {
 			return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
 		}
-		if len(app.sigCache) > app.sigCacheSize { //select one old entry to evict
-			delKey, minHeight, count := gethcmn.Hash{}, int64(math.MaxInt64), 6 /*iterate 6 steps*/
-			for key, value := range app.sigCache {                              //pseudo-random iterate
-				if minHeight > value.Height { //select the oldest entry within a short iteration
-					minHeight, delKey = value.Height, key
-				}
-				if count--; count == 0 {
-					break
-				}
-			}
-			delete(app.sigCache, delKey)
-		}
-		app.sigCache[txid] = SenderAndHeight{sender, app.currHeight} // add to cache
+		app.sigCacheAdd(txid, SenderAndHeight{sender, app.currHeight})
 	}
 	if _, ok := app.touchedAddrs[sender]; ok {
 		// if the sender is touched, it is most likely to have an uncertain nonce, so we reject it
@@ -332,10 +328,10 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 			}
 		}
 	}
-	return app.checkTx(tx, sender)
+	return app.checkTxWithContext(tx, sender)
 }
 
-func (app *App) checkTx(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
+func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
@@ -601,8 +597,10 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
 }
 
-func (app *App) GetLastGasUsed() uint64 {
-	return app.lastGasUsed
+//nolint
+func (app *App) WaitLock() { // wait for postCommit to finish
+	app.mtx.Lock()
+	app.mtx.Unlock()
 }
 
 func (app *App) refresh() {
@@ -717,37 +715,28 @@ func (app *App) Stop() {
 }
 
 func (app *App) GetRpcContext() *types.Context {
-	return app.GetContext(RpcMode)
+	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	r := rabbit.NewReadOnlyRabbitStore(app.root)
+	c = c.WithRbt(&r)
+	c = c.WithDb(app.historyStore)
+	return c
 }
 func (app *App) GetRunTxContext() *types.Context {
-	return app.GetContext(RunTxMode)
+	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	r := rabbit.NewRabbitStore(app.trunk)
+	c = c.WithRbt(&r)
+	c = c.WithDb(app.historyStore)
+	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {
-	return app.GetContext(HistoryOnlyMode)
+	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c = c.WithDb(app.historyStore)
+	return c
 }
 func (app *App) GetCheckTxContext() *types.Context {
-	return app.GetContext(CheckTxMode)
-}
-
-func (app *App) GetContext(mode ContextMode) *types.Context {
 	c := types.NewContext(uint64(app.currHeight), nil, nil)
-	if mode == CheckTxMode {
-		r := rabbit.NewRabbitStore(app.checkTrunk)
-		c = c.WithRbt(&r)
-	} else if mode == RunTxMode {
-		r := rabbit.NewRabbitStore(app.trunk)
-		c = c.WithRbt(&r)
-		c = c.WithDb(app.historyStore)
-	} else if mode == RpcMode {
-		r := rabbit.NewReadOnlyRabbitStore(app.root)
-		c = c.WithRbt(&r)
-		c = c.WithDb(app.historyStore)
-	} else if mode == HistoryOnlyMode {
-		c = c.WithRbt(nil) // no need
-		c = c.WithDb(app.historyStore)
-	} else {
-		panic("MoeingError: invalid context mode")
-	}
+	r := rabbit.NewRabbitStore(app.checkTrunk)
+	c = c.WithRbt(&r)
 	return c
 }
 
@@ -775,6 +764,10 @@ func (app *App) SubscribeLogsEvent(ch chan<- []*gethtypes.Log) event.Subscriptio
 	return app.scope.Track(app.logsFeed.Subscribe(ch))
 }
 
+func (app *App) GetLastGasUsed() uint64 {
+	return app.lastGasUsed
+}
+
 func (app *App) GetLatestBlockNum() int64 {
 	return app.currHeight
 }
@@ -794,12 +787,6 @@ func (app *App) CloseTxEngineContext() {
 
 func (app *App) Logger() log.Logger {
 	return app.logger
-}
-
-//nolint
-func (app *App) WaitLock() { // wait for postCommit to finish
-	app.mtx.Lock()
-	app.mtx.Unlock()
 }
 
 func (app *App) HistoryStore() modbtypes.DB {
