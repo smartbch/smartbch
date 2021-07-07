@@ -162,6 +162,7 @@ func TestCheckTx_hasPending(t *testing.T) {
 	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
 	_app.AddTxsInBlock(1, tx1)
 	require.Equal(t, app.HasPendingTx, _app.CheckNewTxABCI(tx2))
+	_app.AddTxsInBlock(1, tx2) // TODO: without this line, balance check will fail
 }
 
 func TestIncorrectNonceErr(t *testing.T) {

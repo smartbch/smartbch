@@ -46,9 +46,10 @@ var nopLogger = log.NewNopLogger()
 
 type TestApp struct {
 	*app.App
-	TestPubkey crypto.PubKey
-	StateRoot  []byte
-	StartTime  time.Time
+	TestPubkey     crypto.PubKey
+	StateRoot      []byte
+	StartTime      time.Time
+	initAllBalance *uint256.Int
 }
 
 func CreateTestApp(keys ...string) *TestApp {
@@ -91,13 +92,28 @@ func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey cry
 	if debug {
 		fmt.Println("h: 0 StateRoot:", hex.EncodeToString(stateRoot))
 	}
-	return &TestApp{App: _app, TestPubkey: valPubKey, StateRoot: stateRoot, StartTime: startTime}
+
+	allBalance := _app.SumAllBalance()
+	return &TestApp{
+		App:            _app,
+		TestPubkey:     valPubKey,
+		StateRoot:      stateRoot,
+		StartTime:      startTime,
+		initAllBalance: allBalance,
+	}
 }
 
 func (_app *TestApp) Destroy() {
+	allBalance := _app.App.SumAllBalance()
+
 	_app.Stop()
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
+
+	if !allBalance.Eq(_app.initAllBalance) {
+		panic(fmt.Sprintf("balance check failed! init balance: %s, final balance: %s",
+			_app.initAllBalance.Hex(), allBalance.Hex()))
+	}
 }
 
 func (_app *TestApp) WaitMS(n int64) {

@@ -129,25 +129,29 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestGetTxCount(t *testing.T) {
-	key, addr := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key)
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
 	_app.WaitLock()
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	acc := types.ZeroAccountInfo()
-	acc.UpdateNonce(78)
-	ctx := _app.GetRunTxContext()
-	ctx.SetAccount(addr, acc)
-	ctx.Close(true)
-	_app.CloseTxEngineContext()
-	_app.CloseTrunk()
-
-	nonce, err := _api.GetTransactionCount(addr, 0)
+	nonce, err := _api.GetTransactionCount(addr1, 0)
 	require.NoError(t, err)
-	require.Equal(t, hexutil.Uint64(78), *nonce)
+	require.Equal(t, hexutil.Uint64(0), *nonce)
+	nonce, err = _api.GetTransactionCount(addr2, 0)
+	require.NoError(t, err)
+	require.Equal(t, hexutil.Uint64(0), *nonce)
 
-	_, addr2 := testutils.GenKeyAndAddr()
+	for i := 0; i < 3; i++ {
+		tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
+		_app.EnsureTxSuccess(tx.Hash())
+
+		nonce, err = _api.GetTransactionCount(addr1, 0)
+		require.NoError(t, err)
+		require.Equal(t, hexutil.Uint64(i+1), *nonce)
+	}
+
 	nonce, err = _api.GetTransactionCount(addr2, 0)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)

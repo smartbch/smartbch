@@ -776,44 +776,6 @@ func (app *App) ChainID() *uint256.Int {
 	return app.chainId
 }
 
-// used by unit tests
-
-func (app *App) CloseTrunk() {
-	app.trunk.Close(true)
-}
-func (app *App) CloseTxEngineContext() {
-	app.txEngine.Context().Close(false)
-}
-
-func (app *App) Logger() log.Logger {
-	return app.logger
-}
-
-func (app *App) HistoryStore() modbtypes.DB {
-	return app.historyStore
-}
-
-func (app *App) BlockNum() int64 {
-	return app.block.Number
-}
-
-func (app *App) CurrValidators() []*stakingtypes.Validator { // not thread-safe, used only in test
-	return app.currValidators
-}
-func (app *App) ValidatorUpdate() []*stakingtypes.Validator { // not thread-safe, used only in test
-	return app.validatorUpdate
-}
-
-func (app *App) AddEpochForTest(e *stakingtypes.Epoch) { // breaks normal function, only used in test
-	app.watcher.EpochChan <- e
-}
-
-func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) { // breaks normal function, only used in test
-	app.historyStore.AddBlock(mdbBlock, -1)
-	app.historyStore.AddBlock(nil, -1) // To Flush
-	app.publishNewBlock(mdbBlock)
-}
-
 //nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal function, only used in test
