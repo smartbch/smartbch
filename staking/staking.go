@@ -669,7 +669,7 @@ CurrentSmartBchBlockHeight:%d
 		totalNomination += n.NominatedCount
 	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if totalNomination < param.NumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
+	if totalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
 		logger.Debug("TotalNomination not big enough", "totalNomination", totalNomination)
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil

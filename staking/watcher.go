@@ -63,7 +63,7 @@ func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, 
 		EpochChan: make(chan *types.Epoch, 10000),
 		speedup:   speedup,
 
-		numBlocksInEpoch:       param.NumBlocksInEpoch,
+		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
 		numBlocksToClearMemory: NumBlocksToClearMemory,
 		waitingBlockDelayTime:  WaitingBlockDelayTime,
 	}
