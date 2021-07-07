@@ -494,7 +494,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
-	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectTxsCount())
+	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectedTxsCount())
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()

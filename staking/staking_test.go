@@ -258,7 +258,7 @@ func TestGasPriceAdjustment(t *testing.T) {
 	staking.DefaultMinGasPrice = 100
 	staking.MinGasPriceUpperBound = 500
 	ctx := _app.GetRunTxContext()
-	e := &staking.StakingContractExecutor{}
+	e := staking.NewStakingContractExecutor(log.NewNopLogger())
 	e.Init(ctx)
 	staking.SaveMinGasPrice(ctx, staking.DefaultMinGasPrice, true)
 	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
