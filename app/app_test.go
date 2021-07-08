@@ -194,6 +194,11 @@ func TestCheckTx_sep206SenderSet(t *testing.T) {
 	_app.EnsureTxSuccess(tx2.Hash())
 	_app.EnsureTxSuccess(tx3.Hash())
 
+	require.True(t, _app.IsInSenderSet(addr1))
+	require.True(t, _app.IsInSenderSet(addr2))
+	require.True(t, _app.IsInSenderSet(addr3))
+	require.False(t, _app.IsInSenderSet(addr4))
+
 	checkResp := _app.CheckTx(abci.RequestCheckTx{
 		Type: abci.CheckTxType_Recheck,
 		Tx:   testutils.MustEncodeTx(tx1),
