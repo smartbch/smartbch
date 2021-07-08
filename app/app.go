@@ -320,7 +320,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
 	}
 	if req.Type == abcitypes.CheckTxType_Recheck {
-		// During rechecking, if the sender has not not been touched or lose balance, the tx can pass
+		// During rechecking, if the sender has not been touched or lose balance, the tx can pass
 		if _, ok := app.sep206SenderSet[sender]; !ok {
 			return abcitypes.ResponseCheckTx{
 				Code:      abcitypes.CodeTypeOK,
@@ -597,12 +597,6 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
 }
 
-//nolint
-func (app *App) WaitLock() { // wait for postCommit to finish
-	app.mtx.Lock()
-	app.mtx.Unlock()
-}
-
 func (app *App) refresh() {
 	//close old
 	app.checkTrunk.Close(false)
@@ -615,6 +609,7 @@ func (app *App) refresh() {
 	staking.SaveMinGasPrice(ctx, mGP, true)    // save it as last block's gas price
 	app.lastMinGasPrice = mGP
 	ctx.Close(true)
+
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	app.trunk.Close(true)                  //write cached KVs back to app.root
 	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
@@ -668,7 +663,7 @@ func (app *App) getSep206SenderSet(wg *sync.WaitGroup) map[gethcmn.Address]struc
 	go func() {
 		for _, tx := range app.txEngine.CommittedTxs() {
 			for _, log := range tx.Logs {
-				if log.Address == seps.SEP206Addr && len(log.Topics) == 2 &&
+				if log.Address == seps.SEP206Addr && len(log.Topics) == 3 &&
 					log.Topics[0] == modbtypes.TransferEvent {
 					var addr gethcmn.Address
 					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address

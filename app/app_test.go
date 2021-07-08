@@ -22,6 +22,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/seps"
 	"github.com/smartbch/smartbch/staking"
 )
 
@@ -162,7 +163,48 @@ func TestCheckTx_hasPending(t *testing.T) {
 	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
 	_app.AddTxsInBlock(1, tx1)
 	require.Equal(t, app.HasPendingTx, _app.CheckNewTxABCI(tx2))
-	//_app.AddTxsInBlock(1, tx2) // TODO: without this line, balance check will fail
+}
+
+func TestCheckTx_sep206SenderSet(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	key3, addr3 := testutils.GenKeyAndAddr()
+	key4, addr4 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2, key3, key4)
+	defer _app.Destroy()
+
+	// addr1 => addr2
+	data := seps.PackSEP20Transfer(addr2, big.NewInt(101))
+	tx1, _ := _app.MakeAndSignTx(key1, &seps.SEP206Addr, 0, data, 0)
+
+	// addr2 => addr3
+	data = seps.PackSEP20Transfer(addr3, big.NewInt(102))
+	tx2, _ := _app.MakeAndSignTx(key2, &seps.SEP206Addr, 0, data, 0)
+
+	// addr3 => addr4
+	data = seps.PackSEP20Transfer(addr4, big.NewInt(103))
+	tx3, _ := _app.MakeAndSignTx(key3, &seps.SEP206Addr, 0, data, 0)
+
+	// addr4 => addr1
+	data = seps.PackSEP20Transfer(addr1, big.NewInt(103))
+	tx4, _ := _app.MakeAndSignTx(key4, &seps.SEP206Addr, 0, data, 0)
+
+	_app.ExecTxsInBlock(tx1, tx2, tx3)
+	_app.EnsureTxSuccess(tx1.Hash())
+	_app.EnsureTxSuccess(tx2.Hash())
+	_app.EnsureTxSuccess(tx3.Hash())
+
+	checkResp := _app.CheckTx(abci.RequestCheckTx{
+		Type: abci.CheckTxType_Recheck,
+		Tx:   testutils.MustEncodeTx(tx1),
+	})
+	require.Equal(t, app.AccountNonceMismatch, checkResp.Code)
+
+	checkResp = _app.CheckTx(abci.RequestCheckTx{
+		Type: abci.CheckTxType_Recheck,
+		Tx:   testutils.MustEncodeTx(tx4),
+	})
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code)
 }
 
 func TestIncorrectNonceErr(t *testing.T) {
