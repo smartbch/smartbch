@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -126,8 +127,8 @@ func TestRun(t *testing.T) {
 	go w.Run(catchupChan)
 	<-catchupChan
 	time.Sleep(1 * time.Second)
-	require.Equal(t, 0, len(w.epochList))
-	require.Equal(t, 100, len(w.hashToBlock))
+	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
+	require.Equal(t, int(10+param.StakingNumBlocksInEpoch), len(w.hashToBlock))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
 		require.True(t, h == b.HashId)
