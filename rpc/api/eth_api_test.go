@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/smartbch/smartbch/param"
 	"math"
 	"math/big"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
@@ -486,7 +486,8 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 }
 
 func TestCall_Transfer_Random(t *testing.T) {
-	for i := 0; i < 50; i++ {
+	n := testutils.GetIntEvn("TEST_CALL_TRANSFER_RANDOM_COUNT", 1)
+	for i := 0; i < n; i++ {
 		testRandomTransfer()
 	}
 }

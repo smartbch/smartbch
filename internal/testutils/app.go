@@ -41,6 +41,10 @@ const (
 	debug              = false
 )
 
+var (
+	checkAllBalance = GetIntEvn("UT_CHECK_ALL_BALANCE", 0) != 0
+)
+
 // var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 var nopLogger = log.NewNopLogger()
 
@@ -93,7 +97,10 @@ func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey cry
 		fmt.Println("h: 0 StateRoot:", hex.EncodeToString(stateRoot))
 	}
 
-	allBalance := _app.SumAllBalance()
+	allBalance := uint256.NewInt()
+	if checkAllBalance {
+		allBalance = _app.SumAllBalance()
+	}
 	return &TestApp{
 		App:            _app,
 		TestPubkey:     valPubKey,
@@ -104,13 +111,16 @@ func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey cry
 }
 
 func (_app *TestApp) Destroy() {
-	allBalance := _app.App.SumAllBalance()
+	allBalance := uint256.NewInt()
+	if checkAllBalance {
+		allBalance = _app.App.SumAllBalance()
+	}
 
 	_app.Stop()
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
 
-	if !allBalance.Eq(_app.initAllBalance) {
+	if checkAllBalance && !allBalance.Eq(_app.initAllBalance) {
 		panic(fmt.Sprintf("balance check failed! init balance: %s, final balance: %s",
 			_app.initAllBalance.Hex(), allBalance.Hex()))
 	}

@@ -187,24 +187,6 @@ func TestIncorrectNonceErr(t *testing.T) {
 		"0x"+hex.EncodeToString(txs[0].Hash[:]))
 }
 
-func TestRandomTxs(t *testing.T) {
-	key1, addr1 := testutils.GenKeyAndAddr()
-	key2, addr2 := testutils.GenKeyAndAddr()
-	key3, addrTo1 := testutils.GenKeyAndAddr()
-	key4, addrTo2 := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key1, key2, key3, key4)
-	txLists := generateRandomTxs(100, _app.ChainID(), key1, key2, addrTo1, addrTo2)
-	res1 := execRandomTxs(_app, txLists, addr1, addr2)
-	_app.Destroy()
-
-	_app = testutils.CreateTestApp(key1, key2, key3, key4)
-	res2 := execRandomTxs(_app, txLists, addr1, addr2)
-	_app.Destroy()
-
-	require.Equal(t, res1[0], res2[0])
-	require.Equal(t, res1[1], res2[1])
-}
-
 func TestJson(t *testing.T) {
 	//str := []byte("\"validators\":[\"PupuoOdnaRYJQUSzCsV5B6gBfkWiaI4Jmq8giG/KL0M=\",\"G0IgOw0f4hqpR0TX+ld5TzOyPI2+BuaYhjlHv6IiCHw=\",\"YdrD918WSVISQes6g5v5xI0x580OM2LMNUIRIS8EXjA=\",\"/opEYWd8xnLK95QN34+mrE666sSt/GARmJYgRUYnvb0=\",\"gM4A5vTY9vTgHOd00TTXPo7HyEHBkuIpvbUBw28DxrI=\",\"4kFUm8nRR2Tg3YCl55lOWbAGYi4fPQnHiCrWHWnEd3k=\",\"yb/5/EsybQ2rI9XkRQoJBAixvAoivV0mb9jqsEVSUj8=\",\"8MfS5Y24qXoACl45f3otSyOB1sCCgrXGX/SIPTuaC9Y=\",\"BAsO38HaA7XyMB8tAkI8ests8jdOeFe03j3QROKFVsg=\",\"We2gXsEqww2Q+NdVGbaWhR0nyrxP/FBv4TzJxNKMwb4=\"]}")
 
@@ -223,6 +205,26 @@ func TestJson(t *testing.T) {
 	v := Val{}
 	err := json.Unmarshal(bz, &v.Validators)
 	fmt.Println(v, err)
+}
+
+func TestRandomTxs(t *testing.T) {
+	txCount := testutils.GetIntEvn("TEST_RANDOM_TXS_COUNT", 10)
+
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	key3, addrTo1 := testutils.GenKeyAndAddr()
+	key4, addrTo2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2, key3, key4)
+	txLists := generateRandomTxs(txCount, _app.ChainID(), key1, key2, addrTo1, addrTo2)
+	res1 := execRandomTxs(_app, txLists, addr1, addr2)
+	_app.Destroy()
+
+	_app = testutils.CreateTestApp(key1, key2, key3, key4)
+	res2 := execRandomTxs(_app, txLists, addr1, addr2)
+	_app.Destroy()
+
+	require.Equal(t, res1[0], res2[0])
+	require.Equal(t, res1[1], res2[1])
 }
 
 func execRandomTxs(_app *testutils.TestApp, txLists [][]*gethtypes.Transaction, from1, from2 common.Address) []uint64 {
