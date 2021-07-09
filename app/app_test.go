@@ -72,7 +72,7 @@ func TestTransferFailed(t *testing.T) {
 
 	// check tx status
 	_app.WaitMS(100)
-	_app.EnsureTxFailed(tx.Hash(), "balance-not-enough")
+	_app.EnsureTxFailed(tx.Hash(), "insufficient-balance")
 
 	require.Equal(t, initBal, _app.GetBalance(addr1).Uint64())
 	require.Equal(t, initBal, _app.GetBalance(addr2).Uint64())
