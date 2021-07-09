@@ -45,6 +45,21 @@ func (bb *MdbBlockBuilder) Tx(txHash gethcmn.Hash, logs ...types.Log) *MdbBlockB
 	return bb
 }
 
+func (bb *MdbBlockBuilder) FailedTx(txHash gethcmn.Hash, statusStr string, outData []byte) *MdbBlockBuilder {
+	bb.block.Transactions = append(bb.block.Transactions, txHash)
+
+	tx := types.Transaction{
+		BlockHash:   bb.block.Hash,
+		BlockNumber: bb.block.Number,
+		Hash:        txHash,
+		Status:      0,
+		StatusStr:   statusStr,
+		OutData:     outData,
+	}
+	bb.txs = append(bb.txs, tx)
+	return bb
+}
+
 func (bb *MdbBlockBuilder) TxWithAddr(txHash gethcmn.Hash, fromAddr, toAddr gethcmn.Address) *MdbBlockBuilder {
 	bb.block.Transactions = append(bb.block.Transactions, txHash)
 

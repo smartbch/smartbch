@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/smartbch/smartbch/param"
@@ -162,6 +163,7 @@ func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
 	}
 	if tx.Status == gethtypes.ReceiptStatusFailed {
 		resp["statusStr"] = tx.StatusStr
+		resp["outData"] = hex.EncodeToString(tx.OutData)
 	}
 	return resp
 }

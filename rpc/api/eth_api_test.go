@@ -352,6 +352,7 @@ func TestGetTxReceipt(t *testing.T) {
 			types.Log{Address: gethcmn.Address{0xA2}, Topics: [][32]byte{{0xF3}, {0xF4}}, Data: []byte{0xD1}}).
 		Tx(gethcmn.Hash{0x90}).
 		Tx(gethcmn.Hash{0xAB}).
+		FailedTx(gethcmn.Hash{0xCD}, "failedTx", []byte{0xf1, 0xf2, 0xf3}).
 		Build()
 	_app.StoreBlocks(block)
 
@@ -368,6 +369,13 @@ func TestGetTxReceipt(t *testing.T) {
 	gethLogs := receipt["logs"].([]*gethtypes.Log)
 	require.Equal(t, gethcmn.Address{0xA2}, gethLogs[1].Address)
 	require.Equal(t, []byte{0xD1}, gethLogs[1].Data)
+
+	receipt, err = _api.GetTransactionReceipt(gethcmn.Hash{0xCD})
+	require.NoError(t, err)
+	require.Equal(t, gethcmn.Hash{0xCD}, receipt["transactionHash"])
+	require.Equal(t, hexutil.Uint(0x0), receipt["status"])
+	require.Equal(t, "failedTx", receipt["statusStr"])
+	require.Equal(t, "f1f2f3", receipt["outData"])
 }
 
 func TestCall_NoFromAddr(t *testing.T) {
