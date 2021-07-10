@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 
-export EVMWRAP=libevmwrap.so
-alias smartbchd='go run github.com/smartbch/smartbch/cmd/smartbchd'
+set -ex
 
-NODE_HOME=~/.smartbchd/
+if [[ -z "${EVMWRAP}" ]]; then
+  export EVMWRAP=libevmwrap.so
+fi
+#if [[ -z "${CI}" ]]; then
+#  alias smartbchd='go run github.com/smartbch/smartbch/cmd/smartbchd'
+#else
+#fi
+go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
+#chmod +x smartbchd
+
+NODE_HOME=~/.smartbchd
 TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 0x5a09e9d6be2cdc7de8f6beba300e52823493cd23357b1ca14a9c36764d600f5e,\
 0x7e01af236f9c9536d9d28b07cea24ccf21e21c9bc9f2b2c11471cd82dbb63162,\
@@ -17,15 +26,15 @@ TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 
 rm -rf $NODE_HOME
 echo 'initializing node ...'
-smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
+./smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
   --init-balance=10000000000000000000 \
   --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
-sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
+#sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
 
 echo 'generating consensus key info ...'
-CPK=$(smartbchd generate-consensus-key-info --home=$NODE_HOME)
+CPK=$(./smartbchd generate-consensus-key-info --home=$NODE_HOME)
 echo 'generating genesis validator ...'
-VAL=$(smartbchd generate-genesis-validator --home=$NODE_HOME \
+VAL=$(./smartbchd generate-genesis-validator --home=$NODE_HOME \
   0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9 \
   --consensus-pubkey $CPK \
   --staking-coin 10000000000000000000000 \
@@ -36,10 +45,10 @@ VAL=$(smartbchd generate-genesis-validator --home=$NODE_HOME \
 mv ./priv_validator_key.json $NODE_HOME/config/
 
 echo 'adding genesis validator ...'
-smartbchd add-genesis-validator --home=$NODE_HOME $VAL
+./smartbchd add-genesis-validator --home=$NODE_HOME $VAL
 
 #export NODIASM=1
 #export NOSTACK=1
 #export NOINSTLOG=1
 echo 'starting node ...'
-smartbchd start --home $NODE_HOME --unlock $TEST_KEYS
+./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --test.min-gas-price=0

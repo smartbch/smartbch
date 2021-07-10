@@ -1,0 +1,114 @@
+# This is a basic workflow to help you get started with Actions
+
+
+# https://github.com/actions/cache
+# https://github.com/golangci/golangci-lint-action
+
+name: CI
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ truffle ]
+  pull_request:
+    branches: [ truffle ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt install gcc-8 g++-8
+          sudo apt install libgflags-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
+          sudo apt install libsnappy-dev
+
+      - name: Cache rocksdb
+        id: cache-rocksdb
+        uses: actions/cache@v2
+        with:
+          path: rocksdb-5.18.4
+          key: ${{ runner.os }}-rocksdb-5.18.4-c
+
+      - name: Build rocksdb
+        if: steps.cache-rocksdb.outputs.cache-hit != 'true'
+        run: |
+          wget https://github.com/facebook/rocksdb/archive/refs/tags/v5.18.4.tar.gz
+          tar zxvf v5.18.4.tar.gz
+          cd rocksdb-5.18.4
+          make CC=gcc-8 CXX=g++-8 shared_lib
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout smartBCH
+        uses: actions/checkout@v2
+        with:
+          path: smartbch
+
+      - name: Checkout moeingevm
+        uses: actions/checkout@v2
+        with:
+          repository: smartbch/moeingevm
+          path: moeingevm
+
+      - name: Build evmwrap
+        run: |
+          cd moeingevm/evmwrap
+          make
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Start single-test node
+        run: |
+          export ROCKSDB_PATH="$PWD/rocksdb-5.18.4"
+          export CGO_CFLAGS="-I/$ROCKSDB_PATH/include"
+          export CGO_LDFLAGS="-L/$ROCKSDB_PATH -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+          export LD_LIBRARY_PATH=$ROCKSDB_PATH:/usr/local/lib
+          export EVMWRAP=$PWD/moeingevm/evmwrap/host_bridge/libevmwrap.so
+          cd smartbch
+          bash restart_from_h0.sh &
+          echo 'node started !'
+          sleep 120
+          curl -X POST --data '{"jsonrpc":"2.0", "method":"web3_clientVersion", "params":[],"id":1}' \
+              -H "Content-Type: application/json" http://localhost:8545
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - name: Run truffle tests
+        run: |
+          npm install -g truffle
+
+          cd smartbch/testdata/basic
+          npm install
+          truffle test
+
+          cd ../counter
+          npm install
+          truffle test
+
+          cd ../erc20
+          npm install
+          truffle test
+
+          cd ../seps
+          npm install
+          truffle test
+
+          cd ../staking
+          npm install
+          truffle test
