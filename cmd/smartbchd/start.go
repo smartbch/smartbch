@@ -24,6 +24,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/rpc"
+	"github.com/smartbch/smartbch/staking"
 )
 
 const (
@@ -44,6 +45,7 @@ const (
 	flagSmartBchUrl          = "smartbch-url"
 	flagWatcherSpeedup       = "watcher-speedup"
 	flagLogValidators        = "log-validators"
+	flagMinGasPrice          = "test.min-gas-price"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -77,6 +79,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
 	cmd.Flags().Bool(flagLogValidators, false, "Log detailed validators info")
+	cmd.Flags().Uint64(flagMinGasPrice, staking.DefaultMinGasPrice, "min gas price (only for testing)")
 
 	return cmd
 }
@@ -98,6 +101,8 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	paramConfig.SmartBchRPCUrl = viper.GetString(flagSmartBchUrl)
 	paramConfig.Speedup = viper.GetBool(flagWatcherSpeedup)
 	paramConfig.LogValidatorsInfo = viper.GetBool(flagLogValidators)
+
+	staking.DefaultMinGasPrice = viper.GetUint64(flagMinGasPrice)
 
 	chainID, err := getChainID(ctx)
 	if err != nil {
