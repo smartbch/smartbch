@@ -29,7 +29,7 @@ echo 'initializing node ...'
 ./smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
   --init-balance=10000000000000000000 \
   --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
-#sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
+sed -i 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
 
 echo 'generating consensus key info ...'
 CPK=$(./smartbchd generate-consensus-key-info --home=$NODE_HOME)
