@@ -128,7 +128,7 @@ func (_ *StakingContractExecutor) Init(ctx *mevmtypes.Context) {
 		stakingAcc.UpdateSequence(StakingContractSequence)
 		ctx.SetAccount(StakingContractAddress, stakingAcc)
 	}
-	LoadReadonlyValiatorsInfo(ctx)
+	LoadReadonlyValidatorsInfo(ctx)
 }
 
 func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
@@ -170,7 +170,7 @@ func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 
 var readonlyStakingInfo *types.StakingInfo
 
-func LoadReadonlyValiatorsInfo(ctx *mevmtypes.Context) {
+func LoadReadonlyValidatorsInfo(ctx *mevmtypes.Context) {
 	info := LoadStakingInfo(ctx)
 	readonlyStakingInfo = &info
 }
