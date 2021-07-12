@@ -63,7 +63,8 @@ var (
 	SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
 		uint256.NewInt().SetUint64(10),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
-	GasOfStakingExternalOp uint64 = 400_000
+	GasOfValidatorOp   uint64 = 400_000
+	GasOfMinGasPriceOp uint64 = 50_000
 
 	//minGasPrice
 	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
@@ -220,7 +221,7 @@ func stringFromBytes(bz []byte) string {
 // create a new validator with rewardTo, intro and pubkey fields, and stake it with some coins
 func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfValidatorOp
 	callData := tx.Data[4:]
 	if len(callData) < 96 {
 		outData = []byte(InvalidCallData.Error())
@@ -257,7 +258,7 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 // edit a new validator's rewardTo and intro fields (pubkey cannot change), and stake it with some more coins
 func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfValidatorOp
 	callData := tx.Data[4:]
 	if len(callData) < 64 {
 		outData = []byte(InvalidCallData.Error())
@@ -323,7 +324,7 @@ func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingA
 // a validator marks itself as "retiring", then at the next epoch it will not be elected as a validator
 func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfValidatorOp
 
 	info := LoadStakingInfo(ctx)
 
@@ -343,7 +344,7 @@ func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []m
 
 func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfMinGasPriceOp
 	mGP := LoadMinGasPrice(ctx, false)
 	lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
 	info := LoadStakingInfo(ctx)
