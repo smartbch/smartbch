@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -343,7 +344,8 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 		staking.PackEditValidator(addr1, intro),
 		staking.PackRetire(),
 		staking.PackIncreaseMinGasPrice(),
-		staking.ABI.MustPack("decreaseMinGasPrice"),
+		staking.PackDecreaseMinGasPrice(),
+		//staking.PackSumVotingPower([]common.Address{addr1}),
 	}
 
 	for _, testCase := range testCases {
@@ -354,6 +356,37 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 		require.Equal(t, gethtypes.ReceiptStatusFailed, txQuery.Status)
 		require.Equal(t, "revert", txQuery.StatusStr)
 	}
+}
+
+func TestSumVotingPower(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	_initAmt := staking.InitialStakingAmount
+	defer func() { staking.InitialStakingAmount = _initAmt }()
+	staking.InitialStakingAmount = uint256.NewInt().SetUint64(2000)
+
+	data := staking.PackCreateValidator(addr1, [32]byte{'v', 'a', 'l', '1'}, [32]byte{})
+	tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	// see testdata/staking/contracts/StakingTest2
+	proxyCreationBytecode := testutils.HexToBytes(`
+6080604052348015600f57600080fd5b50606980601d6000396000f3fe608060
+405260006127109050604051366000823760008036836000865af13d80600084
+3e8160008114602f578184f35b8184fdfea26469706673582212204b0d75d505
+e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
+430008000033
+`)
+
+	_, _, contractAddr := _app.DeployContractInBlock(key1, proxyCreationBytecode)
+	require.NotEmpty(t, _app.GetCode(contractAddr))
+
+	// call sumVotingPower
+	data = staking.PackSumVotingPower([]gethcmn.Address{addr1})
+	tx, _ = _app.MakeAndExecTxInBlock(key1, contractAddr, 0, data)
+	_app.EnsureTxSuccess(tx.Hash())
 }
 
 func TestStakingDetermination(t *testing.T) {

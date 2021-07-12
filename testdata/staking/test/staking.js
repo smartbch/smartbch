@@ -56,4 +56,14 @@ contract("StakingTest", async (accounts) => {
         }
     });
 
+    it('call staking from contract: sumVotingPower', async () => {
+        try {
+            await testContract.sumVotingPower([accounts[0]]);
+            throw null;
+        } catch (e) {
+            console.log(e);
+            assert(e, "Expected an error but did not get one");
+        }
+    });
+
 });

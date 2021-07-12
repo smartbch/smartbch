@@ -69,7 +69,31 @@ var ABI = ethutils.MustParseABI(`
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
-	}
+	},
+    {
+      "inputs": [
+        {
+          "internalType": "address[]",
+          "name": "addrList",
+          "type": "address[]"
+        }
+      ],
+      "name": "sumVotingPower",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "summedPower",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalPower",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
 ]
 `)
 
@@ -87,4 +111,7 @@ func PackIncreaseMinGasPrice() []byte {
 }
 func PackDecreaseMinGasPrice() []byte {
 	return ABI.MustPack("decreaseMinGasPrice")
+}
+func PackSumVotingPower(addrList []gethcmn.Address) []byte {
+	return ABI.MustPack("sumVotingPower", addrList)
 }
