@@ -57,7 +57,9 @@ const (
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
 	MempoolBusy          uint32 = 109
+)
 
+const (
 	PruneEveryN        = 10
 	ChangeRetainEveryN = 100
 

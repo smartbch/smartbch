@@ -20,10 +20,21 @@ import (
 	"github.com/smartbch/smartbch/staking/types"
 )
 
+const (
+	SumVotingPowerGasPerByte uint64 = 25
+	SumVotingPowerBaseGas    uint64 = 10000
+
+	StatusSuccess int = 0 // because EVMC_SUCCESS = 0,
+	StatusFailed  int = 1 // because EVMC_FAILURE = 1,
+)
+
+const (
+	StakingContractSequence uint64 = math.MaxUint64 - 2 /*uint64(-3)*/
+)
+
 var (
 	//contract address, 10000
-	StakingContractAddress  [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
-	StakingContractSequence uint64   = math.MaxUint64 - 2 /*uint64(-3)*/
+	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
 	/*interface Staking {
 	    //0x24d1ed5d
@@ -51,7 +62,9 @@ var (
 	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
 	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+)
 
+var (
 	/*------param------*/
 	//staking
 	InitialStakingAmount *uint256.Int = uint256.NewInt().Mul(
@@ -72,7 +85,9 @@ var (
 	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every tx can change
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
 	MinGasPriceLowerBound       uint64 = 1_000_000_000   //1gwei
+)
 
+var (
 	/*------error info------*/
 	InvalidCallData                   = errors.New("invalid call data")
 	InvalidSelector                   = errors.New("invalid selector")
@@ -84,13 +99,6 @@ var (
 	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
 	InvalidArgument                   = errors.New("invalid argument")
 	CreateValidatorCoinLtInitAmount   = errors.New("validator's staking coin less than init amount")
-)
-
-const (
-	SumVotingPowerGasPerByte uint64 = 25
-	SumVotingPowerBaseGas    uint64 = 10000
-	StatusSuccess            int    = 0 // because EVMC_SUCCESS = 0,
-	StatusFailed             int    = 1 // because EVMC_FAILURE = 1,
 )
 
 // get a slot number to store an epoch's validators
