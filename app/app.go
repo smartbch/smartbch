@@ -148,6 +148,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		param.EbpRunnerNumber,
 		param.EbpParallelNum,
 		5000 /*not consensus relevant*/, app.signer)
+	//ebp.AdjustGasUsed = false
 
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()

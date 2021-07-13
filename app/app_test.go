@@ -19,6 +19,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 
+	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -232,6 +233,68 @@ func TestIncorrectNonceErr(t *testing.T) {
 	require.Len(t, txs, 1)
 	require.Equal(t, tx1.Hash().Hex(),
 		"0x"+hex.EncodeToString(txs[0].Hash[:]))
+}
+
+func TestGasRefund_NoAdjustGasUsed(t *testing.T) {
+	oldAdjustGasUsed := ebp.AdjustGasUsed
+	ebp.AdjustGasUsed = false
+	defer func() { ebp.AdjustGasUsed = oldAdjustGasUsed }()
+
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	initBal := testutils.DefaultInitBalance
+	require.Equal(t, initBal, _app.GetBalance(addr1).Uint64())
+	require.Equal(t, initBal, _app.GetBalance(addr2).Uint64())
+	tx, _ := _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 1000000, 1)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	moTx := _app.GetTx(tx.Hash())
+	require.Equal(t, uint64(21000), moTx.GasUsed)
+
+	require.Equal(t, initBal-100-21000, _app.GetBalance(addr1).Uint64())
+	require.Equal(t, initBal+100, _app.GetBalance(addr2).Uint64())
+}
+
+func TestGasRefund_AdjustGasUsed(t *testing.T) {
+	oldAdjustGasUsed := ebp.AdjustGasUsed
+	ebp.AdjustGasUsed = true
+	defer func() { ebp.AdjustGasUsed = oldAdjustGasUsed }()
+
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	tests := []struct {
+		gasLimit uint64
+		gasUsed  uint64
+	}{
+		{gasLimit: 21000, gasUsed: 21000},
+		{gasLimit: 21001, gasUsed: 21000},
+		{gasLimit: 42000, gasUsed: 21000},
+		{gasLimit: 42001, gasUsed: 21000 + 21001/2},
+		{gasLimit: 50000, gasUsed: 21000 + 29000/2},
+		{gasLimit: 84000, gasUsed: 21000 + 63000/2},
+		{gasLimit: 84001, gasUsed: 84001},
+		{gasLimit: 99999, gasUsed: 99999},
+	}
+
+	for _, test := range tests {
+		bal1 := _app.GetBalance(addr1).Uint64()
+		bal2 := _app.GetBalance(addr2).Uint64()
+
+		tx, _ := _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, test.gasLimit, 1)
+		_app.EnsureTxSuccess(tx.Hash())
+
+		moTx := _app.GetTx(tx.Hash())
+		require.Equal(t, test.gasUsed, moTx.GasUsed)
+
+		require.Equal(t, bal1-100-test.gasUsed, _app.GetBalance(addr1).Uint64())
+		require.Equal(t, bal2+100, _app.GetBalance(addr2).Uint64())
+	}
 }
 
 func TestJson(t *testing.T) {
