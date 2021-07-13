@@ -187,9 +187,9 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 	}
 	input = input[4+32*2:] // ignore selector, offset, and length
 	addrSet := make(map[[20]byte]struct{}, len(input)/32)
-	for i := 0; i+32 < len(input); i += 32 {
+	for i := 0; i+32 <= len(input); i += 32 {
 		var addr [20]byte
-		copy(addr[:], input[i*32+12:i*32+32])
+		copy(addr[:], input[i+12:i+32])
 		addrSet[addr] = struct{}{}
 	}
 	summedPower := int64(0)

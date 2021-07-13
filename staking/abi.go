@@ -1,6 +1,8 @@
 package staking
 
 import (
+	"math/big"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -112,6 +114,11 @@ func PackIncreaseMinGasPrice() []byte {
 func PackDecreaseMinGasPrice() []byte {
 	return ABI.MustPack("decreaseMinGasPrice")
 }
+
 func PackSumVotingPower(addrList []gethcmn.Address) []byte {
 	return ABI.MustPack("sumVotingPower", addrList)
+}
+func UnpackSumVotingPowerReturnData(data []byte) (*big.Int, *big.Int) {
+	ret := ABI.MustUnpack("sumVotingPower", data)
+	return ret[0].(*big.Int), ret[1].(*big.Int)
 }

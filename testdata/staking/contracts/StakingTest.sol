@@ -41,6 +41,6 @@ contract StakingTest is IStaking {
         bytes4 _selector = bytes4(keccak256(bytes("sumVotingPower(address[])")));
         (bool ok, bytes memory data) = stakingAddr.call(abi.encodeWithSelector(_selector, addrList));
         require(ok, string(data));
-        return (0, 0);
+        (summedPower, totalPower) = abi.decode(data, (uint, uint));
     }
 }
