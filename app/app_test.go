@@ -144,8 +144,8 @@ func TestCheckTxNonce_serial(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2)
 	defer _app.Destroy()
 
-	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	require.Equal(t, uint64(0), tx1.Nonce())
 	require.Equal(t, uint64(0), tx2.Nonce())
 
@@ -159,8 +159,8 @@ func TestCheckTx_hasPending(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2)
 	defer _app.Destroy()
 
-	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	_app.AddTxsInBlock(1, tx1)
 	require.Equal(t, app.HasPendingTx, _app.CheckNewTxABCI(tx2))
 }
@@ -175,19 +175,19 @@ func TestCheckTx_sep206SenderSet(t *testing.T) {
 
 	// addr1 => addr2
 	data := seps.PackSEP20Transfer(addr2, big.NewInt(101))
-	tx1, _ := _app.MakeAndSignTx(key1, &seps.SEP206Addr, 0, data, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &seps.SEP206Addr, 0, data)
 
 	// addr2 => addr3
 	data = seps.PackSEP20Transfer(addr3, big.NewInt(102))
-	tx2, _ := _app.MakeAndSignTx(key2, &seps.SEP206Addr, 0, data, 0)
+	tx2, _ := _app.MakeAndSignTx(key2, &seps.SEP206Addr, 0, data)
 
 	// addr3 => addr4
 	data = seps.PackSEP20Transfer(addr4, big.NewInt(103))
-	tx3, _ := _app.MakeAndSignTx(key3, &seps.SEP206Addr, 0, data, 0)
+	tx3, _ := _app.MakeAndSignTx(key3, &seps.SEP206Addr, 0, data)
 
 	// addr4 => addr1
 	data = seps.PackSEP20Transfer(addr1, big.NewInt(103))
-	tx4, _ := _app.MakeAndSignTx(key4, &seps.SEP206Addr, 0, data, 0)
+	tx4, _ := _app.MakeAndSignTx(key4, &seps.SEP206Addr, 0, data)
 
 	_app.ExecTxsInBlock(tx1, tx2, tx3)
 	_app.EnsureTxSuccess(tx1.Hash())
@@ -218,8 +218,8 @@ func TestIncorrectNonceErr(t *testing.T) {
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 
 	h := _app.ExecTxsInBlock(tx1, tx2)
 	require.Len(t, _app.GetBlock(h-1).Transactions, 1)

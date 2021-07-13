@@ -36,6 +36,7 @@ const (
 
 const (
 	DefaultGasLimit    = 1000000
+	DefaultGasPrice    = 0
 	DefaultInitBalance = uint64(10000000)
 	BlockInterval      = 5 * time.Second
 	debug              = false
@@ -251,7 +252,13 @@ func (_app *TestApp) AddBlocksToHistory(blocks ...*modbtypes.Block) {
 }
 
 func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
-	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
+	toAddr *gethcmn.Address, val int64, data []byte) (*gethtypes.Transaction, gethcmn.Address) {
+
+	return _app.MakeAndSignTxWithGas(hexPrivKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice)
+}
+
+func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
 
 	privKey, _, err := ethutils.HexToPrivKey(hexPrivKey)
 	if err != nil {
@@ -265,7 +272,7 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(gasPrice),
-		Gas:      DefaultGasLimit,
+		Gas:      gasLimit,
 		To:       toAddr,
 		Value:    big.NewInt(val),
 		Data:     data,
@@ -290,7 +297,7 @@ func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transacti
 }
 
 func (_app *TestApp) DeployContractInBlock(privKey string, data []byte) (*gethtypes.Transaction, int64, gethcmn.Address) {
-	tx, addr := _app.MakeAndSignTx(privKey, nil, 0, data, 0)
+	tx, addr := _app.MakeAndSignTx(privKey, nil, 0, data)
 	h := _app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
 	return tx, h, contractAddr
@@ -304,7 +311,7 @@ func (_app *TestApp) MakeAndExecTxInBlock(privKey string,
 func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(privKey string,
 	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, int64) {
 
-	tx, _ := _app.MakeAndSignTx(privKey, &toAddr, val, data, gasPrice)
+	tx, _ := _app.MakeAndSignTxWithGas(privKey, &toAddr, val, data, DefaultGasLimit, gasPrice)
 	h := _app.ExecTxInBlock(tx)
 	return tx, h
 }
