@@ -342,7 +342,7 @@ func TestContractAdd(t *testing.T) {
 	param.Lsh(param, 32)
 	param.Or(param, big.NewInt(6))
 	calldata := testAddABI.MustPack("run", addr2, param)
-	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 120 /*value*/, calldata, 2 /*gasprice*/)
+	_app.MakeAndExecTxInBlockWithGas(key1, contractAddr, 120 /*value*/, calldata, testutils.DefaultGasLimit, 2 /*gasprice*/)
 
 	ctx := _app.GetRpcContext()
 	//conAcc := ctx.GetAccount(contractAddr)
@@ -363,7 +363,7 @@ func TestContractAdd(t *testing.T) {
 		require.Equal(t, res[i], n.Int64())
 	}
 	_app.ExecTxInBlock(nil)
-	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 2 /*value*/, calldata, 1 /*gasprice*/)
+	_app.MakeAndExecTxInBlockWithGas(key1, contractAddr, 2 /*value*/, calldata, testutils.DefaultGasLimit, 1 /*gasprice*/)
 	_app.ExecTxInBlock(nil)
 	ctx = _app.GetRpcContext()
 	require.Equal(t, uint64(122), ctx.GetAccount(addr2).Balance().Uint64())

@@ -42,8 +42,8 @@ func TestStaking(t *testing.T) {
 	ctx.Close(false)
 	fmt.Printf("before test:%d, %d\n", stakingAcc.Balance().Uint64(), info.CurrEpochNum)
 	dataEncode := staking.PackCreateValidator(addr1, [32]byte{'a'}, [32]byte{'1'})
-	_app.MakeAndExecTxInBlockWithGasPrice(key1,
-		staking.StakingContractAddress, 100, dataEncode, 1)
+	_app.MakeAndExecTxInBlockWithGas(key1,
+		staking.StakingContractAddress, 100, dataEncode, testutils.DefaultGasLimit, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
@@ -57,8 +57,8 @@ func TestStaking(t *testing.T) {
 
 	//test edit validator
 	dataEncode = staking.PackEditValidator([20]byte{'b'}, [32]byte{'2'})
-	_app.MakeAndExecTxInBlockWithGasPrice(key1,
-		staking.StakingContractAddress, 0, dataEncode, 1)
+	_app.MakeAndExecTxInBlockWithGas(key1,
+		staking.StakingContractAddress, 0, dataEncode, testutils.DefaultGasLimit, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	_, info = staking.LoadStakingAccAndInfo(ctx)
@@ -87,8 +87,8 @@ func TestStaking(t *testing.T) {
 	staking.SaveStakingInfo(ctx, info)
 	ctx.Close(true)
 	dataEncode = staking.PackIncreaseMinGasPrice()
-	_app.MakeAndExecTxInBlockWithGasPrice(key1,
-		staking.StakingContractAddress, 0, dataEncode, 1)
+	_app.MakeAndExecTxInBlockWithGas(key1,
+		staking.StakingContractAddress, 0, dataEncode, testutils.DefaultGasLimit, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	mp := staking.LoadMinGasPrice(ctx, false)
@@ -104,8 +104,8 @@ func TestStaking(t *testing.T) {
 	_app.WaitMS(50)
 
 	dataEncode = staking.PackRetire()
-	_app.MakeAndExecTxInBlockWithGasPrice(key1,
-		staking.StakingContractAddress, 0, dataEncode, 1)
+	_app.MakeAndExecTxInBlockWithGas(key1,
+		staking.StakingContractAddress, 0, dataEncode, testutils.DefaultGasLimit, 1)
 	_app.WaitMS(50)
 	ctx = _app.GetRunTxContext()
 	_, info = staking.LoadStakingAccAndInfo(ctx)

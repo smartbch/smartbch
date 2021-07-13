@@ -306,12 +306,12 @@ func (_app *TestApp) DeployContractInBlock(privKey string, data []byte) (*gethty
 func (_app *TestApp) MakeAndExecTxInBlock(privKey string,
 	toAddr gethcmn.Address, val int64, data []byte) (*gethtypes.Transaction, int64) {
 
-	return _app.MakeAndExecTxInBlockWithGasPrice(privKey, toAddr, val, data, 0)
+	return _app.MakeAndExecTxInBlockWithGas(privKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice)
 }
-func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(privKey string,
-	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, int64) {
+func (_app *TestApp) MakeAndExecTxInBlockWithGas(privKey string,
+	toAddr gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, int64) {
 
-	tx, _ := _app.MakeAndSignTxWithGas(privKey, &toAddr, val, data, DefaultGasLimit, gasPrice)
+	tx, _ := _app.MakeAndSignTxWithGas(privKey, &toAddr, val, data, gasLimit, gasPrice)
 	h := _app.ExecTxInBlock(tx)
 	return tx, h
 }
