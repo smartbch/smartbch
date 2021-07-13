@@ -48,7 +48,7 @@ smartbchd generate-consensus-key-info
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
-			c.SetRoot(viper.GetString(cli.HomeFlag))
+			c.NodeConfig.SetRoot(viper.GetString(cli.HomeFlag))
 			pk := ed25519.GenPrivKey()
 			fpv := privval.FilePVKey{
 				Address: pk.PubKey().Address(),
@@ -85,7 +85,7 @@ smartbchd generate-genesis-validator
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
 			c := ctx.Config
-			c.SetRoot(viper.GetString(cli.HomeFlag))
+			c.NodeConfig.SetRoot(viper.GetString(cli.HomeFlag))
 			// get validator address
 			addr := common.HexToAddress(viper.GetString(flagAddress))
 			// get pubkey
@@ -131,7 +131,7 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			config := ctx.Config
-			config.SetRoot(viper.GetString(cli.HomeFlag))
+			config.NodeConfig.SetRoot(viper.GetString(cli.HomeFlag))
 			// get new validator info
 			s := strings.TrimSpace(args[0])
 			// check
@@ -144,7 +144,7 @@ func AddGenesisValidatorCmd(ctx *Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			genFile := config.GenesisFile()
+			genFile := config.NodeConfig.GenesisFile()
 			genDoc := &types.GenesisDoc{}
 			if _, err := os.Stat(genFile); err != nil {
 				if !os.IsNotExist(err) {

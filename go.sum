@@ -674,14 +674,6 @@ github.com/smartbch/moeingads v0.2.1-0.20210713075709-39cad2d869a3/go.mod h1:q32
 github.com/smartbch/moeingdb v0.1.3-0.20210608032006-26e747085c42/go.mod h1:18pHE7vNTp4hiN/x2boEIpQ8yjXFknDWufTsHz5t1II=
 github.com/smartbch/moeingdb v0.1.4-0.20210615073613-06a68c67ab16 h1:vzIw56DT23H1wG4imBsLToG6lMMcgKQfjc2OhmgVY9w=
 github.com/smartbch/moeingdb v0.1.4-0.20210615073613-06a68c67ab16/go.mod h1:18pHE7vNTp4hiN/x2boEIpQ8yjXFknDWufTsHz5t1II=
-github.com/smartbch/moeingevm v0.2.1-0.20210706234134-c695974b4706 h1:DCfLn0dx4x8SkrN65XFHCiUHJ3ekqLByzCxYPt34V6o=
-github.com/smartbch/moeingevm v0.2.1-0.20210706234134-c695974b4706/go.mod h1:sWqdQyzCkdTpU5RvQteg6y73ulBMM3qHeHuNQJffn08=
-github.com/smartbch/moeingevm v0.2.1-0.20210707071807-7fbc9e26cfbb h1:iOXllQKzExOj8Rf2eBcKXfPqByu//EN+bcO3+63fZZQ=
-github.com/smartbch/moeingevm v0.2.1-0.20210707071807-7fbc9e26cfbb/go.mod h1:sWqdQyzCkdTpU5RvQteg6y73ulBMM3qHeHuNQJffn08=
-github.com/smartbch/moeingevm v0.2.1-0.20210708023250-5ddd20b3e03b h1:ypEqRHIy7qx1lAAs6xoFLRAmjp0wqFYzReffwFrSvjU=
-github.com/smartbch/moeingevm v0.2.1-0.20210708023250-5ddd20b3e03b/go.mod h1:sWqdQyzCkdTpU5RvQteg6y73ulBMM3qHeHuNQJffn08=
-github.com/smartbch/moeingevm v0.2.1-0.20210709004345-ceb7e6da0e66 h1:TfRyb2K74dg03ZKE7Xj+qb/DkDlQziOhnYMcEzx4+G4=
-github.com/smartbch/moeingevm v0.2.1-0.20210709004345-ceb7e6da0e66/go.mod h1:sWqdQyzCkdTpU5RvQteg6y73ulBMM3qHeHuNQJffn08=
 github.com/smartbch/moeingevm v0.2.1-0.20210713011512-8095f5ee132a h1:B4fwo1QCqU+dk2VgHp+Bm5qcBwckf8xPtWAJWx+0IZM=
 github.com/smartbch/moeingevm v0.2.1-0.20210713011512-8095f5ee132a/go.mod h1:sWqdQyzCkdTpU5RvQteg6y73ulBMM3qHeHuNQJffn08=
 github.com/smartbch/moeingevm v0.2.1-0.20210713095202-aa709b458da6 h1:WAznEOE6mRe2qj01xOHsTrtrZRUzGsW3Wn6KKlUKwYE=

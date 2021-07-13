@@ -65,8 +65,8 @@ func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey cry
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
 	params := param.DefaultConfig()
-	params.AppDataPath = testAdsDir
-	params.ModbDataPath = testMoDbDir
+	params.AppConfig.AppDataPath = testAdsDir
+	params.AppConfig.ModbDataPath = testMoDbDir
 	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)

@@ -48,7 +48,7 @@ smartbchd staking
 --verbose
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
-			c := ctx.Config
+			c := ctx.Config.NodeConfig
 			c.SetRoot(viper.GetString(cli.HomeFlag))
 
 			// get private key

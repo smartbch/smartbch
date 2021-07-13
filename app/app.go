@@ -43,10 +43,6 @@ import (
 
 var _ abcitypes.Application = (*App)(nil)
 
-var (
-	DefaultNodeHome = os.ExpandEnv("$HOME/.smartbchd")
-)
-
 const (
 	CannotDecodeTx       uint32 = 101
 	CannotRecoverSender  uint32 = 102
@@ -130,13 +126,13 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.chainId = chainId
 
 	/*------signature cache------*/
-	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, config.SigCacheSize)
+	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, config.AppConfig.SigCacheSize)
 
 	/*------set store------*/
 	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config)
-	app.trunk = app.root.GetTrunkStore(config.TrunkCacheSize).(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.TrunkCacheSize).(*store.TrunkStore)
+	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 
 	/*------set util------*/
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
@@ -191,11 +187,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set watcher------*/
-	client := staking.NewParallelRpcClient(config.MainnetRPCUrl, config.MainnetRPCUserName, config.MainnetRPCPassword)
+	client := staking.NewParallelRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, client, config.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.Speedup)
+	app.watcher = staking.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
-		config.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.Speedup))
+		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)
 	<-catchupChan
@@ -208,7 +204,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.MoeingADS) {
 	first := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 	last := [8]byte{255, 255, 255, 255, 255, 255, 255, 255}
-	mads, err := moeingads.NewMoeingADS(config.AppDataPath, false, [][]byte{first[:], last[:]})
+	mads, err := moeingads.NewMoeingADS(config.AppConfig.AppDataPath, false, [][]byte{first[:], last[:]})
 	if err != nil {
 		panic(err)
 	}
@@ -219,8 +215,8 @@ func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.Mo
 }
 
 func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
-	modbDir := config.ModbDataPath
-	if config.UseLiteDB {
+	modbDir := config.AppConfig.ModbDataPath
+	if config.AppConfig.UseLiteDB {
 		historyStore = modb.NewLiteDB(modbDir)
 	} else {
 		if _, err := os.Stat(modbDir); os.IsNotExist(err) {
@@ -231,7 +227,7 @@ func createHistoryStore(config *param.ChainConfig) (historyStore modbtypes.DB) {
 		} else {
 			historyStore = modb.NewMoDB(modbDir)
 		}
-		historyStore.SetMaxEntryCount(config.RpcEthGetLogsMaxResults)
+		historyStore.SetMaxEntryCount(config.AppConfig.RpcEthGetLogsMaxResults)
 	}
 	return
 }
@@ -258,7 +254,7 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 }
 
 func (app *App) sigCacheAdd(txid gethcmn.Hash, value SenderAndHeight) {
-	if len(app.sigCache) > app.config.SigCacheSize { //select one old entry to evict
+	if len(app.sigCache) > app.config.AppConfig.SigCacheSize { //select one old entry to evict
 		delKey, minHeight, count := gethcmn.Hash{}, int64(math.MaxInt64), 6 /*iterate 6 steps*/
 		for key, value := range app.sigCache {                              //pseudo-random iterate
 			if minHeight > value.Height { //select the oldest entry within a short iteration
@@ -277,7 +273,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	app.logger.Debug("enter check tx!")
 	if req.Type == abcitypes.CheckTxType_Recheck {
 		app.recheckCounter++ // calculate how many TXs remain in the mempool after a new block
-	} else if app.recheckCounter > app.config.RecheckThreshold {
+	} else if app.recheckCounter > app.config.AppConfig.RecheckThreshold {
 		// Refuse to accept new TXs on P2P to drain the remain TXs in mempool
 		return abcitypes.ResponseCheckTx{Code: MempoolBusy, Info: "mempool is too busy"}
 	}
@@ -517,8 +513,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		Data: append([]byte{}, app.block.StateRoot[:]...),
 	}
 	// prune tendermint history block and state every ChangeRetainEveryN blocks
-	if app.config.RetainBlocks > 0 && app.currHeight >= app.config.RetainBlocks && (app.currHeight%app.config.ChangeRetainEveryN == 0) {
-		res.RetainHeight = app.currHeight - app.config.RetainBlocks + 1
+	if app.config.AppConfig.RetainBlocks > 0 && app.currHeight >= app.config.AppConfig.RetainBlocks && (app.currHeight%app.config.AppConfig.ChangeRetainEveryN == 0) {
+		res.RetainHeight = app.currHeight - app.config.AppConfig.RetainBlocks + 1
 	}
 	return res
 }
@@ -553,7 +549,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, newInfo)
-	if app.config.LogValidatorsInfo {
+	if app.config.AppConfig.LogValidatorsInfo {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
 		fmt.Println("ValidatorsInfo:", string(bz))
@@ -595,8 +591,8 @@ func (app *App) refresh() {
 
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	app.trunk.Close(true)                  //write cached KVs back to app.root
-	if prevBlkInfo != nil && prevBlkInfo.Number%app.config.PruneEveryN == 0 && prevBlkInfo.Number > app.config.NumKeptBlocks {
-		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.config.NumKeptBlocks)
+	if prevBlkInfo != nil && prevBlkInfo.Number%app.config.AppConfig.PruneEveryN == 0 && prevBlkInfo.Number > app.config.AppConfig.NumKeptBlocks {
+		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.config.AppConfig.NumKeptBlocks)
 	}
 
 	appHash := app.root.GetRootHash()
@@ -620,8 +616,8 @@ func (app *App) refresh() {
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
-		if app.config.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.NumKeptBlocksInMoDB {
-			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.NumKeptBlocksInMoDB)
+		if app.config.AppConfig.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.AppConfig.NumKeptBlocksInMoDB {
+			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB)
 		} else {
 			app.historyStore.AddBlock(&prevBlk4MoDB, -1) // do not prune moeingdb
 		}
@@ -634,7 +630,7 @@ func (app *App) refresh() {
 	app.lastVoters = app.lastVoters[:0]
 	app.root.SetHeight(app.currHeight)
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.TrunkCacheSize).(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
 }
 

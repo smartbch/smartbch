@@ -59,7 +59,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 		Long:  `Initialize validator's and node's configuration files.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			config := ctx.Config
+			config := ctx.Config.NodeConfig
 			config.SetRoot(viper.GetString(cli.HomeFlag))
 			chainID := viper.GetString(flagChainID)
 			if chainID == "" {
