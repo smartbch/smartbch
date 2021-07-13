@@ -572,10 +572,10 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	stakingAcc.UpdateBalance(stakingAccBalance)
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
 
-	//TODO: we need to uncomment these lines to burn half of the collected fees
-	//halfFeeToBurn := uint256.NewInt().Rsh(collectedFee, 1)
-	//collectedFee.Sub(collectedFee, halfFeeToBurn)
-	//ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
+	//burn half of the collected fees
+	halfFeeToBurn := uint256.NewInt().Rsh(collectedFee, 1)
+	collectedFee.Sub(collectedFee, halfFeeToBurn)
+	ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
 
 	totalVotingPower, votedPower := int64(0), int64(0)
 	for _, val := range info.GetActiveValidators(MinimumStakingAmount) {
