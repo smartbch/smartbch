@@ -59,27 +59,17 @@ const (
 	MempoolBusy          uint32 = 109
 )
 
-const (
-	PruneEveryN        = 10
-	ChangeRetainEveryN = 100
-
-	DefaultTrunkCacheSize = 200
-)
-
 type App struct {
 	mtx sync.Mutex
 
 	//config
-	chainId           *uint256.Int
-	retainBlocks      int64 // for tendermint to store recent blocks
-	logValidatorsInfo bool
+	config  *param.ChainConfig
+	chainId *uint256.Int
 
 	//store
-	mads                *moeingads.MoeingADS
-	root                *store.RootStore
-	numKeptBlocks       int64 // for moeingads to prune old blocks
-	numKeptBlocksInMoDB int64 // for moeingdb to prune old blocks
-	historyStore        modbtypes.DB
+	mads         *moeingads.MoeingADS
+	root         *store.RootStore
+	historyStore modbtypes.DB
 
 	//refresh with block
 	currHeight      int64
@@ -118,16 +108,12 @@ type App struct {
 	validatorUpdate []*stakingtypes.Validator // tendermint wants to know validators whose voting power change
 
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
-	sigCache     map[gethcmn.Hash]SenderAndHeight
-	sigCacheSize int
+	sigCache map[gethcmn.Hash]SenderAndHeight
 
 	// the senders who send native tokens through sep206 in the last block
 	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
-	// if recheckCounter is larger than recheckThreshold, mempool is in a traffic-jam status
-	// and we'd better refuse further transactions
-	recheckThreshold int
 }
 
 // The value entry of signature cache. The Height helps in evicting old entries.
@@ -139,24 +125,18 @@ type SenderAndHeight struct {
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight int64, logger log.Logger) *App {
 	app := &App{}
 
-	app.recheckThreshold = config.RecheckThreshold
-	app.logValidatorsInfo = config.LogValidatorsInfo
-
-	/*------signature cache------*/
-	app.sigCacheSize = config.SigCacheSize
-	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, app.sigCacheSize)
-
 	/*------set config------*/
-	app.retainBlocks = config.RetainBlocks
+	app.config = config
 	app.chainId = chainId
 
+	/*------signature cache------*/
+	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, config.SigCacheSize)
+
 	/*------set store------*/
-	app.numKeptBlocks = int64(config.NumKeptBlocks)
-	app.numKeptBlocksInMoDB = int64(config.NumKeptBlocksInMoDB)
 	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config)
-	app.trunk = app.root.GetTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
+	app.trunk = app.root.GetTrunkStore(config.TrunkCacheSize).(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.TrunkCacheSize).(*store.TrunkStore)
 
 	/*------set util------*/
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
@@ -277,7 +257,7 @@ func (app *App) Query(req abcitypes.RequestQuery) abcitypes.ResponseQuery {
 }
 
 func (app *App) sigCacheAdd(txid gethcmn.Hash, value SenderAndHeight) {
-	if len(app.sigCache) > app.sigCacheSize { //select one old entry to evict
+	if len(app.sigCache) > app.config.SigCacheSize { //select one old entry to evict
 		delKey, minHeight, count := gethcmn.Hash{}, int64(math.MaxInt64), 6 /*iterate 6 steps*/
 		for key, value := range app.sigCache {                              //pseudo-random iterate
 			if minHeight > value.Height { //select the oldest entry within a short iteration
@@ -296,7 +276,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 	app.logger.Debug("enter check tx!")
 	if req.Type == abcitypes.CheckTxType_Recheck {
 		app.recheckCounter++ // calculate how many TXs remain in the mempool after a new block
-	} else if app.recheckCounter > app.recheckThreshold {
+	} else if app.recheckCounter > app.config.RecheckThreshold {
 		// Refuse to accept new TXs on P2P to drain the remain TXs in mempool
 		return abcitypes.ResponseCheckTx{Code: MempoolBusy, Info: "mempool is too busy"}
 	}
@@ -536,8 +516,8 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		Data: append([]byte{}, app.block.StateRoot[:]...),
 	}
 	// prune tendermint history block and state every ChangeRetainEveryN blocks
-	if app.retainBlocks > 0 && app.currHeight >= app.retainBlocks && (app.currHeight%ChangeRetainEveryN == 0) {
-		res.RetainHeight = app.currHeight - app.retainBlocks + 1
+	if app.config.RetainBlocks > 0 && app.currHeight >= app.config.RetainBlocks && (app.currHeight%app.config.ChangeRetainEveryN == 0) {
+		res.RetainHeight = app.currHeight - app.config.RetainBlocks + 1
 	}
 	return res
 }
@@ -572,7 +552,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, newInfo)
-	if app.logValidatorsInfo {
+	if app.config.LogValidatorsInfo {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
 		fmt.Println("ValidatorsInfo:", string(bz))
@@ -614,8 +594,8 @@ func (app *App) refresh() {
 
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	app.trunk.Close(true)                  //write cached KVs back to app.root
-	if prevBlkInfo != nil && prevBlkInfo.Number%PruneEveryN == 0 && prevBlkInfo.Number > app.numKeptBlocks {
-		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.numKeptBlocks)
+	if prevBlkInfo != nil && prevBlkInfo.Number%app.config.PruneEveryN == 0 && prevBlkInfo.Number > app.config.NumKeptBlocks {
+		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.config.NumKeptBlocks)
 	}
 
 	appHash := app.root.GetRootHash()
@@ -639,8 +619,8 @@ func (app *App) refresh() {
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
-		if app.numKeptBlocksInMoDB > 0 && app.currHeight > app.numKeptBlocksInMoDB {
-			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.numKeptBlocksInMoDB)
+		if app.config.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.NumKeptBlocksInMoDB {
+			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.NumKeptBlocksInMoDB)
 		} else {
 			app.historyStore.AddBlock(&prevBlk4MoDB, -1) // do not prune moeingdb
 		}
@@ -653,7 +633,7 @@ func (app *App) refresh() {
 	app.lastVoters = app.lastVoters[:0]
 	app.root.SetHeight(app.currHeight)
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore(DefaultTrunkCacheSize).(*store.TrunkStore)
+	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.TrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
 }
 
