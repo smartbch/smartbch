@@ -370,3 +370,26 @@ func TestContractAdd(t *testing.T) {
 	fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().ToBig())
 	ctx.Close(false)
 }
+
+func TestEIP3541(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	// https://eips.ethereum.org/EIPS/eip-3541#test-cases
+	tx, _, _ := _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360016000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, _ = _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360026000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, _ = _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360036000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, _ = _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360206000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, addr := _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60fe60005360016000f3"))
+	_app.EnsureTxSuccess(tx.Hash())
+	require.Equal(t, "fe", hex.EncodeToString(_app.GetCode(addr)))
+}
