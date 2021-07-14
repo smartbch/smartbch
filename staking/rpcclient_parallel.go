@@ -2,7 +2,6 @@ package staking
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -11,14 +10,17 @@ var _ types.RpcClient = (*ParallelRpcClient)(nil)
 
 type ParallelRpcClient struct {
 	client       *RpcClient
-	rwLock       sync.RWMutex
 	latestHeight int64
+	preGetCount  int64
 	preGetMaxH   int64
-	preGetBlocks map[int64]*types.BCHBlock
+	preGetBlocks map[int64]chan *types.BCHBlock
 }
 
 func NewParallelRpcClient(url, user, password string) types.RpcClient {
-	return &ParallelRpcClient{client: NewRpcClient(url, user, password, "text/plain;")}
+	return &ParallelRpcClient{
+		client:      NewRpcClient(url, user, password, "text/plain;"),
+		preGetCount: 10,
+	}
 }
 
 func (c *ParallelRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
@@ -35,20 +37,16 @@ func (c *ParallelRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
 }
 
 func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
-	if height+20 < c.latestHeight {
-		c.rwLock.RLock()
-		block, found := c.preGetBlocks[height]
-		c.rwLock.RUnlock()
-
-		if found {
-			return block
+	if height+c.preGetCount*2 < c.latestHeight {
+		if ch, found := c.preGetBlocks[height]; found {
+			return <-ch
 		}
 
 		if c.preGetMaxH < height {
-			c.preGetMaxH = height + 11
+			c.preGetMaxH = height + c.preGetCount
 			fmt.Printf("pre fetch bch blocks: #%d ~ #%d, latest: #%d\n",
-				height+1, height+11, c.latestHeight)
-			c.getBlocksAsync(height+1, 10)
+				height+1, c.preGetMaxH, c.latestHeight)
+			c.getBlocksAsync(height+1, c.preGetCount)
 		}
 	}
 
@@ -56,18 +54,15 @@ func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 }
 
 func (c *ParallelRpcClient) getBlocksAsync(hStart, n int64) {
-	c.rwLock.Lock()
-	c.preGetBlocks = map[int64]*types.BCHBlock{}
-	c.rwLock.Unlock()
+	c.preGetBlocks = map[int64]chan *types.BCHBlock{}
 
 	for i := int64(0); i < n; i++ {
 		h := hStart + i
+		ch := make(chan *types.BCHBlock)
+		c.preGetBlocks[h] = ch
+
 		go func() {
-			if b := c.client.GetBlockByHeight(h); b != nil {
-				c.rwLock.Lock()
-				c.preGetBlocks[h] = b
-				c.rwLock.Unlock()
-			}
+			ch <- c.client.GetBlockByHeight(h)
 		}()
 	}
 }
