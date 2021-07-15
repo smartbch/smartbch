@@ -416,8 +416,8 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 64736f6c634300060c0033
 `)
 
-	key, _ := testutils.GenKeyAndAddr()
-	key = "7648adfae1b87581aa90509d64556138b463d8b6dded677455687cb395cf6cfa"
+	//key, _ := testutils.GenKeyAndAddr()
+	key := "7648adfae1b87581aa90509d64556138b463d8b6dded677455687cb395cf6cfa"
 
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
