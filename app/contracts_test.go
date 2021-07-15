@@ -403,3 +403,26 @@ func TestCallPrecompileFromEOA(t *testing.T) {
 	tx, _ := _app.MakeAndExecTxInBlock(key1, sha256Addr, 0, testutils.HexToBytes("0x1234"))
 	_app.EnsureTxSuccess(tx.Hash())
 }
+
+func TestGetCodeBug(t *testing.T) {
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b5060cc8061001f6000396000f3fe60
+80604052348015600f57600080fd5b506004361060325760003560e01c806361
+bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
+8082815260200191505060405180910390f35b607c6004803603602081101560
+6757600080fd5b81019080803590602001909291905050506084565b005b6000
+5481565b8060008082825401925050819055505056fea2646970667358221220
+37865cfcfd438966956583c78d31220c05c0f1ebfd116aced883214fcb1096c6
+64736f6c634300060c0033
+`)
+
+	key, _ := testutils.GenKeyAndAddr()
+	key = "7648adfae1b87581aa90509d64556138b463d8b6dded677455687cb395cf6cfa"
+
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+
+	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	require.NotEmpty(t, _app.GetCode(contractAddr))
+}
