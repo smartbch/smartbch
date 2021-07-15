@@ -454,6 +454,20 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 	require.Equal(t, "1200", totalPower.String())
 }
 
+func TestSumVotingPowerFromEOA(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	data := staking.PackSumVotingPower([]gethcmn.Address{addr1})
+	tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 0, data)
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	statusCode, statusStr, _ := _app.Call(addr1, staking.StakingContractAddress, data)
+	require.Equal(t, "failure", statusStr)
+	require.Equal(t, 1, statusCode)
+}
+
 func TestStakingDetermination(t *testing.T) {
 	_initAmt := staking.InitialStakingAmount
 	_minAmt := staking.MinimumStakingAmount

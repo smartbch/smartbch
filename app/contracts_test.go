@@ -393,3 +393,13 @@ func TestEIP3541(t *testing.T) {
 	_app.EnsureTxSuccess(tx.Hash())
 	require.Equal(t, "fe", hex.EncodeToString(_app.GetCode(addr)))
 }
+
+func TestCallPrecompileFromEOA(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	sha256Addr := gethcmn.BytesToAddress([]byte{0x02})
+	tx, _ := _app.MakeAndExecTxInBlock(key1, sha256Addr, 0, testutils.HexToBytes("0x1234"))
+	_app.EnsureTxSuccess(tx.Hash())
+}
