@@ -200,17 +200,11 @@ func TestCheckTx_sep206SenderSet(t *testing.T) {
 	require.True(t, _app.IsInSenderSet(addr3))
 	require.False(t, _app.IsInSenderSet(addr4))
 
-	checkResp := _app.CheckTx(abci.RequestCheckTx{
-		Type: abci.CheckTxType_Recheck,
-		Tx:   testutils.MustEncodeTx(tx1),
-	})
-	require.Equal(t, app.AccountNonceMismatch, checkResp.Code)
+	checkResp := _app.RecheckTxABCI(tx1)
+	require.Equal(t, app.AccountNonceMismatch, checkResp)
 
-	checkResp = _app.CheckTx(abci.RequestCheckTx{
-		Type: abci.CheckTxType_Recheck,
-		Tx:   testutils.MustEncodeTx(tx4),
-	})
-	require.Equal(t, abci.CodeTypeOK, checkResp.Code)
+	checkResp = _app.RecheckTxABCI(tx4)
+	require.Equal(t, abci.CodeTypeOK, checkResp)
 }
 
 func TestIncorrectNonceErr(t *testing.T) {
@@ -309,15 +303,30 @@ func TestMinGas(t *testing.T) {
 	ctx.Close(true)
 	_app.ExecTxsInBlock()
 
-	tx, _ := _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 100000, 1234)
+	tx, _ := _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 1234)
+	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
 	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
-	tx, _ = _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 100000, 9999)
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 9999)
+	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+
+	_app.ExecTxInBlock(tx)
 	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
-	tx, _ = _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 100000, 10000)
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10000)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
 	_app.EnsureTxSuccess(tx.Hash())
-	tx, _ = _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 100000, 10001)
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10001)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
 	_app.EnsureTxSuccess(tx.Hash())
-	tx, _ = _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 100000, 12345)
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 12345)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
 	_app.EnsureTxSuccess(tx.Hash())
 }
 

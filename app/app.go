@@ -750,6 +750,19 @@ func (app *App) ChainID() *uint256.Int {
 	return app.chainId
 }
 
+func (app *App) GetValidatorsInfo() ValidatorsInfo {
+	ctx := app.GetRpcContext()
+	defer ctx.Close(false)
+	return app.getValidatorsInfoFromCtx(ctx)
+}
+
+func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
+	stakingInfo := staking.LoadStakingInfo(ctx)
+	minGasPrice := staking.LoadMinGasPrice(ctx, false)
+	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
+	return newValidatorsInfo(app.currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
+}
+
 //nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal function, only used in test
@@ -770,17 +783,4 @@ func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal fu
 		fmt.Println(s)
 		panic(s)
 	}(baseNumber + time.Now().UnixNano()%primeNumber)
-}
-
-func (app *App) GetValidatorsInfo() ValidatorsInfo {
-	ctx := app.GetRpcContext()
-	defer ctx.Close(false)
-	return app.getValidatorsInfoFromCtx(ctx)
-}
-
-func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
-	stakingInfo := staking.LoadStakingInfo(ctx)
-	minGasPrice := staking.LoadMinGasPrice(ctx, false)
-	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
-	return newValidatorsInfo(app.currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
 }

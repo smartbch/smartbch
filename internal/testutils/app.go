@@ -406,3 +406,10 @@ func (_app *TestApp) CheckNewTxABCI(tx *gethtypes.Transaction) uint32 {
 	})
 	return res.Code
 }
+func (_app *TestApp) RecheckTxABCI(tx *gethtypes.Transaction) uint32 {
+	res := _app.CheckTx(abci.RequestCheckTx{
+		Tx:   MustEncodeTx(tx),
+		Type: abci.CheckTxType_Recheck,
+	})
+	return res.Code
+}
