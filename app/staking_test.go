@@ -487,9 +487,8 @@ func TestStakingDetermination(t *testing.T) {
 	var stateRoot []byte
 	for i := 0; i < 5; i++ {
 		//println("----------")
-		_app := testutils.CreateTestApp0(startTime,
-			bigutils.NewU256(testutils.DefaultInitBalance),
-			valPubKey, key1, key2, key3)
+		_app := testutils.CreateTestApp0(startTime, valPubKey,
+			bigutils.NewU256(testutils.DefaultInitBalance), key1, key2, key3)
 
 		var pubKey0 [32]byte
 		copy(pubKey0[:], _app.TestPubkey.Bytes())

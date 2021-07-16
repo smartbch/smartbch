@@ -54,7 +54,7 @@ c664736f6c634300060c0033
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp0(time.Now(),
-		bigutils.NewU256(1000000000), ed25519.GenPrivKey().PubKey(), key)
+		ed25519.GenPrivKey().PubKey(), bigutils.NewU256(1000000000), key)
 	defer _app.Destroy()
 
 	// see testdata/basic/contracts/EventEmitter.sol
