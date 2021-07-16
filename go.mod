@@ -18,14 +18,14 @@ require (
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
-	github.com/pelletier/go-toml v1.9.0 // indirect
+	github.com/pelletier/go-toml v1.9.0
 	github.com/prometheus/client_golang v1.10.0 // indirect
 	github.com/prometheus/common v0.21.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.2.1-0.20210713075709-39cad2d869a3
 	github.com/smartbch/moeingdb v0.1.4-0.20210615073613-06a68c67ab16
-	github.com/smartbch/moeingevm v0.2.1-0.20210713095202-aa709b458da6
+	github.com/smartbch/moeingevm v0.2.1-0.20210715094633-687017b69215
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
