@@ -55,18 +55,42 @@ func runConfigCmd(cmd *cobra.Command, args []string) error {
 	value := args[2]
 
 	// set config value for a given key
-	switch key {
-	case "mainnet_rpc_url", "mainnet_rpc_username", "mainnet_rpc_password", "smartbch_rpc_url":
-		tree.Set(key, value)
+	if args[0] == "node" {
+		switch key {
+		case "p2p.seeds", "tx_index.indexer", "log_level":
+			tree.Set(key, value)
 
-	case "speedup", "use_litedb", "log_validator_info":
-		boolVal, err := strconv.ParseBool(value)
-		if err != nil {
-			return err
+		case "mempool.max_tx_bytes", "mempool.max_txs_bytes", "mempool.size":
+			uintVal, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return err
+			}
+			tree.Set(key, uintVal)
+		default:
+			return errUnknownConfigKey(key)
 		}
-		tree.Set(key, boolVal)
-	default:
-		return errUnknownConfigKey(key)
+	} else /*update app.toml*/ {
+		switch key {
+		case "mainnet-rpc-url", "mainnet-rpc-username", "mainnet-rpc-password", "smartbch-rpc-url":
+			tree.Set(key, value)
+
+		case "watcher-speedup", "use_litedb", "log-validators":
+			boolVal, err := strconv.ParseBool(value)
+			if err != nil {
+				return err
+			}
+			tree.Set(key, boolVal)
+		case "retain-blocks", "retain_interval_blocks", "get_logs_max_results",
+			"blocks_kept_ads", "blocks_kept_modb", "prune_every_n",
+			"recheck_threshold", "sig_cache_size", "trunk_cache_size":
+			uintVal, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return err
+			}
+			tree.Set(key, uintVal)
+		default:
+			return errUnknownConfigKey(key)
+		}
 	}
 
 	// save configuration to disk
