@@ -56,4 +56,8 @@ contract("StakingTest", async (accounts) => {
         }
     });
 
+    it('call staking from contract: sumVotingPower', async () => {
+        await testContract.sumVotingPower([accounts[0]]);
+    });
+
 });

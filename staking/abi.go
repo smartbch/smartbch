@@ -1,6 +1,8 @@
 package staking
 
 import (
+	"math/big"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -69,7 +71,31 @@ var ABI = ethutils.MustParseABI(`
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
-	}
+	},
+    {
+      "inputs": [
+        {
+          "internalType": "address[]",
+          "name": "addrList",
+          "type": "address[]"
+        }
+      ],
+      "name": "sumVotingPower",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "summedPower",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalPower",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
 ]
 `)
 
@@ -87,4 +113,12 @@ func PackIncreaseMinGasPrice() []byte {
 }
 func PackDecreaseMinGasPrice() []byte {
 	return ABI.MustPack("decreaseMinGasPrice")
+}
+
+func PackSumVotingPower(addrList []gethcmn.Address) []byte {
+	return ABI.MustPack("sumVotingPower", addrList)
+}
+func UnpackSumVotingPowerReturnData(data []byte) (*big.Int, *big.Int) {
+	ret := ABI.MustUnpack("sumVotingPower", data)
+	return ret[0].(*big.Int), ret[1].(*big.Int)
 }

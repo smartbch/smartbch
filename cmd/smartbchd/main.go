@@ -16,7 +16,7 @@ type AppCreator func(logger log.Logger, chainId *uint256.Int, config *param.Chai
 
 func main() {
 	rootCmd := createSmartbchdCmd()
-	executor := cli.PrepareBaseCmd(rootCmd, "GA", app.DefaultNodeHome)
+	executor := cli.PrepareBaseCmd(rootCmd, "GA", DefaultNodeHome)
 	err := executor.Execute()
 	if err != nil {
 		// handle with #870
@@ -34,6 +34,7 @@ func createSmartbchdCmd() *cobra.Command {
 	}
 	addInitCommands(ctx, rootCmd)
 	rootCmd.AddCommand(StartCmd(ctx, newApp))
+	rootCmd.AddCommand(ConfigCmd(DefaultNodeHome))
 	rootCmd.AddCommand(GenerateConsensusKeyInfoCmd(ctx))
 	rootCmd.AddCommand(GenerateGenesisValidatorCmd(ctx))
 	rootCmd.AddCommand(AddGenesisValidatorCmd(ctx))
@@ -43,7 +44,7 @@ func createSmartbchdCmd() *cobra.Command {
 }
 
 func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
-	initCmd := InitCmd(ctx, app.DefaultNodeHome)
+	initCmd := InitCmd(ctx, DefaultNodeHome)
 	genTestKeysCmd := GenTestKeysCmd(ctx)
 	rootCmd.AddCommand(initCmd, genTestKeysCmd)
 }

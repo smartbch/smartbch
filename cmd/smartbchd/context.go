@@ -1,24 +1,28 @@
 package main
 
 import (
+	"github.com/smartbch/smartbch/param"
 	"os"
 
-	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
+var (
+	DefaultNodeHome = os.ExpandEnv("$HOME/.smartbchd")
+)
+
 type Context struct {
-	Config *cfg.Config
+	Config *param.ChainConfig
 	Logger log.Logger
 }
 
 func NewDefaultContext() *Context {
 	return NewContext(
-		cfg.DefaultConfig(),
+		param.DefaultConfig(),
 		log.NewTMLogger(log.NewSyncWriter(os.Stdout)),
 	)
 }
 
-func NewContext(config *cfg.Config, logger log.Logger) *Context {
+func NewContext(config *param.ChainConfig, logger log.Logger) *Context {
 	return &Context{config, logger}
 }

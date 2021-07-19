@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/smartbch/smartbch/param"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -86,7 +87,7 @@ func PersistentPreRunEFn(context *Context) func(*cobra.Command, []string) error 
 		}
 		logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 		// logger = log.NewFilter(logger, log.AllowInfo())
-		logger, err = tmflags.ParseLogLevel(config.LogLevel, logger, cfg.DefaultLogLevel)
+		logger, err = tmflags.ParseLogLevel(config.NodeConfig.LogLevel, logger, cfg.DefaultLogLevel)
 		if err != nil {
 			return err
 		}
@@ -97,36 +98,47 @@ func PersistentPreRunEFn(context *Context) func(*cobra.Command, []string) error 
 	}
 }
 
-func interceptLoadConfig() (conf *cfg.Config, err error) {
+func interceptLoadConfig() (conf *param.ChainConfig, err error) {
 	tmpConf := cfg.DefaultConfig()
 	err = viper.Unmarshal(tmpConf)
 	if err != nil {
-		// TODO: Handle with #870
 		panic(err)
 	}
 	rootDir := tmpConf.RootDir
 	configFilePath := filepath.Join(rootDir, "config/config.toml")
-	// Intercept only if the file doesn't already exist
-
+	var nodeConfig *cfg.Config
 	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
 		// the following parse config is needed to create directories
-		conf, _ = tmcmds.ParseConfig() // NOTE: ParseConfig() creates dir/files as necessary.
+		nodeConfig, _ = tmcmds.ParseConfig() // NOTE: ParseConfig() creates dir/files as necessary.
 		//conf.ProfListenAddress = "localhost:6060"
-		conf.P2P.RecvRate = 5120000
-		conf.P2P.SendRate = 5120000
+		nodeConfig.P2P.RecvRate = 5120000
+		nodeConfig.P2P.SendRate = 5120000
 		//conf.TxIndex.IndexAllKeys = true
-		conf.Consensus.TimeoutCommit = 5 * time.Second
-		cfg.WriteConfigFile(configFilePath, conf)
-		// Fall through, just so that its parsed into memory.
+		nodeConfig.Consensus.TimeoutCommit = 5 * time.Second
+		cfg.WriteConfigFile(configFilePath, nodeConfig)
 	}
 
-	if conf == nil {
-		conf, err = tmcmds.ParseConfig() // NOTE: ParseConfig() creates dir/files as necessary.
+	if nodeConfig == nil {
+		nodeConfig, err = tmcmds.ParseConfig()
 		if err != nil {
 			panic(err)
 		}
 	}
-	err = viper.MergeInConfig()
+
+	appConfigFilePath := filepath.Join(rootDir, "config/app.toml")
+	var appConf *param.AppConfig
+	if _, err := os.Stat(appConfigFilePath); os.IsNotExist(err) {
+		appConf, _ = param.ParseConfig()
+		param.WriteConfigFile(appConfigFilePath, appConf)
+	}
+	if appConf == nil {
+		viper.SetConfigName("app")
+		err = viper.MergeInConfig()
+		appConf, _ = param.ParseConfig()
+	}
+	conf = &param.ChainConfig{}
+	conf.NodeConfig = nodeConfig
+	conf.AppConfig = appConf
 
 	return conf, err
 }

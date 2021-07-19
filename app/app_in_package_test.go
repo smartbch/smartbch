@@ -22,14 +22,14 @@ var p *param.ChainConfig
 
 func init() {
 	p = param.DefaultConfig()
-	p.ModbDataPath = "./testDb"
-	p.AppDataPath = "./testAppDb"
+	p.AppConfig.ModbDataPath = "./testDb"
+	p.AppConfig.AppDataPath = "./testAppDb"
 }
 
 func removeTestDB(_app *App) {
 	_app.Stop()
-	_ = os.RemoveAll(p.ModbDataPath)
-	_ = os.RemoveAll(p.AppDataPath)
+	_ = os.RemoveAll(p.AppConfig.ModbDataPath)
+	_ = os.RemoveAll(p.AppConfig.AppDataPath)
 }
 
 func TestAppReload(t *testing.T) {
@@ -89,13 +89,13 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, 1, _app.recheckCounter)
 
 	//test refuse new tx
-	_app.recheckThreshold = 0
+	_app.config.AppConfig.RecheckThreshold = 0
 	r.Type = abcitypes.CheckTxType_New
 	res := _app.CheckTx(r)
 	require.Equal(t, MempoolBusy, res.Code)
 
 	//test sigCache clear
-	_app.sigCacheSize = 0
+	_app.config.AppConfig.SigCacheSize = 0
 	tx = ethutils.NewTx(1, &addr, big.NewInt(100), 100000, big.NewInt(10), nil)
 	signedTx, _ = tx.WithSignature(_app.signer, addr.Bytes())
 	data, _ = ethutils.EncodeTx(signedTx)
@@ -104,7 +104,7 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, 1, len(_app.sigCache))
 
 	//test gas too large
-	_app.recheckThreshold = 10
+	_app.config.AppConfig.RecheckThreshold = 10
 	tx = ethutils.NewTx(2, &addr, big.NewInt(100), param.MaxTxGasLimit+1, big.NewInt(10), nil)
 	signedTx, _ = tx.WithSignature(_app.signer, addr.Bytes())
 	data, _ = ethutils.EncodeTx(signedTx)

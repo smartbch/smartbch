@@ -3,8 +3,8 @@ package param
 //FILE: consensus configurable params collected here!
 const (
 	/**app consensus params**/
-	BlockMaxBytes int64 = 24 * 1024 * 1024 // 24MB
-	BlockMaxGas   int64 = 900_000_000_000
+	BlockMaxBytes int64 = 4 * 1024 * 1024 // 4MB
+	BlockMaxGas   int64 = 1_000_000_000   //1Billion
 
 	/**ebp consensus params**/
 	EbpExeRoundCount int = 200

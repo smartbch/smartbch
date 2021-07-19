@@ -14,84 +14,58 @@ const (
 	DefaultNumKeptBlocksInMoDB     = -1
 	DefaultSignatureCache          = 20000
 	DefaultRecheckThreshold        = 1000
+	DefaultTrunkCacheSize          = 200
+	DefaultChangeRetainEveryN      = 100
+	DefaultPruneEveryN             = 10
+
+	AppDataPath  = "app"
+	ModbDataPath = "modb"
 )
 
-type ChainConfig struct {
-	//ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-	//
-	//HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
-	//
-	//DAOForkBlock   *big.Int `json:"daoForkBlock,omitempty"`   // TheDAO hard-fork switch block (nil = no fork)
-	//DAOForkSupport bool     `json:"daoForkSupport,omitempty"` // Whether the nodes supports or opposes the DAO hard-fork
-	//
-	//// EIP150 implements the Gas price changes (https://github.com/ethereum/EIPs/issues/150)
-	//EIP150Block *big.Int    `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
-	//EIP150Hash  common.Hash `json:"eip150Hash,omitempty"`  // EIP150 HF hash (needed for header only clients as only gas pricing changed)
-	//
-	//EIP155Block *big.Int `json:"eip155Block,omitempty"` // EIP155 HF block
-	//EIP158Block *big.Int `json:"eip158Block,omitempty"` // EIP158 HF block
-	//
-	//ByzantiumBlock      *big.Int `json:"byzantiumBlock,omitempty"`      // Byzantium switch block (nil = no fork, 0 = already on byzantium)
-	//ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
-	//PetersburgBlock     *big.Int `json:"petersburgBlock,omitempty"`     // Petersburg switch block (nil = same as Constantinople)
-	//IstanbulBlock       *big.Int `json:"istanbulBlock,omitempty"`       // Istanbul switch block (nil = no fork, 0 = already on istanbul)
-	//MuirGlacierBlock    *big.Int `json:"muirGlacierBlock,omitempty"`    // Eip-2384 (bomb delay) switch block (nil = no fork, 0 = already activated)
-	//
-	//YoloV2Block *big.Int `json:"yoloV2Block,omitempty"` // YOLO v2: Gas repricings TODO @holiman add EIP references
-	//EWASMBlock  *big.Int `json:"ewasmBlock,omitempty"`  // EWASM switch block (nil = no fork, 0 = already activated)
-	//
-	//// Various consensus engines
-	//Ethash *EthashConfig `json:"ethash,omitempty"`
-	//Clique *CliqueConfig `json:"clique,omitempty"`
-	NodeConfig *config.Config
+type AppConfig struct {
 	//app config:
-	AppDataPath  string `json:"app_data_path,omitempty"`
-	ModbDataPath string `json:"modb_data_path,omitempty"`
-
+	AppDataPath  string `mapstructure:"app_data_path"`
+	ModbDataPath string `mapstructure:"modb_data_path"`
 	// rpc config
-	RpcEthGetLogsMaxResults int
-
-	// db config
-	RetainBlocks int64
-
+	RpcEthGetLogsMaxResults int `mapstructure:"get_logs_max_results"`
+	// tm db config
+	RetainBlocks       int64 `mapstructure:"retain-blocks"`
+	ChangeRetainEveryN int64 `mapstructure:"retain_interval_blocks"`
 	// Use LiteDB instead of MoDB
-	UseLiteDB bool
-
+	UseLiteDB bool `mapstructure:"use_litedb"`
 	// the number of kept recent blocks for moeingads
-	NumKeptBlocks int
-
+	NumKeptBlocks int64 `mapstructure:"blocks_kept_ads"`
 	// the number of kept recent blocks for moeingdb
-	NumKeptBlocksInMoDB int
-
+	NumKeptBlocksInMoDB int64 `mapstructure:"blocks_kept_modb"`
 	// the entry count of the signature cache
-	SigCacheSize int
-
+	SigCacheSize   int   `mapstructure:"sig_cache_size"`
+	TrunkCacheSize int   `mapstructure:"trunk_cache_size"`
+	PruneEveryN    int64 `mapstructure:"prune_every_n"`
 	// How many transactions are allowed to left in the mempool
 	// If more than this threshold, no further transactions can go in mempool
-	RecheckThreshold int
-
+	RecheckThreshold int `mapstructure:"recheck_threshold"`
 	//watcher config
-	MainnetRPCUrl      string
-	MainnetRPCUserName string
-	MainnetRPCPassword string
-	SmartBchRPCUrl     string
-	Speedup            bool
-	LogValidatorsInfo  bool
+	MainnetRPCUrl      string `mapstructure:"mainnet-rpc-url"`
+	MainnetRPCUsername string `mapstructure:"mainnet-rpc-username"`
+	MainnetRPCPassword string `mapstructure:"mainnet-rpc-password"`
+	SmartBchRPCUrl     string `mapstructure:"smartbch-rpc-url"`
+	Speedup            bool   `mapstructure:"watcher-speedup"`
+	LogValidatorsInfo  bool   `mapstructure:"log-validators"`
+}
+
+type ChainConfig struct {
+	NodeConfig *config.Config `mapstructure:"node_config"`
+	AppConfig  *AppConfig     `mapstructure:"app_config"`
 }
 
 var (
-	AppDataPath  = "app"
-	ModbDataPath = "modb"
-
 	home                = os.ExpandEnv("$HOME/.smartbchd")
 	defaultAppDataPath  = filepath.Join(home, "data", AppDataPath)
 	defaultModbDataPath = filepath.Join(home, "data", ModbDataPath)
 )
 
-func DefaultConfig() *ChainConfig {
-	os.LookupEnv("HOME")
-	c := &ChainConfig{
-		NodeConfig:              config.DefaultConfig(),
+func DefaultAppConfig() *AppConfig {
+	return &AppConfig{
 		AppDataPath:             defaultAppDataPath,
 		ModbDataPath:            defaultModbDataPath,
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
@@ -100,6 +74,17 @@ func DefaultConfig() *ChainConfig {
 		NumKeptBlocksInMoDB:     DefaultNumKeptBlocksInMoDB,
 		SigCacheSize:            DefaultSignatureCache,
 		RecheckThreshold:        DefaultRecheckThreshold,
+		TrunkCacheSize:          DefaultTrunkCacheSize,
+		ChangeRetainEveryN:      DefaultChangeRetainEveryN,
+		PruneEveryN:             DefaultPruneEveryN,
+		MainnetRPCPassword:      "123456",
+	}
+}
+
+func DefaultConfig() *ChainConfig {
+	c := &ChainConfig{
+		NodeConfig: config.DefaultConfig(),
+		AppConfig:  DefaultAppConfig(),
 	}
 	c.NodeConfig.TxIndex.Indexer = "null"
 	return c

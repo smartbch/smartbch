@@ -48,7 +48,7 @@ smartbchd staking
 --verbose
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
-			c := ctx.Config
+			c := ctx.Config.NodeConfig
 			c.SetRoot(viper.GetString(cli.HomeFlag))
 
 			// get private key
@@ -140,7 +140,7 @@ func printSignedTx(value *big.Int, data []byte, nonce uint64, priKey *ecdsa.Priv
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(viper.GetInt64(flagGasPrice)),
-		Gas:      staking.GasOfStakingExternalOp,
+		Gas:      staking.GasOfValidatorOp,
 		To:       &to,
 		Value:    value,
 		Data:     data,

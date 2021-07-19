@@ -231,7 +231,7 @@ var testAddABI = ethutils.MustParseABI(`
 // get a transaction that calls the `run0` function
 func GetTx0(_app *testutils.TestApp, key string, contractAddr, toAddr common.Address, value int64, off uint32) []byte {
 	calldata := testAddABI.MustPack("run0", toAddr, off)
-	tx, _ := _app.MakeAndSignTx(key, &contractAddr, value, calldata, 2 /*gasprice*/)
+	tx, _ := _app.MakeAndSignTxWithGas(key, &contractAddr, value, calldata, testutils.DefaultGasLimit, 2 /*gasprice*/)
 	return testutils.MustEncodeTx(tx)
 }
 
@@ -249,7 +249,7 @@ func GetTx(_app *testutils.TestApp, key string, contractAddr, a0, a1, a2 common.
 	param.Lsh(param, 32)
 	param.Or(param, big.NewInt(int64(slots[5])))
 	calldata := testAddABI.MustPack("run2", a0, a1, a2, param)
-	tx, _ := _app.MakeAndSignTx(key, &contractAddr, value, calldata, 2 /*gasprice*/)
+	tx, _ := _app.MakeAndSignTxWithGas(key, &contractAddr, value, calldata, testutils.DefaultGasLimit, 2 /*gasprice*/)
 	return testutils.MustEncodeTx(tx)
 }
 
@@ -258,7 +258,7 @@ func GetDeployTxAndAddrList(_app *testutils.TestApp, privKeys []string, creation
 	txList := make([][]byte, len(privKeys))
 	contractAddrList := make([]common.Address, len(privKeys))
 	for i := range privKeys {
-		tx, addr := _app.MakeAndSignTx(privKeys[i], nil, 0 /*value*/, creationBytecode, 0 /*gas price*/)
+		tx, addr := _app.MakeAndSignTxWithGas(privKeys[i], nil, 0 /*value*/, creationBytecode, testutils.DefaultGasLimit, 0 /*gas price*/)
 		txList[i] = testutils.MustEncodeTx(tx)
 		contractAddrList[i] = crypto.CreateAddress(addr, tx.Nonce())
 	}
@@ -349,10 +349,10 @@ func KeyToAddr(keyStr string) common.Address {
 func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	//fmt.Printf("CreateTestApp keys %d %#v\n", len(keys), keys)
 	params := param.DefaultConfig()
-	params.AppDataPath = adsDir
-	params.ModbDataPath = modbDir
-	params.UseLiteDB = true
-	params.NumKeptBlocks = 5
+	params.AppConfig.AppDataPath = adsDir
+	params.AppConfig.ModbDataPath = modbDir
+	params.AppConfig.UseLiteDB = true
+	params.AppConfig.NumKeptBlocks = 5
 	testValidatorPubKey := ed25519.GenPrivKeyFromSecret([]byte("stress")).PubKey()
 	_app := app.NewApp(params, chainId, 0, log.NewNopLogger())
 	if _app.GetLatestBlockNum() == 0 {

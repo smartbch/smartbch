@@ -19,6 +19,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 
+	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -43,8 +44,8 @@ func TestTransferOK(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)
-	_app.WaitLock()
 	defer _app.Destroy()
+	_app.WaitLock()
 	initBal := testutils.DefaultInitBalance
 	require.Equal(t, initBal, _app.GetBalance(addr1).Uint64())
 	require.Equal(t, initBal, _app.GetBalance(addr2).Uint64())
@@ -144,8 +145,8 @@ func TestCheckTxNonce_serial(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2)
 	defer _app.Destroy()
 
-	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	require.Equal(t, uint64(0), tx1.Nonce())
 	require.Equal(t, uint64(0), tx2.Nonce())
 
@@ -159,8 +160,8 @@ func TestCheckTx_hasPending(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key2)
 	defer _app.Destroy()
 
-	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	_app.AddTxsInBlock(1, tx1)
 	require.Equal(t, app.HasPendingTx, _app.CheckNewTxABCI(tx2))
 }
@@ -175,19 +176,19 @@ func TestCheckTx_sep206SenderSet(t *testing.T) {
 
 	// addr1 => addr2
 	data := seps.PackSEP20Transfer(addr2, big.NewInt(101))
-	tx1, _ := _app.MakeAndSignTx(key1, &seps.SEP206Addr, 0, data, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &seps.SEP206Addr, 0, data)
 
 	// addr2 => addr3
 	data = seps.PackSEP20Transfer(addr3, big.NewInt(102))
-	tx2, _ := _app.MakeAndSignTx(key2, &seps.SEP206Addr, 0, data, 0)
+	tx2, _ := _app.MakeAndSignTx(key2, &seps.SEP206Addr, 0, data)
 
 	// addr3 => addr4
 	data = seps.PackSEP20Transfer(addr4, big.NewInt(103))
-	tx3, _ := _app.MakeAndSignTx(key3, &seps.SEP206Addr, 0, data, 0)
+	tx3, _ := _app.MakeAndSignTx(key3, &seps.SEP206Addr, 0, data)
 
 	// addr4 => addr1
 	data = seps.PackSEP20Transfer(addr1, big.NewInt(103))
-	tx4, _ := _app.MakeAndSignTx(key4, &seps.SEP206Addr, 0, data, 0)
+	tx4, _ := _app.MakeAndSignTx(key4, &seps.SEP206Addr, 0, data)
 
 	_app.ExecTxsInBlock(tx1, tx2, tx3)
 	_app.EnsureTxSuccess(tx1.Hash())
@@ -199,17 +200,11 @@ func TestCheckTx_sep206SenderSet(t *testing.T) {
 	require.True(t, _app.IsInSenderSet(addr3))
 	require.False(t, _app.IsInSenderSet(addr4))
 
-	checkResp := _app.CheckTx(abci.RequestCheckTx{
-		Type: abci.CheckTxType_Recheck,
-		Tx:   testutils.MustEncodeTx(tx1),
-	})
-	require.Equal(t, app.AccountNonceMismatch, checkResp.Code)
+	checkResp := _app.RecheckTxABCI(tx1)
+	require.Equal(t, app.AccountNonceMismatch, checkResp)
 
-	checkResp = _app.CheckTx(abci.RequestCheckTx{
-		Type: abci.CheckTxType_Recheck,
-		Tx:   testutils.MustEncodeTx(tx4),
-	})
-	require.Equal(t, abci.CodeTypeOK, checkResp.Code)
+	checkResp = _app.RecheckTxABCI(tx4)
+	require.Equal(t, abci.CodeTypeOK, checkResp)
 }
 
 func TestIncorrectNonceErr(t *testing.T) {
@@ -218,8 +213,8 @@ func TestIncorrectNonceErr(t *testing.T) {
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil, 0)
-	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil, 0)
+	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
+	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 
 	h := _app.ExecTxsInBlock(tx1, tx2)
 	require.Len(t, _app.GetBlock(h-1).Transactions, 1)
@@ -232,6 +227,107 @@ func TestIncorrectNonceErr(t *testing.T) {
 	require.Len(t, txs, 1)
 	require.Equal(t, tx1.Hash().Hex(),
 		"0x"+hex.EncodeToString(txs[0].Hash[:]))
+}
+
+func TestGasRefund_NoAdjustGasUsed(t *testing.T) {
+	oldAdjustGasUsed := ebp.AdjustGasUsed
+	ebp.AdjustGasUsed = false
+	defer func() { ebp.AdjustGasUsed = oldAdjustGasUsed }()
+
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	initBal := testutils.DefaultInitBalance
+	require.Equal(t, initBal, _app.GetBalance(addr1).Uint64())
+	require.Equal(t, initBal, _app.GetBalance(addr2).Uint64())
+	tx, _ := _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, 1000000, 1)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	moTx := _app.GetTx(tx.Hash())
+	require.Equal(t, uint64(21000), moTx.GasUsed)
+
+	require.Equal(t, initBal-100-21000, _app.GetBalance(addr1).Uint64())
+	require.Equal(t, initBal+100, _app.GetBalance(addr2).Uint64())
+}
+
+func TestGasRefund_AdjustGasUsed(t *testing.T) {
+	oldAdjustGasUsed := ebp.AdjustGasUsed
+	ebp.AdjustGasUsed = true
+	defer func() { ebp.AdjustGasUsed = oldAdjustGasUsed }()
+
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	tests := []struct {
+		gasLimit uint64
+		gasUsed  uint64
+	}{
+		{gasLimit: 21000, gasUsed: 21000},
+		{gasLimit: 21001, gasUsed: 21000},
+		{gasLimit: 42000, gasUsed: 21000},
+		{gasLimit: 42001, gasUsed: 21000 + 21001/2},
+		{gasLimit: 50000, gasUsed: 21000 + 29000/2},
+		{gasLimit: 84000, gasUsed: 21000 + 63000/2},
+		{gasLimit: 84001, gasUsed: 84001},
+		{gasLimit: 99999, gasUsed: 99999},
+	}
+
+	for _, test := range tests {
+		bal1 := _app.GetBalance(addr1).Uint64()
+		bal2 := _app.GetBalance(addr2).Uint64()
+
+		tx, _ := _app.MakeAndExecTxInBlockWithGas(key1, addr2, 100, nil, test.gasLimit, 1)
+		_app.EnsureTxSuccess(tx.Hash())
+
+		moTx := _app.GetTx(tx.Hash())
+		require.Equal(t, test.gasUsed, moTx.GasUsed)
+
+		require.Equal(t, bal1-100-test.gasUsed, _app.GetBalance(addr1).Uint64())
+		require.Equal(t, bal2+100, _app.GetBalance(addr2).Uint64())
+	}
+}
+
+func TestMinGas(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppWithInitAmt(uint256.NewInt().SetUint64(1e18), key1, key2)
+	defer _app.Destroy()
+
+	ctx := _app.GetRunTxContext()
+	staking.SaveMinGasPrice(ctx, 10000, true)
+	staking.SaveMinGasPrice(ctx, 10000, false)
+	ctx.Close(true)
+	_app.ExecTxsInBlock()
+
+	tx, _ := _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 1234)
+	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
+	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 9999)
+	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+
+	_app.ExecTxInBlock(tx)
+	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10000)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10001)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 12345)
+	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+	_app.ExecTxInBlock(tx)
+	_app.EnsureTxSuccess(tx.Hash())
 }
 
 func TestJson(t *testing.T) {

@@ -38,6 +38,9 @@ contract StakingTest is IStaking {
     }
 
     function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower) {
-        return (0, 0);
+        bytes4 _selector = bytes4(keccak256(bytes("sumVotingPower(address[])")));
+        (bool ok, bytes memory data) = stakingAddr.call(abi.encodeWithSelector(_selector, addrList));
+        require(ok, string(data));
+        (summedPower, totalPower) = abi.decode(data, (uint, uint));
     }
 }

@@ -21,6 +21,7 @@ import (
 
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/ebp"
+	moevmtc "github.com/smartbch/moeingevm/evmwrap/testcase"
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
@@ -36,6 +37,7 @@ const (
 
 const (
 	DefaultGasLimit    = 1000000
+	DefaultGasPrice    = 0
 	DefaultInitBalance = uint64(10000000)
 	BlockInterval      = 5 * time.Second
 	debug              = false
@@ -57,20 +59,30 @@ type TestApp struct {
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(time.Now(), bigutils.NewU256(DefaultInitBalance), ed25519.GenPrivKey().PubKey(), keys...)
+	return CreateTestApp0(time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
 }
 
-func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey crypto.PubKey, keys ...string) *TestApp {
-	_ = os.RemoveAll(testAdsDir)
-	_ = os.RemoveAll(testMoDbDir)
+func CreateTestAppWithInitAmt(initAmt *uint256.Int, keys ...string) *TestApp {
+	return CreateTestApp0(time.Now(), ed25519.GenPrivKey().PubKey(), initAmt, keys...)
+}
+
+func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
+	err := os.RemoveAll(testAdsDir)
+	if err != nil {
+		panic("remove test ads failed " + err.Error())
+	}
+	err = os.RemoveAll(testMoDbDir)
+	if err != nil {
+		panic("remove test modb failed " + err.Error())
+	}
 	params := param.DefaultConfig()
-	params.AppDataPath = testAdsDir
-	params.ModbDataPath = testMoDbDir
+	params.AppConfig.AppDataPath = testAdsDir
+	params.AppConfig.ModbDataPath = testMoDbDir
 	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
-		Alloc: KeysToGenesisAlloc(testInitAmt, keys),
+		Alloc: KeysToGenesisAlloc(initAmt, keys),
 	}
 
 	testValidator := &app.Validator{}
@@ -110,20 +122,43 @@ func CreateTestApp0(startTime time.Time, testInitAmt *uint256.Int, valPubKey cry
 	}
 }
 
+func (_app *TestApp) ReloadApp() *TestApp {
+	//_app.Stop()
+	params := param.DefaultConfig()
+	params.AppConfig.AppDataPath = testAdsDir
+	params.AppConfig.ModbDataPath = testMoDbDir
+	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
+	allBalance := uint256.NewInt()
+	if checkAllBalance {
+		allBalance = _app.SumAllBalance()
+	}
+	return &TestApp{
+		App:            newApp,
+		initAllBalance: allBalance,
+	}
+}
+
 func (_app *TestApp) Destroy() {
 	allBalance := uint256.NewInt()
 	if checkAllBalance {
 		allBalance = _app.App.SumAllBalance()
 	}
-
-	_app.Stop()
-	_ = os.RemoveAll(testAdsDir)
-	_ = os.RemoveAll(testMoDbDir)
-
 	if checkAllBalance && !allBalance.Eq(_app.initAllBalance) {
 		panic(fmt.Sprintf("balance check failed! init balance: %s, final balance: %s",
 			_app.initAllBalance.Hex(), allBalance.Hex()))
 	}
+
+	preState := _app.GetWordState()
+	_app.Stop()
+	newApp := _app.ReloadApp()
+	postState := newApp.GetWordState()
+	isSame, err := moevmtc.CompareWorldState(preState, postState)
+	if !isSame {
+		panic(fmt.Sprintf("world state not same after app reload: %s", err))
+	}
+	newApp.Stop()
+	_ = os.RemoveAll(testAdsDir)
+	_ = os.RemoveAll(testMoDbDir)
 }
 
 func (_app *TestApp) WaitMS(n int64) {
@@ -251,7 +286,13 @@ func (_app *TestApp) AddBlocksToHistory(blocks ...*modbtypes.Block) {
 }
 
 func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
-	toAddr *gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
+	toAddr *gethcmn.Address, val int64, data []byte) (*gethtypes.Transaction, gethcmn.Address) {
+
+	return _app.MakeAndSignTxWithGas(hexPrivKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice)
+}
+
+func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
 
 	privKey, _, err := ethutils.HexToPrivKey(hexPrivKey)
 	if err != nil {
@@ -265,7 +306,7 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(gasPrice),
-		Gas:      DefaultGasLimit,
+		Gas:      gasLimit,
 		To:       toAddr,
 		Value:    big.NewInt(val),
 		Data:     data,
@@ -290,7 +331,7 @@ func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transacti
 }
 
 func (_app *TestApp) DeployContractInBlock(privKey string, data []byte) (*gethtypes.Transaction, int64, gethcmn.Address) {
-	tx, addr := _app.MakeAndSignTx(privKey, nil, 0, data, 0)
+	tx, addr := _app.MakeAndSignTx(privKey, nil, 0, data)
 	h := _app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
 	return tx, h, contractAddr
@@ -299,12 +340,12 @@ func (_app *TestApp) DeployContractInBlock(privKey string, data []byte) (*gethty
 func (_app *TestApp) MakeAndExecTxInBlock(privKey string,
 	toAddr gethcmn.Address, val int64, data []byte) (*gethtypes.Transaction, int64) {
 
-	return _app.MakeAndExecTxInBlockWithGasPrice(privKey, toAddr, val, data, 0)
+	return _app.MakeAndExecTxInBlockWithGas(privKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice)
 }
-func (_app *TestApp) MakeAndExecTxInBlockWithGasPrice(privKey string,
-	toAddr gethcmn.Address, val int64, data []byte, gasPrice int64) (*gethtypes.Transaction, int64) {
+func (_app *TestApp) MakeAndExecTxInBlockWithGas(privKey string,
+	toAddr gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, int64) {
 
-	tx, _ := _app.MakeAndSignTx(privKey, &toAddr, val, data, gasPrice)
+	tx, _ := _app.MakeAndSignTxWithGas(privKey, &toAddr, val, data, gasLimit, gasPrice)
 	h := _app.ExecTxInBlock(tx)
 	return tx, h
 }
@@ -392,6 +433,13 @@ func (_app *TestApp) CheckNewTxABCI(tx *gethtypes.Transaction) uint32 {
 	res := _app.CheckTx(abci.RequestCheckTx{
 		Tx:   MustEncodeTx(tx),
 		Type: abci.CheckTxType_New,
+	})
+	return res.Code
+}
+func (_app *TestApp) RecheckTxABCI(tx *gethtypes.Transaction) uint32 {
+	res := _app.CheckTx(abci.RequestCheckTx{
+		Tx:   MustEncodeTx(tx),
+		Type: abci.CheckTxType_Recheck,
 	})
 	return res.Code
 }

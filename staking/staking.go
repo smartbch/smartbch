@@ -20,10 +20,21 @@ import (
 	"github.com/smartbch/smartbch/staking/types"
 )
 
+const (
+	SumVotingPowerGasPerByte uint64 = 25
+	SumVotingPowerBaseGas    uint64 = 10000
+
+	StatusSuccess int = 0 // because EVMC_SUCCESS = 0,
+	StatusFailed  int = 1 // because EVMC_FAILURE = 1,
+)
+
+const (
+	StakingContractSequence uint64 = math.MaxUint64 - 2 /*uint64(-3)*/
+)
+
 var (
 	//contract address, 10000
-	StakingContractAddress  [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
-	StakingContractSequence uint64   = math.MaxUint64 - 2 /*uint64(-3)*/
+	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
 	/*interface Staking {
 	    //0x24d1ed5d
@@ -51,7 +62,9 @@ var (
 	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
 	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+)
 
+var (
 	/*------param------*/
 	//staking
 	InitialStakingAmount *uint256.Int = uint256.NewInt().Mul(
@@ -63,7 +76,8 @@ var (
 	SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
 		uint256.NewInt().SetUint64(10),
 		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
-	GasOfStakingExternalOp uint64 = 400_000
+	GasOfValidatorOp   uint64 = 400_000
+	GasOfMinGasPriceOp uint64 = 50_000
 
 	//minGasPrice
 	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
@@ -71,7 +85,9 @@ var (
 	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every tx can change
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
 	MinGasPriceLowerBound       uint64 = 1_000_000_000   //1gwei
+)
 
+var (
 	/*------error info------*/
 	InvalidCallData                   = errors.New("invalid call data")
 	InvalidSelector                   = errors.New("invalid selector")
@@ -83,13 +99,6 @@ var (
 	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
 	InvalidArgument                   = errors.New("invalid argument")
 	CreateValidatorCoinLtInitAmount   = errors.New("validator's staking coin less than init amount")
-)
-
-const (
-	SumVotingPowerGasPerByte uint64 = 25
-	SumVotingPowerBaseGas    uint64 = 10000
-	StatusSuccess            int    = 0 // because EVMC_SUCCESS = 0,
-	StatusFailed             int    = 1 // because EVMC_FAILURE = 1,
 )
 
 // get a slot number to store an epoch's validators
@@ -119,7 +128,7 @@ func (_ *StakingContractExecutor) Init(ctx *mevmtypes.Context) {
 		stakingAcc.UpdateSequence(StakingContractSequence)
 		ctx.SetAccount(StakingContractAddress, stakingAcc)
 	}
-	LoadReadonlyValiatorsInfo(ctx)
+	LoadReadonlyValidatorsInfo(ctx)
 }
 
 func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
@@ -161,7 +170,7 @@ func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 
 var readonlyStakingInfo *types.StakingInfo
 
-func LoadReadonlyValiatorsInfo(ctx *mevmtypes.Context) {
+func LoadReadonlyValidatorsInfo(ctx *mevmtypes.Context) {
 	info := LoadStakingInfo(ctx)
 	readonlyStakingInfo = &info
 }
@@ -178,9 +187,9 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 	}
 	input = input[4+32*2:] // ignore selector, offset, and length
 	addrSet := make(map[[20]byte]struct{}, len(input)/32)
-	for i := 0; i+32 < len(input); i += 32 {
+	for i := 0; i+32 <= len(input); i += 32 {
 		var addr [20]byte
-		copy(addr[:], input[i*32+12:i*32+32])
+		copy(addr[:], input[i+12:i+32])
 		addrSet[addr] = struct{}{}
 	}
 	summedPower := int64(0)
@@ -220,7 +229,7 @@ func stringFromBytes(bz []byte) string {
 // create a new validator with rewardTo, intro and pubkey fields, and stake it with some coins
 func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfValidatorOp
 	callData := tx.Data[4:]
 	if len(callData) < 96 {
 		outData = []byte(InvalidCallData.Error())
@@ -257,7 +266,7 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 // edit a new validator's rewardTo and intro fields (pubkey cannot change), and stake it with some more coins
 func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfValidatorOp
 	callData := tx.Data[4:]
 	if len(callData) < 64 {
 		outData = []byte(InvalidCallData.Error())
@@ -323,7 +332,7 @@ func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingA
 // a validator marks itself as "retiring", then at the next epoch it will not be elected as a validator
 func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfValidatorOp
 
 	info := LoadStakingInfo(ctx)
 
@@ -343,7 +352,7 @@ func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []m
 
 func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
-	gasUsed = GasOfStakingExternalOp
+	gasUsed = GasOfMinGasPriceOp
 	mGP := LoadMinGasPrice(ctx, false)
 	lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
 	info := LoadStakingInfo(ctx)
@@ -563,10 +572,10 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	stakingAcc.UpdateBalance(stakingAccBalance)
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
 
-	//TODO: we need to uncomment these lines to burn half of the collected fees
-	//halfFeeToBurn := uint256.NewInt().Rsh(collectedFee, 1)
-	//collectedFee.Sub(collectedFee, halfFeeToBurn)
-	//ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
+	//burn half of the collected fees
+	halfFeeToBurn := uint256.NewInt().Rsh(collectedFee, 1)
+	collectedFee.Sub(collectedFee, halfFeeToBurn)
+	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
 
 	totalVotingPower, votedPower := int64(0), int64(0)
 	for _, val := range info.GetActiveValidators(MinimumStakingAmount) {

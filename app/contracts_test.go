@@ -54,7 +54,7 @@ c664736f6c634300060c0033
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp0(time.Now(),
-		bigutils.NewU256(1000000000), ed25519.GenPrivKey().PubKey(), key)
+		ed25519.GenPrivKey().PubKey(), bigutils.NewU256(1000000000), key)
 	defer _app.Destroy()
 
 	// see testdata/basic/contracts/EventEmitter.sol
@@ -342,7 +342,7 @@ func TestContractAdd(t *testing.T) {
 	param.Lsh(param, 32)
 	param.Or(param, big.NewInt(6))
 	calldata := testAddABI.MustPack("run", addr2, param)
-	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 120 /*value*/, calldata, 2 /*gasprice*/)
+	_app.MakeAndExecTxInBlockWithGas(key1, contractAddr, 120 /*value*/, calldata, testutils.DefaultGasLimit, 2 /*gasprice*/)
 
 	ctx := _app.GetRpcContext()
 	//conAcc := ctx.GetAccount(contractAddr)
@@ -363,10 +363,66 @@ func TestContractAdd(t *testing.T) {
 		require.Equal(t, res[i], n.Int64())
 	}
 	_app.ExecTxInBlock(nil)
-	_app.MakeAndExecTxInBlockWithGasPrice(key1, contractAddr, 2 /*value*/, calldata, 1 /*gasprice*/)
+	_app.MakeAndExecTxInBlockWithGas(key1, contractAddr, 2 /*value*/, calldata, testutils.DefaultGasLimit, 1 /*gasprice*/)
 	_app.ExecTxInBlock(nil)
 	ctx = _app.GetRpcContext()
 	require.Equal(t, uint64(122), ctx.GetAccount(addr2).Balance().Uint64())
 	fmt.Printf("addr1's balance %d\n", ctx.GetAccount(addr1).Balance().ToBig())
 	ctx.Close(false)
+}
+
+func TestEIP3541(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	// https://eips.ethereum.org/EIPS/eip-3541#test-cases
+	tx, _, _ := _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360016000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, _ = _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360026000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, _ = _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360036000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, _ = _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60ef60005360206000f3"))
+	_app.EnsureTxFailed(tx.Hash(), "failure")
+
+	tx, _, addr := _app.DeployContractInBlock(key1, testutils.HexToBytes("0x60fe60005360016000f3"))
+	_app.EnsureTxSuccess(tx.Hash())
+	require.Equal(t, "fe", hex.EncodeToString(_app.GetCode(addr)))
+}
+
+func TestCallPrecompileFromEOA(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	sha256Addr := gethcmn.BytesToAddress([]byte{0x02})
+	tx, _ := _app.MakeAndExecTxInBlock(key1, sha256Addr, 0, testutils.HexToBytes("0x1234"))
+	_app.EnsureTxSuccess(tx.Hash())
+}
+
+func TestGetCodeBug(t *testing.T) {
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b5060cc8061001f6000396000f3fe60
+80604052348015600f57600080fd5b506004361060325760003560e01c806361
+bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
+8082815260200191505060405180910390f35b607c6004803603602081101560
+6757600080fd5b81019080803590602001909291905050506084565b005b6000
+5481565b8060008082825401925050819055505056fea2646970667358221220
+37865cfcfd438966956583c78d31220c05c0f1ebfd116aced883214fcb1096c6
+64736f6c634300060c0033
+`)
+
+	//key, _ := testutils.GenKeyAndAddr()
+	key := "7648adfae1b87581aa90509d64556138b463d8b6dded677455687cb395cf6cfa"
+
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+
+	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	require.NotEmpty(t, _app.GetCode(contractAddr))
 }
