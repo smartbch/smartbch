@@ -50,7 +50,6 @@ type AppConfig struct {
 	MainnetRPCPassword string `mapstructure:"mainnet-rpc-password"`
 	SmartBchRPCUrl     string `mapstructure:"smartbch-rpc-url"`
 	Speedup            bool   `mapstructure:"watcher-speedup"`
-	LogValidatorsInfo  bool   `mapstructure:"log-validators"`
 }
 
 type ChainConfig struct {

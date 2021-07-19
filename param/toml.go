@@ -62,9 +62,6 @@ smartbch-rpc-url = "{{ .SmartBchRPCUrl }}"
 
 # open epoch get to speedup mainnet block catch, work with "smartbch_rpc_url"
 watcher-speedup = {{ .Speedup }}
-
-# log validators info every block
-log-validators = {{ .LogValidatorsInfo }}
 `
 
 var configTemplate *template.Template

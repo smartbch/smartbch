@@ -41,7 +41,6 @@ const (
 	flagMainnetRpcPassword   = "mainnet-rpc-password"
 	flagSmartBchUrl          = "smartbch-url"
 	flagWatcherSpeedup       = "watcher-speedup"
-	flagLogValidators        = "log-validators"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -74,7 +73,6 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagMainnetRpcPassword, "88888888", "BCH Mainnet RPC user password")
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
-	cmd.Flags().Bool(flagLogValidators, false, "Log detailed validators info")
 
 	return cmd
 }

@@ -549,13 +549,13 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, newInfo)
-	if app.config.AppConfig.LogValidatorsInfo {
+	app.currValidators = newValidators
+	//log all validators info when validator set update
+	if len(app.validatorUpdate) != 0 {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
-		fmt.Println("ValidatorsInfo:", string(bz))
+		app.logger.Debug(fmt.Sprintf("ValidatorsInfo:%s", string(bz)))
 	}
-
-	app.currValidators = newValidators
 }
 
 func (app *App) syncBlockInfo() *types.BlockInfo {
