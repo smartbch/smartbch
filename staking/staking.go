@@ -80,7 +80,7 @@ var (
 	GasOfMinGasPriceOp uint64 = 50_000
 
 	//minGasPrice
-	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
+	DefaultMinGasPrice          uint64 = 0 //10gwei
 	MinGasPriceDeltaRateInBlock uint64 = 16
 	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every tx can change
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
