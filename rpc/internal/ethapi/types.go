@@ -5,26 +5,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-// Copied the Account and StorageResult types since they are registered under an
+// Copied the Transaction, SendTxArgs and CallArgs types since they are registered under an
 // internal pkg on geth.
-
-// AccountResult struct for account proof
-type AccountResult struct {
-	Address      common.Address  `json:"address"`
-	AccountProof []string        `json:"accountProof"`
-	Balance      *hexutil.Big    `json:"balance"`
-	CodeHash     common.Hash     `json:"codeHash"`
-	Nonce        hexutil.Uint64  `json:"nonce"`
-	StorageHash  common.Hash     `json:"storageHash"`
-	StorageProof []StorageResult `json:"storageProof"`
-}
-
-// StorageResult defines the format for storage proof return
-type StorageResult struct {
-	Key   string       `json:"key"`
-	Value *hexutil.Big `json:"value"`
-	Proof []string     `json:"proof"`
-}
 
 // Transaction represents a transaction returned to RPC clients.
 type Transaction struct {
@@ -68,18 +50,4 @@ type CallArgs struct {
 	GasPrice *hexutil.Big    `json:"gasPrice"`
 	Value    *hexutil.Big    `json:"value"`
 	Data     *hexutil.Bytes  `json:"data"`
-}
-
-// Account indicates the overriding fields of account during the execution of
-// a message call.
-// NOTE: state and stateDiff can't be specified at the same time. If state is
-// set, message execution will only use the data in the given state. Otherwise
-// if statDiff is set, all diff will be applied first and then execute the call
-// message.
-type Account struct {
-	Nonce     *hexutil.Uint64              `json:"nonce"`
-	Code      *hexutil.Bytes               `json:"code"`
-	Balance   **hexutil.Big                `json:"balance"`
-	State     *map[common.Hash]common.Hash `json:"state"`
-	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`
 }
