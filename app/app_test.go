@@ -44,8 +44,8 @@ func TestTransferOK(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)
-	_app.WaitLock()
 	defer _app.Destroy()
+	_app.WaitLock()
 	initBal := testutils.DefaultInitBalance
 	require.Equal(t, initBal, _app.GetBalance(addr1).Uint64())
 	require.Equal(t, initBal, _app.GetBalance(addr2).Uint64())

@@ -54,3 +54,7 @@ func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) { // breaks normal fu
 func (app *App) SumAllBalance() *uint256.Int {
 	return moevmtc.GetWorldStateFromMads(app.mads).SumAllBalance()
 }
+
+func (app *App) GetWordState() *moevmtc.WorldState {
+	return moevmtc.GetWorldStateFromMads(app.mads)
+}

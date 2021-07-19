@@ -21,6 +21,7 @@ import (
 
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/ebp"
+	moevmtc "github.com/smartbch/moeingevm/evmwrap/testcase"
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
@@ -66,8 +67,14 @@ func CreateTestAppWithInitAmt(initAmt *uint256.Int, keys ...string) *TestApp {
 }
 
 func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
-	_ = os.RemoveAll(testAdsDir)
-	_ = os.RemoveAll(testMoDbDir)
+	err := os.RemoveAll(testAdsDir)
+	if err != nil {
+		panic("remove test ads failed " + err.Error())
+	}
+	err = os.RemoveAll(testMoDbDir)
+	if err != nil {
+		panic("remove test modb failed " + err.Error())
+	}
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
@@ -115,20 +122,43 @@ func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint2
 	}
 }
 
+func (_app *TestApp) ReloadApp() *TestApp {
+	//_app.Stop()
+	params := param.DefaultConfig()
+	params.AppConfig.AppDataPath = testAdsDir
+	params.AppConfig.ModbDataPath = testMoDbDir
+	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
+	allBalance := uint256.NewInt()
+	if checkAllBalance {
+		allBalance = _app.SumAllBalance()
+	}
+	return &TestApp{
+		App:            newApp,
+		initAllBalance: allBalance,
+	}
+}
+
 func (_app *TestApp) Destroy() {
 	allBalance := uint256.NewInt()
 	if checkAllBalance {
 		allBalance = _app.App.SumAllBalance()
 	}
-
-	_app.Stop()
-	_ = os.RemoveAll(testAdsDir)
-	_ = os.RemoveAll(testMoDbDir)
-
 	if checkAllBalance && !allBalance.Eq(_app.initAllBalance) {
 		panic(fmt.Sprintf("balance check failed! init balance: %s, final balance: %s",
 			_app.initAllBalance.Hex(), allBalance.Hex()))
 	}
+
+	preState := _app.GetWordState()
+	_app.Stop()
+	newApp := _app.ReloadApp()
+	postState := newApp.GetWordState()
+	isSame, err := moevmtc.CompareWorldState(preState, postState)
+	if !isSame {
+		panic(fmt.Sprintf("world state not same after app reload: %s", err))
+	}
+	newApp.Stop()
+	_ = os.RemoveAll(testAdsDir)
+	_ = os.RemoveAll(testMoDbDir)
 }
 
 func (_app *TestApp) WaitMS(n int64) {
