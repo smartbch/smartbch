@@ -222,6 +222,9 @@ func (api *ethAPI) GetBlockTransactionCountByNumber(blockNum gethrpc.BlockNumber
 func (api *ethAPI) GetTransactionByBlockHashAndIndex(hash common.Hash, idx hexutil.Uint) (*rpctypes.Transaction, error) {
 	block, err := api.backend.BlockByHash(hash)
 	if err != nil {
+		if err == types.ErrBlockNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return api.getTxByIdx(block, idx)
@@ -231,6 +234,9 @@ func (api *ethAPI) GetTransactionByBlockHashAndIndex(hash common.Hash, idx hexut
 func (api *ethAPI) GetTransactionByBlockNumberAndIndex(blockNum gethrpc.BlockNumber, idx hexutil.Uint) (*rpctypes.Transaction, error) {
 	block, err := api.getBlockByNum(blockNum)
 	if err != nil {
+		if err == types.ErrBlockNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return api.getTxByIdx(block, idx)

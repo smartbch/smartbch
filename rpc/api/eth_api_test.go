@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"math"
 	"math/big"
-	"strings"
 	"sync"
 	"testing"
 
@@ -27,7 +26,6 @@ import (
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
-// code, rtCode, _ := testutils.MustCompileSolStr(counterContract)
 var counterContractCreationBytecode = testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060b28061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060325760003560e01c806361
@@ -131,15 +129,16 @@ func TestGetBalance(t *testing.T) {
 func TestGetTxCount(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
+	_, addr3 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1, key2)
 	_app.WaitLock()
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	nonce, err := _api.GetTransactionCount(addr1, 0)
+	nonce, err := _api.GetTransactionCount(addr1, -1)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
-	nonce, err = _api.GetTransactionCount(addr2, 0)
+	nonce, err = _api.GetTransactionCount(addr2, -1)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 
@@ -147,18 +146,23 @@ func TestGetTxCount(t *testing.T) {
 		tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
 		_app.EnsureTxSuccess(tx.Hash())
 
-		nonce, err = _api.GetTransactionCount(addr1, 0)
+		nonce, err = _api.GetTransactionCount(addr1, -1)
 		require.NoError(t, err)
 		require.Equal(t, hexutil.Uint64(i+1), *nonce)
 	}
 
-	nonce, err = _api.GetTransactionCount(addr2, 0)
+	nonce, err = _api.GetTransactionCount(addr2, -1)
+	require.NoError(t, err)
+	require.Equal(t, hexutil.Uint64(0), *nonce)
+
+	nonce, err = _api.GetTransactionCount(addr3, -1)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 }
 
 func TestGetCode(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	_app.WaitLock()
 	defer _app.Destroy()
@@ -172,13 +176,18 @@ func TestGetCode(t *testing.T) {
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	c, err := _api.GetCode(addr, 0)
+	c, err := _api.GetCode(addr, -1)
 	require.NoError(t, err)
 	require.Equal(t, "0x1234", c.String())
+
+	c, err = _api.GetCode(addr2, -1)
+	require.NoError(t, err)
+	require.Equal(t, "0x", c.String())
 }
 
 func TestGetStorageAt(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
+	_, addr2 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	_app.WaitLock()
 	defer _app.Destroy()
@@ -186,18 +195,23 @@ func TestGetStorageAt(t *testing.T) {
 
 	ctx := _app.GetRunTxContext()
 	seq := ctx.GetAccount(addr).Sequence()
-	sKeyHex := strings.Repeat("abcd", 16)
-	sKey, err := hex.DecodeString(sKeyHex)
-	require.NoError(t, err)
-
+	sKey := bytes.Repeat([]byte{0xab, 0xcd}, 16)
 	ctx.SetStorageAt(seq, string(sKey), []byte{0x12, 0x34})
 	ctx.Close(true)
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	sVal, err := _api.GetStorageAt(addr, "0x"+sKeyHex, 0)
+	sVal, err := _api.GetStorageAt(addr, "0x"+hex.EncodeToString(sKey), -1)
 	require.NoError(t, err)
 	require.Equal(t, "0x1234", sVal.String())
+
+	sVal, err = _api.GetStorageAt(addr, "0x7890", -1)
+	require.NoError(t, err)
+	require.Equal(t, "0x", sVal.String())
+
+	sVal, err = _api.GetStorageAt(addr2, "0x7890", -1)
+	require.NoError(t, err)
+	require.Equal(t, "0x", sVal.String())
 }
 
 func TestGetBlockByNumAndHash(t *testing.T) {
@@ -241,7 +255,15 @@ func TestGetBlockByNumAndHash_notFound(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	blk, err := _api.GetBlockByNumber(99, true)
+	blk, err := _api.GetBlockByNumber(99, false)
+	require.NoError(t, err)
+	require.Nil(t, blk)
+
+	blk, err = _api.GetBlockByNumber(99, true)
+	require.NoError(t, err)
+	require.Nil(t, blk)
+
+	blk, err = _api.GetBlockByHash(gethcmn.Hash{0x12, 0x34}, false)
 	require.NoError(t, err)
 	require.Nil(t, blk)
 
@@ -264,6 +286,9 @@ func TestGetBlockTxCountByHash(t *testing.T) {
 
 	cnt := _api.GetBlockTransactionCountByHash(hash)
 	require.Equal(t, hexutil.Uint(3), *cnt)
+
+	cnt = _api.GetBlockTransactionCountByHash(gethcmn.Hash{0x56, 0x78})
+	require.Nil(t, cnt)
 }
 
 func TestGetBlockTxCountByNum(t *testing.T) {
@@ -280,6 +305,9 @@ func TestGetBlockTxCountByNum(t *testing.T) {
 
 	cnt := _api.GetBlockTransactionCountByNumber(123)
 	require.Equal(t, hexutil.Uint(4), *cnt)
+
+	cnt = _api.GetBlockTransactionCountByNumber(999)
+	require.Nil(t, cnt)
 }
 
 func TestGetTxByBlockHashAndIdx(t *testing.T) {
@@ -297,6 +325,14 @@ func TestGetTxByBlockHashAndIdx(t *testing.T) {
 	tx, err := _api.GetTransactionByBlockHashAndIndex(blkHash, 2)
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x90}, tx.Hash)
+
+	tx, err = _api.GetTransactionByBlockHashAndIndex(blkHash, 99)
+	require.NoError(t, err)
+	require.Nil(t, tx)
+
+	tx, err = _api.GetTransactionByBlockHashAndIndex(gethcmn.Hash{0x56, 0x78}, 99)
+	require.NoError(t, err)
+	require.Nil(t, tx)
 }
 
 func TestGetTxByBlockNumAndIdx(t *testing.T) {
@@ -314,6 +350,14 @@ func TestGetTxByBlockNumAndIdx(t *testing.T) {
 	tx, err := _api.GetTransactionByBlockNumberAndIndex(123, 1)
 	require.NoError(t, err)
 	require.Equal(t, gethcmn.Hash{0x78}, tx.Hash)
+
+	tx, err = _api.GetTransactionByBlockNumberAndIndex(123, 99)
+	require.NoError(t, err)
+	require.Nil(t, tx)
+
+	tx, err = _api.GetTransactionByBlockNumberAndIndex(999, 99)
+	require.NoError(t, err)
+	require.Nil(t, tx)
 }
 
 func TestGetTxByHash(t *testing.T) {
@@ -378,13 +422,24 @@ func TestGetTxReceipt(t *testing.T) {
 	require.Equal(t, "f1f2f3", receipt["outData"])
 }
 
+func TestGetTxReceipt_notFound(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	_app.WaitLock()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	ret, err := _api.GetTransactionReceipt(gethcmn.Hash{0x78})
+	require.NoError(t, err)
+	require.Nil(t, ret)
+}
+
 func TestCall_NoFromAddr(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	_, err := _api.Call(ethapi.CallArgs{}, 0)
+	_, err := _api.Call(ethapi.CallArgs{}, -1)
 	require.NoError(t, err)
 }
 
@@ -401,7 +456,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(10),
-	}, 0)
+	}, -1)
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 
@@ -409,7 +464,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),
-	}, 0)
+	}, -1)
 	require.Error(t, err)
 	//require.Equal(t, []byte{}, []byte(ret))
 }
@@ -425,7 +480,7 @@ func TestCall_DeployContract(t *testing.T) {
 	ret, err := _api.Call(ethapi.CallArgs{
 		From: &fromAddr,
 		Data: testutils.ToHexutilBytes(counterContractCreationBytecode),
-	}, 0)
+	}, -1)
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 }
@@ -439,12 +494,12 @@ func TestCall_RunGetter(t *testing.T) {
 	_api := createEthAPI(_app)
 
 	// deploy contract
-	tx := gethtypes.NewContractCreation(0, big.NewInt(0), 100000, big.NewInt(1),
+	tx := ethutils.NewTx(0, nil, big.NewInt(0), 100000, big.NewInt(1),
 		counterContractCreationBytecode)
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), fromKey)
 	_app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(fromAddr, tx.Nonce())
-	rtCode, err := _api.GetCode(contractAddr, 0)
+	rtCode, err := _api.GetCode(contractAddr, -1)
 	require.NoError(t, err)
 	require.True(t, len(rtCode) > 0)
 
@@ -454,7 +509,7 @@ func TestCall_RunGetter(t *testing.T) {
 		//From: &fromAddr,
 		To:   &contractAddr,
 		Data: testutils.ToHexutilBytes(data),
-	}, 0)
+	}, -1)
 	require.NoError(t, err)
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000",
 		hex.EncodeToString(results))
@@ -474,23 +529,6 @@ func TestEstimateGas(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 96908, int(ret))
-}
-
-func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
-	backend := api.NewBackend(nil, _app.App)
-	return newEthAPI(backend, testKeys, _app.Logger())
-}
-
-func newMdbBlock(hash gethcmn.Hash, height int64,
-	txs []gethcmn.Hash) *modbtypes.Block {
-
-	b := testutils.NewMdbBlockBuilder().Hash(hash).Height(height)
-	for _, txHash := range txs {
-		b.Tx(txHash, []types.Log{
-			{BlockNumber: uint64(height)},
-		}...)
-	}
-	return b.Build()
 }
 
 func TestCall_Transfer_Random(t *testing.T) {
@@ -517,9 +555,26 @@ func testRandomTransfer() {
 				From:  &fromAddr,
 				To:    &toAddr,
 				Value: testutils.ToHexutilBig(10),
-			}, 0)
+			}, -1)
 			w.Done()
 		}()
 	}
 	w.Wait()
+}
+
+func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
+	backend := api.NewBackend(nil, _app.App)
+	return newEthAPI(backend, testKeys, _app.Logger())
+}
+
+func newMdbBlock(hash gethcmn.Hash, height int64,
+	txs []gethcmn.Hash) *modbtypes.Block {
+
+	b := testutils.NewMdbBlockBuilder().Hash(hash).Height(height)
+	for _, txHash := range txs {
+		b.Tx(txHash, []types.Log{
+			{BlockNumber: uint64(height)},
+		}...)
+	}
+	return b.Build()
 }
