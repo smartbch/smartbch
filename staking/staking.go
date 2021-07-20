@@ -661,6 +661,9 @@ EndTime:%d
 CurrentEpochNum:%d
 CurrentSmartBchBlockHeight:%d
 `, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height))
+	if len(epoch.Nominations) > param.StakingMaxValidatorCount {
+		epoch.Nominations = epoch.Nominations[:param.StakingMaxValidatorCount]
+	}
 	for _, n := range epoch.Nominations {
 		logger.Debug(fmt.Sprintf("Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
 	}
@@ -668,7 +671,7 @@ CurrentSmartBchBlockHeight:%d
 	SaveEpoch(ctx, info.CurrEpochNum, epoch)
 	pubkey2power := make(map[[32]byte]int64)
 	for _, v := range epoch.Nominations {
-		pubkey2power[v.Pubkey] = v.NominatedCount
+		pubkey2power[v.Pubkey] = 1
 	}
 	// distribute mature pending reward to rewardTo
 	endEpoch(ctx, stakingAcc, &info)

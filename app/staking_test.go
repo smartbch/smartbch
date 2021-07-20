@@ -529,10 +529,10 @@ func TestStakingDetermination(t *testing.T) {
 		vals = _app.GetValidatorsInfo()
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 4)
-		require.Equal(t, int64(300), vals.Validators[0].VotingPower)
-		require.Equal(t, int64(400), vals.Validators[1].VotingPower)
-		require.Equal(t, int64(500), vals.Validators[2].VotingPower)
-		require.Equal(t, int64(200), vals.Validators[3].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[1].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[2].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[3].VotingPower)
 
 		data = staking.PackEditValidator(addr3, [32]byte{'V', 'A', 'L', '3'})
 		tx, _ = _app.MakeAndExecTxInBlock(key3, staking.StakingContractAddress, 3000, data)
@@ -545,9 +545,9 @@ func TestStakingDetermination(t *testing.T) {
 		vals = _app.GetValidatorsInfo()
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 3)
-		require.Equal(t, int64(300), vals.Validators[0].VotingPower)
-		require.Equal(t, int64(400), vals.Validators[1].VotingPower)
-		require.Equal(t, int64(200), vals.Validators[3].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[1].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[3].VotingPower)
 
 		_app.AddEpochForTest(&types.Epoch{
 			Nominations: []*types.Nomination{
@@ -562,9 +562,9 @@ func TestStakingDetermination(t *testing.T) {
 		vals = _app.GetValidatorsInfo()
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 3)
-		require.Equal(t, int64(100), vals.Validators[0].VotingPower)
-		require.Equal(t, int64(200), vals.Validators[1].VotingPower)
-		require.Equal(t, int64(400), vals.Validators[3].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[1].VotingPower)
+		require.Equal(t, int64(1), vals.Validators[3].VotingPower)
 
 		_app.Destroy()
 		if i == 0 {
