@@ -1,6 +1,7 @@
 package staking
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -179,4 +180,25 @@ func TestRunWithFork(t *testing.T) {
 	require.Equal(t, int(101), len(w.hashToBlock))
 	require.Equal(t, 90, len(w.heightToFinalizedBlock))
 	require.Equal(t, int64(90), w.latestFinalizedHeight)
+}
+
+func TestEpochSort(t *testing.T) {
+	epoch := &types.Epoch{
+		Nominations: make([]*types.Nomination, 100),
+	}
+	for i := 0; i < 100; i++ {
+		epoch.Nominations[i] = &types.Nomination{
+			Pubkey:         [32]byte{byte(i)},
+			NominatedCount: int64(i/5 + 1),
+		}
+	}
+	sortEpochNominations(epoch)
+	epoch.Nominations = epoch.Nominations[:30]
+	i := 0
+	for j := 1; i < 30 && j < 30; j++ {
+		require.True(t, epoch.Nominations[i].NominatedCount > epoch.Nominations[j].NominatedCount ||
+			(epoch.Nominations[i].NominatedCount == epoch.Nominations[j].NominatedCount &&
+				bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0))
+		i++
+	}
 }

@@ -211,6 +211,15 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 
 // Generate a new block's information
 func (watcher *Watcher) generateNewEpoch() {
+	epoch := watcher.buildNewEpoch()
+	watcher.epochList = append(watcher.epochList, epoch)
+	watcher.logger.Debug("Generate new epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
+	watcher.EpochChan <- epoch
+	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
+	watcher.ClearOldData()
+}
+
+func (watcher *Watcher) buildNewEpoch() *types.Epoch {
 	epoch := &types.Epoch{
 		StartHeight: watcher.lastEpochEndHeight + 1,
 		Nominations: make([]*types.Nomination, 0, 10),
@@ -239,17 +248,19 @@ func (watcher *Watcher) generateNewEpoch() {
 	for _, v := range valMapByPubkey {
 		epoch.Nominations = append(epoch.Nominations, v)
 	}
+	sortEpochNominations(epoch)
+	return epoch
+}
+
+//sort by pubkey (small to big) first; then sort by nominationCount;
+//so nominations sort by NominationCount, if count is equal, smaller pubkey stand front
+func sortEpochNominations(epoch *types.Epoch) {
 	sort.Slice(epoch.Nominations, func(i, j int) bool {
-		if epoch.Nominations[i].NominatedCount > epoch.Nominations[j].NominatedCount {
-			return true
-		}
 		return bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0
 	})
-	watcher.epochList = append(watcher.epochList, epoch)
-	watcher.logger.Debug("Generate new epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
-	watcher.EpochChan <- epoch
-	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
-	watcher.ClearOldData()
+	sort.SliceStable(epoch.Nominations, func(i, j int) bool {
+		return epoch.Nominations[i].NominatedCount > epoch.Nominations[j].NominatedCount
+	})
 }
 
 func (watcher *Watcher) ClearOldData() {
