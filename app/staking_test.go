@@ -400,9 +400,9 @@ func TestSumVotingPower(t *testing.T) {
 	require.Len(t, vals.Validators, 4)
 	require.Len(t, vals.CurrValidators, 3)
 	require.Equal(t, int64(0), vals.Validators[0].VotingPower)
-	require.Equal(t, int64(300), vals.Validators[1].VotingPower)
-	require.Equal(t, int64(400), vals.Validators[2].VotingPower)
-	require.Equal(t, int64(500), vals.Validators[3].VotingPower)
+	require.Equal(t, int64(1), vals.Validators[1].VotingPower)
+	require.Equal(t, int64(1), vals.Validators[2].VotingPower)
+	require.Equal(t, int64(1), vals.Validators[3].VotingPower)
 
 	// see testdata/staking/contracts/StakingTest2
 	proxyCreationBytecode := testutils.HexToBytes(`
@@ -426,32 +426,32 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	summedPower, totalPower := staking.UnpackSumVotingPowerReturnData(outData)
-	require.Equal(t, "300", summedPower.String())
-	require.Equal(t, "1200", totalPower.String())
+	require.Equal(t, "1", summedPower.String())
+	require.Equal(t, "3", totalPower.String())
 
 	data = staking.PackSumVotingPower([]gethcmn.Address{addr1, addr2})
 	statusCode, statusStr, outData = _app.Call(addr1, contractAddr, data)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	summedPower, totalPower = staking.UnpackSumVotingPowerReturnData(outData)
-	require.Equal(t, "700", summedPower.String())
-	require.Equal(t, "1200", totalPower.String())
+	require.Equal(t, "2", summedPower.String())
+	require.Equal(t, "3", totalPower.String())
 
 	data = staking.PackSumVotingPower([]gethcmn.Address{addr1, addr2, addr3})
 	statusCode, statusStr, outData = _app.Call(addr1, contractAddr, data)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	summedPower, totalPower = staking.UnpackSumVotingPowerReturnData(outData)
-	require.Equal(t, "1200", summedPower.String())
-	require.Equal(t, "1200", totalPower.String())
+	require.Equal(t, "3", summedPower.String())
+	require.Equal(t, "3", totalPower.String())
 
 	data = staking.PackSumVotingPower([]gethcmn.Address{addr1, addr2, addr3, addr4})
 	statusCode, statusStr, outData = _app.Call(addr1, contractAddr, data)
 	require.Equal(t, "success", statusStr)
 	require.Equal(t, 0, statusCode)
 	summedPower, totalPower = staking.UnpackSumVotingPowerReturnData(outData)
-	require.Equal(t, "1200", summedPower.String())
-	require.Equal(t, "1200", totalPower.String())
+	require.Equal(t, "3", summedPower.String())
+	require.Equal(t, "3", totalPower.String())
 }
 
 func TestSumVotingPowerFromEOA(t *testing.T) {
