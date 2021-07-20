@@ -240,6 +240,9 @@ func (watcher *Watcher) generateNewEpoch() {
 		epoch.Nominations = append(epoch.Nominations, v)
 	}
 	sort.Slice(epoch.Nominations, func(i, j int) bool {
+		if epoch.Nominations[i].NominatedCount > epoch.Nominations[j].NominatedCount {
+			return true
+		}
 		return bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0
 	})
 	watcher.epochList = append(watcher.epochList, epoch)
