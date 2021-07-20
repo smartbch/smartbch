@@ -45,6 +45,7 @@ const (
 
 var (
 	checkAllBalance = GetIntEvn("UT_CHECK_ALL_BALANCE", 0) != 0
+	checkAppState   = GetIntEvn("UT_CHECK_APP_STATE", 1) != 0
 )
 
 // var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
@@ -150,13 +151,15 @@ func (_app *TestApp) Destroy() {
 
 	preState := _app.GetWordState()
 	_app.Stop()
-	newApp := _app.ReloadApp()
-	postState := newApp.GetWordState()
-	isSame, err := moevmtc.CompareWorldState(preState, postState)
-	if !isSame {
-		panic(fmt.Sprintf("world state not same after app reload: %s", err))
+	if checkAppState {
+		newApp := _app.ReloadApp()
+		postState := newApp.GetWordState()
+		isSame, err := moevmtc.CompareWorldState(preState, postState)
+		if !isSame {
+			panic(fmt.Sprintf("world state not same after app reload: %s", err))
+		}
+		newApp.Stop()
 	}
-	newApp.Stop()
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
 }
