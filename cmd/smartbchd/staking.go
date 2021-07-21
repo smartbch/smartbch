@@ -40,10 +40,10 @@ smartbchd staking \
 --consensus-pubkey=f7847ca2afd06fedcd2c404c6e99db4d5475e0746154a550fe72990657675dc9 \
 --staking-coin=10000000000000 \
 --introduction="my node" \
---reward_to=0x9887310499DB9E65411FC0A57689B4429755c372 \
+--reward-to=0x9887310499DB9E65411FC0A57689B4429755c372 \
 --nonce=1 \
 --chain-id=0x2710 \
---gasPrice=1000 \
+--gas-price=1000 \
 --type="create" \
 --verbose
 `,
