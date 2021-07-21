@@ -35,16 +35,16 @@ func StakingCmd(ctx *Context) *cobra.Command {
 		Use:   "staking",
 		Short: "call staking contract method",
 		Example: `
-smartbchd staking 
---validator-key=
---staking-coin=10000000000000 
---introduction="freeman node"
---pubkey=
---reward_to=
---nonce=
---chain-id=
---gasPrice=
---type="create"
+smartbchd staking \
+--validator-key=07427a59913df1ae8af709f60f536ddba122b0afa8908291471ca58c603a7447 \
+--consensus-pubkey=f7847ca2afd06fedcd2c404c6e99db4d5475e0746154a550fe72990657675dc9 \
+--staking-coin=10000000000000 \
+--introduction="my node" \
+--reward_to=0x9887310499DB9E65411FC0A57689B4429755c372 \
+--nonce=1 \
+--chain-id=0x2710 \
+--gasPrice=1000 \
+--type="create" \
 --verbose
 `,
 		RunE: func(_ *cobra.Command, args []string) error {
