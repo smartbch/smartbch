@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/smartbch/smartbch/param"
 	"os"
 
 	"github.com/tendermint/tendermint/libs/log"
+
+	"github.com/smartbch/smartbch/param"
 )
 
 var (

@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 

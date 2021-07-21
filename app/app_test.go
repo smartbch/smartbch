@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	//"sync"
 	"testing"
 	"time"
 

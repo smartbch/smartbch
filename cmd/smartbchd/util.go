@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/smartbch/smartbch/param"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -20,6 +19,8 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/smartbch/smartbch/param"
 )
 
 func FileExists(filePath string) bool {

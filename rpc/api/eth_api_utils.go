@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/smartbch/smartbch/param"
 	"math/big"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
@@ -16,6 +15,7 @@ import (
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
+	"github.com/smartbch/smartbch/param"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
