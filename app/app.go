@@ -505,7 +505,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, app.lastMinGasPrice, param.MaxTxGasLimit)
+	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	go app.postCommit(bi)

@@ -290,44 +290,44 @@ func TestGasRefund_AdjustGasUsed(t *testing.T) {
 	}
 }
 
-func TestMinGas(t *testing.T) {
-	key1, _ := testutils.GenKeyAndAddr()
-	key2, addr2 := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestAppWithInitAmt(uint256.NewInt().SetUint64(1e18), key1, key2)
-	defer _app.Destroy()
-
-	ctx := _app.GetRunTxContext()
-	staking.SaveMinGasPrice(ctx, 10000, true)
-	staking.SaveMinGasPrice(ctx, 10000, false)
-	ctx.Close(true)
-	_app.ExecTxsInBlock()
-
-	tx, _ := _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 1234)
-	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
-	_app.ExecTxInBlock(tx)
-	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
-
-	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 9999)
-	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
-
-	_app.ExecTxInBlock(tx)
-	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
-
-	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10000)
-	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
-	_app.ExecTxInBlock(tx)
-	_app.EnsureTxSuccess(tx.Hash())
-
-	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10001)
-	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
-	_app.ExecTxInBlock(tx)
-	_app.EnsureTxSuccess(tx.Hash())
-
-	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 12345)
-	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
-	_app.ExecTxInBlock(tx)
-	_app.EnsureTxSuccess(tx.Hash())
-}
+//func TestMinGas(t *testing.T) {
+//	key1, _ := testutils.GenKeyAndAddr()
+//	key2, addr2 := testutils.GenKeyAndAddr()
+//	_app := testutils.CreateTestAppWithInitAmt(uint256.NewInt().SetUint64(1e18), key1, key2)
+//	defer _app.Destroy()
+//
+//	ctx := _app.GetRunTxContext()
+//	staking.SaveMinGasPrice(ctx, 10000, true)
+//	staking.SaveMinGasPrice(ctx, 10000, false)
+//	ctx.Close(true)
+//	_app.ExecTxsInBlock()
+//
+//	tx, _ := _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 1234)
+//	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+//	_app.ExecTxInBlock(tx)
+//	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
+//
+//	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 9999)
+//	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+//
+//	_app.ExecTxInBlock(tx)
+//	_app.EnsureTxFailed(tx.Hash(), "invalid gas price")
+//
+//	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10000)
+//	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+//	_app.ExecTxInBlock(tx)
+//	_app.EnsureTxSuccess(tx.Hash())
+//
+//	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 10001)
+//	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+//	_app.ExecTxInBlock(tx)
+//	_app.EnsureTxSuccess(tx.Hash())
+//
+//	tx, _ = _app.MakeAndSignTxWithGas(key1, &addr2, 100, nil, 100000, 12345)
+//	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
+//	_app.ExecTxInBlock(tx)
+//	_app.EnsureTxSuccess(tx.Hash())
+//}
 
 func TestJson(t *testing.T) {
 	//str := []byte("\"validators\":[\"PupuoOdnaRYJQUSzCsV5B6gBfkWiaI4Jmq8giG/KL0M=\",\"G0IgOw0f4hqpR0TX+ld5TzOyPI2+BuaYhjlHv6IiCHw=\",\"YdrD918WSVISQes6g5v5xI0x580OM2LMNUIRIS8EXjA=\",\"/opEYWd8xnLK95QN34+mrE666sSt/GARmJYgRUYnvb0=\",\"gM4A5vTY9vTgHOd00TTXPo7HyEHBkuIpvbUBw28DxrI=\",\"4kFUm8nRR2Tg3YCl55lOWbAGYi4fPQnHiCrWHWnEd3k=\",\"yb/5/EsybQ2rI9XkRQoJBAixvAoivV0mb9jqsEVSUj8=\",\"8MfS5Y24qXoACl45f3otSyOB1sCCgrXGX/SIPTuaC9Y=\",\"BAsO38HaA7XyMB8tAkI8ests8jdOeFe03j3QROKFVsg=\",\"We2gXsEqww2Q+NdVGbaWhR0nyrxP/FBv4TzJxNKMwb4=\"]}")
