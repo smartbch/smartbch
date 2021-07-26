@@ -67,15 +67,20 @@ var (
 var (
 	/*------param------*/
 	//staking
-	InitialStakingAmount *uint256.Int = uint256.NewInt().Mul(
-		uint256.NewInt().SetUint64(1000),
-		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
-	MinimumStakingAmount *uint256.Int = uint256.NewInt().Mul(
-		uint256.NewInt().SetUint64(800),
-		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
-	SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
-		uint256.NewInt().SetUint64(10),
-		uint256.NewInt().SetUint64(1000_000_000_000_000_000))
+	//InitialStakingAmount *uint256.Int = uint256.NewInt().Mul(
+	//	uint256.NewInt().SetUint64(1000),
+	//	uint256.NewInt().SetUint64(1000_000_000_000_000_000))
+	//MinimumStakingAmount *uint256.Int = uint256.NewInt().Mul(
+	//	uint256.NewInt().SetUint64(800),
+	//	uint256.NewInt().SetUint64(1000_000_000_000_000_000))
+	//SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
+	//	uint256.NewInt().SetUint64(10),
+	//	uint256.NewInt().SetUint64(1000_000_000_000_000_000))
+	InitialStakingAmount *uint256.Int = uint256.NewInt()
+
+	MinimumStakingAmount *uint256.Int = uint256.NewInt()
+	SlashedStakingAmount *uint256.Int = uint256.NewInt()
+
 	GasOfValidatorOp   uint64 = 400_000
 	GasOfMinGasPriceOp uint64 = 50_000
 
