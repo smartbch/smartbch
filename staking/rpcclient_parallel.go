@@ -39,6 +39,7 @@ func (c *ParallelRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
 func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	if height+c.preGetCount*2 < c.latestHeight {
 		if ch, found := c.preGetBlocks[height]; found {
+			delete(c.preGetBlocks, height)
 			return <-ch
 		}
 
