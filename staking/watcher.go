@@ -252,6 +252,19 @@ func (watcher *Watcher) buildNewEpoch() *types.Epoch {
 	return epoch
 }
 
+func (watcher *Watcher) CheckSanity(forTest bool) {
+	if !forTest {
+		latestHeight := watcher.rpcClient.GetLatestHeight()
+		if latestHeight <= 0 {
+			panic("Watcher GetLatestHeight failed in Sanity Check")
+		}
+		blk := watcher.rpcClient.GetBlockByHeight(latestHeight)
+		if blk == nil {
+			panic("Watcher GetBlockByHeight failed in Sanity Check")
+		}
+	}
+}
+
 //sort by pubkey (small to big) first; then sort by nominationCount;
 //so nominations sort by NominationCount, if count is equal, smaller pubkey stand front
 func sortEpochNominations(epoch *types.Epoch) {

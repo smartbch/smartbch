@@ -184,6 +184,7 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	var hash string
 	hash, client.err = client.getBlockHashOfHeight(height)
 	if client.err != nil {
+		fmt.Println("GetBlockByHeight err: " + client.err.Error())
 		return nil
 	}
 	return client.getBCHBlock(hash)
@@ -201,6 +202,7 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	var bi *BlockInfo
 	bi, client.err = client.getBlock(hash)
 	if client.err != nil {
+		fmt.Println("getBCHBlock err: " + client.err.Error())
 		return nil
 	}
 	bchBlock := &types.BCHBlock{
@@ -211,17 +213,20 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	bz, client.err = hex.DecodeString(bi.Hash)
 	copy(bchBlock.HashId[:], bz)
 	if client.err != nil {
+		fmt.Println("getBCHBlock err: " + client.err.Error())
 		return nil
 	}
 	bz, client.err = hex.DecodeString(bi.PreviousBlockhash)
 	copy(bchBlock.ParentBlk[:], bz)
 	if client.err != nil {
+		fmt.Println("getBCHBlock err: " + client.err.Error())
 		return nil
 	}
 	if bi.Height > 0 {
 		var coinbase *TxInfo
 		coinbase, client.err = client.getTx(bi.Tx[0])
 		if client.err != nil {
+			fmt.Println("getBCHBlock err: " + client.err.Error())
 			return nil
 		}
 		pubKey, ok := coinbase.GetValidatorPubKey()

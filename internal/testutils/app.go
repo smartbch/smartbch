@@ -79,7 +79,7 @@ func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint2
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
-	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
+	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
@@ -128,7 +128,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
-	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger)
+	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
 	allBalance := uint256.NewInt()
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()

@@ -50,6 +50,6 @@ func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
 }
 
 func newApp(logger log.Logger, chainId *uint256.Int, config *param.ChainConfig) abci.Application {
-	cetChainApp := app.NewApp(config, chainId, viper.GetInt64(flagGenesisMainnetHeight), logger)
+	cetChainApp := app.NewApp(config, chainId, viper.GetInt64(flagGenesisMainnetHeight), logger, false)
 	return cetChainApp
 }
