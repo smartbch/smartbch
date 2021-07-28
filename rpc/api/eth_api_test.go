@@ -170,7 +170,7 @@ func TestGetCode(t *testing.T) {
 
 	ctx := _app.GetRunTxContext()
 	code := bytes.Repeat([]byte{0xff}, 32)
-	code = append(code, 0x0/*version byte*/, 0x12, 0x34)
+	code = append(code, 0x0 /*version byte*/, 0x12, 0x34)
 	ctx.Rbt.Set(types.GetBytecodeKey(addr), types.NewBytecodeInfo(code).Bytes())
 	ctx.Close(true)
 	_app.CloseTxEngineContext()

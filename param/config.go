@@ -20,6 +20,7 @@ const (
 
 	AppDataPath  = "app"
 	ModbDataPath = "modb"
+	GasDBPath    = "gasdb"
 )
 
 type AppConfig struct {
@@ -50,6 +51,10 @@ type AppConfig struct {
 	MainnetRPCPassword string `mapstructure:"mainnet-rpc-password"`
 	SmartBchRPCUrl     string `mapstructure:"smartbch-rpc-url"`
 	Speedup            bool   `mapstructure:"watcher-speedup"`
+
+	// free gas db
+	UseGasDB  bool   `mapstructure:"use_gas_db"`
+	GasDBPath string `mapstructure:"gas_db_path"`
 }
 
 type ChainConfig struct {
@@ -61,6 +66,7 @@ var (
 	home                = os.ExpandEnv("$HOME/.smartbchd")
 	defaultAppDataPath  = filepath.Join(home, "data", AppDataPath)
 	defaultModbDataPath = filepath.Join(home, "data", ModbDataPath)
+	defaultGasDBPath    = filepath.Join(home, "data", GasDBPath)
 )
 
 func DefaultAppConfig() *AppConfig {
@@ -77,6 +83,8 @@ func DefaultAppConfig() *AppConfig {
 		ChangeRetainEveryN:      DefaultChangeRetainEveryN,
 		PruneEveryN:             DefaultPruneEveryN,
 		MainnetRPCPassword:      "123456",
+		UseGasDB:                false,
+		GasDBPath:               defaultGasDBPath,
 	}
 }
 

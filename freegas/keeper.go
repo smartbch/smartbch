@@ -1,4 +1,4 @@
-package types
+package freegas
 
 import (
 	"encoding/binary"
@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/moeingads/indextree"
 	mevmtypes "github.com/smartbch/moeingevm/types"
@@ -15,15 +17,19 @@ type FreeGasKeeper struct {
 	dirName string
 	dbName  string
 	rdb     *indextree.RocksDB
+	logger  log.Logger
 }
 
-func NewFreeGasKeeper(dirName string, currTime int64) *FreeGasKeeper {
-	keeper := &FreeGasKeeper{dirName: dirName}
+func NewKeeper(dirName string, currTime int64, logger log.Logger) *FreeGasKeeper {
+	keeper := &FreeGasKeeper{dirName: dirName, logger: logger}
 	keeper.tryOpenDB(dateStrFromTimestamp(currTime))
 	return keeper
 }
 
 func (keeper *FreeGasKeeper) ProcessCommittedTxs(timestamp int64, committedTxs []*mevmtypes.Transaction) {
+	if len(committedTxs) == 0 {
+		return
+	}
 	keeper.beginBlock(timestamp)
 	for _, tx := range committedTxs {
 		keeper.deductGas(tx.From, tx.GasUsed)
@@ -32,6 +38,13 @@ func (keeper *FreeGasKeeper) ProcessCommittedTxs(timestamp int64, committedTxs [
 }
 
 func (keeper *FreeGasKeeper) GetRemainedGas(addr [20]byte) uint64 {
+	if keeper.rdb == nil {
+		return 0
+	}
+	return keeper.getRemainedGas(addr)
+}
+
+func (keeper *FreeGasKeeper) getRemainedGas(addr [20]byte) uint64 {
 	gasBz := keeper.rdb.Get(addr[:])
 	if len(gasBz) == 0 {
 		return 0
@@ -39,21 +52,10 @@ func (keeper *FreeGasKeeper) GetRemainedGas(addr [20]byte) uint64 {
 	return binary.LittleEndian.Uint64(gasBz[:])
 }
 
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	return false
-}
-
-func dateStrFromTimestamp(timestamp int64) string {
-	t := time.Unix(timestamp, 0)
-	return fmt.Sprintf("%04d%02d%02d", t.Year(), t.Month(), t.Day())
-}
-
 func (keeper *FreeGasKeeper) tryOpenDB(dbName string) {
-	if !exists(path.Join(keeper.dirName, dbName)) { //today's db is not ready yet
+	dbPath := path.Join(keeper.dirName, dbName)
+	keeper.logger.Info("trying to open GasDB", "dbPath", dbPath)
+	if !exists(dbPath) { //today's db is not ready yet
 		return
 	}
 	rocksdb, err := indextree.NewRocksDB(dbName, keeper.dirName)
@@ -65,7 +67,7 @@ func (keeper *FreeGasKeeper) tryOpenDB(dbName string) {
 		keeper.dbName = dbName
 		keeper.rdb = rocksdb
 	} else {
-		fmt.Printf("Error in open rocksdb")
+		keeper.logger.Error("Error in open rocksdb")
 	}
 }
 
@@ -89,7 +91,7 @@ func (keeper *FreeGasKeeper) deductGas(addr [20]byte, gas uint64) {
 	if keeper.rdb == nil {
 		return
 	}
-	remainedGas := keeper.GetRemainedGas(addr)
+	remainedGas := keeper.getRemainedGas(addr)
 	if remainedGas > gas {
 		var buf [8]byte
 		binary.LittleEndian.PutUint64(buf[:], remainedGas-gas)
@@ -97,3 +99,12 @@ func (keeper *FreeGasKeeper) deductGas(addr [20]byte, gas uint64) {
 	}
 }
 
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func dateStrFromTimestamp(timestamp int64) string {
+	t := time.Unix(timestamp, 0)
+	return fmt.Sprintf("%04d%02d%02d", t.Year(), t.Month(), t.Day())
+}

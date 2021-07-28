@@ -41,6 +41,8 @@ const (
 	flagMainnetRpcPassword   = "mainnet-rpc-password"
 	flagSmartBchUrl          = "smartbch-url"
 	flagWatcherSpeedup       = "watcher-speedup"
+	flagUseGasDB             = "use_gas_db"
+	flagGasDBPath            = "gas_db_path"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -73,6 +75,8 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagMainnetRpcPassword, "88888888", "BCH Mainnet RPC user password")
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
+	cmd.Flags().Bool(flagUseGasDB, false, "enable free gas db")
+	cmd.Flags().String(flagGasDBPath, "", "path of free gas db")
 
 	return cmd
 }

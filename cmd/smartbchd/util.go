@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -129,6 +130,7 @@ func interceptLoadConfig() (conf *param.ChainConfig, err error) {
 	appConfigFilePath := filepath.Join(rootDir, "config/app.toml")
 	var appConf *param.AppConfig
 	if _, err := os.Stat(appConfigFilePath); os.IsNotExist(err) {
+		fmt.Println("creating app.toml ...")
 		appConf, _ = param.ParseConfig()
 		param.WriteConfigFile(appConfigFilePath, appConf)
 	}

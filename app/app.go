@@ -34,6 +34,7 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
+	"github.com/smartbch/smartbch/freegas"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/seps"
@@ -53,6 +54,7 @@ const (
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
 	MempoolBusy          uint32 = 109
+	OutOfGasInGasDB      uint32 = 110
 )
 
 type App struct {
@@ -63,9 +65,10 @@ type App struct {
 	chainId *uint256.Int
 
 	//store
-	mads         *moeingads.MoeingADS
-	root         *store.RootStore
-	historyStore modbtypes.DB
+	mads          *moeingads.MoeingADS
+	root          *store.RootStore
+	historyStore  modbtypes.DB
+	freeGasKeeper *freegas.FreeGasKeeper
 
 	//refresh with block
 	currHeight      int64
@@ -133,6 +136,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.historyStore = createHistoryStore(config)
 	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
+	if config.AppConfig.UseGasDB {
+		app.freeGasKeeper = freegas.NewKeeper(config.AppConfig.GasDBPath, time.Now().Unix(), logger)
+	}
 
 	/*------set util------*/
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
@@ -328,6 +334,13 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 	if gasPrice.Cmp(uint256.NewInt().SetUint64(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
+
+	if app.freeGasKeeper != nil && gasPrice.IsZero() &&
+		tx.Gas() > app.freeGasKeeper.GetRemainedGas(sender) {
+
+		return abcitypes.ResponseCheckTx{Code: OutOfGasInGasDB, Info: "not enough gas in GasDB"}
+	}
+
 	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
@@ -622,6 +635,9 @@ func (app *App) refresh() {
 			app.historyStore.AddBlock(&prevBlk4MoDB, -1) // do not prune moeingdb
 		}
 		app.publishNewBlock(&prevBlk4MoDB)
+		if app.freeGasKeeper != nil {
+			app.freeGasKeeper.ProcessCommittedTxs(prevBlkInfo.Timestamp, app.txEngine.CommittedTxs())
+		}
 		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}
 	//make new

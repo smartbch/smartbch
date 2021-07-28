@@ -96,6 +96,8 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 				return err
 			}
 			toPrint := newPrintInfo(config.Moniker, chainID, nodeID)
+
+			fmt.Println("saving config.toml ...")
 			cfg.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
 			return displayInfo(toPrint)
 		},

@@ -62,6 +62,10 @@ smartbch-rpc-url = "{{ .SmartBchRPCUrl }}"
 
 # open epoch get to speedup mainnet block catch, work with "smartbch_rpc_url"
 watcher-speedup = {{ .Speedup }}
+
+# gas db
+use_gas_db = {{ .UseGasDB }}
+gas_db_path = "{{ .GasDBPath }}"
 `
 
 var configTemplate *template.Template
