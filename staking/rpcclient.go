@@ -269,8 +269,8 @@ func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
 		return "", err
 	}
 	if blockHashResp.Error != nil && blockHashResp.Error.Code < 0 {
-		return blockHashResp.Result, fmt.Errorf("getBlockHashOfHeight error, code:%d, msg:%s\n",
-			blockHashResp.Error.Code, blockHashResp.Error.Message)
+		return blockHashResp.Result, fmt.Errorf("getBlockHashOfHeight error, height:%d, code:%d, msg:%s\n",
+			height, blockHashResp.Error.Code, blockHashResp.Error.Message)
 	}
 	return blockHashResp.Result, nil
 }
