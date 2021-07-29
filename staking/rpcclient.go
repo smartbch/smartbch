@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -132,16 +133,18 @@ type RpcClient struct {
 	password    string
 	err         error
 	contentType string
+	logger      log.Logger
 }
 
 var _ types.RpcClient = (*RpcClient)(nil)
 
-func NewRpcClient(url, user, password, contentType string) *RpcClient {
+func NewRpcClient(url, user, password, contentType string, logger log.Logger) *RpcClient {
 	return &RpcClient{
 		url:         url,
 		user:        user,
 		password:    password,
 		contentType: contentType,
+		logger:      logger,
 	}
 }
 
@@ -167,6 +170,9 @@ func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 
 func (client *RpcClient) GetLatestHeight() (height int64) {
 	height, client.err = client.getCurrHeight()
+	if client.err != nil {
+		client.logger.Debug("GetLatestHeight failed", client.err.Error())
+	}
 	return
 }
 
@@ -184,25 +190,36 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	var hash string
 	hash, client.err = client.getBlockHashOfHeight(height)
 	if client.err != nil {
-		fmt.Println("GetBlockByHeight err: " + client.err.Error())
+		client.logger.Debug("getBlockHashOfHeight failed", client.err.Error())
 		return nil
 	}
-	return client.getBCHBlock(hash)
+	blk := client.getBCHBlock(hash)
+	if client.err != nil {
+		client.logger.Debug("getBCHBlock failed", client.err.Error())
+	}
+	return blk
 }
 
 func (client *RpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
-	return client.getBCHBlock(hex.EncodeToString(hash[:]))
+	blk := client.getBCHBlock(hex.EncodeToString(hash[:]))
+	if client.err != nil {
+		client.logger.Debug("GetBlockByHash failed", client.err.Error())
+	}
+	return blk
 }
 
 func (client *RpcClient) GetEpochs(start, end uint64) []*types.Epoch {
-	return client.getEpochs(start, end)
+	epochs := client.getEpochs(start, end)
+	if client.err != nil {
+		client.logger.Debug("GetEpochs failed", client.err.Error())
+	}
+	return epochs
 }
 
 func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	var bi *BlockInfo
 	bi, client.err = client.getBlock(hash)
 	if client.err != nil {
-		fmt.Println("getBCHBlock err: " + client.err.Error())
 		return nil
 	}
 	bchBlock := &types.BCHBlock{
@@ -213,20 +230,17 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	bz, client.err = hex.DecodeString(bi.Hash)
 	copy(bchBlock.HashId[:], bz)
 	if client.err != nil {
-		fmt.Println("getBCHBlock err: " + client.err.Error())
 		return nil
 	}
 	bz, client.err = hex.DecodeString(bi.PreviousBlockhash)
 	copy(bchBlock.ParentBlk[:], bz)
 	if client.err != nil {
-		fmt.Println("getBCHBlock err: " + client.err.Error())
 		return nil
 	}
 	if bi.Height > 0 {
 		var coinbase *TxInfo
 		coinbase, client.err = client.getTx(bi.Tx[0])
 		if client.err != nil {
-			fmt.Println("getBCHBlock err: " + client.err.Error())
 			return nil
 		}
 		pubKey, ok := coinbase.GetValidatorPubKey()
@@ -325,18 +339,19 @@ type smartBchJsonrpcMessage struct {
 }
 
 func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
-	respData, err := client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
-	if err != nil {
+	var respData []byte
+	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
+	if client.err != nil {
 		return nil
 	}
 	var m smartBchJsonrpcMessage
-	err = json.Unmarshal(respData, &m)
-	if err != nil {
+	client.err = json.Unmarshal(respData, &m)
+	if client.err != nil {
 		return nil
 	}
 	var epochsResp []*types.Epoch
-	err = json.Unmarshal(m.Result, &epochsResp)
-	if err != nil {
+	client.err = json.Unmarshal(m.Result, &epochsResp)
+	if client.err != nil {
 		return nil
 	}
 	return epochsResp

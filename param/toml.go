@@ -11,12 +11,6 @@ import (
 const defaultConfigTemplate = `# This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
-# smartbchd history db path
-app_data_path = "{{ .AppDataPath }}"
-
-# moeing db path
-modb_data_path = "{{ .ModbDataPath }}"
-
 # eth_getLogs max return items
 get_logs_max_results = {{ .RpcEthGetLogsMaxResults }}
 

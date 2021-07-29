@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"math"
 	"os"
 	"strconv"
@@ -29,7 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;")
+	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;", log.NewNopLogger())
 	printBlockTime(client, startH, endH)
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"os"
 	"strconv"
 	"strings"
@@ -35,7 +36,7 @@ func main() {
 		panic(err)
 	}
 
-	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;")
+	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;", log.NewNopLogger())
 	printAllOpReturn(client, startH, endH)
 	//client.PrintAllOpReturn(519995, 679995)
 }

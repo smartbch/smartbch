@@ -50,7 +50,7 @@ func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, 
 		logger: logger,
 
 		rpcClient:         rpcClient,
-		smartBchRpcClient: NewRpcClient(smartBchUrl, "", "", "application/json"),
+		smartBchRpcClient: NewRpcClient(smartBchUrl, "", "", "application/json", logger),
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,

@@ -2,6 +2,7 @@ package staking
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -14,12 +15,15 @@ type ParallelRpcClient struct {
 	preGetCount  int64
 	preGetMaxH   int64
 	preGetBlocks map[int64]chan *types.BCHBlock
+
+	logger log.Logger
 }
 
-func NewParallelRpcClient(url, user, password string) types.RpcClient {
+func NewParallelRpcClient(url, user, password string, logger log.Logger) types.RpcClient {
 	return &ParallelRpcClient{
-		client:      NewRpcClient(url, user, password, "text/plain;"),
+		client:      NewRpcClient(url, user, password, "text/plain;", logger),
 		preGetCount: 10,
+		logger:      logger,
 	}
 }
 
@@ -33,7 +37,7 @@ func (c *ParallelRpcClient) GetLatestHeight() int64 {
 }
 
 func (c *ParallelRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
-	return c.client.getEpochs(start, end)
+	return c.client.GetEpochs(start, end)
 }
 
 func (c *ParallelRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
