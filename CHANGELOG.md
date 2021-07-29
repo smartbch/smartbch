@@ -2,11 +2,12 @@
 
 
 
-## v0.2.0 (not released yet)
+## v0.3.0
 
 * Command
   * Add `smartbchd version` command
-
+* JSON-RPC
+  * Improve web3_clientVersion
 
 
 ## v0.2.0
