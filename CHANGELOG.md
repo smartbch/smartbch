@@ -8,6 +8,12 @@
   * Add `smartbchd version` command
 * JSON-RPC
   * Improve web3_clientVersion
+  * Ignore the height argument and always return latest status
+* Consensus
+  * Fix several staking bugs
+* Library
+  * MoeingADS uses internal multiple shards to boost performance
+  * MoeingEVM update evmone to 0.8.0
 
 
 ## v0.2.0
