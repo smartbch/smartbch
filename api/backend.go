@@ -414,3 +414,7 @@ func (backend *apiBackend) NodeInfo() Info {
 func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }
+
+func (backend *apiBackend) GetFreeGas(addr common.Address) uint64 {
+	return backend.app.GetFreeGas(addr)
+}

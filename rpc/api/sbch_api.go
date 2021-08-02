@@ -25,6 +25,7 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	GetFreeGas(addr gethcmn.Address) hexutil.Uint64
 }
 
 type sbchAPI struct {
@@ -167,4 +168,8 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 		end = start + 10
 	}
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
+}
+
+func (sbch sbchAPI) GetFreeGas(addr gethcmn.Address) hexutil.Uint64 {
+	return hexutil.Uint64(sbch.backend.GetFreeGas(addr))
 }

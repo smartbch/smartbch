@@ -779,6 +779,13 @@ func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	return newValidatorsInfo(app.currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
 }
 
+func (app *App) GetFreeGas(addr gethcmn.Address) uint64 {
+	if app.freeGasKeeper == nil {
+		return 0
+	}
+	return app.freeGasKeeper.GetRemainedGas(addr)
+}
+
 //nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal function, only used in test
