@@ -24,13 +24,12 @@ func GenKeyAndAddr() (string, common.Address) {
 func KeysToGenesisAlloc(balance *uint256.Int, keys []string) gethcore.GenesisAlloc {
 	alloc := gethcore.GenesisAlloc{}
 	for _, hexKey := range keys {
-		privKey, data, err := ethutils.HexToPrivKey(hexKey)
+		privKey, _, err := ethutils.HexToPrivKey(hexKey)
 		if err != nil {
 			panic(err)
 		}
 		addr := ethutils.PrivKeyToAddr(privKey)
 		alloc[addr] = gethcore.GenesisAccount{
-			PrivateKey: data,
 			Balance:    balance.ToBig(),
 		}
 	}
