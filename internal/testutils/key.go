@@ -30,7 +30,7 @@ func KeysToGenesisAlloc(balance *uint256.Int, keys []string) gethcore.GenesisAll
 		}
 		addr := ethutils.PrivKeyToAddr(privKey)
 		alloc[addr] = gethcore.GenesisAccount{
-			Balance:    balance.ToBig(),
+			Balance: balance.ToBig(),
 		}
 	}
 	return alloc
