@@ -38,8 +38,8 @@ RUN set -ex && \
     # Build libsnappy
     cd /build && \
     wget https://github.com/google/snappy/archive/refs/tags/$SNAPPY_TAR && \
-    mkdir snappy && tar zxvf $SNAPPY_TAR -C snappy --strip-components=1 && \
-    cd snappy && mkdir build && cd build && cmake -DBUILD_SHARED_LIBS=On ../ && make -j4 && make install && \
+    mkdir -p snappy/build && tar zxvf $SNAPPY_TAR -C snappy --strip-components=1 && \
+    cd snappy/build && cmake -DBUILD_SHARED_LIBS=On ../ && make -j4 install && \
     # Build rocksdb
     cd /build && \
     wget https://github.com/facebook/rocksdb/archive/refs/tags/$ROCKSDB_TAR && \
