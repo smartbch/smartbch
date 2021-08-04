@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  smartbch:
+    build: .
+    image: smartbch/smartbch
+    command: start
+    ports:
+      - "8545:8545"
+    restart: always
+    volumes:
+      - smartbch_data:/root/.smartbchd
+
+  smartbch-regtest:
+    build: .
+    image: smartbch/smartbch
+    entrypoint: init_regtest.sh
+    ports:
+      - "8545:8545"
+    restart: always
+    volumes:
+      - smartbch_data:/root/.smartbchd
+      - ./test-keys.txt:/root/test-keys.txt
+      - ./init_regtest.sh:/build/init_regtest.sh
+
+volumes:
+  smartbch_data:
