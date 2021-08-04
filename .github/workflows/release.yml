@@ -1,0 +1,49 @@
+name: Release
+
+# Controls when the workflow will run
+on:
+  release:
+    types: [created]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  docker:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      # Setup environment
+      - name: Set TAG_NAME env
+        run: echo "TAG_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Set REPO_USER env
+        run: echo "REPO_USER=$(echo $GITHUB_REPOSITORY | cut -d / -f1)" >> $GITHUB_ENV
+      - name: Set REPO_NAME env
+        run: echo "REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d / -f2)" >> $GITHUB_ENV
+
+
+      - name: Login to docker hub
+        uses: docker/login-action@v1.6.0
+        with:
+          username: ${{ env.REPO_USER }}
+          password: ${{secrets.DOCKERHUB_PASSWORD}}
+
+      # If you want support for more platforms you can use our setup-qemu action:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Create buildx worker node
+        run: docker buildx create --use
+
+      - name: Build tagged docker image
+        run: docker buildx build --progress plain --build-arg GIT_TAG=${{ env.TAG_NAME }} -t ${{ env.REPO_USER }}/${{ env.REPO_NAME }}:${{ env.TAG_NAME }} -f contrib/docker/Dockerfile --platform linux/arm64/v8,linux/amd64 --push contrib/docker
+
+      - name: Build latest docker image
+        run: docker buildx build --progress plain --build-arg GIT_TAG=${{ env.TAG_NAME }} -t ${{ env.REPO_USER }}/${{ env.REPO_NAME }}:latest -f contrib/docker/Dockerfile --platform linux/arm64/v8,linux/amd64 --push contrib/docker
