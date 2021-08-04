@@ -666,23 +666,39 @@ EndTime:%d
 CurrentEpochNum:%d
 CurrentSmartBchBlockHeight:%d
 `, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height))
-	if len(epoch.Nominations) > param.StakingMaxValidatorCount {
-		epoch.Nominations = epoch.Nominations[:param.StakingMaxValidatorCount]
+
+	validNominations := make([]*types.Nomination, 0, len(epoch.Nominations))
+	validatorSet := make(map[[32]byte]bool)
+	for _, val := range info.Validators {
+		if !val.IsRetiring {
+			validatorSet[val.Pubkey] = true
+		}
+	}
+	for _, n := range epoch.Nominations {
+		if validatorSet[n.Pubkey] {
+			validNominations = append(validNominations, n)
+		}
+	}
+	if len(validNominations) > param.StakingMaxValidatorCount {
+		validNominations = validNominations[:param.StakingMaxValidatorCount]
 	}
 	for _, n := range epoch.Nominations {
 		logger.Debug(fmt.Sprintf("Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
 	}
+	for _, n := range validNominations {
+		logger.Debug(fmt.Sprintf("Valid Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
+	}
 	epoch.Number = info.CurrEpochNum
 	SaveEpoch(ctx, info.CurrEpochNum, epoch)
 	pubkey2power := make(map[[32]byte]int64)
-	for _, v := range epoch.Nominations {
+	for _, v := range validNominations {
 		pubkey2power[v.Pubkey] = 1
 	}
 	// distribute mature pending reward to rewardTo
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
 	totalNomination := int64(0)
-	for _, n := range epoch.Nominations {
+	for _, n := range validNominations {
 		totalNomination += n.NominatedCount
 	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
@@ -691,7 +707,7 @@ CurrentSmartBchBlockHeight:%d
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
 	}
-	if len(epoch.Nominations) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
+	if len(validNominations) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
