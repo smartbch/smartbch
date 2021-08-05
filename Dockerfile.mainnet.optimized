@@ -39,7 +39,7 @@ RUN set -ex && \
     cd /build && \
     wget https://github.com/google/snappy/archive/refs/tags/$SNAPPY_TAR && \
     mkdir -p snappy/build && tar zxvf $SNAPPY_TAR -C snappy --strip-components=1 && \
-    cd snappy/build && cmake -DBUILD_SHARED_LIBS=On ../ && make -j4 install && \
+    cd snappy/build && cmake -DBUILD_SHARED_LIBS=On -DSNAPPY_BUILD_TESTS=0 -DCMAKE_BUILD_TYPE=Release ../ && make -j4 install && \
     # Build rocksdb
     cd /build && \
     wget https://github.com/facebook/rocksdb/archive/refs/tags/$ROCKSDB_TAR && \
