@@ -44,7 +44,7 @@ RUN set -ex && \
     cd /build && \
     wget https://github.com/facebook/rocksdb/archive/refs/tags/$ROCKSDB_TAR && \
     mkdir rocksdb && tar zxvf $ROCKSDB_TAR -C rocksdb --strip-components=1 && \
-    cd rocksdb && DEBUG_LEVEL=0 make -j4 CC=gcc-8 CXX=g++-8 shared_lib install-shared && \
+    cd rocksdb && PORTABLE=1 DEBUG_LEVEL=0 make -j4 CC=gcc-8 CXX=g++-8 EXTRA_CXXFLAGS=-s shared_lib install-shared && \
     # Remove build artifacts
     rm -rf /build/* && \
     # Build libevmwrap.so
