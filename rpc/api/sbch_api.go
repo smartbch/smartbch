@@ -1,6 +1,9 @@
 package api
 
 import (
+	"fmt"
+	"time"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -25,6 +28,7 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 }
 
 type sbchAPI struct {
@@ -167,4 +171,36 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 		end = start + 10
 	}
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
+}
+
+func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{} {
+	if latestBlockTooOldAge == 0 {
+		latestBlockTooOldAge = 30
+	}
+
+	var latestBlockHeight hexutil.Uint64
+	var latestBlockTimestamp hexutil.Uint64
+	var ok bool
+	var msg string
+
+	b, err := sbch.backend.CurrentBlock()
+	if err == nil {
+		latestBlockHeight = hexutil.Uint64(b.Number)
+		latestBlockTimestamp = hexutil.Uint64(b.Timestamp)
+
+		latestBlockAge := time.Now().Unix() - b.Timestamp
+		ok = latestBlockAge < int64(latestBlockTooOldAge)
+		if !ok {
+			msg = fmt.Sprintf("latest block is too old: %ds", latestBlockAge)
+		}
+	} else {
+		msg = err.Error()
+	}
+
+	return map[string]interface{}{
+		"latestBlockHeight":    latestBlockHeight,
+		"latestBlockTimestamp": latestBlockTimestamp,
+		"ok":                   ok,
+		"error":                msg,
+	}
 }

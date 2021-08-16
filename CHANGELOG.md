@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1 (not released yet)
+
+* JSON-RPC
+  * Add sbch_healthCheck
+
 
 
 ## v0.3.0
@@ -14,6 +19,7 @@
 * Library
   * MoeingADS uses internal multiple shards to boost performance
   * MoeingEVM update evmone to 0.8.0
+
 
 
 ## v0.2.0
@@ -63,6 +69,8 @@
   * Add pruning calls to MoeingADS
 
 * Move the faucet out from this repo
+
+
 
 ## v0.1.5
 
