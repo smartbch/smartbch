@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"sort"
 	"time"
 
@@ -27,25 +28,29 @@ type Watcher struct {
 	rpcClient         types.RpcClient
 	smartBchRpcClient types.RpcClient
 
-	EpochChan chan *types.Epoch
-
-	lastEpochEndHeight    int64
 	latestFinalizedHeight int64
-	lastKnownEpochNum     int64
 
 	hashToBlock            map[[32]byte]*types.BCHBlock
 	heightToFinalizedBlock map[int64]*types.BCHBlock
-	epochList              []*types.Epoch
 
-	speedup bool
+	EpochChan          chan *types.Epoch
+	epochList          []*types.Epoch
+	numBlocksInEpoch   int64
+	lastEpochEndHeight int64
+	lastKnownEpochNum  int64
 
-	numBlocksInEpoch       int64
+	CCEpochChan          chan *cctypes.CCEpoch
+	lastCCEpochEndHeight int64
+	numBlocksInCCEpoch   int64
+	ccEpochList          []*cctypes.CCEpoch
+
+	speedup                bool
 	numBlocksToClearMemory int
 	waitingBlockDelayTime  int
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
+func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
 	return &Watcher{
 		logger: logger,
 
@@ -66,6 +71,11 @@ func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, 
 		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
 		numBlocksToClearMemory: NumBlocksToClearMemory,
 		waitingBlockDelayTime:  WaitingBlockDelayTime,
+
+		CCEpochChan:          make(chan *cctypes.CCEpoch, 40000),
+		ccEpochList:          make([]*cctypes.CCEpoch, 0, 40),
+		lastCCEpochEndHeight: lastCCEpochEndHeight,
+		numBlocksInCCEpoch:   param.BlocksInCCEpoch,
 	}
 }
 
@@ -206,6 +216,9 @@ func (watcher *Watcher) addBlock(blk *types.BCHBlock) (missingBlockHash *[32]byt
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == watcher.numBlocksInEpoch {
 		watcher.generateNewEpoch()
 	}
+	if watcher.latestFinalizedHeight-watcher.lastCCEpochEndHeight == watcher.numBlocksInCCEpoch {
+		watcher.generateNewCCEpoch()
+	}
 	return nil
 }
 
@@ -250,6 +263,18 @@ func (watcher *Watcher) buildNewEpoch() *types.Epoch {
 	}
 	sortEpochNominations(epoch)
 	return epoch
+}
+
+func (watcher *Watcher) generateNewCCEpoch() {
+	epoch := watcher.buildNewCCEpoch()
+	watcher.ccEpochList = append(watcher.ccEpochList, epoch)
+	watcher.logger.Debug("Generate new cc epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
+	watcher.CCEpochChan <- epoch
+	watcher.lastCCEpochEndHeight = watcher.latestFinalizedHeight
+}
+
+func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
+	return nil
 }
 
 func (watcher *Watcher) CheckSanity(forTest bool) {

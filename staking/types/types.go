@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/holiman/uint256"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 )
 
 //go:generate msgp
@@ -34,11 +35,12 @@ type Nomination struct {
 
 // This struct contains the useful information of a BCH block
 type BCHBlock struct {
-	Height      int64
-	Timestamp   int64
-	HashId      [32]byte
-	ParentBlk   [32]byte
-	Nominations []Nomination
+	Height          int64
+	Timestamp       int64
+	HashId          [32]byte
+	ParentBlk       [32]byte
+	Nominations     []Nomination
+	CCTransferInfos []*cctypes.CCTransferInfo
 }
 
 //not check Nominations

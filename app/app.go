@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math"
 	"os"
 	"path"
@@ -92,8 +94,9 @@ type App struct {
 	touchedAddrs map[gethcmn.Address]int // recorded in Commint, used in next block's CheckTx
 
 	//watcher
-	watcher   *staking.Watcher
-	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
+	watcher     *staking.Watcher
+	epochList   []*stakingtypes.Epoch // caches the epochs collected by the watcher
+	ccEpochList []*cctypes.CCEpoch
 
 	//util
 	signer gethtypes.Signer
@@ -118,7 +121,7 @@ type SenderAndHeight struct {
 	Height int64
 }
 
-func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight int64, logger log.Logger, forTest bool) *App {
+func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight, genesisCCHeight int64, logger log.Logger, forTest bool) *App {
 	app := &App{}
 
 	/*------set config------*/
@@ -187,11 +190,20 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		staking.SaveStakingInfo(ctx, stakingInfo) // only executed at genesis
 	}
 
+	/*-------set ccInfo------*/
+	ccInfo := crosschain.LoadCCInfo(ctx)
+	if ccInfo.CurrEpochNum == 0 && ccInfo.GenesisMainnetBlockHeight == 0 {
+		ccInfo.GenesisMainnetBlockHeight = genesisCCHeight
+		crosschain.SaveCCInfo(ctx, ccInfo)
+	}
+	fmt.Println(ccInfo)
+
 	/*------set watcher------*/
 	watcherLogger := app.logger.With("module", "watcher")
 	client := staking.NewParallelRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, watcherLogger)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = staking.NewWatcher(watcherLogger, lastEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
+	lastCCEpochEndHeight := ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
+	app.watcher = staking.NewWatcher(watcherLogger, lastEpochEndHeight, lastCCEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(forTest)
@@ -505,6 +517,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
+	app.handleCCTransfer(ctx)
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
@@ -520,6 +533,25 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		res.RetainHeight = app.currHeight - app.config.AppConfig.RetainBlocks + 1
 	}
 	return res
+}
+
+func (app *App) handleCCTransfer(ctx *types.Context) {
+	select {
+	case epoch := <-app.watcher.CCEpochChan:
+		app.ccEpochList = append(app.ccEpochList, epoch)
+		app.logger.Debug(fmt.Sprintf("Get new cc epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
+			epoch.Number, epoch.StartHeight, len(app.epochList)))
+	default:
+	}
+	if len(app.ccEpochList) != 0 {
+		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
+		if app.block.Timestamp > app.ccEpochList[0].EndTime+param.CCEpochSwitchDelay {
+			app.logger.Debug(fmt.Sprintf("Switch cc epoch at block(%d), eppchNum(%d)",
+				app.block.Number, app.ccEpochList[0].Number))
+			crosschain.SwitchCCEpoch(ctx, app.ccEpochList[0])
+			app.ccEpochList = app.ccEpochList[1:]
+		}
+	}
 }
 
 func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *uint256.Int) {

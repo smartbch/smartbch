@@ -1,9 +1,11 @@
 package staking
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"io/ioutil"
 	"net/http"
@@ -72,7 +74,7 @@ type CoinbaseVin struct {
 }
 
 type Vout struct {
-	Value        float64                `json:"value"`
+	Value        int64                  `json:"value"`
 	N            int                    `json:"n"`
 	ScriptPubKey map[string]interface{} `json:"scriptPubKey"`
 }
@@ -117,6 +119,38 @@ func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, success bool) {
 		copy(pubKey[:], bz)
 		success = true
 		break
+	}
+	return
+}
+
+const (
+	ShaGateAddress = "14f8c7e99fd4e867c34cbd5968e35575fd5919a4"
+)
+
+func (ti TxInfo) getCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
+	for n, vOut := range ti.VoutList {
+		asm, ok := vOut.ScriptPubKey["asm"]
+		if !ok || asm == nil {
+			continue
+		}
+		script, ok := asm.(string)
+		if !ok {
+			continue
+		}
+		target := "OP_HASH160 " + ShaGateAddress + " OP_EQUAL"
+		if script != target {
+			continue
+		}
+		var info cctypes.CCTransferInfo
+		info.Amount = uint64(vOut.Value)
+		if len(ti.TxID) != 32 {
+			continue
+		}
+		copy(info.UTXO[:32], ti.TxID)
+		var vOutIndex [4]byte
+		binary.BigEndian.PutUint32(vOutIndex[:], uint32(n))
+		copy(info.UTXO[32:], vOutIndex[:])
+		infos = append(infos, &info)
 	}
 	return
 }
@@ -238,21 +272,42 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 		return nil
 	}
 	if bi.Height > 0 {
-		var coinbase *TxInfo
-		coinbase, client.err = client.getTx(bi.Tx[0])
+		bchBlock.Nominations = append(bchBlock.Nominations, *client.getNomination(bi.Tx[0]))
+		bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.getCCTransferInfos(bi)...)
+	}
+	if client.err != nil {
+		return nil
+	}
+	return bchBlock
+}
+
+func (client *RpcClient) getNomination(txHash string) *types.Nomination {
+	var coinbase *TxInfo
+	coinbase, client.err = client.getTx(txHash)
+	if client.err != nil {
+		return nil
+	}
+	pubKey, ok := coinbase.GetValidatorPubKey()
+	if ok {
+		return &types.Nomination{
+			Pubkey:         pubKey,
+			NominatedCount: 1,
+		}
+	}
+	return nil
+}
+
+func (client *RpcClient) getCCTransferInfos(bi *BlockInfo) []*cctypes.CCTransferInfo {
+	var info *TxInfo
+	var ccInfos []*cctypes.CCTransferInfo
+	for _, txHash := range bi.Tx {
+		info, client.err = client.getTx(txHash)
 		if client.err != nil {
 			return nil
 		}
-		pubKey, ok := coinbase.GetValidatorPubKey()
-		if ok {
-			nomination := types.Nomination{
-				Pubkey:         pubKey,
-				NominatedCount: 1,
-			}
-			bchBlock.Nominations = append(bchBlock.Nominations, nomination)
-		}
+		ccInfos = append(ccInfos, info.getCCTransferInfos()...)
 	}
-	return bchBlock
+	return ccInfos
 }
 
 func (client *RpcClient) getCurrHeight() (int64, error) {
