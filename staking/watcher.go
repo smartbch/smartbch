@@ -5,12 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"sort"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/log"
 
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking/types"
 )

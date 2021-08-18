@@ -123,13 +123,12 @@ func (m *MockEpochConsumer) consume() {
 
 func TestRun(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, client, "", 0, false)
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan
 	time.Sleep(1 * time.Second)
 	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
-	require.Equal(t, int(10+param.StakingNumBlocksInEpoch), len(w.hashToBlock))
 	for h, b := range w.hashToBlock {
 		require.True(t, int64(h[0]) == b.Height)
 		require.True(t, h == b.HashId)
@@ -140,7 +139,7 @@ func TestRun(t *testing.T) {
 
 func TestRunWithNewEpoch(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, client, "", 0, false)
 	c := MockEpochConsumer{
 		w: w,
 	}
@@ -169,7 +168,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 
 func TestRunWithFork(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, client, "", 0, false)
 	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)
 	catchupChan := make(chan bool, 1)

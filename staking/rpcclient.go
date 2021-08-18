@@ -5,14 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
-	"github.com/tendermint/tendermint/libs/log"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/tendermint/tendermint/libs/log"
 
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
 )
 

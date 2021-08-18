@@ -6,8 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/smartbch/smartbch/crosschain"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math"
 	"os"
 	"path"
@@ -36,6 +34,8 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/seps"

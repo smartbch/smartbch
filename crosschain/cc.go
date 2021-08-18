@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
+	"math"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/log"
+
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/types"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/libs/log"
-	"math"
-	"strings"
 )
 
 const (
@@ -24,20 +26,20 @@ const (
 var (
 	//contract address, 9999
 	//todo: transfer remain BCH to this address before working
-	ccContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x09}
+	CCContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x09}
 	/*------selector------*/
 	/*interface CC {
-	    function transferBCHToMainnet(utxo bytes, amount uint256) external;
-	    function burnBCH(utxo bytes, amount uint256) external;
+	    function transferBCHToMainnet(bytes utxo) external;
+	    function burnBCH(bytes utxo) external;
 
 	    event TransferToMainnet(bytes32 indexed mainnetTxId, bytes4 indexed vOutIndex, address indexed from, uint256 value);
 	    event Burn(bytes32 indexed mainnetTxId, bytes4 indexed vOutIndex, uint256 value);
 	}*/
-	SelectorTransferBchToMainnet [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
-	SelectorBurnBCH              [4]byte = [4]byte{0xa4, 0x87, 0x4d, 0x77}
+	SelectorTransferBchToMainnet [4]byte = [4]byte{0xa0, 0x4f, 0x3b, 0x01}
+	SelectorBurnBCH              [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3}
 
-	HashOfEventTransferToBch [32]byte = [32]byte{}
-	HashOfEventBurn          [32]byte = [32]byte{}
+	HashOfEventTransferToBch [32]byte = common.HexToHash("0x4a9f09be1e2df144675144ec10cb5fe6c05504a84262275b62028189c1d410c1")
+	HashOfEventBurn          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 
 	GasOfCCOp uint64 = 400_000
 
@@ -64,16 +66,16 @@ func NewCcContractExecutor(logger log.Logger) *CcContractExecutor {
 var _ mevmtypes.SystemContractExecutor = &CcContractExecutor{}
 
 func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
-	ccAcc := ctx.GetAccount(ccContractAddress)
+	ccAcc := ctx.GetAccount(CCContractAddress)
 	if ccAcc == nil { // only executed at genesis
 		ccAcc = mevmtypes.ZeroAccountInfo()
 		ccAcc.UpdateSequence(ccContractSequence)
-		ctx.SetAccount(ccContractAddress, ccAcc)
+		ctx.SetAccount(CCContractAddress, ccAcc)
 	}
 }
 
 func (_ *CcContractExecutor) IsSystemContract(addr common.Address) bool {
-	return bytes.Equal(addr[:], ccContractAddress[:])
+	return bytes.Equal(addr[:], CCContractAddress[:])
 }
 
 func (s *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
@@ -110,13 +112,13 @@ func transferBchToMainnet(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status
 	status = StatusFailed //default status is failed
 	gasUsed = GasOfCCOp
 	callData := tx.Data[4:]
-	if len(callData) < 96 /*[36]byte abi encode length*/ {
+	if len(callData) < 32+32+64 /*[36]byte abi encode length*/ {
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
 	// First argument: utxo
 	var utxo [36]byte
-	copy(utxo[:], callData[32:68])
+	copy(utxo[:], callData[64:64+36])
 
 	value := uint256.NewInt().SetBytes32(tx.Value[:])
 	err := consumeUTXO(ctx, utxo, value)
@@ -134,7 +136,7 @@ func transferBchToMainnet(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status
 
 func buildTransferToMainnetEvmLog(utxo [36]byte, from common.Address, value *uint256.Int) mevmtypes.EvmLog {
 	evmLog := mevmtypes.EvmLog{
-		Address: ccContractAddress,
+		Address: CCContractAddress,
 		Topics:  make([]common.Hash, 0, 4),
 	}
 
@@ -159,24 +161,20 @@ func burnBch(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	callData := tx.Data[4:]
-	if len(callData) < 96+32 /*[36]byte* + uint256*/ {
+	if len(callData) < 32+32+64 /*[36]byte*/ {
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
 	var utxo [36]byte
-	copy(utxo[:], callData[32:68])
+	copy(utxo[:], callData[64:64+36])
 
-	value := uint256.NewInt().SetBytes32(tx.Value[:])
-	err := consumeUTXO(ctx, utxo, value)
+	value := LoadUTXO(ctx, utxo)
+	err := UpdateBchBurnt(ctx, value)
 	if err != nil {
 		outData = []byte(err.Error())
 		return
 	}
-	err = UpdateBchBurnt(ctx, value)
-	if err != nil {
-		outData = []byte(err.Error())
-		return
-	}
+	SaveUTXO(ctx, utxo, uint256.NewInt())
 	logs = append(logs, buildBurnEvmLog(utxo, value))
 	status = StatusSuccess
 	return
@@ -184,7 +182,7 @@ func burnBch(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 
 func buildBurnEvmLog(utxo [36]byte, value *uint256.Int) mevmtypes.EvmLog {
 	evmLog := mevmtypes.EvmLog{
-		Address: ccContractAddress,
+		Address: CCContractAddress,
 		Topics:  make([]common.Hash, 0, 4),
 	}
 
@@ -244,7 +242,7 @@ func UpdateBchBurnt(ctx *mevmtypes.Context, amount *uint256.Int) error {
 
 func transferBchFromTx(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, outData []byte) {
 	status = StatusFailed
-	err := transferBch(ctx, tx.From, ccContractAddress, uint256.NewInt().SetBytes(tx.Value[:]))
+	err := transferBch(ctx, tx.From, CCContractAddress, uint256.NewInt().SetBytes(tx.Value[:]))
 	if err != nil {
 		outData = []byte(err.Error())
 		return
@@ -279,7 +277,7 @@ func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 		SaveUTXO(ctx, info.UTXO, value)
 		var sender common.Address
 		sender.SetBytes(ed25519.PubKey(info.SenderPubkey[:]).Address().Bytes())
-		err := transferBch(ctx, ccContractAddress, sender, value)
+		err := transferBch(ctx, CCContractAddress, sender, value)
 		if err != nil {
 			//log it, never in here if mainnet is honest
 		}
