@@ -177,11 +177,11 @@ func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 
 // Clear all the pending rewards belonging to an validator. Return the accumulated cleared amount.
 func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int) {
-	totalCleared = uint256.NewInt()
+	totalCleared = uint256.NewInt(0)
 	rwdList := make([]*PendingReward, 0, len(si.PendingRewards))
 	for _, rwd := range si.PendingRewards {
 		if bytes.Equal(rwd.Address[:], addr[:]) {
-			coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
+			coins := uint256.NewInt(0).SetBytes32(rwd.Amount[:])
 			totalCleared.Add(totalCleared, coins)
 			if rwd.EpochNum == si.CurrEpochNum { // we still need this entry
 				rwd.Amount = [32]byte{}        // just clear the amount
@@ -213,7 +213,7 @@ func (si *StakingInfo) GetActiveValidators(minStakedCoins *uint256.Int) []*Valid
 func GetActiveValidators(vals []*Validator, minStakedCoins *uint256.Int) []*Validator {
 	res := make([]*Validator, 0, len(vals))
 	for _, val := range vals {
-		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
+		coins := uint256.NewInt(0).SetBytes32(val.StakedCoins[:])
 		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
 			res = append(res, val)
 		}

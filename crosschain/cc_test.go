@@ -27,7 +27,7 @@ func TestCC(t *testing.T) {
 	senderBalance, _ := ctx.GetBalance(sender)
 	acc := ctx.GetAccount(crosschain.CCContractAddress)
 	initCCBalance := uint64(1000000)
-	acc.UpdateBalance(uint256.NewInt().SetUint64(initCCBalance))
+	acc.UpdateBalance(uint256.NewInt(initCCBalance))
 	ctx.SetAccount(crosschain.CCContractAddress, acc)
 
 	txId1 := common.HexToHash("0x1")
@@ -37,7 +37,7 @@ func TestCC(t *testing.T) {
 	copy(utxo1[:], txId1[:])
 	copy(utxo1[32:], vOutIndex[:])
 
-	amount1 := uint256.NewInt().SetUint64(100)
+	amount1 := uint256.NewInt(100)
 	crosschain.SaveUTXO(ctx, utxo1, amount1)
 
 	c := crosschain.PackTransferBCHToMainnet(utxo1)
@@ -50,7 +50,7 @@ func TestCC(t *testing.T) {
 	}
 	status, logs, _, _ := e.Execute(ctx, nil, tx1)
 	require.Equal(t, crosschain.StatusSuccess, status)
-	require.Equal(t, amount1.Uint64(), uint256.NewInt().SetBytes(logs[0].Data).Uint64())
+	require.Equal(t, amount1.Uint64(), uint256.NewInt(0).SetBytes(logs[0].Data).Uint64())
 	require.Equal(t, common.Address(crosschain.CCContractAddress), logs[0].Address)
 	require.Equal(t, common.Hash(crosschain.HashOfEventTransferToBch), logs[0].Topics[0])
 	require.Equal(t, txId1, logs[0].Topics[1])
@@ -82,10 +82,10 @@ func TestCC(t *testing.T) {
 			Data: c,
 		},
 	}
-	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, sender, uint256.NewInt().SetUint64(1000))
+	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, sender, uint256.NewInt(1000))
 	status, logs, _, _ = e.Execute(ctx, nil, tx2)
 	require.Equal(t, crosschain.StatusSuccess, status)
-	require.Equal(t, amount1.Uint64(), uint256.NewInt().SetBytes(logs[0].Data).Uint64())
+	require.Equal(t, amount1.Uint64(), uint256.NewInt(0).SetBytes(logs[0].Data).Uint64())
 	require.Equal(t, common.Hash(crosschain.HashOfEventBurn), logs[0].Topics[0])
 	require.Equal(t, txId2, logs[0].Topics[1])
 	require.Equal(t, binary.BigEndian.Uint32(vOutIndex[:]), binary.BigEndian.Uint32(logs[0].Topics[2].Bytes()[32-4:]))

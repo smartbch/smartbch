@@ -8,7 +8,7 @@ import (
 )
 
 func NewU256(u64 uint64) *uint256.Int {
-	u256 := uint256.NewInt()
+	u256 := uint256.NewInt(0)
 	u256.SetUint64(u64)
 	return u256
 }

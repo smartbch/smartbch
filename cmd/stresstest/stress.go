@@ -38,8 +38,8 @@ const (
 	blockDir = "./blkdata"
 )
 
-var num1e18 = uint256.NewInt().SetUint64(1_000_000_000_000_000_000)
-var initBalance = uint256.NewInt().Mul(num1e18, num1e18)
+var num1e18 = uint256.NewInt(1_000_000_000_000_000_000)
+var initBalance = uint256.NewInt(0).Mul(num1e18, num1e18)
 var chainId = bigutils.NewU256(0x2711)
 
 type Block struct {

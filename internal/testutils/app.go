@@ -110,7 +110,7 @@ func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint2
 		fmt.Println("h: 0 StateRoot:", hex.EncodeToString(stateRoot))
 	}
 
-	allBalance := uint256.NewInt()
+	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()
 	}
@@ -129,7 +129,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
 	newApp := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
-	allBalance := uint256.NewInt()
+	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()
 	}
@@ -140,7 +140,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 }
 
 func (_app *TestApp) Destroy() {
-	allBalance := uint256.NewInt()
+	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.App.SumAllBalance()
 	}

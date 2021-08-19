@@ -120,7 +120,7 @@ func transferBchToMainnet(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status
 	var utxo [36]byte
 	copy(utxo[:], callData[64:64+36])
 
-	value := uint256.NewInt().SetBytes32(tx.Value[:])
+	value := uint256.NewInt(0).SetBytes32(tx.Value[:])
 	err := consumeUTXO(ctx, utxo, value)
 	if err != nil {
 		outData = []byte(err.Error())
@@ -174,7 +174,7 @@ func burnBch(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 		outData = []byte(err.Error())
 		return
 	}
-	SaveUTXO(ctx, utxo, uint256.NewInt())
+	SaveUTXO(ctx, utxo, uint256.NewInt(0))
 	logs = append(logs, buildBurnEvmLog(utxo, value))
 	status = StatusSuccess
 	return
@@ -204,7 +204,7 @@ func consumeUTXO(ctx *mevmtypes.Context, utxo [36]byte, value *uint256.Int) erro
 	if originAmount.Cmp(value) != 0 {
 		return BchAmountNotMatch
 	}
-	SaveUTXO(ctx, utxo, uint256.NewInt())
+	SaveUTXO(ctx, utxo, uint256.NewInt(0))
 	return nil
 }
 
@@ -212,7 +212,7 @@ func LoadUTXO(ctx *mevmtypes.Context, utxo [36]byte) *uint256.Int {
 	var bz []byte
 	key := sha256.Sum256(utxo[:])
 	bz = ctx.GetStorageAt(ccContractSequence, string(key[:]))
-	return uint256.NewInt().SetBytes(bz)
+	return uint256.NewInt(0).SetBytes(bz)
 }
 
 func SaveUTXO(ctx *mevmtypes.Context, utxo [36]byte, amount *uint256.Int) {
@@ -223,7 +223,7 @@ func SaveUTXO(ctx *mevmtypes.Context, utxo [36]byte, amount *uint256.Int) {
 func LoadBchMainnetBurnt(ctx *mevmtypes.Context) *uint256.Int {
 	var bz []byte
 	bz = ctx.GetStorageAt(ccContractSequence, SlotBCHAlreadyBurnt)
-	return uint256.NewInt().SetBytes(bz)
+	return uint256.NewInt(0).SetBytes(bz)
 }
 
 func SaveBchMainnetBurnt(ctx *mevmtypes.Context, amount *uint256.Int) {
@@ -242,7 +242,7 @@ func UpdateBchBurnt(ctx *mevmtypes.Context, amount *uint256.Int) error {
 
 func transferBchFromTx(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, outData []byte) {
 	status = StatusFailed
-	err := transferBch(ctx, tx.From, CCContractAddress, uint256.NewInt().SetBytes(tx.Value[:]))
+	err := transferBch(ctx, tx.From, CCContractAddress, uint256.NewInt(0).SetBytes(tx.Value[:]))
 	if err != nil {
 		outData = []byte(err.Error())
 		return
@@ -273,7 +273,7 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 
 func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 	for _, info := range epoch.TransferInfos {
-		value := uint256.NewInt().SetUint64(info.Amount)
+		value := uint256.NewInt(0).SetUint64(info.Amount)
 		SaveUTXO(ctx, info.UTXO, value)
 		var sender common.Address
 		sender.SetBytes(ed25519.PubKey(info.SenderPubkey[:]).Address().Bytes())
