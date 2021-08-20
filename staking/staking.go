@@ -31,9 +31,11 @@ const (
 
 const (
 	StakingContractSequence uint64 = math.MaxUint64 - 2 /*uint64(-3)*/
+	Uint64_1e18             uint64 = 1000_000_000_000_000_000
 )
 
 var (
+	XHedgeContractSequence uint64 = 0 //TODO
 	//contract address, 10000
 	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
@@ -63,24 +65,28 @@ var (
 	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
 	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{100}) //TODO
+	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{101}) //TODO
 )
 
 var (
 	/*------param------*/
 	//staking
 	//InitialStakingAmount *uint256.Int = uint256.NewInt(0).Mul(
-	//	uint256.NewInt(0).SetUint64(1000),
-	//	uint256.NewInt(0).SetUint64(1000_000_000_000_000_000))
+	//	uint256.NewInt(1000),
+	//	uint256.NewInt(Uint64_1e18))
 	//MinimumStakingAmount *uint256.Int = uint256.NewInt(0).Mul(
-	//	uint256.NewInt(0).SetUint64(800),
-	//	uint256.NewInt(0).SetUint64(1000_000_000_000_000_000))
+	//	uint256.NewInt(800),
+	//	uint256.NewInt(Uint64_1e18))
 	//SlashedStakingAmount *uint256.Int = uint256.NewInt(0).Mul(
-	//	uint256.NewInt(0).SetUint64(10),
-	//	uint256.NewInt(0).SetUint64(1000_000_000_000_000_000))
+	//	uint256.NewInt(10),
+	//	uint256.NewInt(Uint64_1e18))
 	InitialStakingAmount *uint256.Int = uint256.NewInt(0)
 
 	MinimumStakingAmount *uint256.Int = uint256.NewInt(0)
 	SlashedStakingAmount *uint256.Int = uint256.NewInt(0)
+
+	CoindayUnit *uint256.Int = uint256.NewInt(0).Mul(uint256.NewInt(24*60*60), uint256.NewInt(Uint64_1e18))
 
 	GasOfValidatorOp   uint64 = 400_000
 	GasOfMinGasPriceOp uint64 = 50_000
@@ -887,4 +893,20 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) 
 		return bytes.Compare(updatedList[i].Address[:], updatedList[j].Address[:]) < 0
 	})
 	return updatedList
+}
+
+func GetAndClearPosVotes(ctx *mevmtypes.Context) map[[32]byte]int64 {
+	posVotes := make(map[[32]byte]int64)
+	validators := ctx.GetDynamicArray(XHedgeContractSequence, SlotValatorsArray)
+	var pubkey [32]byte
+	coindays := uint256.NewInt(0)
+	for _, val := range validators {
+		copy(pubkey[:], val)
+		coindaysBz := ctx.GetAndDeleteValueAtMapKey(XHedgeContractSequence, SlotValatorsMap, string(val))
+		coindays.SetBytes(coindaysBz)
+		coindays.Div(coindays, CoindayUnit)
+		posVotes[pubkey] = int64(coindays.Uint64())
+	}
+	ctx.DeleteDynamicArray(XHedgeContractSequence, SlotValatorsArray)
+	return posVotes
 }
