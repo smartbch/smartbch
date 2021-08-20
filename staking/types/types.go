@@ -33,6 +33,39 @@ type Nomination struct {
 	NominatedCount int64
 }
 
+// An NominationHeap is a max-heap of *Nomination
+type NominationHeap []*Nomination
+
+func (h NominationHeap) Len() int {
+	return len(h)
+}
+
+func (h NominationHeap) Less(i, j int) bool {
+	if h[i].NominatedCount > h[j].NominatedCount { // larger first
+		return true
+	} else if h[i].NominatedCount == h[j].NominatedCount {
+		return bytes.Compare(h[i].Pubkey[:], h[j].Pubkey[:]) < 0
+	} else {
+		return false
+	}
+}
+
+func (h NominationHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *NominationHeap) Push(x interface{}) {
+	*h = append(*h, x.(*Nomination))
+}
+
+func (h *NominationHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
 // This struct contains the useful information of a BCH block
 type BCHBlock struct {
 	Height          int64

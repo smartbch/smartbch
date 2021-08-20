@@ -2,6 +2,7 @@ package staking
 
 import (
 	"bytes"
+	"container/heap"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -652,8 +653,63 @@ func distributeToValidator(info *types.StakingInfo, rwdMapByAddr map[[20]byte]*t
 	rwd.Amount = coins.Bytes32()
 }
 
+func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger,
+	validatorSet map[[32]byte]bool) (powTotalNomination int64, pubkey2power map[[32]byte]int64) {
+
+	for _, n := range epoch.Nominations {
+		logger.Debug(fmt.Sprintf("Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
+	}
+	validNominations := make([]*types.Nomination, 0, len(epoch.Nominations)+len(posVotes))
+	totalVotedBlocks := int64(0) // how many blocks were used for pow voting. at most 2016
+	for _, n := range epoch.Nominations {
+		if validatorSet[n.Pubkey] { // votes to non-validators are ingored
+			validNominations = append(validNominations, n)
+			totalVotedBlocks += n.NominatedCount
+		}
+	}
+	for _, n := range validNominations {
+		logger.Debug(fmt.Sprintf("Valid Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
+		powTotalNomination += n.NominatedCount
+	}
+
+	validVotes := make(map[[32]byte]int64, len(posVotes))
+	totalValidCoinDays := int64(0) // how many coindays were used for pos voting. at most 21_000_000*365
+	for pubkey, coindays := range posVotes {
+		if validatorSet[pubkey] { // votes to non-validators are ingored
+			validVotes[pubkey] = coindays
+			totalValidCoinDays += coindays
+		}
+	}
+	// change block count to coindays
+	if totalValidCoinDays > 0 {
+		for i, n := range validNominations {
+			validNominations[i].NominatedCount = totalValidCoinDays * n.NominatedCount / totalVotedBlocks
+		}
+	}
+	// merge pos and power votes
+	for _, n := range validNominations {
+		coindays, _ := validVotes[n.Pubkey]
+		validVotes[n.Pubkey] = coindays + n.NominatedCount
+	}
+	validNominations = validNominations[:0]
+	for pubkey, coindays := range validVotes {
+		n := &types.Nomination{Pubkey: pubkey, NominatedCount: coindays}
+		validNominations = append(validNominations, n)
+	}
+
+	// select at most StakingMaxValidatorCount validators
+	nominationHeap := types.NominationHeap(validNominations)
+	heap.Init(&nominationHeap)
+	pubkey2power = make(map[[32]byte]int64, len(validNominations))
+	for i := 0; i < param.StakingMaxValidatorCount && len(nominationHeap) > 0; i++ {
+		n := heap.Pop(&nominationHeap).(*types.Nomination)
+		pubkey2power[n.Pubkey] = 1
+	}
+	return
+}
+
 // switch to a new epoch
-func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, logger log.Logger,
+func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger,
 	minVotingPercentPerEpoch, minVotingPubKeysPercentPerEpoch int) []*types.Validator {
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	//increase currEpochNum no matter if epoch is valid
@@ -667,47 +723,25 @@ CurrentEpochNum:%d
 CurrentSmartBchBlockHeight:%d
 `, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height))
 
-	validNominations := make([]*types.Nomination, 0, len(epoch.Nominations))
 	validatorSet := make(map[[32]byte]bool)
 	for _, val := range info.Validators {
 		if !val.IsRetiring {
 			validatorSet[val.Pubkey] = true
 		}
 	}
-	for _, n := range epoch.Nominations {
-		if validatorSet[n.Pubkey] {
-			validNominations = append(validNominations, n)
-		}
-	}
-	if len(validNominations) > param.StakingMaxValidatorCount {
-		validNominations = validNominations[:param.StakingMaxValidatorCount]
-	}
-	for _, n := range epoch.Nominations {
-		logger.Debug(fmt.Sprintf("Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
-	}
-	for _, n := range validNominations {
-		logger.Debug(fmt.Sprintf("Valid Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
-	}
+	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger, validatorSet)
 	epoch.Number = info.CurrEpochNum
 	SaveEpoch(ctx, info.CurrEpochNum, epoch)
-	pubkey2power := make(map[[32]byte]int64)
-	for _, v := range validNominations {
-		pubkey2power[v.Pubkey] = 1
-	}
 	// distribute mature pending reward to rewardTo
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
-	totalNomination := int64(0)
-	for _, n := range validNominations {
-		totalNomination += n.NominatedCount
-	}
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if totalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
-		logger.Debug("TotalNomination not big enough", "totalNomination", totalNomination)
+	if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
+		logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
 	}
-	if len(validNominations) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
+	if len(pubkey2power) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
 		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 		return nil
