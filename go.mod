@@ -6,7 +6,6 @@ require (
 	github.com/DataDog/zstd v1.4.8 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/coinexchain/randsrc v0.2.0
-	github.com/consensys/gurvy v0.3.8 // indirect
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/ethereum/go-ethereum v1.10.7
@@ -26,7 +25,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.3.0
 	github.com/smartbch/moeingdb v0.3.0
-	github.com/smartbch/moeingevm v0.3.1-0.20210819090903-4f3f9958cbc7
+	github.com/smartbch/moeingevm v0.3.1-0.20210820065040-7d6dba80f00f
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
@@ -36,7 +35,6 @@ require (
 	github.com/tendermint/tendermint v0.34.10
 	github.com/tinylib/msgp v1.1.5
 	golang.org/x/net v0.0.0-20210421230115-4e50805a0758 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	google.golang.org/genproto v0.0.0-20210422153429-2279cbceda62 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect

@@ -30,6 +30,6 @@ const (
 	StakingMaxValidatorCount               int   = 50
 
 	// ccEpoch params
-	BlocksInCCEpoch    int64 = 256
-	CCEpochSwitchDelay int64 = 128
+	BlocksInCCEpoch    int64 = 21
+	CCEpochSwitchDelay int64 = 600 * 2016 / 20
 )

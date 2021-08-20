@@ -151,9 +151,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
-	//init PredefinedSystemContractExecutors before tx execute
-	ebp.PredefinedSystemContractExecutor = staking.NewStakingContractExecutor(app.logger.With("module", "staking"))
-	ebp.PredefinedSystemContractExecutor.Init(ctx)
+
+	ebp.RegisterPredefinedContract(ctx, staking.StakingContractAddress, staking.NewStakingContractExecutor(app.logger.With("module", "staking")))
+	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them

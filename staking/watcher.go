@@ -237,7 +237,6 @@ func (watcher *Watcher) buildNewEpoch() *types.Epoch {
 		StartHeight: watcher.lastEpochEndHeight + 1,
 		Nominations: make([]*types.Nomination, 0, 10),
 	}
-	startTime := int64(1 << 62)
 	var valMapByPubkey = make(map[[32]byte]*types.Nomination)
 	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
 		blk, ok := watcher.heightToFinalizedBlock[i]
@@ -247,9 +246,6 @@ func (watcher *Watcher) buildNewEpoch() *types.Epoch {
 		//Please note that BCH's timestamp is not always linearly increasing
 		if epoch.EndTime < blk.Timestamp {
 			epoch.EndTime = blk.Timestamp
-		}
-		if startTime > blk.Timestamp {
-			startTime = blk.Timestamp
 		}
 		for _, nomination := range blk.Nominations {
 			if _, ok := valMapByPubkey[nomination.Pubkey]; !ok {
@@ -274,7 +270,21 @@ func (watcher *Watcher) generateNewCCEpoch() {
 }
 
 func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
-	return nil
+	epoch := &cctypes.CCEpoch{
+		StartHeight:   watcher.lastCCEpochEndHeight + 1,
+		TransferInfos: make([]*cctypes.CCTransferInfo, 0, 10),
+	}
+	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
+		blk, ok := watcher.heightToFinalizedBlock[i]
+		if !ok {
+			panic("Missing Block")
+		}
+		if epoch.EndTime < blk.Timestamp {
+			epoch.EndTime = blk.Timestamp
+		}
+		epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
+	}
+	return epoch
 }
 
 func (watcher *Watcher) CheckSanity(forTest bool) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 
@@ -174,7 +175,7 @@ func burnBch(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 		outData = []byte(err.Error())
 		return
 	}
-	SaveUTXO(ctx, utxo, uint256.NewInt(0))
+	deleteUTXO(ctx, utxo)
 	logs = append(logs, buildBurnEvmLog(utxo, value))
 	status = StatusSuccess
 	return
@@ -204,7 +205,7 @@ func consumeUTXO(ctx *mevmtypes.Context, utxo [36]byte, value *uint256.Int) erro
 	if originAmount.Cmp(value) != 0 {
 		return BchAmountNotMatch
 	}
-	SaveUTXO(ctx, utxo, uint256.NewInt(0))
+	deleteUTXO(ctx, utxo)
 	return nil
 }
 
@@ -220,9 +221,13 @@ func SaveUTXO(ctx *mevmtypes.Context, utxo [36]byte, amount *uint256.Int) {
 	ctx.SetStorageAt(ccContractSequence, string(key[:]), amount.Bytes())
 }
 
+func deleteUTXO(ctx *mevmtypes.Context, utxo [36]byte) {
+	key := sha256.Sum256(utxo[:])
+	ctx.DeleteStorageAt(ccContractSequence, string(key[:]))
+}
+
 func LoadBchMainnetBurnt(ctx *mevmtypes.Context) *uint256.Int {
-	var bz []byte
-	bz = ctx.GetStorageAt(ccContractSequence, SlotBCHAlreadyBurnt)
+	var bz = ctx.GetStorageAt(ccContractSequence, SlotBCHAlreadyBurnt)
 	return uint256.NewInt(0).SetBytes(bz)
 }
 
@@ -280,6 +285,7 @@ func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 		err := transferBch(ctx, CCContractAddress, sender, value)
 		if err != nil {
 			//log it, never in here if mainnet is honest
+			fmt.Println(err.Error())
 		}
 	}
 	ccInfo := LoadCCInfo(ctx)

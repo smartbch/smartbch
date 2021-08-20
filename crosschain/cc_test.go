@@ -64,7 +64,7 @@ func TestCC(t *testing.T) {
 	ccBalanceAfter, _ := ctx.GetBalance(crosschain.CCContractAddress)
 	require.Equal(t, amount1.Uint64(), ccBalanceAfter.Uint64()-initCCBalance)
 
-	status, logs, _, outData := e.Execute(ctx, nil, tx1)
+	status, _, _, outData := e.Execute(ctx, nil, tx1)
 	require.Equal(t, crosschain.StatusFailed, status)
 	require.True(t, bytes.Equal([]byte(crosschain.BchAmountNotMatch.Error()), outData))
 
