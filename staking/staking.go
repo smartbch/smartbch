@@ -694,7 +694,7 @@ func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[3
 	}
 	// merge pos and power votes
 	for _, n := range validNominations {
-		coindays, _ := validVotes[n.Pubkey]
+		coindays := validVotes[n.Pubkey]
 		validVotes[n.Pubkey] = coindays + n.NominatedCount
 	}
 	validNominations = validNominations[:0]

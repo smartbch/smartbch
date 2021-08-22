@@ -197,6 +197,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		crosschain.SaveCCInfo(ctx, ccInfo)
 	}
 	fmt.Println(ccInfo)
+	//for test with fake node
+	//acc := ctx.GetAccount(crosschain.CCContractAddress)
+	//acc.UpdateBalance(uint256.NewInt(1000_0000))
+	//ctx.SetAccount(crosschain.CCContractAddress, acc)
 
 	/*------set watcher------*/
 	watcherLogger := app.logger.With("module", "watcher")

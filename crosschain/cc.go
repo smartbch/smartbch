@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
-	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/moeingevm/ebp"
@@ -268,6 +268,9 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 		ctx.SetAccount(sender, senderAcc)
 
 		receiverAcc := ctx.GetAccount(receiver)
+		if receiverAcc == nil {
+			receiverAcc = mevmtypes.ZeroAccountInfo()
+		}
 		receiverAccBalance := receiverAcc.Balance()
 		receiverAccBalance.Add(receiverAccBalance, value)
 		receiverAcc.UpdateBalance(receiverAccBalance)
@@ -279,9 +282,11 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 	for _, info := range epoch.TransferInfos {
 		value := uint256.NewInt(0).SetUint64(info.Amount)
+		fmt.Printf("switch epoch: info.pubkey:%v, info.amount:%d, info.utxo:%s\n",
+			info.SenderPubkey, info.Amount, info.UTXO)
 		SaveUTXO(ctx, info.UTXO, value)
 		var sender common.Address
-		sender.SetBytes(ed25519.PubKey(info.SenderPubkey[:]).Address().Bytes())
+		sender.SetBytes(secp256k1.PubKey(info.SenderPubkey[:]).Address().Bytes())
 		err := transferBch(ctx, CCContractAddress, sender, value)
 		if err != nil {
 			//log it, never in here if mainnet is honest

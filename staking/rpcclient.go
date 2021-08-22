@@ -143,14 +143,34 @@ func (ti TxInfo) getCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
 		}
 		var info cctypes.CCTransferInfo
 		info.Amount = uint64(vOut.Value)
-		if len(ti.TxID) != 32 {
-			continue
-		}
-		copy(info.UTXO[:32], ti.TxID)
+		copy(info.UTXO[:32], ti.Hash)
 		var vOutIndex [4]byte
 		binary.BigEndian.PutUint32(vOutIndex[:], uint32(n))
 		copy(info.UTXO[32:], vOutIndex[:])
 		infos = append(infos, &info)
+	}
+	if len(infos) != 0 {
+		vIn := ti.VinList[0]
+		//todo: modify this to match real rules, for test now
+		value, exist := vIn["test"]
+		if !exist || value == nil {
+			return nil
+		}
+		pubkeyString, ok := value.(string)
+		if !ok {
+			return nil
+		}
+		pubkeyBytes, err := hex.DecodeString(pubkeyString)
+		if err != nil {
+			return nil
+		}
+		var pubkey [33]byte
+		copy(pubkey[:], pubkeyBytes)
+		fmt.Printf("get cc infos:\n")
+		for _, info := range infos {
+			info.SenderPubkey = pubkey
+			fmt.Printf("info.pubkey:%v, info.amount:%d, info.utxo:%v\n", info.SenderPubkey, info.Amount, info.UTXO)
+		}
 	}
 	return
 }
@@ -272,7 +292,10 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 		return nil
 	}
 	if bi.Height > 0 {
-		bchBlock.Nominations = append(bchBlock.Nominations, *client.getNomination(bi.Tx[0]))
+		nomination := client.getNomination(bi.Tx[0])
+		if nomination != nil {
+			bchBlock.Nominations = append(bchBlock.Nominations, *nomination)
+		}
 		bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.getCCTransferInfos(bi)...)
 	}
 	if client.err != nil {
