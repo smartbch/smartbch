@@ -334,4 +334,8 @@ func (watcher *Watcher) ClearOldData() {
 	if elLen > 5 /*param it*/ {
 		watcher.epochList = watcher.epochList[elLen-5:]
 	}
+	ccEpochLen := len(watcher.ccEpochList)
+	if ccEpochLen > 5*int(param.StakingNumBlocksInEpoch/param.BlocksInCCEpoch) {
+		watcher.epochList = watcher.epochList[ccEpochLen-5:]
+	}
 }
