@@ -1,4 +1,4 @@
-package staking
+package watcher
 
 import (
 	"encoding/binary"
@@ -13,7 +13,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
-	"github.com/smartbch/smartbch/staking/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher/types"
 )
 
 const (
@@ -262,7 +263,7 @@ func (client *RpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return blk
 }
 
-func (client *RpcClient) GetEpochs(start, end uint64) []*types.Epoch {
+func (client *RpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
 	epochs := client.getEpochs(start, end)
 	if client.err != nil {
 		client.logger.Debug("GetEpochs failed", client.err.Error())
@@ -304,7 +305,7 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	return bchBlock
 }
 
-func (client *RpcClient) getNomination(txHash string) *types.Nomination {
+func (client *RpcClient) getNomination(txHash string) *stakingtypes.Nomination {
 	var coinbase *TxInfo
 	coinbase, client.err = client.getTx(txHash)
 	if client.err != nil {
@@ -312,7 +313,7 @@ func (client *RpcClient) getNomination(txHash string) *types.Nomination {
 	}
 	pubKey, ok := coinbase.GetValidatorPubKey()
 	if ok {
-		return &types.Nomination{
+		return &stakingtypes.Nomination{
 			Pubkey:         pubKey,
 			NominatedCount: 1,
 		}
@@ -416,7 +417,7 @@ type smartBchJsonrpcMessage struct {
 	Result  json.RawMessage       `json:"result,omitempty"`
 }
 
-func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
+func (client *RpcClient) getEpochs(start, end uint64) []*stakingtypes.Epoch {
 	var respData []byte
 	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
 	if client.err != nil {
@@ -427,7 +428,7 @@ func (client *RpcClient) getEpochs(start, end uint64) []*types.Epoch {
 	if client.err != nil {
 		return nil
 	}
-	var epochsResp []*types.Epoch
+	var epochsResp []*stakingtypes.Epoch
 	client.err = json.Unmarshal(m.Result, &epochsResp)
 	if client.err != nil {
 		return nil

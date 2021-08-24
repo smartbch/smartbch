@@ -282,7 +282,7 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 	for _, info := range epoch.TransferInfos {
 		value := uint256.NewInt(0).SetUint64(info.Amount)
-		fmt.Printf("switch epoch: info.pubkey:%v, info.amount:%d, info.utxo:%s\n",
+		fmt.Printf("switch epoch: info.pubkey:%v, info.amount:%d, info.utxo:%v\n",
 			info.SenderPubkey, info.Amount, info.UTXO)
 		SaveUTXO(ctx, info.UTXO, value)
 		var sender common.Address

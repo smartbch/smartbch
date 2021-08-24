@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/tendermint/tendermint/libs/log"
 	"math"
 	"os"
 	"strconv"
 
-	"github.com/smartbch/smartbch/staking"
+	"github.com/tendermint/tendermint/libs/log"
+
+	"github.com/smartbch/smartbch/watcher"
 )
 
 func main() {
@@ -30,11 +31,11 @@ func main() {
 		panic(err)
 	}
 
-	client := staking.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;", log.NewNopLogger())
+	client := watcher.NewRpcClient(rpcURL, rpcUsername, rpcPassword, "text/plain;", log.NewNopLogger())
 	printBlockTime(client, startH, endH)
 }
 
-func printBlockTime(client *staking.RpcClient, startHeight, endHeight int64) {
+func printBlockTime(client *watcher.RpcClient, startHeight, endHeight int64) {
 	lastBlockTime := int64(0)
 	diffTimeMin := int64(math.MaxInt64)
 	diffTimeMax := int64(0)

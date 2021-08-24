@@ -1,4 +1,4 @@
-package staking
+package watcher
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/staking/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher/types"
 )
 
 type MockBCHNode struct {
@@ -35,9 +36,9 @@ func buildMockBCHNodeWithOnlyValidator1() *MockBCHNode {
 			Timestamp:   int64(i * 10 * 60),
 			HashId:      [32]byte{byte(i + 1)},
 			ParentBlk:   [32]byte{byte(i)},
-			Nominations: make([]types.Nomination, 1),
+			Nominations: make([]stakingtypes.Nomination, 1),
 		}
-		m.blocks[i].Nominations[0] = types.Nomination{
+		m.blocks[i].Nominations[0] = stakingtypes.Nomination{
 			Pubkey:         testValidatorPubkey1,
 			NominatedCount: 1,
 		}
@@ -53,7 +54,7 @@ func buildMockBCHNodeWithReorg() *MockBCHNode {
 		Timestamp:   99 * 10 * 60,
 		HashId:      [32]byte{byte(100)},
 		ParentBlk:   [32]byte{byte(199)},
-		Nominations: make([]types.Nomination, 1),
+		Nominations: make([]stakingtypes.Nomination, 1),
 	}
 	m.reorgBlocks = make(map[[32]byte]*types.BCHBlock)
 	m.reorgBlocks[[32]byte{byte(199)}] = &types.BCHBlock{
@@ -61,7 +62,7 @@ func buildMockBCHNodeWithReorg() *MockBCHNode {
 		Timestamp:   98 * 10 * 60,
 		HashId:      [32]byte{byte(199)},
 		ParentBlk:   [32]byte{byte(98)},
-		Nominations: make([]types.Nomination, 1),
+		Nominations: make([]stakingtypes.Nomination, 1),
 	}
 	return m
 }
@@ -99,7 +100,7 @@ func (m MockRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return m.node.blocks[height-1]
 }
 
-func (m MockRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
+func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
 	fmt.Printf("mock Rpc not support get Epoch")
 	return nil
 }
@@ -108,7 +109,7 @@ var _ types.RpcClient = MockRpcClient{}
 
 type MockEpochConsumer struct {
 	w         *Watcher
-	epochList []*types.Epoch
+	epochList []*stakingtypes.Epoch
 }
 
 //nolint
@@ -129,12 +130,8 @@ func TestRun(t *testing.T) {
 	<-catchupChan
 	time.Sleep(1 * time.Second)
 	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
-	for h, b := range w.hashToBlock {
-		require.True(t, int64(h[0]) == b.Height)
-		require.True(t, h == b.HashId)
-	}
-	require.Equal(t, 90, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, 91, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
 
 func TestRunWithNewEpoch(t *testing.T) {
@@ -152,14 +149,9 @@ func TestRunWithNewEpoch(t *testing.T) {
 	time.Sleep(3 * time.Second)
 	//test watcher clear
 	//require.Equal(t, 6*int(WatcherNumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
-	require.Equal(t, 20, len(w.hashToBlock))
-	require.Equal(t, 6*numBlocksInEpoch-1, len(w.heightToFinalizedBlock))
+	require.Equal(t, 6*numBlocksInEpoch, len(w.heightToFinalizedBlock))
 	require.Equal(t, 5, len(w.epochList))
-	for h, b := range w.hashToBlock {
-		require.True(t, int64(h[0]) == b.Height)
-		require.True(t, h == b.HashId)
-	}
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, int64(91), w.latestFinalizedHeight)
 	require.Equal(t, 9, len(c.epochList))
 	for i, e := range c.epochList {
 		require.Equal(t, int64(i*numBlocksInEpoch)+1, e.StartHeight)
@@ -176,17 +168,16 @@ func TestRunWithFork(t *testing.T) {
 	<-catchupChan
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))
-	require.Equal(t, int(101), len(w.hashToBlock))
-	require.Equal(t, 90, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, 91, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
 
 func TestEpochSort(t *testing.T) {
-	epoch := &types.Epoch{
-		Nominations: make([]*types.Nomination, 100),
+	epoch := &stakingtypes.Epoch{
+		Nominations: make([]*stakingtypes.Nomination, 100),
 	}
 	for i := 0; i < 100; i++ {
-		epoch.Nominations[i] = &types.Nomination{
+		epoch.Nominations[i] = &stakingtypes.Nomination{
 			Pubkey:         [32]byte{byte(i)},
 			NominatedCount: int64(i/5 + 1),
 		}

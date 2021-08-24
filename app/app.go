@@ -41,6 +41,7 @@ import (
 	"github.com/smartbch/smartbch/seps"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher"
 )
 
 var _ abcitypes.Application = (*App)(nil)
@@ -94,7 +95,7 @@ type App struct {
 	touchedAddrs map[gethcmn.Address]int // recorded in Commint, used in next block's CheckTx
 
 	//watcher
-	watcher     *staking.Watcher
+	watcher     *watcher.Watcher
 	epochList   []*stakingtypes.Epoch // caches the epochs collected by the watcher
 	ccEpochList []*cctypes.CCEpoch
 
@@ -204,10 +205,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set watcher------*/
 	watcherLogger := app.logger.With("module", "watcher")
-	client := staking.NewParallelRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, watcherLogger)
+	client := watcher.NewParallelRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, watcherLogger)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
 	lastCCEpochEndHeight := ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
-	app.watcher = staking.NewWatcher(watcherLogger, lastEpochEndHeight, lastCCEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
+	app.watcher = watcher.NewWatcher(watcherLogger, lastEpochEndHeight, lastCCEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(forTest)
