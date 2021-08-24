@@ -1,13 +1,13 @@
 package watcher
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/tendermint/tendermint/libs/log"
@@ -23,164 +23,7 @@ const (
 	ReqStrBlock      = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s"] }`
 	ReqStrTx         = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
 	ReqStrEpochs     = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
-	Identifier       = "73424348" // ascii code for 'sBCH'
-	Version          = "00"
 )
-
-type JsonRpcError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-type BlockCountResp struct {
-	Result int64         `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
-}
-
-type BlockHashResp struct {
-	Result string        `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
-}
-
-type BlockInfo struct {
-	Hash              string   `json:"hash"`
-	Confirmations     int      `json:"confirmations"`
-	Size              int      `json:"size"`
-	Height            int64    `json:"height"`
-	Version           int      `json:"version"`
-	VersionHex        string   `json:"versionHex"`
-	Merkleroot        string   `json:"merkleroot"`
-	Tx                []string `json:"tx"`
-	Time              int64    `json:"time"`
-	MedianTime        int64    `json:"mediantime"`
-	Nonce             int      `json:"nonce"`
-	Bits              string   `json:"bits"`
-	Difficulty        float64  `json:"difficulty"`
-	Chainwork         string   `json:"chainwork"`
-	NumTx             int      `json:"nTx"`
-	PreviousBlockhash string   `json:"previousblockhash"`
-}
-
-type BlockInfoResp struct {
-	Result BlockInfo     `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
-}
-
-type CoinbaseVin struct {
-	Coinbase string `json:"coinbase"`
-	Sequence int    `json:"sequence"`
-}
-
-type Vout struct {
-	Value        int64                  `json:"value"`
-	N            int                    `json:"n"`
-	ScriptPubKey map[string]interface{} `json:"scriptPubKey"`
-}
-
-type TxInfo struct {
-	TxID          string                   `json:"txid"`
-	Hash          string                   `json:"hash"`
-	Version       int                      `json:"version"`
-	Size          int                      `json:"size"`
-	Locktime      int                      `json:"locktime"`
-	VinList       []map[string]interface{} `json:"vin"`
-	VoutList      []Vout                   `json:"vout"`
-	Hex           string                   `json:"hex"`
-	Blockhash     string                   `json:"blockhash"`
-	Confirmations int                      `json:"confirmations"`
-	Time          int64                    `json:"time"`
-	BlockTime     int64                    `json:"blocktime"`
-}
-
-func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, success bool) {
-	for _, vout := range ti.VoutList {
-		asm, ok := vout.ScriptPubKey["asm"]
-		if !ok || asm == nil {
-			continue
-		}
-		script, ok := asm.(string)
-		if !ok {
-			continue
-		}
-		prefix := "OP_RETURN " + Identifier + Version
-		if !strings.HasPrefix(script, prefix) {
-			continue
-		}
-		script = script[len(prefix):]
-		if len(script) != 64 {
-			continue
-		}
-		bz, err := hex.DecodeString(script)
-		if err != nil {
-			continue
-		}
-		copy(pubKey[:], bz)
-		success = true
-		break
-	}
-	return
-}
-
-const (
-	ShaGateAddress = "14f8c7e99fd4e867c34cbd5968e35575fd5919a4"
-)
-
-func (ti TxInfo) getCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
-	for n, vOut := range ti.VoutList {
-		asm, ok := vOut.ScriptPubKey["asm"]
-		if !ok || asm == nil {
-			continue
-		}
-		script, ok := asm.(string)
-		if !ok {
-			continue
-		}
-		target := "OP_HASH160 " + ShaGateAddress + " OP_EQUAL"
-		if script != target {
-			continue
-		}
-		var info cctypes.CCTransferInfo
-		info.Amount = uint64(vOut.Value)
-		copy(info.UTXO[:32], ti.Hash)
-		var vOutIndex [4]byte
-		binary.BigEndian.PutUint32(vOutIndex[:], uint32(n))
-		copy(info.UTXO[32:], vOutIndex[:])
-		infos = append(infos, &info)
-	}
-	if len(infos) != 0 {
-		vIn := ti.VinList[0]
-		//todo: modify this to match real rules, for test now
-		value, exist := vIn["test"]
-		if !exist || value == nil {
-			return nil
-		}
-		pubkeyString, ok := value.(string)
-		if !ok {
-			return nil
-		}
-		pubkeyBytes, err := hex.DecodeString(pubkeyString)
-		if err != nil {
-			return nil
-		}
-		var pubkey [33]byte
-		copy(pubkey[:], pubkeyBytes)
-		fmt.Printf("get cc infos:\n")
-		for _, info := range infos {
-			info.SenderPubkey = pubkey
-			fmt.Printf("info.pubkey:%v, info.amount:%d, info.utxo:%v\n", info.SenderPubkey, info.Amount, info.UTXO)
-		}
-	}
-	return
-}
-
-type TxInfoResp struct {
-	Result TxInfo        `json:"result"`
-	Error  *JsonRpcError `json:"error"`
-	Id     string        `json:"id"`
-}
 
 type RpcClient struct {
 	url         string
@@ -194,6 +37,9 @@ type RpcClient struct {
 var _ types.RpcClient = (*RpcClient)(nil)
 
 func NewRpcClient(url, user, password, contentType string, logger log.Logger) *RpcClient {
+	if url == "" {
+		return nil
+	}
 	return &RpcClient{
 		url:         url,
 		user:        user,
@@ -201,6 +47,50 @@ func NewRpcClient(url, user, password, contentType string, logger log.Logger) *R
 		contentType: contentType,
 		logger:      logger,
 	}
+}
+
+func (client *RpcClient) GetLatestHeight() (height int64) {
+	height = -1
+	for height == -1 {
+		height = client.getCurrHeight()
+		if client.err != nil {
+			client.logger.Debug("GetLatestHeight failed", client.err.Error())
+			time.Sleep(10 * time.Second)
+		}
+	}
+	return
+}
+
+func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
+	var hash string
+	var blk *types.BCHBlock
+	for hash == "" {
+		hash = client.getBlockHashOfHeight(height)
+		if client.err != nil {
+			client.logger.Debug("getBlockHashOfHeight failed", client.err.Error())
+			time.Sleep(10 * time.Second)
+		}
+	}
+	for blk == nil {
+		blk = client.getBCHBlock(hash)
+		if client.err != nil {
+			client.logger.Debug("getBCHBlock failed", client.err.Error())
+			time.Sleep(10 * time.Second)
+		}
+	}
+	return blk
+}
+
+func (client *RpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
+	var epochs []*stakingtypes.Epoch
+	for epochs == nil {
+		epochs = client.getEpochs(start, end)
+		if client.err != nil {
+			client.logger.Debug("GetEpochs failed", client.err.Error())
+			time.Sleep(10 * time.Second)
+		}
+	}
+	return epochs
 }
 
 func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
@@ -223,56 +113,8 @@ func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 	return respData, nil
 }
 
-func (client *RpcClient) GetLatestHeight() (height int64) {
-	height, client.err = client.getCurrHeight()
-	if client.err != nil {
-		client.logger.Debug("GetLatestHeight failed", client.err.Error())
-	}
-	return
-}
-
-func (client *RpcClient) GetBlockHash(height int64) (string, error) {
-	return client.getBlockHashOfHeight(height)
-}
-func (client *RpcClient) GetBlockInfo(hash string) (*BlockInfo, error) {
-	return client.getBlock(hash)
-}
-func (client *RpcClient) GetTxInfo(hash string) (*TxInfo, error) {
-	return client.getTx(hash)
-}
-
-func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
-	var hash string
-	hash, client.err = client.getBlockHashOfHeight(height)
-	if client.err != nil {
-		client.logger.Debug("getBlockHashOfHeight failed", client.err.Error())
-		return nil
-	}
-	blk := client.getBCHBlock(hash)
-	if client.err != nil {
-		client.logger.Debug("getBCHBlock failed", client.err.Error())
-	}
-	return blk
-}
-
-func (client *RpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
-	blk := client.getBCHBlock(hex.EncodeToString(hash[:]))
-	if client.err != nil {
-		client.logger.Debug("GetBlockByHash failed", client.err.Error())
-	}
-	return blk
-}
-
-func (client *RpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
-	epochs := client.getEpochs(start, end)
-	if client.err != nil {
-		client.logger.Debug("GetEpochs failed", client.err.Error())
-	}
-	return epochs
-}
-
 func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
-	var bi *BlockInfo
+	var bi *types.BlockInfo
 	bi, client.err = client.getBlock(hash)
 	if client.err != nil {
 		return nil
@@ -306,7 +148,7 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 }
 
 func (client *RpcClient) getNomination(txHash string) *stakingtypes.Nomination {
-	var coinbase *TxInfo
+	var coinbase *types.TxInfo
 	coinbase, client.err = client.getTx(txHash)
 	if client.err != nil {
 		return nil
@@ -321,59 +163,62 @@ func (client *RpcClient) getNomination(txHash string) *stakingtypes.Nomination {
 	return nil
 }
 
-func (client *RpcClient) getCCTransferInfos(bi *BlockInfo) []*cctypes.CCTransferInfo {
-	var info *TxInfo
+func (client *RpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
+	var info *types.TxInfo
 	var ccInfos []*cctypes.CCTransferInfo
 	for _, txHash := range bi.Tx {
 		info, client.err = client.getTx(txHash)
 		if client.err != nil {
 			return nil
 		}
-		ccInfos = append(ccInfos, info.getCCTransferInfos()...)
+		ccInfos = append(ccInfos, info.GetCCTransferInfos()...)
 	}
 	return ccInfos
 }
 
-func (client *RpcClient) getCurrHeight() (int64, error) {
-	respData, err := client.sendRequest(ReqStrBlockCount)
-	if err != nil {
-		return -1, err
+func (client *RpcClient) getCurrHeight() int64 {
+	var respData []byte
+	respData, client.err = client.sendRequest(ReqStrBlockCount)
+	if client.err != nil {
+		return -1
 	}
-	var blockCountResp BlockCountResp
-	err = json.Unmarshal(respData, &blockCountResp)
-	if err != nil {
-		return -1, err
+	var blockCountResp types.BlockCountResp
+	client.err = json.Unmarshal(respData, &blockCountResp)
+	if client.err != nil {
+		return -1
 	}
 	if blockCountResp.Error != nil && blockCountResp.Error.Code < 0 {
-		return blockCountResp.Result, fmt.Errorf("getCurrHeight error, code:%d, msg:%s\n",
-			blockCountResp.Error.Code, blockCountResp.Error.Message)
+		client.err = fmt.Errorf("getCurrHeight error, code:%d, msg:%s\n", blockCountResp.Error.Code, blockCountResp.Error.Message)
+		return blockCountResp.Result
 	}
-	return blockCountResp.Result, nil
+	return blockCountResp.Result
 }
 
-func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
-	respData, err := client.sendRequest(fmt.Sprintf(ReqStrBlockHash, height))
-	if err != nil {
-		return "", err
+func (client *RpcClient) getBlockHashOfHeight(height int64) string {
+	var respData []byte
+	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrBlockHash, height))
+	if client.err != nil {
+		return ""
 	}
-	var blockHashResp BlockHashResp
-	err = json.Unmarshal(respData, &blockHashResp)
-	if err != nil {
-		return "", err
+	var blockHashResp types.BlockHashResp
+	client.err = json.Unmarshal(respData, &blockHashResp)
+	if client.err != nil {
+		return ""
 	}
 	if blockHashResp.Error != nil && blockHashResp.Error.Code < 0 {
-		return blockHashResp.Result, fmt.Errorf("getBlockHashOfHeight error, height:%d, code:%d, msg:%s\n",
+		client.err = fmt.Errorf("getBlockHashOfHeight error, height:%d, code:%d, msg:%s\n",
 			height, blockHashResp.Error.Code, blockHashResp.Error.Message)
+		return ""
 	}
-	return blockHashResp.Result, nil
+	return blockHashResp.Result
 }
 
-func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
+func (client *RpcClient) getBlock(hash string) (*types.BlockInfo, error) {
 	respData, err := client.sendRequest(fmt.Sprintf(ReqStrBlock, hash))
 	if err != nil {
 		return nil, err
 	}
-	var blockInfoResp BlockInfoResp
+	var blockInfoResp types.BlockInfoResp
 	err = json.Unmarshal(respData, &blockInfoResp)
 	if err != nil {
 		return nil, err
@@ -385,12 +230,12 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	return &blockInfoResp.Result, nil
 }
 
-func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
+func (client *RpcClient) getTx(hash string) (*types.TxInfo, error) {
 	respData, err := client.sendRequest(fmt.Sprintf(ReqStrTx, hash))
 	if err != nil {
 		return nil, err
 	}
-	var txInfoResp TxInfoResp
+	var txInfoResp types.TxInfoResp
 	err = json.Unmarshal(respData, &txInfoResp)
 	if err != nil {
 		return nil, err
@@ -434,4 +279,15 @@ func (client *RpcClient) getEpochs(start, end uint64) []*stakingtypes.Epoch {
 		return nil
 	}
 	return epochsResp
+}
+
+/***for tool*/
+func (client *RpcClient) GetBlockHash(height int64) (string, error) {
+	return client.getBlockHashOfHeight(height), client.err
+}
+func (client *RpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
+	return client.getBlock(hash)
+}
+func (client *RpcClient) GetTxInfo(hash string) (*types.TxInfo, error) {
+	return client.getTx(hash)
 }

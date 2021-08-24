@@ -205,7 +205,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set watcher------*/
 	watcherLogger := app.logger.With("module", "watcher")
-	client := watcher.NewParallelRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, watcherLogger)
+	client := watcher.NewRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, "text/plain;", watcherLogger)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
 	lastCCEpochEndHeight := ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
 	app.watcher = watcher.NewWatcher(watcherLogger, lastEpochEndHeight, lastCCEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)

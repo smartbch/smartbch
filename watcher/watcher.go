@@ -91,7 +91,9 @@ func (watcher *Watcher) SetWaitingBlockDelayTime(n int) {
 
 // The main function to do a watcher's job. It must be run as a goroutine
 func (watcher *Watcher) Run(catchupChan chan bool) {
-	if watcher.rpcClient == nil {
+	if watcher.rpcClient == (*RpcClient)(nil) {
+		//for ut
+		catchupChan <- true
 		return
 	}
 	latestFinalizedHeight := watcher.latestFinalizedHeight

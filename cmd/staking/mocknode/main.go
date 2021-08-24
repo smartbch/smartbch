@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
 	rpcjson "github.com/gorilla/rpc/json"
-	"github.com/smartbch/smartbch/watcher"
+	watcher "github.com/smartbch/smartbch/watcher/types"
 )
 
 type BlockInfoRespList []*watcher.BlockInfoResp
