@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -46,6 +47,7 @@ type Watcher struct {
 	speedup                bool
 	numBlocksToClearMemory int
 	waitingBlockDelayTime  int
+	parallelNum            int
 }
 
 // A new watch will start watching from lastHeight+1, using rpcClient
@@ -74,6 +76,8 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, rpcCl
 		ccEpochList:          make([]*cctypes.CCEpoch, 0, 40),
 		lastCCEpochEndHeight: lastCCEpochEndHeight,
 		numBlocksInCCEpoch:   param.BlocksInCCEpoch,
+
+		parallelNum: 10,
 	}
 }
 
@@ -122,18 +126,40 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 			latestFinalizedHeight--
 			continue
 		}
-		for ; latestFinalizedHeight+9 <= latestMainnetHeight; latestFinalizedHeight++ {
-			blk := watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight)
-			if blk == nil {
-				//todo: panic it
-				fmt.Printf("get block:%d failed\n", latestFinalizedHeight)
-				latestFinalizedHeight--
-				continue
+		for latestFinalizedHeight+9 <= latestMainnetHeight {
+			if latestFinalizedHeight+9+int64(watcher.parallelNum) <= latestMainnetHeight {
+				watcher.parallelFetchBlocks(latestFinalizedHeight)
+				latestFinalizedHeight += int64(watcher.parallelNum)
+			} else {
+				blk := watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight)
+				if blk == nil {
+					//todo: panic it
+					fmt.Printf("get block:%d failed\n", latestFinalizedHeight)
+					latestFinalizedHeight--
+					continue
+				}
+				watcher.addFinalizedBlock(blk)
+				latestFinalizedHeight++
 			}
-			watcher.addFinalizedBlock(blk)
-			watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
 		}
-		latestMainnetHeight--
+		latestFinalizedHeight--
+	}
+}
+
+func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
+	var blockSet = make([]*types.BCHBlock, watcher.parallelNum)
+	var w sync.WaitGroup
+	w.Add(watcher.parallelNum)
+	for i := 0; i < watcher.parallelNum; i++ {
+		go func(index int) {
+			blockSet[index] = watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight + int64(index))
+			w.Done()
+		}(i)
+	}
+	w.Wait()
+	for _, blk := range blockSet {
+		watcher.addFinalizedBlock(blk)
+		watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
 	}
 }
 
