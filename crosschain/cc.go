@@ -282,6 +282,8 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 	for _, info := range epoch.TransferInfos {
 		value := uint256.NewInt(0).SetUint64(info.Amount)
+		//convert BCH decimals from 8 to 18
+		value.Mul(value, uint256.NewInt(10e10))
 		fmt.Printf("switch epoch: info.pubkey:%v, info.amount:%d, info.utxo:%v\n",
 			info.SenderPubkey, info.Amount, info.UTXO)
 		SaveUTXO(ctx, info.UTXO, value)

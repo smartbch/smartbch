@@ -127,6 +127,7 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 			continue
 		}
 		for latestFinalizedHeight+9 <= latestMainnetHeight {
+			fmt.Printf("latestFinalizedHeight:%d,latestMainnetHeight:%d\n", latestFinalizedHeight, latestMainnetHeight)
 			if latestFinalizedHeight+9+int64(watcher.parallelNum) <= latestMainnetHeight {
 				watcher.parallelFetchBlocks(latestFinalizedHeight)
 				latestFinalizedHeight += int64(watcher.parallelNum)
@@ -147,6 +148,7 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 }
 
 func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
+	fmt.Printf("begin paralell fetch blocks\n")
 	var blockSet = make([]*types.BCHBlock, watcher.parallelNum)
 	var w sync.WaitGroup
 	w.Add(watcher.parallelNum)
@@ -157,10 +159,11 @@ func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
 		}(i)
 	}
 	w.Wait()
+	fmt.Printf("after paralell fetch blocks\n")
 	for _, blk := range blockSet {
 		watcher.addFinalizedBlock(blk)
-		watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
 	}
+	watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
 }
 
 func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight int64) int64 {

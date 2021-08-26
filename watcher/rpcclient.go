@@ -69,14 +69,19 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 		if client.err != nil {
 			client.logger.Debug("getBlockHashOfHeight failed", client.err.Error())
 			time.Sleep(10 * time.Second)
+			continue
 		}
+		fmt.Printf("get bch block hash\n")
 	}
 	for blk == nil {
+
 		blk = client.getBCHBlock(hash)
 		if client.err != nil {
 			client.logger.Debug("getBCHBlock failed", client.err.Error())
 			time.Sleep(10 * time.Second)
+			continue
 		}
+		fmt.Printf("get bch block: %d\n", height)
 	}
 	return blk
 }

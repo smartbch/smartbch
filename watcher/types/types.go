@@ -89,7 +89,7 @@ type CoinbaseVin struct {
 }
 
 type Vout struct {
-	Value        int64                  `json:"value"`
+	Value        float64                `json:"value"`
 	N            int                    `json:"n"`
 	ScriptPubKey map[string]interface{} `json:"scriptPubKey"`
 }
@@ -153,7 +153,7 @@ func (ti TxInfo) GetCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
 			continue
 		}
 		var info cctypes.CCTransferInfo
-		info.Amount = uint64(vOut.Value)
+		info.Amount = uint64(vOut.Value * (10e8))
 		copy(info.UTXO[:32], ti.Hash)
 		var vOutIndex [4]byte
 		binary.BigEndian.PutUint32(vOutIndex[:], uint32(n))
