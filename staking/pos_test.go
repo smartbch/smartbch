@@ -106,28 +106,45 @@ func TestGetAndClearPosVotes(t *testing.T) {
 	xhedgeSeq := _app.GetSeq(xhedgeAddr)
 	require.True(t, xhedgeSeq > 0)
 
-	data := xhedgeStorageABI.MustPack("addVal", big.NewInt(0xABAB), big.NewInt(0x1234))
+	val1Key := big.NewInt(0x1234)
+	val2Key := big.NewInt(0xABCD)
+	val1Votes := uint256.NewInt(0).Mul(uint256.NewInt(2), staking.CoindayUnit).ToBig()
+	val2Votes := uint256.NewInt(0).Mul(uint256.NewInt(3), staking.CoindayUnit).ToBig()
+
+	data := xhedgeStorageABI.MustPack("addVal", val1Key, val1Votes)
 	tx, _ = _app.MakeAndExecTxInBlock(key, xhedgeAddr, 0, data)
 	_app.EnsureTxSuccess(tx.Hash())
-	data = xhedgeStorageABI.MustPack("addVal", big.NewInt(0xCDCD), big.NewInt(0x5678))
+
+	data = xhedgeStorageABI.MustPack("addVal", val2Key, val2Votes)
 	tx, _ = _app.MakeAndExecTxInBlock(key, xhedgeAddr, 0, data)
 	_app.EnsureTxSuccess(tx.Hash())
 
 	result := _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(0))
-	require.Equal(t, []interface{}{big.NewInt(0xABAB)}, result)
+	require.Equal(t, []interface{}{val1Key}, result)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(1))
-	require.Equal(t, []interface{}{big.NewInt(0xCDCD)}, result)
+	require.Equal(t, []interface{}{val2Key}, result)
 
-	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", big.NewInt(0xABAB))
-	require.Equal(t, []interface{}{big.NewInt(0x1234)}, result)
-	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", big.NewInt(0xCDCD))
-	require.Equal(t, []interface{}{big.NewInt(0x5678)}, result)
+	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val1Key)
+	require.Equal(t, []interface{}{val1Votes}, result)
+	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val2Key)
+	require.Equal(t, []interface{}{val2Votes}, result)
 
 	ctx := _app.GetRunTxContext()
 	posVotes := staking.GetAndClearPosVotes(ctx, xhedgeSeq)
 	ctx.Close(true)
+	require.Len(t, posVotes, 2)
 	require.Equal(t, map[[32]byte]int64{
-		uint256.NewInt(0xABAB).Bytes32(): 0x1234,
-		uint256.NewInt(0xCDCD).Bytes32(): 0x5678,
+		uint256.NewInt(0x1234).Bytes32(): 2,
+		uint256.NewInt(0xABCD).Bytes32(): 3,
 	}, posVotes)
+
+	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(0))
+	//require.Equal(t, []interface{}{val1Key}, result)
+	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(1))
+	//require.Equal(t, []interface{}{val2Key}, result)
+	//
+	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val1Key)
+	//require.Equal(t, []interface{}{val1Votes}, result)
+	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val2Key)
+	//require.Equal(t, []interface{}{val2Votes}, result)
 }
