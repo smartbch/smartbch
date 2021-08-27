@@ -211,6 +211,14 @@ func (_app *TestApp) GetStorageAt(addr gethcmn.Address, key []byte) []byte {
 	return nil
 }
 
+func (_app *TestApp) GetDynamicArray(addr gethcmn.Address, arrSlot string) [][]byte {
+	seq := _app.GetSeq(addr)
+
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	return ctx.GetDynamicArray(seq, arrSlot)
+}
+
 func (_app *TestApp) GetCode(addr gethcmn.Address) []byte {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)

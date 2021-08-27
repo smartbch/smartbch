@@ -138,13 +138,15 @@ func TestGetAndClearPosVotes(t *testing.T) {
 		uint256.NewInt(0xABCD).Bytes32(): 3,
 	}, posVotes)
 
-	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(0))
-	//require.Equal(t, []interface{}{val1Key}, result)
-	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(1))
-	//require.Equal(t, []interface{}{val2Key}, result)
-	//
-	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val1Key)
-	//require.Equal(t, []interface{}{val1Votes}, result)
-	//result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val2Key)
-	//require.Equal(t, []interface{}{val2Votes}, result)
+	_app.ExecTxsInBlock()
+	require.Len(t, _app.GetDynamicArray(xhedgeAddr, staking.SlotValatorsArray), 0)
+	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val1Key)
+	require.Equal(t, []interface{}{big.NewInt(1).SetInt64(0)}, result)
+	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val2Key)
+	require.Equal(t, []interface{}{big.NewInt(1).SetInt64(0)}, result)
+
+	ctx = _app.GetRunTxContext()
+	posVotes = staking.GetAndClearPosVotes(ctx, xhedgeSeq)
+	ctx.Close(true)
+	require.Len(t, posVotes, 0)
 }
