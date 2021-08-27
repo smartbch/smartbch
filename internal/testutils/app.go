@@ -175,6 +175,15 @@ func (_app *TestApp) GetMinGasPrice(isLast bool) uint64 {
 	return staking.LoadMinGasPrice(ctx, isLast)
 }
 
+func (_app *TestApp) GetSeq(addr gethcmn.Address) uint64 {
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	if acc := ctx.GetAccount(addr); acc != nil {
+		return acc.Sequence()
+	}
+	return 0
+}
+
 func (_app *TestApp) GetNonce(addr gethcmn.Address) uint64 {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -321,6 +330,18 @@ func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	}
 
 	return tx, addr
+}
+
+func (_app *TestApp) CallWithABI(sender, contractAddr gethcmn.Address,
+	abi ethutils.ABIWrapper, methodName string, args ...interface{}) []interface{} {
+
+	data := abi.MustPack(methodName, args...)
+	statusCode, statusStr, output := _app.Call(sender, contractAddr, data)
+	if statusCode != 0 {
+		panic(statusStr)
+	}
+
+	return abi.MustUnpack(methodName, output)
 }
 
 func (_app *TestApp) Call(sender, contractAddr gethcmn.Address, data []byte) (int, string, []byte) {

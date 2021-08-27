@@ -65,8 +65,8 @@ var (
 	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
 	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
-	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{100}) //TODO
-	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{101}) //TODO
+	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135}) //TODO
+	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{136}) //TODO
 )
 
 var (
@@ -895,18 +895,22 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) 
 	return updatedList
 }
 
-func GetAndClearPosVotes(ctx *mevmtypes.Context) map[[32]byte]int64 {
+//func GetAndClearPosVotes(ctx *mevmtypes.Context) map[[32]byte]int64 {
+//	return getAndClearPosVotes(ctx, XHedgeContractSequence)
+//}
+
+func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[32]byte]int64 {
 	posVotes := make(map[[32]byte]int64)
-	validators := ctx.GetDynamicArray(XHedgeContractSequence, SlotValatorsArray)
+	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValatorsArray)
 	var pubkey [32]byte
 	coindays := uint256.NewInt(0)
 	for _, val := range validators {
 		copy(pubkey[:], val)
-		coindaysBz := ctx.GetAndDeleteValueAtMapKey(XHedgeContractSequence, SlotValatorsMap, string(val))
+		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(val))
 		coindays.SetBytes(coindaysBz)
 		coindays.Div(coindays, CoindayUnit)
 		posVotes[pubkey] = int64(coindays.Uint64())
 	}
-	ctx.DeleteDynamicArray(XHedgeContractSequence, SlotValatorsArray)
+	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValatorsArray)
 	return posVotes
 }
