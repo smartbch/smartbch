@@ -30,4 +30,16 @@ contract Precompiled04 {
         return data;
     }
 
+    function callDatacopy3(bytes memory data, uint offset) public returns (bytes memory) {
+        assembly {
+            let len := mload(data)
+            let len2 := sub(len, offset)
+            if iszero(call(gas(), 0x04, 0, add(data, 0x20), len2, add(data, add(0x20, offset)), len2)) {
+                invalid()
+            }
+        }
+
+        return data;
+    }
+
 }
