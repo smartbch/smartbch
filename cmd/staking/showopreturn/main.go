@@ -56,12 +56,7 @@ func printAllOpReturn(client *watcher.RpcClient, startHeight, endHeight int64) {
 			continue
 		}
 		found := false
-		for _, txid := range bi.Tx {
-			tx, err := client.GetTxInfo(txid)
-			if err != nil {
-				fmt.Printf("Error when getTx %s %s\n", txid, err.Error())
-				continue
-			}
+		for _, tx := range bi.Tx {
 			for _, vout := range tx.VoutList {
 				asm, ok := vout.ScriptPubKey["asm"]
 				if !ok || asm == nil {

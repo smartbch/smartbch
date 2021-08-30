@@ -22,6 +22,7 @@ type RpcClient interface {
 	GetLatestHeight() int64
 	GetBlockByHeight(height int64) *BCHBlock
 	GetEpochs(start, end uint64) []*stakingtypes.Epoch
+	GetCCEpochs(start, end uint64) []*cctypes.CCEpoch
 }
 
 // This struct contains the useful information of a BCH block
@@ -66,7 +67,7 @@ type BlockInfo struct {
 	Version           int      `json:"version"`
 	VersionHex        string   `json:"versionHex"`
 	Merkleroot        string   `json:"merkleroot"`
-	Tx                []string `json:"tx"`
+	Tx                []TxInfo `json:"tx"`
 	Time              int64    `json:"time"`
 	MedianTime        int64    `json:"mediantime"`
 	Nonce             int      `json:"nonce"`

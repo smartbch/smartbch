@@ -43,6 +43,7 @@ type Watcher struct {
 	lastCCEpochEndHeight int64
 	numBlocksInCCEpoch   int64
 	ccEpochList          []*cctypes.CCEpoch
+	lastKnownCCEpochNum  int64
 
 	speedup                bool
 	numBlocksToClearMemory int
@@ -72,7 +73,7 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, rpcCl
 		numBlocksToClearMemory: NumBlocksToClearMemory,
 		waitingBlockDelayTime:  WaitingBlockDelayTime,
 
-		CCEpochChan:          make(chan *cctypes.CCEpoch, 40000),
+		CCEpochChan:          make(chan *cctypes.CCEpoch, 96*10000),
 		ccEpochList:          make([]*cctypes.CCEpoch, 0, 40),
 		lastCCEpochEndHeight: lastCCEpochEndHeight,
 		numBlocksInCCEpoch:   param.BlocksInCCEpoch,
@@ -171,10 +172,12 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestMainnetHeight < latestFinalizedHeight+watcher.numBlocksInEpoch {
+				watcher.CCEpochSpeedup()
 				break
 			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
 			if len(epochs) == 0 {
+				watcher.CCEpochSpeedup()
 				break
 			}
 			for _, e := range epochs {
@@ -193,6 +196,25 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
 	return latestFinalizedHeight
+}
+
+func (watcher *Watcher) CCEpochSpeedup() {
+	start := uint64(watcher.lastKnownCCEpochNum) + 1
+	for {
+		epochs := watcher.smartBchRpcClient.GetCCEpochs(start, start+100)
+		if len(epochs) == 0 {
+			break
+		}
+		for _, e := range epochs {
+			out, _ := json.Marshal(e)
+			fmt.Println(string(out))
+		}
+		watcher.ccEpochList = append(watcher.ccEpochList, epochs...)
+		for _, e := range epochs {
+			watcher.CCEpochChan <- e
+		}
+		start = start + uint64(len(epochs))
+	}
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {

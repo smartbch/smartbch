@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
@@ -25,6 +26,7 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 }
 
 type sbchAPI struct {
@@ -167,4 +169,11 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 		end = start + 10
 	}
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
+}
+
+func (sbch sbchAPI) GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error) {
+	if end == 0 {
+		end = start + 10
+	}
+	return sbch.backend.GetCCEpochs(uint64(start), uint64(end))
 }

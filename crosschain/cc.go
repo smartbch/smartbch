@@ -3,8 +3,10 @@ package crosschain
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/smartbch/smartbch/param"
 	"math"
 	"strings"
 
@@ -280,6 +282,14 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 }
 
 func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
+	ccInfo := LoadCCInfo(ctx)
+	//when open epoch speedup, staking epoch is in strict accordance with the mainnet height,
+	//but cc epoch which already switched in recent staking epoch can be fetch repeat,
+	//so filter these cc epochs here
+	if epoch.StartHeight < ccInfo.GenesisMainnetBlockHeight+ccInfo.CurrEpochNum*param.BlocksInCCEpoch {
+		fmt.Printf("skip crosschain epoch, its start height:%d as of ccepoch speed up\n", epoch.StartHeight)
+		return
+	}
 	for _, info := range epoch.TransferInfos {
 		value := uint256.NewInt(0).SetUint64(info.Amount)
 		//convert BCH decimals from 8 to 18
@@ -295,9 +305,10 @@ func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
 			fmt.Println(err.Error())
 		}
 	}
-	ccInfo := LoadCCInfo(ctx)
 	ccInfo.CurrEpochNum++
 	SaveCCInfo(ctx, ccInfo)
+	epoch.Number = ccInfo.CurrEpochNum
+	SaveCCEpoch(ctx, epoch.Number, epoch)
 }
 
 func LoadCCInfo(ctx *mevmtypes.Context) (info types.CCInfo) {
@@ -318,4 +329,33 @@ func SaveCCInfo(ctx *mevmtypes.Context, info types.CCInfo) {
 		panic(err)
 	}
 	ctx.SetStorageAt(ccContractSequence, SlotCCInfo, bz)
+}
+
+// get a slot number to store an epoch's validators
+func getSlotForCCEpoch(epochNum int64) string {
+	var buf [32]byte
+	buf[23] = 1
+	binary.BigEndian.PutUint64(buf[24:], uint64(epochNum))
+	return string(buf[:])
+}
+
+func SaveCCEpoch(ctx *mevmtypes.Context, epochNum int64, epoch *types.CCEpoch) {
+	bz, err := epoch.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(ccContractSequence, getSlotForCCEpoch(epochNum), bz)
+}
+
+func LoadCCEpoch(ctx *mevmtypes.Context, epochNum int64) (epoch types.CCEpoch, ok bool) {
+	bz := ctx.GetStorageAt(ccContractSequence, getSlotForCCEpoch(epochNum))
+	if bz == nil {
+		return
+	}
+	_, err := epoch.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	ok = true
+	return
 }

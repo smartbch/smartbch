@@ -20,9 +20,11 @@ import (
 const (
 	ReqStrBlockCount = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockcount", "params": [] }`
 	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
-	ReqStrBlock      = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s"] }`
-	ReqStrTx         = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
-	ReqStrEpochs     = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
+	//verbose = 2, show all txs rawdata
+	ReqStrBlock    = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
+	ReqStrTx       = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
+	ReqStrEpochs   = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
+	ReqStrCCEpochs = `{"jsonrpc": "2.0", "method": "sbch_getCCEpochs", "params": ["%s","%s"], "id":1}`
 )
 
 type RpcClient struct {
@@ -67,17 +69,16 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	for hash == "" {
 		hash = client.getBlockHashOfHeight(height)
 		if client.err != nil {
-			client.logger.Debug("getBlockHashOfHeight failed", client.err.Error())
+			client.logger.Debug(fmt.Sprintf("getBlockHashOfHeight %d failed", height), client.err.Error())
 			time.Sleep(10 * time.Second)
 			continue
 		}
 		fmt.Printf("get bch block hash\n")
 	}
 	for blk == nil {
-
 		blk = client.getBCHBlock(hash)
 		if client.err != nil {
-			client.logger.Debug("getBCHBlock failed", client.err.Error())
+			client.logger.Debug(fmt.Sprintf("getBCHBlock %d failed"), height, client.err.Error())
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -152,12 +153,7 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	return bchBlock
 }
 
-func (client *RpcClient) getNomination(txHash string) *stakingtypes.Nomination {
-	var coinbase *types.TxInfo
-	coinbase, client.err = client.getTx(txHash)
-	if client.err != nil {
-		return nil
-	}
+func (client *RpcClient) getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
 	pubKey, ok := coinbase.GetValidatorPubKey()
 	if ok {
 		return &stakingtypes.Nomination{
@@ -169,13 +165,8 @@ func (client *RpcClient) getNomination(txHash string) *stakingtypes.Nomination {
 }
 
 func (client *RpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
-	var info *types.TxInfo
 	var ccInfos []*cctypes.CCTransferInfo
-	for _, txHash := range bi.Tx {
-		info, client.err = client.getTx(txHash)
-		if client.err != nil {
-			return nil
-		}
+	for _, info := range bi.Tx {
 		ccInfos = append(ccInfos, info.GetCCTransferInfos()...)
 	}
 	return ccInfos
@@ -279,6 +270,25 @@ func (client *RpcClient) getEpochs(start, end uint64) []*stakingtypes.Epoch {
 		return nil
 	}
 	var epochsResp []*stakingtypes.Epoch
+	client.err = json.Unmarshal(m.Result, &epochsResp)
+	if client.err != nil {
+		return nil
+	}
+	return epochsResp
+}
+
+func (client *RpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
+	var respData []byte
+	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrCCEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
+	if client.err != nil {
+		return nil
+	}
+	var m smartBchJsonrpcMessage
+	client.err = json.Unmarshal(respData, &m)
+	if client.err != nil {
+		return nil
+	}
+	var epochsResp []*cctypes.CCEpoch
 	client.err = json.Unmarshal(m.Result, &epochsResp)
 	if client.err != nil {
 		return nil

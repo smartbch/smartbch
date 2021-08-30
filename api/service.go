@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -105,6 +106,7 @@ type BackendService interface {
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
 	GetEpochs(start, end uint64) ([]*types.Epoch, error)
+	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 
 	//tendermint info
 	NodeInfo() Info

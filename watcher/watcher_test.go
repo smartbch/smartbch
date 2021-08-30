@@ -3,6 +3,7 @@ package watcher
 import (
 	"bytes"
 	"fmt"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"testing"
 	"time"
 
@@ -102,6 +103,11 @@ func (m MockRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 
 func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
 	fmt.Printf("mock Rpc not support get Epoch")
+	return nil
+}
+
+func (m MockRpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
+	fmt.Printf("mock Rpc not support get cc Epoch")
 	return nil
 }
 

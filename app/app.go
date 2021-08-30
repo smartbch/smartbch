@@ -522,7 +522,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
-	app.handleCCTransfer(ctx)
+	app.handleCCEpoch(ctx)
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
@@ -540,7 +540,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	return res
 }
 
-func (app *App) handleCCTransfer(ctx *types.Context) {
+func (app *App) handleCCEpoch(ctx *types.Context) {
 	select {
 	case epoch := <-app.watcher.CCEpochChan:
 		app.ccEpochList = append(app.ccEpochList, epoch)
