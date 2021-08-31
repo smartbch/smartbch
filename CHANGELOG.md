@@ -4,6 +4,7 @@
 
 * JSON-RPC
   * Add sbch_healthCheck
+  * Fix a bug of eth_getLogs
 
 
 

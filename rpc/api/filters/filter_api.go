@@ -258,19 +258,20 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 		return returnLogs(logs), nil
 	}
 
-	var curHeight int64
-	if crit.FromBlock == nil || crit.ToBlock == nil {
-		curHeight = api.backend.LatestHeight()
-	}
-
 	// Convert the RPC block numbers into internal representations
-	begin := curHeight
+	begin := rpc.LatestBlockNumber.Int64()
 	if crit.FromBlock != nil {
 		begin = crit.FromBlock.Int64()
 	}
-	end := curHeight
+	end := rpc.LatestBlockNumber.Int64()
 	if crit.ToBlock != nil {
 		end = crit.ToBlock.Int64()
+	}
+	if begin < 0 {
+		begin = api.backend.LatestHeight()
+	}
+	if end < 0 {
+		end = api.backend.LatestHeight()
 	}
 
 	logs, err := api.backend.QueryLogs(crit.Addresses, crit.Topics, uint32(begin), uint32(end+1), filterFunc)
