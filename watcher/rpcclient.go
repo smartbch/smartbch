@@ -78,7 +78,7 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	for blk == nil {
 		blk = client.getBCHBlock(hash)
 		if client.err != nil {
-			client.logger.Debug(fmt.Sprintf("getBCHBlock %d failed"), height, client.err.Error())
+			client.logger.Debug(fmt.Sprintf("getBCHBlock %d failed", height), client.err.Error())
 			time.Sleep(10 * time.Second)
 			continue
 		}

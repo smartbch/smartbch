@@ -914,3 +914,19 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValatorsArray)
 	return posVotes
 }
+
+func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, pubkey2power map[[32]byte]int64) {
+	pubkeys := make([][]byte, 0, len(pubkey2power))
+	for key := range pubkey2power {
+		pubkeys = append(pubkeys, key[:])
+	}
+	sort.Slice(pubkeys, func(i, j int) bool {
+		return bytes.Compare(pubkeys[i][:], pubkeys[j][:]) < 0
+	})
+	oneBz := uint256.NewInt(0).Bytes()
+	for _, key := range pubkeys { // each has a minimum voting power
+		ctx.SetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(key), oneBz)
+	}
+	ctx.CreateDynamicArray(xhedgeContractSeq, SlotValatorsArray, pubkeys)
+}
+
