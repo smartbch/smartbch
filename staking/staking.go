@@ -65,8 +65,8 @@ var (
 	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
 	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
-	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135}) //TODO
-	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{136}) //TODO
+	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
+	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
 )
 
 var (
@@ -918,15 +918,16 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, pubkey2power map[[32]byte]int64) {
 	pubkeys := make([][]byte, 0, len(pubkey2power))
 	for key := range pubkey2power {
-		pubkeys = append(pubkeys, key[:])
+		key2 := make([]byte, 32)
+		copy(key2, key[:])
+		pubkeys = append(pubkeys, key2)
 	}
 	sort.Slice(pubkeys, func(i, j int) bool {
 		return bytes.Compare(pubkeys[i][:], pubkeys[j][:]) < 0
 	})
-	oneBz := uint256.NewInt(0).Bytes()
-	for _, key := range pubkeys { // each has a minimum voting power
+	oneBz := uint256.NewInt(0).PaddedBytes(32) // zeroBz?
+	for _, key := range pubkeys {              // each has a minimum voting power
 		ctx.SetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(key), oneBz)
 	}
 	ctx.CreateDynamicArray(xhedgeContractSeq, SlotValatorsArray, pubkeys)
 }
-

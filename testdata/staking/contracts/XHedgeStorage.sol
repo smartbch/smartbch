@@ -29,10 +29,10 @@ struct Vault {
 }
 
 contract XHedgeStorage is ERC721 {
-	mapping (uint => Vault) private snToVault;
+	// mapping (uint => Vault) private snToVault;
 	uint[128] internal nextSN;
-	mapping (uint => uint) public valToVotes; // slot: 135
-	uint[] public validators;                 // slot: 136
+	mapping (uint => uint) public valToVotes; // slot: 134
+	uint[] public validators;                 // slot: 135
 
 	// constructor() ERC721("XHedge", "XH") {}
 
