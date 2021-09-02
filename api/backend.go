@@ -143,11 +143,15 @@ func (backend *apiBackend) ProtocolVersion() int {
 
 func (backend *apiBackend) LatestHeight() int64 {
 	appCtx := backend.app.GetHistoryOnlyContext()
+	defer appCtx.Close(false)
+
 	return appCtx.GetLatestHeight()
 }
 
 func (backend *apiBackend) CurrentBlock() (*types.Block, error) {
 	appCtx := backend.app.GetHistoryOnlyContext()
+	defer appCtx.Close(false)
+
 	block, err := appCtx.GetBlockByHeight(uint64(appCtx.GetLatestHeight()))
 	if err != nil {
 		return nil, err
