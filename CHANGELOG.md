@@ -5,7 +5,8 @@
 * JSON-RPC
   * Add sbch_healthCheck
   * Fix a bug of eth_getLogs
-
+* Library
+  * Upgrade moeingevm to v0.3.1
 
 
 ## v0.3.0
