@@ -6,7 +6,8 @@ ARG GOLANG_TAR="go1.16.5.linux-amd64.tar.gz"
 ARG PATCH_CGO_TAR="v0.1.1.tar.gz"
 ARG SNAPPY_TAR="1.1.8.tar.gz"
 ARG ROCKSDB_TAR="v5.18.4.tar.gz"
-ARG SMARTBCH_RELEASE_VERSION="v0.3.0"
+ARG SMARTBCH_MOEING_RELEASE_VERSION="v0.3.1"
+ARG SMARTBCH_RELEASE_VERSION="v0.3.2"
 ARG SMARTBCH_ARTIFACTS_VERSION="v0.0.3"
 
 ENV DEBIAN_FRONTEND="noninteractive"
@@ -49,7 +50,7 @@ RUN set -ex && \
     rm -rf /build/* && \
     # Build libevmwrap.so
     cd /build && \
-    git clone -b $SMARTBCH_RELEASE_VERSION --depth 1 https://github.com/smartbch/moeingevm && \
+    git clone -b $SMARTBCH_MOEING_RELEASE_VERSION --depth 1 https://github.com/smartbch/moeingevm && \
     cd moeingevm/evmwrap && make -j4 && \
     cp host_bridge/libevmwrap.so /build && \
     rm -rf /build/moeingevm/ && \
