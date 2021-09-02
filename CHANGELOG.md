@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.1 (not released yet)
+## v0.3.2
 
 * JSON-RPC
   * Add sbch_healthCheck
