@@ -2,13 +2,14 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
-ARG GOLANG_TAR="go1.16.5.linux-amd64.tar.gz"
-ARG PATCH_CGO_TAR="v0.1.1.tar.gz"
-ARG SNAPPY_TAR="1.1.8.tar.gz"
-ARG ROCKSDB_TAR="v5.18.4.tar.gz"
-ARG SMARTBCH_MOEING_RELEASE_VERSION="v0.3.1"
-ARG SMARTBCH_RELEASE_VERSION="v0.3.2"
-ARG SMARTBCH_ARTIFACTS_VERSION="v0.0.3"
+ARG SMARTBCH_VERSION="0.3.2"
+ARG MOEINGEVM_VERSION="0.3.1"
+ARG CONFIG_VERSION="0.0.3"
+
+ARG GOLANG_VERSION="1.16.5"
+ARG PATCH_CGO_VERSION="0.1.1"
+ARG ROCKSDB_TAR="5.18.4"
+ARG SNAPPY_VERSION="1.1.8"
 
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV GOROOT=/usr/local/go
@@ -30,40 +31,40 @@ RUN set -ex && \
     mkdir /build && \
     # Install Go
     cd /build && \
-    wget https://dl.google.com/go/$GOLANG_TAR && \
-    tar zxvf $GOLANG_TAR -C /usr/local && \
+    wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
+    tar zxvf go${GOLANG_VERSION}.linux-amd64.tar.gz -C /usr/local && \
     mkdir -p $GOPATH/bin && \
     # Patch Go for larger cgo stack size
-    wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/$PATCH_CGO_TAR && \
-    tar zxvf $PATCH_CGO_TAR -C $GOROOT/src/runtime/cgo/ --strip-components=1 --wildcards "*.c" && \
+    wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v${PATCH_CGO_VERSION}.tar.gz && \
+    tar zxvf v${PATCH_CGO_VERSION}.tar.gz -C $GOROOT/src/runtime/cgo/ --strip-components=1 --wildcards "*.c" && \
     # Build libsnappy
     cd /build && \
-    wget https://github.com/google/snappy/archive/refs/tags/$SNAPPY_TAR && \
-    mkdir -p snappy/build && tar zxvf $SNAPPY_TAR -C snappy --strip-components=1 && \
+    wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz && \
+    mkdir -p snappy/build && tar zxvf ${SNAPPY_VERSION}.tar.gz -C snappy --strip-components=1 && \
     cd snappy/build && cmake -DBUILD_SHARED_LIBS=On -DSNAPPY_BUILD_TESTS=0 -DCMAKE_BUILD_TYPE=Release ../ && make -j4 install && \
     # Build rocksdb
     cd /build && \
-    wget https://github.com/facebook/rocksdb/archive/refs/tags/$ROCKSDB_TAR && \
-    mkdir rocksdb && tar zxvf $ROCKSDB_TAR -C rocksdb --strip-components=1 && \
+    wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz && \
+    mkdir rocksdb && tar zxvf v${ROCKSDB_VERSION}.tar.gz -C rocksdb --strip-components=1 && \
     cd rocksdb && PORTABLE=1 DEBUG_LEVEL=0 make -j4 CC=gcc-8 CXX=g++-8 EXTRA_CXXFLAGS=-s shared_lib install-shared && \
     # Remove build artifacts
     rm -rf /build/* && \
     # Build libevmwrap.so
     cd /build && \
-    git clone -b $SMARTBCH_MOEING_RELEASE_VERSION --depth 1 https://github.com/smartbch/moeingevm && \
+    git clone -b v${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm && \
     cd moeingevm/evmwrap && make -j4 && \
     cp host_bridge/libevmwrap.so /build && \
     rm -rf /build/moeingevm/ && \
     # Build smartbchd
     cd /build && \
-    git clone -b $SMARTBCH_RELEASE_VERSION --depth 1 https://github.com/smartbch/smartbch && \
+    git clone -b v${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch && \
     cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd && \
     cp smartbchd /build && \
     rm -rf /build/smartbch/ && \
     # Init chain
     cd /root && \
     /build/smartbchd init mynode --chain-id 0x2710 && \
-    wget https://github.com/smartbch/artifacts/releases/download/$SMARTBCH_ARTIFACTS_VERSION/dot.smartbchd.tgz && \
+    wget https://github.com/smartbch/artifacts/releases/download/v${CONFIG_VERSION}/dot.smartbchd.tgz && \
     tar zxvf dot.smartbchd.tgz -C .smartbchd/ --strip-components=1 && \
     rm dot.smartbchd.tgz && \
     # Remove compiler dependencies and clean up cache
