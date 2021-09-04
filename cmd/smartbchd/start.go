@@ -11,7 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	abci "github.com/tendermint/tendermint/abci/types"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
+	tmcfg "github.com/tendermint/tendermint/config"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pvm "github.com/tendermint/tendermint/privval"
@@ -41,6 +44,7 @@ const (
 	flagMainnetRpcPassword   = "mainnet-rpc-password"
 	flagSmartBchUrl          = "smartbch-url"
 	flagWatcherSpeedup       = "watcher-speedup"
+	flagRpcOnly              = "rpc-only"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -73,6 +77,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagMainnetRpcPassword, "88888888", "BCH Mainnet RPC user password")
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
+	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
 
 	return cmd
 }
@@ -95,22 +100,14 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	}
 	fmt.Printf("This Node ID: %s\n", nodeKey.ID())
 
-	tmNode, err := node.NewNode(
-		nodeCfg,
-		pvm.LoadOrGenFilePV(nodeCfg.PrivValidatorKeyFile(), nodeCfg.PrivValidatorStateFile()),
-		nodeKey,
-		proxy.NewLocalClientCreator(_app),
-		node.DefaultGenesisDocProviderFunc(nodeCfg),
-		node.DefaultDBProvider,
-		node.DefaultMetricsProvider(nodeCfg.Instrumentation),
-		ctx.Logger.With("module", "node"),
-	)
+	rpcOnly := viper.GetBool(flagRpcOnly)
+	tmNode, err := startTmNode(nodeCfg, nodeKey, _app,
+		ctx.Logger.With("module", "node"))
 	if err != nil {
-		return nil, err
-	}
-
-	if err := tmNode.Start(); err != nil {
-		return nil, err
+		if !rpcOnly {
+			return nil, err
+		}
+		ctx.Logger.Info("tmnode not started: " + err.Error())
 	}
 
 	serverCfg := tmrpcserver.DefaultConfig()
@@ -157,6 +154,32 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 
 	// run forever (the node will not be returned)
 	select {}
+}
+
+func startTmNode(nodeCfg *tmcfg.Config,
+	nodeKey *p2p.NodeKey,
+	_app abci.Application,
+	logger tmlog.Logger) (*node.Node, error) {
+
+	tmNode, err := node.NewNode(
+		nodeCfg,
+		pvm.LoadOrGenFilePV(nodeCfg.PrivValidatorKeyFile(), nodeCfg.PrivValidatorStateFile()),
+		nodeKey,
+		proxy.NewLocalClientCreator(_app),
+		node.DefaultGenesisDocProviderFunc(nodeCfg),
+		node.DefaultDBProvider,
+		node.DefaultMetricsProvider(nodeCfg.Instrumentation),
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tmNode.Start(); err != nil {
+		return nil, err
+	}
+
+	return tmNode, nil
 }
 
 func getChainID(ctx *Context) (*uint256.Int, error) {
