@@ -18,7 +18,7 @@ const (
 	ReqStrBlockCount = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockcount", "params": [] }`
 	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
 	ReqStrBlock      = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s"] }`
-	ReqStrTx         = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
+	ReqStrTx         = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
 	ReqStrEpochs     = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
 	Identifier       = "73424348" // ascii code for 'sBCH'
 	Version          = "00"
@@ -182,8 +182,8 @@ func (client *RpcClient) GetBlockHash(height int64) (string, error) {
 func (client *RpcClient) GetBlockInfo(hash string) (*BlockInfo, error) {
 	return client.getBlock(hash)
 }
-func (client *RpcClient) GetTxInfo(hash string) (*TxInfo, error) {
-	return client.getTx(hash)
+func (client *RpcClient) GetTxInfo(hash string, blockhash string) (*TxInfo, error) {
+	return client.getTx(hash, blockhash)
 }
 
 func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
@@ -239,7 +239,7 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 	}
 	if bi.Height > 0 {
 		var coinbase *TxInfo
-		coinbase, client.err = client.getTx(bi.Tx[0])
+		coinbase, client.err = client.getTx(bi.Tx[0], bi.Hash)
 		if client.err != nil {
 			return nil
 		}
@@ -306,8 +306,8 @@ func (client *RpcClient) getBlock(hash string) (*BlockInfo, error) {
 	return &blockInfoResp.Result, nil
 }
 
-func (client *RpcClient) getTx(hash string) (*TxInfo, error) {
-	respData, err := client.sendRequest(fmt.Sprintf(ReqStrTx, hash))
+func (client *RpcClient) getTx(hash string, blockhash string) (*TxInfo, error) {
+	respData, err := client.sendRequest(fmt.Sprintf(ReqStrTx, hash, blockhash))
 	if err != nil {
 		return nil, err
 	}
