@@ -139,6 +139,12 @@ func (_app *TestApp) ReloadApp() *TestApp {
 	}
 }
 
+func (_app *TestApp) DestroyWithoutCheck() {
+	_app.Stop()
+	_ = os.RemoveAll(testAdsDir)
+	_ = os.RemoveAll(testMoDbDir)
+}
+
 func (_app *TestApp) Destroy() {
 	allBalance := uint256.NewInt()
 	if checkAllBalance {
@@ -369,6 +375,7 @@ func (_app *TestApp) ExecTxsInBlock(txs ...*gethtypes.Transaction) int64 {
 
 func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) int64 {
 	_app.BeginBlock(abci.RequestBeginBlock{
+		Hash: uint256.NewInt().SetUint64(uint64(height)).PaddedBytes(32),
 		Header: tmproto.Header{
 			Height:          height,
 			Time:            _app.StartTime.Add(BlockInterval * time.Duration(height)),
@@ -390,6 +397,7 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 }
 func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
+		Hash: uint256.NewInt().SetUint64(uint64(currHeight + 1)).PaddedBytes(32),
 		Header: tmproto.Header{
 			Height: currHeight + 1,
 			Time:   _app.StartTime.Add(BlockInterval * time.Duration(currHeight+1)),
