@@ -1,11 +1,14 @@
 # Changelog
 
-## v0.3.3 (not released yet)
+## v0.3.3
 
 * Command
   * Add `--rpc-only` option to `smartbchd start` command
 * Staking
   * Fixed getrawtransaction rpc call (PR#21)
+* Library
+  * Upgrade moeingevm to v0.3.2
+
 
 ## v0.3.2
 
