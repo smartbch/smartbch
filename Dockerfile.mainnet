@@ -50,13 +50,13 @@ RUN mkdir /smart_bch
 WORKDIR /smart_bch
 
 # Build libevmwrap.so
-RUN git clone -b v0.3.0 --depth 1 https://github.com/smartbch/moeingevm
+RUN git clone -b v0.3.1 --depth 1 https://github.com/smartbch/moeingevm
 RUN cd moeingevm/evmwrap && make
 
 ENV EVMWRAP=/smart_bch/moeingevm/evmwrap/host_bridge/libevmwrap.so
 
 # Build smartbchd
-RUN git clone -b v0.3.0 --depth 1 https://github.com/smartbch/smartbch
+RUN git clone -b v0.3.2 --depth 1 https://github.com/smartbch/smartbch
 RUN cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
 
 # Setup smartbchd

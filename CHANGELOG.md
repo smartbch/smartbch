@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.3 (not released yet)
+
+* Command
+  * Add `--rpc-only` option to `smartbchd start` command
+* Staking
+  * Fixed getrawtransaction rpc call (PR#21)
+
 ## v0.3.2
 
 * JSON-RPC
