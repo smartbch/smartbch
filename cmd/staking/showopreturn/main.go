@@ -56,7 +56,7 @@ func printAllOpReturn(client *staking.RpcClient, startHeight, endHeight int64) {
 		}
 		found := false
 		for _, txid := range bi.Tx {
-			tx, err := client.GetTxInfo(txid)
+			tx, err := client.GetTxInfo(txid, hash)
 			if err != nil {
 				fmt.Printf("Error when getTx %s %s\n", txid, err.Error())
 				continue
