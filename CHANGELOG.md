@@ -4,6 +4,7 @@
 
 * Command
   * Add `--rpc-only` option to `smartbchd start` command
+  * Fix a bug and improve `smartbchd staking` command
 * Staking
   * Fixed getrawtransaction rpc call (PR#21)
 * Library
