@@ -221,7 +221,7 @@ func TestQueryBlockByNum(t *testing.T) {
 	_api := createEthAPI(_app)
 
 	_app.StoreBlocks(
-		newMdbBlock(gethcmn.Hash{0xb0}, 0, []gethcmn.Hash{{0xc1}}),
+		//newMdbBlock(gethcmn.Hash{0xb0}, 0, []gethcmn.Hash{{0xc1}}),
 		newMdbBlock(gethcmn.Hash{0xb1}, 1, []gethcmn.Hash{{0xc2}, {0xc3}}),
 		newMdbBlock(gethcmn.Hash{0xb2}, 2, []gethcmn.Hash{{0xc4}, {0xc5}, {0xc6}, {0xc7}}),
 	)
@@ -238,7 +238,7 @@ func TestQueryBlockByNum(t *testing.T) {
 		txCount hexutil.Uint
 		txHash  gethcmn.Hash
 	}{
-		{0, 0, 0, gethcmn.Hash{0xb0}, 1, gethcmn.Hash{0xc1}},
+		{0, 0, 0, gethcmn.Hash{0x00}, 0, gethcmn.Hash{0xc1}},
 		{1, 0, 1, gethcmn.Hash{0xb1}, 2, gethcmn.Hash{0xc2}},
 		{2, 0, 2, gethcmn.Hash{0xb2}, 4, gethcmn.Hash{0xc4}},
 		{-1, 1, 2, gethcmn.Hash{0xb2}, 4, gethcmn.Hash{0xc5}},
@@ -253,9 +253,11 @@ func TestQueryBlockByNum(t *testing.T) {
 		txCount := _api.GetBlockTransactionCountByNumber(testCase.num)
 		require.Equal(t, testCase.txCount, *txCount)
 
-		tx, err := _api.GetTransactionByBlockNumberAndIndex(testCase.num, testCase.txIdx)
-		require.NoError(t, err)
-		require.Equal(t, testCase.txHash, tx.Hash)
+		if testCase.txCount > 0 {
+			tx, err := _api.GetTransactionByBlockNumberAndIndex(testCase.num, testCase.txIdx)
+			require.NoError(t, err)
+			require.Equal(t, testCase.txHash, tx.Hash)
+		}
 	}
 }
 
