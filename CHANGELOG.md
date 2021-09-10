@@ -1,8 +1,10 @@
 # Changelog
 
 ## v0.3.4 (not released yet)
+
 * JSON-RPC
-  * Fix a bug of eth_getBlockByNumber
+  * Changed hardcoded HTTPS ports to parameters (PR#23)
+  * Fixed a bug of eth_getBlockByNumber
 
 
 ## v0.3.3
