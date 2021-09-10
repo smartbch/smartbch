@@ -45,7 +45,7 @@ type Server struct {
 	unlockedKeys []string
 }
 
-func NewServer(rpcAddr, wsAddr, corsDomain, certFile, keyFile string,
+func NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certFile, keyFile string,
 	serverCfg *tmrpcserver.Config, backend api.BackendService,
 	logger tmlog.Logger, unlockedKeys []string) tmservice.Service {
 
@@ -59,8 +59,8 @@ func NewServer(rpcAddr, wsAddr, corsDomain, certFile, keyFile string,
 		backend:      backend,
 		logger:       logger,
 		unlockedKeys: unlockedKeys,
-		rpcHttpsAddr: "tcp://:9545",
-		wssAddr:      "tcp://:9546",
+		rpcHttpsAddr: rpcAddrSecure, //"tcp://:9545",
+		wssAddr:      wsAddrSecure,  //"tcp://:9546",
 	}
 	return tmservice.NewBaseService(logger, "", impl)
 }

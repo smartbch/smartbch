@@ -1,9 +1,17 @@
 # Changelog
 
+## v0.3.4 (not released yet)
+
+* JSON-RPC
+  * Changed hardcoded HTTPS ports to parameters (PR#23)
+  * Fixed a bug of eth_getBlockByNumber
+
+
 ## v0.3.3
 
 * Command
   * Add `--rpc-only` option to `smartbchd start` command
+  * Fix a bug and improve `smartbchd staking` command
 * Staking
   * Fixed getrawtransaction rpc call (PR#21)
 * Library

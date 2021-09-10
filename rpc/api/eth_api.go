@@ -261,7 +261,7 @@ func (api *ethAPI) GetTransactionCount(addr common.Address, blockNum gethrpc.Blo
 
 func (api *ethAPI) getBlockByNum(blockNum gethrpc.BlockNumber) (*types.Block, error) {
 	height := blockNum.Int64()
-	if height <= 0 {
+	if height < 0 {
 		// get latest block height
 		return api.backend.CurrentBlock()
 	}
