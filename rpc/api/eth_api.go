@@ -29,6 +29,14 @@ const (
 	DefaultRPCGasLimit = 10000000
 )
 
+// smartBCH genesis height is 1, so we need this to make it compatible with Ethereum
+var fakeBlock0 = &types.Block{
+	Timestamp: 1627574400, // 2021-07-30
+	ParentHash: [32]byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+}
+
 var _ PublicEthAPI = (*ethAPI)(nil)
 
 type PublicEthAPI interface {
@@ -264,6 +272,9 @@ func (api *ethAPI) getBlockByNum(blockNum gethrpc.BlockNumber) (*types.Block, er
 	if height < 0 {
 		// get latest block height
 		return api.backend.CurrentBlock()
+	}
+	if height == 0 {
+		return fakeBlock0, nil
 	}
 	return api.backend.BlockByNumber(height)
 }
