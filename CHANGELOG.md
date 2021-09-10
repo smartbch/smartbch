@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.4 (not released yet)
+* JSON-RPC
+  * Fix a bug of eth_getBlockByNumber
+
+
 ## v0.3.3
 
 * Command
@@ -9,8 +14,6 @@
   * Fixed getrawtransaction rpc call (PR#21)
 * Library
   * Upgrade moeingevm to v0.3.2
-* JSON-RPC
-  * Fix a bug of eth_getBlockByNumber
 
 
 ## v0.3.2
