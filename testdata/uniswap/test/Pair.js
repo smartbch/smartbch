@@ -10,6 +10,8 @@ UniswapV2Factory.setProvider(web3._provider);
 UniswapV2Pair.setProvider(web3._provider);
 ERC20.setProvider(web3._provider);
 
+const gasPrice = 10000000000;
+
 contract("UniswapV2Pair", async (accounts) => {
 
     // it('deploy ERC20', async () => {
@@ -17,13 +19,13 @@ contract("UniswapV2Pair", async (accounts) => {
     // });
 
     it('deploy UniswapV2', async () => {
-        const tokenA = await ERC20.new(100000000, { from: accounts[0] });
-        const tokenB = await ERC20.new(100000000, { from: accounts[0] });
+        const tokenA = await ERC20.new(100000000, { from: accounts[0], gasPrice: gasPrice });
+        const tokenB = await ERC20.new(100000000, { from: accounts[0], gasPrice: gasPrice });
 
-        const uniFactory = await UniswapV2Factory.new(accounts[0], { from: accounts[0] });
+        const uniFactory = await UniswapV2Factory.new(accounts[0], { from: accounts[0], gasPrice: gasPrice });
         // console.log(await uniFactory.feeToSetter(), accounts[0]);
 
-        await uniFactory.createPair(tokenA.address, tokenB.address, { from: accounts[0] });
+        await uniFactory.createPair(tokenA.address, tokenB.address, { from: accounts[0], gasPrice: gasPrice });
         const pairAddr = await uniFactory.getPair(tokenA.address, tokenB.address);
         const uniPair = await UniswapV2Pair.at(pairAddr);
 

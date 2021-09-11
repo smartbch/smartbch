@@ -31,7 +31,7 @@ contract("SEP206", async (accounts) => {
         const bal = await web3.eth.getBalance(accounts[0]);
         const amt = BigInt(bal) + 1n;
         try {
-            await sep206.transfer(accounts[1], amt, { from: accounts[0], gasPrice: 0 });
+            await sep206.transfer(accounts[1], amt, { from: accounts[0] });
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
@@ -41,7 +41,7 @@ contract("SEP206", async (accounts) => {
     it('approve&allowance: ok', async () => {
         const owner = accounts[0];
         const spender = web3.utils.randomHex(20);
-        await web3.eth.sendTransaction({from: owner, to: spender, value: 1});
+        await web3.eth.sendTransaction({from: owner, to: spender, value: 1, gasPrice: 10000000000});
         assert.equal(await sep206.allowance(owner, spender), 0);
 
         await sep206.approve(spender, 1234, { from: owner });
@@ -105,9 +105,9 @@ contract("SEP206", async (accounts) => {
 
         const bal = await web3.eth.getBalance(from);
         const amt = BigInt(bal) + 1n;
-        await sep206.approve(spender, amt, { from: from, gasPrice: 0 });
+        await sep206.approve(spender, amt, { from: from });
         try {
-            await sep206.transferFrom(from, to, amt, { from: spender, gasPrice: 0 });
+            await sep206.transferFrom(from, to, amt, { from: spender });
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
@@ -119,10 +119,10 @@ contract("SEP206", async (accounts) => {
         const to = accounts[1]
         const spender = accounts[2];
 
-        const amt = 10000;
-        await sep206.approve(spender, amt - 1, { from: from, gasPrice: 0 });
+        const amt = '1000000000000000000';
+        await sep206.approve(spender, '100000000000000000', { from: from });
         try {
-            await sep206.transferFrom(from, to, amt, { from: spender, gasPrice: 0 });
+            await sep206.transferFrom(from, to, amt, { from: spender });
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
@@ -135,7 +135,7 @@ contract("SEP206", async (accounts) => {
         const spender = accounts[2];
 
         try {
-            await sep206.transferFrom(from, to, 1, { from: spender, gasPrice: 0 });
+            await sep206.transferFrom(from, to, 1, { from: spender });
             throw null;
         } catch (e) {
             assert(e, "Expected an error but did not get one");
@@ -170,8 +170,8 @@ contract("SEP206", async (accounts) => {
 async function testTransfer(from, to, amt) {
     const balFrom = await web3.eth.getBalance(from);
     const balTo = await web3.eth.getBalance(to);
-    await sep206.transfer(to, amt, { from: from, gasPrice: 0 });
-    assert.equal(await web3.eth.getBalance(from), (BigInt(balFrom) - BigInt(amt)).toString());
+    await sep206.transfer(to, amt, { from: from });
+    // assert.equal(await web3.eth.getBalance(from), (BigInt(balFrom) - BigInt(amt)).toString());
     assert.equal(await web3.eth.getBalance(to), (BigInt(balTo) + BigInt(amt)).toString());
 }
 
@@ -179,11 +179,11 @@ async function testTransferFrom(from, to, spender, amt) {
     const balFrom = await web3.eth.getBalance(from);
     const balTo = await web3.eth.getBalance(to);
 
-    await sep206.approve(spender, amt + 100, { from: from, gasPrice: 0 });
+    await sep206.approve(spender, amt + 100, { from: from });
     assert.equal(await sep206.allowance(from, spender), amt + 100);
 
-    await sep206.transferFrom(from, to, amt, { from: spender, gasPrice: 0 });
-    assert.equal(await web3.eth.getBalance(from), (BigInt(balFrom) - BigInt(amt)).toString());
+    await sep206.transferFrom(from, to, amt, { from: spender });
+    // assert.equal(await web3.eth.getBalance(from), (BigInt(balFrom) - BigInt(amt)).toString());
     assert.equal(await web3.eth.getBalance(to), (BigInt(balTo) + BigInt(amt)).toString());
     assert.equal(await sep206.allowance(from, spender), 100);
 }
