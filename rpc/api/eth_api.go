@@ -167,6 +167,11 @@ func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrp
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByHash
 func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	var zeroHash common.Hash
+	var txs []*types.Transaction
+	if hash == zeroHash {
+		return blockToRpcResp(fakeBlock0, txs), nil
+	}
 	block, err := api.backend.BlockByHash(hash)
 	if err != nil {
 		if err == types.ErrBlockNotFound {
@@ -175,7 +180,6 @@ func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 		return nil, err
 	}
 
-	var txs []*types.Transaction
 	if fullTx {
 		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
 		if err != nil {
