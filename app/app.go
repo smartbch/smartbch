@@ -618,7 +618,7 @@ func (app *App) refresh() {
 		}
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
 		prevBlk4MoDB.BlockInfo = blkInfo
-		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB(app.block.Hash)
+		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
 		if app.config.AppConfig.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.AppConfig.NumKeptBlocksInMoDB {
 			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB)
 		} else {
