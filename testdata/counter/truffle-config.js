@@ -63,7 +63,7 @@ module.exports = {
       // host: "158.247.197.98",
       // port: 8545,
       network_id: "10001",
-      gasPrice: 0,
+      gasPrice: 10000000000,
       provider: () => new HDWalletProvider({
         providerOrUrl: "https://moeing.tech:9545", // amber
         privateKeys: [

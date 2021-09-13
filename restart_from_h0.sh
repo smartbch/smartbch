@@ -42,4 +42,4 @@ smartbchd add-genesis-validator --home=$NODE_HOME $VAL
 #export NOSTACK=1
 #export NOINSTLOG=1
 echo 'starting node ...'
-smartbchd start --home $NODE_HOME --unlock $TEST_KEYS #--test.min-gas-price=0
+smartbchd start --home $NODE_HOME --unlock $TEST_KEYS
