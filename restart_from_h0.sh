@@ -18,7 +18,7 @@ TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 rm -rf $NODE_HOME
 echo 'initializing node ...'
 smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
-  --init-balance=10000000000000000000 \
+  --init-balance=100000000000000000000 \
   --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
 sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
 
@@ -42,4 +42,4 @@ smartbchd add-genesis-validator --home=$NODE_HOME $VAL
 #export NOSTACK=1
 #export NOINSTLOG=1
 echo 'starting node ...'
-smartbchd start --home $NODE_HOME --unlock $TEST_KEYS #--test.min-gas-price=0
+smartbchd start --home $NODE_HOME --unlock $TEST_KEYS

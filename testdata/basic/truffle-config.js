@@ -52,21 +52,21 @@ module.exports = {
       host: "127.0.0.1",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
-      // gasPrice: 10000000000,
+      gasPrice: 10000000000,
     },
     testing: {
       host: "127.0.0.1",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
-      // gasPrice: 10000000000,
+      gasPrice: 10000000000,
     },
     sbch_testnet: {
       // host: "158.247.197.98",
       // port: 8545,
       network_id: "10001",
-      gasPrice: 0,
+      gasPrice: 10000000000,
       provider: () => new HDWalletProvider({
-        providerOrUrl: "http://158.247.197.98:8545",
+        providerOrUrl: "https://moeing.tech:9545", // amber
         privateKeys: [
           "561e2df7631ab7526f4d816344e2a79ba3abc65441126050e25f6cee75d0c227",
           "60d6b9031b312aca02c8711bd212c4081caa5030dd15cab37dd68824313ebee2",
