@@ -65,20 +65,21 @@ func (client *RpcClient) GetLatestHeight() (height int64) {
 
 func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	var hash string
+	var err error
 	var blk *types.BCHBlock
 	for hash == "" {
-		hash = client.getBlockHashOfHeight(height)
-		if client.err != nil {
-			client.logger.Debug(fmt.Sprintf("getBlockHashOfHeight %d failed", height), client.err.Error())
+		hash, err = client.getBlockHashOfHeight(height)
+		if err != nil {
+			client.logger.Debug(fmt.Sprintf("getBlockHashOfHeight %d failed", height), err.Error())
 			time.Sleep(10 * time.Second)
 			continue
 		}
 		fmt.Printf("get bch block hash\n")
 	}
 	for blk == nil {
-		blk = client.getBCHBlock(hash)
-		if client.err != nil {
-			client.logger.Debug(fmt.Sprintf("getBCHBlock %d failed", height), client.err.Error())
+		blk, err = client.getBCHBlock(hash)
+		if err != nil {
+			client.logger.Debug(fmt.Sprintf("getBCHBlock %d failed", height), err.Error())
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -119,26 +120,27 @@ func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 	return respData, nil
 }
 
-func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
+func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 	var bi *types.BlockInfo
-	bi, client.err = client.getBlock(hash)
-	if client.err != nil {
-		return nil
+	var err error
+	bi, err = client.getBlock(hash)
+	if err != nil {
+		return nil, err
 	}
 	bchBlock := &types.BCHBlock{
 		Height:    bi.Height,
 		Timestamp: bi.Time,
 	}
 	var bz []byte
-	bz, client.err = hex.DecodeString(bi.Hash)
+	bz, err = hex.DecodeString(bi.Hash)
 	copy(bchBlock.HashId[:], bz)
-	if client.err != nil {
-		return nil
+	if err != nil {
+		return nil, err
 	}
-	bz, client.err = hex.DecodeString(bi.PreviousBlockhash)
+	bz, err = hex.DecodeString(bi.PreviousBlockhash)
 	copy(bchBlock.ParentBlk[:], bz)
-	if client.err != nil {
-		return nil
+	if err != nil {
+		return nil, err
 	}
 	if bi.Height > 0 {
 		nomination := client.getNomination(bi.Tx[0])
@@ -147,10 +149,7 @@ func (client *RpcClient) getBCHBlock(hash string) *types.BCHBlock {
 		}
 		bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.getCCTransferInfos(bi)...)
 	}
-	if client.err != nil {
-		return nil
-	}
-	return bchBlock
+	return bchBlock, nil
 }
 
 func (client *RpcClient) getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
@@ -190,23 +189,24 @@ func (client *RpcClient) getCurrHeight() int64 {
 	return blockCountResp.Result
 }
 
-func (client *RpcClient) getBlockHashOfHeight(height int64) string {
+func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
 	var respData []byte
-	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrBlockHash, height))
-	if client.err != nil {
-		return ""
+	var err error
+	respData, err = client.sendRequest(fmt.Sprintf(ReqStrBlockHash, height))
+	if err != nil {
+		return "", err
 	}
 	var blockHashResp types.BlockHashResp
-	client.err = json.Unmarshal(respData, &blockHashResp)
-	if client.err != nil {
-		return ""
+	err = json.Unmarshal(respData, &blockHashResp)
+	if err != nil {
+		return "", err
 	}
 	if blockHashResp.Error != nil && blockHashResp.Error.Code < 0 {
-		client.err = fmt.Errorf("getBlockHashOfHeight error, height:%d, code:%d, msg:%s\n",
+		err = fmt.Errorf("getBlockHashOfHeight error, height:%d, code:%d, msg:%s\n",
 			height, blockHashResp.Error.Code, blockHashResp.Error.Message)
-		return ""
+		return "", err
 	}
-	return blockHashResp.Result
+	return blockHashResp.Result, nil
 }
 
 func (client *RpcClient) getBlock(hash string) (*types.BlockInfo, error) {
@@ -298,7 +298,7 @@ func (client *RpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
 
 /***for tool*/
 func (client *RpcClient) GetBlockHash(height int64) (string, error) {
-	return client.getBlockHashOfHeight(height), client.err
+	return client.getBlockHashOfHeight(height)
 }
 func (client *RpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
 	return client.getBlock(hash)

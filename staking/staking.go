@@ -726,8 +726,7 @@ newPpochNumber:%d
 startHeight:%d
 EndTime:%d
 CurrentEpochNum:%d
-CurrentSmartBchBlockHeight:%d
-`, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum, ctx.Height))
+`, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum))
 
 	validatorSet := make(map[[32]byte]bool)
 	for _, val := range info.Validators {

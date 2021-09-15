@@ -729,26 +729,26 @@ func (app *App) Stop() {
 }
 
 func (app *App) GetRpcContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	r := rabbit.NewReadOnlyRabbitStore(app.root)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	return c
 }
 func (app *App) GetRunTxContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	r := rabbit.NewRabbitStore(app.trunk)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	c = c.WithDb(app.historyStore)
 	return c
 }
 func (app *App) GetCheckTxContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	r := rabbit.NewRabbitStore(app.checkTrunk)
 	c = c.WithRbt(&r)
 	return c
