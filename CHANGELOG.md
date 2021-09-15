@@ -5,7 +5,8 @@
 * JSON-RPC
   * Changed hardcoded HTTPS ports to parameters (PR#23)
   * Fixed a bug of eth_getBlockByNumber
-
+* Command
+  * `smartbchd start` will not ignore `--home` option
 
 ## v0.3.3
 

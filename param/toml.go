@@ -68,8 +68,8 @@ func init() {
 	}
 }
 
-func ParseConfig() (*AppConfig, error) {
-	conf := DefaultAppConfig()
+func ParseConfig(home string) (*AppConfig, error) {
+	conf := DefaultAppConfigWithHome(home)
 	err := viper.Unmarshal(conf)
 	return conf, err
 }
