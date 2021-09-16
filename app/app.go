@@ -511,6 +511,11 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
+	if bi == nil {
+		fmt.Printf("bi is nil\n")
+	} else {
+		fmt.Printf("bi: hash:%v, height:%d\n", bi.Hash, bi.Number)
+	}
 	go app.postCommit(bi)
 	res := abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
@@ -575,6 +580,13 @@ func (app *App) syncBlockInfo() *types.BlockInfo {
 
 func (app *App) postCommit(bi *types.BlockInfo) {
 	defer app.mtx.Unlock()
+	if bi != nil {
+		if bi.Number > 1 {
+			hash := app.historyStore.GetBlockHashByHeight(bi.Number - 1)
+			fmt.Printf("hash in postcommit: %v\n", hash)
+		}
+	}
+
 	app.txEngine.Execute(bi)
 	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
 }
@@ -585,6 +597,12 @@ func (app *App) refresh() {
 
 	ctx := app.GetRunTxContext()
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
+	if prevBlkInfo == nil {
+		fmt.Printf("prevBlkInfo is nil: %d\n", app.block.Number)
+	} else {
+		fmt.Printf("prevBlkInfo.hash: blockHash:%v, number:%d\n", prevBlkInfo.Hash, prevBlkInfo.Number)
+	}
+
 	ctx.SetCurrBlockBasicInfo(app.block)
 	//refresh lastMinGasPrice
 	mGP := staking.LoadMinGasPrice(ctx, false) // load current block's gas price
@@ -617,11 +635,13 @@ func (app *App) refresh() {
 			panic(err)
 		}
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
+		fmt.Printf("prevBlk4MoDB.BlockHash:%v\n", prevBlk4MoDB.BlockHash)
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
 		if app.config.AppConfig.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.AppConfig.NumKeptBlocksInMoDB {
 			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB)
 		} else {
+			fmt.Printf("add block, hash:%v, height:%d\n", prevBlk4MoDB.BlockHash, prevBlk4MoDB.Height)
 			app.historyStore.AddBlock(&prevBlk4MoDB, -1) // do not prune moeingdb
 		}
 		app.publishNewBlock(&prevBlk4MoDB)
