@@ -428,7 +428,7 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 }
 
-func _TestBlockHashBug(t *testing.T) {
+func TestBlockHashBug(t *testing.T) {
 	_abi := ethutils.MustParseABI(`
 [
     {
@@ -480,7 +480,7 @@ bd0c4e850d868d2f7aa12664736f6c63430008000033
 	saveLastBlockHashInput := _abi.MustPack("saveLastBlockHash")
 	getLastBlockHashInput := _abi.MustPack("lastBlockHash")
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 10; i++ {
 		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, saveLastBlockHashInput)
 		_app.EnsureTxSuccess(tx.Hash())
 		statusCode, _, retData := _app.Call(addr, contractAddr, getLastBlockHashInput)

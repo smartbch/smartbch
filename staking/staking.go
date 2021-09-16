@@ -3,6 +3,7 @@ package staking
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -62,6 +63,9 @@ var (
 	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
 	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+
+	// slot in hex
+	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
 )
 
 var (
