@@ -8,6 +8,8 @@
   * Implement eth_gasPrice
 * Command
   * `smartbchd start` will not ignore `--home` option
+  * `smartbchd start` can disable HTTPS-RPC and WSS-RPC server now
+
 
 ## v0.3.3
 

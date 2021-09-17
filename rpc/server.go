@@ -79,20 +79,14 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 		return err
 	}
 
+	allowedOrigins := strings.Split(server.corsDomain, ",")
+	handler := newCorsHandler(server.httpServer, allowedOrigins)
+
 	server.httpListener, err = tmrpcserver.Listen(
 		server.rpcAddr, server.serverConfig)
 	if err != nil {
 		return err
 	}
-
-	server.httpsListener, err = tmrpcserver.Listen(
-		server.rpcHttpsAddr, server.serverConfig)
-	if err != nil {
-		return err
-	}
-
-	allowedOrigins := strings.Split(server.corsDomain, ",")
-	handler := newCorsHandler(server.httpServer, allowedOrigins)
 	go func() {
 		err := tmrpcserver.Serve(server.httpListener, handler, server.logger,
 			server.serverConfig)
@@ -100,14 +94,22 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 			server.logger.Error(err.Error())
 		}
 	}()
-	go func() {
-		err := tmrpcserver.ServeTLS(server.httpsListener, handler,
-			server.certFile, server.keyFile, server.logger,
-			server.serverConfig)
+
+	if server.rpcHttpsAddr != "off" {
+		server.httpsListener, err = tmrpcserver.Listen(
+			server.rpcHttpsAddr, server.serverConfig)
 		if err != nil {
-			server.logger.Error(err.Error())
+			return err
 		}
-	}()
+		go func() {
+			err := tmrpcserver.ServeTLS(server.httpsListener, handler,
+				server.certFile, server.keyFile, server.logger,
+				server.serverConfig)
+			if err != nil {
+				server.logger.Error(err.Error())
+			}
+		}()
+	}
 	return nil
 }
 
@@ -117,20 +119,14 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 		return err
 	}
 
+	allowedOrigins := strings.Split(server.corsDomain, ",")
+	wsh := server.wsServer.WebsocketHandler(allowedOrigins)
+
 	server.wsListener, err = tmrpcserver.Listen(
 		server.wsAddr, server.serverConfig)
 	if err != nil {
 		return err
 	}
-
-	server.wssListener, err = tmrpcserver.Listen(
-		server.wssAddr, server.serverConfig)
-	if err != nil {
-		return err
-	}
-	allowedOrigins := strings.Split(server.corsDomain, ",")
-	wsh := server.wsServer.WebsocketHandler(allowedOrigins)
-
 	go func() {
 		err := tmrpcserver.Serve(server.wsListener, wsh, server.logger,
 			server.serverConfig)
@@ -139,14 +135,21 @@ func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 		}
 	}()
 
-	go func() {
-		err := tmrpcserver.ServeTLS(server.wssListener, wsh,
-			server.certFile, server.keyFile, server.logger,
-			server.serverConfig)
+	if server.wssAddr != "off" {
+		server.wssListener, err = tmrpcserver.Listen(
+			server.wssAddr, server.serverConfig)
 		if err != nil {
-			server.logger.Error(err.Error())
+			return err
 		}
-	}()
+		go func() {
+			err := tmrpcserver.ServeTLS(server.wssListener, wsh,
+				server.certFile, server.keyFile, server.logger,
+				server.serverConfig)
+			if err != nil {
+				server.logger.Error(err.Error())
+			}
+		}()
+	}
 	return nil
 }
 
