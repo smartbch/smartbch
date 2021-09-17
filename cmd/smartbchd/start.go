@@ -28,11 +28,16 @@ import (
 )
 
 const (
-	flagRpcAddr              = "http.addr"
-	flagRpcAddrSecure        = "https.addr"
-	flagCorsDomain           = "http.corsdomain"
-	flagWsAddr               = "ws.addr"
-	flagWsAddrSecure         = "wss.addr"
+	flagRpcAddr              = "http.addr"       // old
+	flagRpcAddrSecure        = "https.addr"      // old
+	flagCorsDomain           = "http.corsdomain" // old
+	flagWsAddr               = "ws.addr"         // old
+	flagWsAddrSecure         = "wss.addr"        // old
+	flagRpcAddrNew           = "rpc.http-addr"   // new
+	flagRpcAddrSecureNew     = "rpc.https-addr"  // new
+	flagRpcWsAddr            = "rpc.ws-addr"     // new
+	flagRpcWsAddrSecure      = "rpc.wss-addr"    // new
+	flagRpcCorsDomain        = "rpc.corsdomain"  // new
 	flagMaxOpenConnections   = "rpc.max-open-connections"
 	flagReadTimeout          = "rpc.read-timeout"
 	flagWriteTimeout         = "rpc.write-timeout"
@@ -60,6 +65,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 			return err
 		},
 	}
+
 	tcmd.AddNodeFlags(cmd)
 	_ = cmd.Flags().MarkHidden("rpc.laddr")
 	_ = cmd.Flags().MarkHidden("rpc.grpc_laddr")
@@ -71,11 +77,11 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.PersistentFlags().String("log_level", ctx.Config.NodeConfig.LogLevel, "Log level")
 	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
 	cmd.Flags().Int64(flagGenesisMainnetHeight, 0, "genesis bch mainnet height for validator voting watched")
-	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
-	cmd.Flags().String(flagRpcAddrSecure, "tcp://:9545", "HTTPS-RPC server listening address, use special value \"off\" to disable HTTPS")
-	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
-	cmd.Flags().String(flagWsAddrSecure, "tcp://:9546", "WSS-RPC server listening address, use special value \"off\" to disable WSS")
-	cmd.Flags().String(flagCorsDomain, "*", "Comma separated list of domains from which to accept cross origin requests (browser enforced)")
+	cmd.Flags().String(flagRpcAddr, "", "HTTP-RPC server listening address")        // deprecated
+	cmd.Flags().String(flagRpcAddrSecure, "", "HTTPS-RPC server listening address") // deprecated
+	cmd.Flags().String(flagWsAddr, "", "WS-RPC server listening address")           // deprecated
+	cmd.Flags().String(flagWsAddrSecure, "", "WSS-RPC server listening address")    // deprecated
+	cmd.Flags().String(flagCorsDomain, "", "Comma separated list of domains ...")   // deprecated
 	cmd.Flags().Uint(flagMaxOpenConnections, uint(defaultRpcCfg.MaxOpenConnections), "max open connections of RPC server")
 	cmd.Flags().Uint(flagReadTimeout, 10, "read timeout (in seconds) of RPC server")
 	cmd.Flags().Uint(flagWriteTimeout, 10, "write timeout (in seconds) of RPC server")
@@ -88,6 +94,17 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
 	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
+	cmd.Flags().String(flagRpcAddrNew, "tcp://:8545", "HTTP-RPC server listening address")
+	cmd.Flags().String(flagRpcAddrSecureNew, "tcp://:9545", `HTTPS-RPC server listening address, use special value "off" to disable HTTPS`)
+	cmd.Flags().String(flagRpcWsAddr, "tcp://:8546", "WS-RPC server listening address")
+	cmd.Flags().String(flagRpcWsAddrSecure, "tcp://:9546", `WSS-RPC server listening address, use special value "off" to disable WSS`)
+	cmd.Flags().String(flagRpcCorsDomain, "*", "Comma separated list of domains from which to accept cross origin requests (browser enforced)")
+
+	_ = cmd.Flags().MarkDeprecated(flagRpcAddr, fmt.Sprintf("use --%s instead", flagRpcAddrNew))
+	_ = cmd.Flags().MarkDeprecated(flagRpcAddrSecure, fmt.Sprintf("use --%s instead", flagRpcAddrSecureNew))
+	_ = cmd.Flags().MarkDeprecated(flagWsAddr, fmt.Sprintf("use --%s instead", flagRpcWsAddr))
+	_ = cmd.Flags().MarkDeprecated(flagWsAddrSecure, fmt.Sprintf("use --%s instead", flagRpcWsAddrSecure))
+	_ = cmd.Flags().MarkDeprecated(flagCorsDomain, fmt.Sprintf("use --%s instead", flagRpcCorsDomain))
 
 	return cmd
 }
@@ -141,11 +158,11 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	ctx.Logger.Info("rpc server nodeCfg: " + string(rpcServerCfgJSON))
 
 	rpcBackend := api.NewBackend(tmNode, appImpl)
-	rpcAddr := viper.GetString(flagRpcAddr)
-	wsAddr := viper.GetString(flagWsAddr)
-	rpcAddrSecure := viper.GetString(flagRpcAddrSecure)
-	wsAddrSecure := viper.GetString(flagWsAddrSecure)
-	corsDomain := viper.GetString(flagCorsDomain)
+	rpcAddr := getStringOption(flagRpcAddr, flagRpcAddrNew)
+	wsAddr := getStringOption(flagWsAddr, flagRpcWsAddr)
+	rpcAddrSecure := getStringOption(flagRpcAddrSecure, flagRpcAddrSecureNew)
+	wsAddrSecure := getStringOption(flagWsAddrSecure, flagRpcWsAddrSecure)
+	corsDomain := getStringOption(flagCorsDomain, flagRpcCorsDomain)
 	unlockedKeys := viper.GetString(flagUnlock)
 	certfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/cert.pem")
 	keyfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/key.pem")
@@ -166,6 +183,14 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 
 	// run forever (the node will not be returned)
 	select {}
+}
+
+func getStringOption(oldFlag, newFlag string) string {
+	val := viper.GetString(oldFlag)
+	if val != "" {
+		return val
+	}
+	return viper.GetString(newFlag)
 }
 
 func startTmNode(nodeCfg *tmcfg.Config,
