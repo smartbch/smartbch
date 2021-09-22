@@ -85,7 +85,7 @@ We will be using [remix](http://remix.ethereum.org/) to deploy our contract, as 
 <div align="center">
 <img style="vertical-align: middle;" src="./img/metamask_select_network.png" alt="drawing" width="250"/>
 
-First we must select our network. Click the circle in the top right of the extension and navigate to localhost.
+First we must select our network. Click the drop down in the top center of the extension and navigate to localhost.
 
 <br/>
 
@@ -103,7 +103,7 @@ We must now import an account from our test-keys. Click the import account butto
 
 <img src="./img/metamask_pk.png" alt="drawing" width="250"/>
 
-Paste a value from the test-keys.txt file into the private key field.
+Paste one of the 10 keys from the test-keys.txt file into the private key field.
 <br/>
 
 <img src="./img/metamask_after_import.png" alt="drawing" width="250"/>
@@ -119,13 +119,13 @@ Navigate to the file explorer on the left side menu.
 
 <img src="./img/metamask_compile.png" alt="drawing" width="250"/>
 
-Next we need to compile a script, you may be able to add your own script into this menu however we will be compiling one of the examples provided. Right click a contract and select compile.
+Next we need to compile a contract, you may be able to add your own contract into this menu however we will be compiling one of the examples provided. Right click a contract and select compile.
 
 <br/>
 
 <img src="./img/metamask_deploy.png" alt="drawing" width="250"/>
 
-Navigate to the Deploy and Run transactions menu, the 3rd icon down. If your environment does not show Injected Web 3, please select the environment drop down menu and change the environment.
+Navigate to the Deploy and Run transactions menu, the 4th icon down. Select Injected Web 3 in the environment drop down menu.
 <br/>
 
 <img src="./img/metamask_injected_web3.png" alt="drawing" width="250"/>
@@ -138,7 +138,7 @@ Now that we are on the injected web3 environment, select your compiled contract 
 
 
 This will open the metamask extension, and show the initial contract configuration.
-We need to edit the gas for our testnet to accept the transaction. Please select EDIT
+We need to edit the gas for our testnet to accept the transaction. Select EDIT in the middle of the scren. Next select edit again.
 
 <br/>
 
