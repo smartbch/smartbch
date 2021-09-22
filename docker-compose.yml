@@ -8,6 +8,4 @@ services:
       - "8545:8545"
     restart: always
     volumes:
-      - smartbch_data:/root/.smartbchd
-volumes:
-    smartbch_data:
+      - ./smartbch_data:/root/.smartbchd

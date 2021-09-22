@@ -36,3 +36,6 @@ app/stresstest/stresstest
 testdbdata/
 keys*.txt
 cmd/stresstest/stresstest
+
+smartbch_data/
+*.txt
