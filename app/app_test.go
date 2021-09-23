@@ -138,6 +138,16 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
 }
 
+func TestCheckTx_GasLimitTooSmall(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	tx := ethutils.NewTx(0, &addr1, big.NewInt(100), 20999, big.NewInt(10), nil)
+	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
+	require.Equal(t, app.GasLimitTooSmall, _app.CheckNewTxABCI(tx))
+}
+
 func TestCheckTxNonce_serial(t *testing.T) {
 	key1, _ := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
