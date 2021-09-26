@@ -20,6 +20,7 @@ import (
 	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/staking"
 )
 
 const (
@@ -28,6 +29,15 @@ const (
 	// DefaultRPCGasLimit is default gas limit for RPC call operations
 	DefaultRPCGasLimit = 10000000
 )
+
+// smartBCH genesis height is 1, so we need this to make it compatible with Ethereum
+var fakeBlock0 = &types.Block{
+	Timestamp: 1627574400, // 2021-07-30
+	ParentHash: [32]byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	},
+}
 
 var _ PublicEthAPI = (*ethAPI)(nil)
 
@@ -126,7 +136,11 @@ func (api *ethAPI) Coinbase() (common.Address, error) {
 
 // https://eth.wiki/json-rpc/API#eth_gasPrice
 func (api *ethAPI) GasPrice() *hexutil.Big {
-	return (*hexutil.Big)(big.NewInt(0))
+	val, err := api.GetStorageAt(staking.StakingContractAddress, staking.SlotMinGasPriceHex, -1)
+	if err != nil {
+		return (*hexutil.Big)(big.NewInt(0))
+	}
+	return (*hexutil.Big)(big.NewInt(0).SetBytes(val))
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBalance
@@ -159,6 +173,11 @@ func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrp
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByHash
 func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	var zeroHash common.Hash
+	var txs []*types.Transaction
+	if hash == zeroHash {
+		return blockToRpcResp(fakeBlock0, txs), nil
+	}
 	block, err := api.backend.BlockByHash(hash)
 	if err != nil {
 		if err == types.ErrBlockNotFound {
@@ -167,7 +186,6 @@ func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 		return nil, err
 	}
 
-	var txs []*types.Transaction
 	if fullTx {
 		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
 		if err != nil {
@@ -261,9 +279,12 @@ func (api *ethAPI) GetTransactionCount(addr common.Address, blockNum gethrpc.Blo
 
 func (api *ethAPI) getBlockByNum(blockNum gethrpc.BlockNumber) (*types.Block, error) {
 	height := blockNum.Int64()
-	if height <= 0 {
+	if height < 0 {
 		// get latest block height
 		return api.backend.CurrentBlock()
+	}
+	if height == 0 {
+		return fakeBlock0, nil
 	}
 	return api.backend.BlockByNumber(height)
 }

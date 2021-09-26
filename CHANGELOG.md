@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.3.4 (not released yet)
+
+* JSON-RPC
+  * Changed hardcoded HTTPS ports to parameters (PR#23)
+  * Fixed a bug of eth_getBlockByNumber
+  * Implement eth_gasPrice
+* Command
+  * `smartbchd start` will not ignore `--home` option
+  * `smartbchd start` can disable HTTPS-RPC and WSS-RPC server now
+
+
+## v0.3.3
+
+* Command
+  * Add `--rpc-only` option to `smartbchd start` command
+  * Fix a bug and improve `smartbchd staking` command
+* Staking
+  * Fixed getrawtransaction rpc call (PR#21)
+* Library
+  * Upgrade moeingevm to v0.3.2
+
+
+## v0.3.2
+
+* JSON-RPC
+  * Add sbch_healthCheck
+  * Fix a bug of eth_getLogs
+* Library
+  * Upgrade moeingevm to v0.3.1
 
 
 ## v0.3.0
@@ -14,6 +43,7 @@
 * Library
   * MoeingADS uses internal multiple shards to boost performance
   * MoeingEVM update evmone to 0.8.0
+
 
 
 ## v0.2.0
@@ -63,6 +93,8 @@
   * Add pruning calls to MoeingADS
 
 * Move the faucet out from this repo
+
+
 
 ## v0.1.5
 

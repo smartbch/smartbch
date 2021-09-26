@@ -11,7 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	abci "github.com/tendermint/tendermint/abci/types"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
+	tmcfg "github.com/tendermint/tendermint/config"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pvm "github.com/tendermint/tendermint/privval"
@@ -26,8 +29,10 @@ import (
 
 const (
 	flagRpcAddr                = "http.addr"
+	flagRpcAddrSecure          = "https.addr"
 	flagCorsDomain             = "http.corsdomain"
 	flagWsAddr                 = "ws.addr"
+	flagWsAddrSecure           = "wss.addr"
 	flagMaxOpenConnections     = "rpc.max-open-connections"
 	flagReadTimeout            = "rpc.read-timeout"
 	flagWriteTimeout           = "rpc.write-timeout"
@@ -42,6 +47,7 @@ const (
 	flagMainnetRpcPassword     = "mainnet-rpc-password"
 	flagSmartBchUrl            = "smartbch-url"
 	flagWatcherSpeedup         = "watcher-speedup"
+	flagRpcOnly                = "rpc-only"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -56,13 +62,21 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 		},
 	}
 	tcmd.AddNodeFlags(cmd)
+	_ = cmd.Flags().MarkHidden("rpc.laddr")
+	_ = cmd.Flags().MarkHidden("rpc.grpc_laddr")
+	_ = cmd.Flags().MarkHidden("rpc.unsafe")
+	_ = cmd.Flags().MarkHidden("rpc.pprof_laddr")
+	_ = cmd.Flags().MarkHidden("proxy_app")
+
 	defaultRpcCfg := tmrpcserver.DefaultConfig()
 	cmd.PersistentFlags().String("log_level", ctx.Config.NodeConfig.LogLevel, "Log level")
 	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
 	cmd.Flags().Int64(flagGenesisMainnetHeight, 0, "genesis bch mainnet height for validator voting watched")
 	cmd.Flags().Int64(flagCCGenesisMainnetHeight, 0, "genesis bch mainnet height for crosschain tx watched")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
+	cmd.Flags().String(flagRpcAddrSecure, "tcp://:9545", "HTTPS-RPC server listening address, use special value \"off\" to disable HTTPS")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
+	cmd.Flags().String(flagWsAddrSecure, "tcp://:9546", "WSS-RPC server listening address, use special value \"off\" to disable WSS")
 	cmd.Flags().String(flagCorsDomain, "*", "Comma separated list of domains from which to accept cross origin requests (browser enforced)")
 	cmd.Flags().Uint(flagMaxOpenConnections, uint(defaultRpcCfg.MaxOpenConnections), "max open connections of RPC server")
 	cmd.Flags().Uint(flagReadTimeout, 10, "read timeout (in seconds) of RPC server")
@@ -75,6 +89,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagMainnetRpcPassword, "88888888", "BCH Mainnet RPC user password")
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
+	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
 
 	return cmd
 }
@@ -97,22 +112,14 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	}
 	fmt.Printf("This Node ID: %s\n", nodeKey.ID())
 
-	tmNode, err := node.NewNode(
-		nodeCfg,
-		pvm.LoadOrGenFilePV(nodeCfg.PrivValidatorKeyFile(), nodeCfg.PrivValidatorStateFile()),
-		nodeKey,
-		proxy.NewLocalClientCreator(_app),
-		node.DefaultGenesisDocProviderFunc(nodeCfg),
-		node.DefaultDBProvider,
-		node.DefaultMetricsProvider(nodeCfg.Instrumentation),
-		ctx.Logger.With("module", "node"),
-	)
+	rpcOnly := viper.GetBool(flagRpcOnly)
+	tmNode, err := startTmNode(nodeCfg, nodeKey, _app,
+		ctx.Logger.With("module", "node"))
 	if err != nil {
-		return nil, err
-	}
-
-	if err := tmNode.Start(); err != nil {
-		return nil, err
+		if !rpcOnly {
+			return nil, err
+		}
+		ctx.Logger.Info("tmnode not started: " + err.Error())
 	}
 
 	serverCfg := tmrpcserver.DefaultConfig()
@@ -138,11 +145,13 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	rpcBackend := api.NewBackend(tmNode, appImpl)
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
+	rpcAddrSecure := viper.GetString(flagRpcAddrSecure)
+	wsAddrSecure := viper.GetString(flagWsAddrSecure)
 	corsDomain := viper.GetString(flagCorsDomain)
 	unlockedKeys := viper.GetString(flagUnlock)
 	certfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/cert.pem")
 	keyfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/key.pem")
-	rpcServer := rpc.NewServer(rpcAddr, wsAddr, corsDomain, certfileDir, keyfileDir,
+	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certfileDir, keyfileDir,
 		serverCfg, rpcBackend, ctx.Logger, strings.Split(unlockedKeys, ","))
 
 	if err := rpcServer.Start(); err != nil {
@@ -159,6 +168,32 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 
 	// run forever (the node will not be returned)
 	select {}
+}
+
+func startTmNode(nodeCfg *tmcfg.Config,
+	nodeKey *p2p.NodeKey,
+	_app abci.Application,
+	logger tmlog.Logger) (*node.Node, error) {
+
+	tmNode, err := node.NewNode(
+		nodeCfg,
+		pvm.LoadOrGenFilePV(nodeCfg.PrivValidatorKeyFile(), nodeCfg.PrivValidatorStateFile()),
+		nodeKey,
+		proxy.NewLocalClientCreator(_app),
+		node.DefaultGenesisDocProviderFunc(nodeCfg),
+		node.DefaultDBProvider,
+		node.DefaultMetricsProvider(nodeCfg.Instrumentation),
+		logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tmNode.Start(); err != nil {
+		return nil, err
+	}
+
+	return tmNode, nil
 }
 
 func getChainID(ctx *Context) (*uint256.Int, error) {

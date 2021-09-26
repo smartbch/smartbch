@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/heap"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -67,6 +68,9 @@ var (
 	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
 	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
 	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
+
+	// slot in hex
+	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
 )
 
 var (

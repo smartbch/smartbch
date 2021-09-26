@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
+	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/types"
@@ -24,6 +25,7 @@ import (
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/staking"
 )
 
 var counterContractCreationBytecode = testutils.HexToBytes(`
@@ -91,6 +93,20 @@ func TestChainId(t *testing.T) {
 
 	id := _api.ChainId()
 	require.Equal(t, "0x1", id.String())
+}
+
+func TestGasPrice(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	_app.WaitLock()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	ctx := _app.GetRunTxContext()
+	staking.SaveMinGasPrice(ctx, 10_000_000_000, false)
+	ctx.Close(true)
+	_app.ExecTxsInBlock()
+
+	require.Equal(t, "0x2540be400", _api.GasPrice().String())
 }
 
 func TestBlockNum(t *testing.T) {
@@ -212,6 +228,52 @@ func TestGetStorageAt(t *testing.T) {
 	sVal, err = _api.GetStorageAt(addr2, "0x7890", -1)
 	require.NoError(t, err)
 	require.Equal(t, "0x", sVal.String())
+}
+
+func TestQueryBlockByNum(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	_app.StoreBlocks(
+		//newMdbBlock(gethcmn.Hash{0xb0}, 0, []gethcmn.Hash{{0xc1}}),
+		newMdbBlock(gethcmn.Hash{0xb1}, 1, []gethcmn.Hash{{0xc2}, {0xc3}}),
+		newMdbBlock(gethcmn.Hash{0xb2}, 2, []gethcmn.Hash{{0xc4}, {0xc5}, {0xc6}, {0xc7}}),
+	)
+
+	h, err := _api.BlockNumber()
+	require.NoError(t, err)
+	require.Equal(t, hexutil.Uint64(2), h)
+
+	testCases := []struct {
+		num     gethrpc.BlockNumber
+		txIdx   hexutil.Uint
+		height  hexutil.Uint64
+		hash    gethcmn.Hash
+		txCount hexutil.Uint
+		txHash  gethcmn.Hash
+	}{
+		{0, 0, 0, gethcmn.Hash{0x00}, 0, gethcmn.Hash{0xc1}},
+		{1, 0, 1, gethcmn.Hash{0xb1}, 2, gethcmn.Hash{0xc2}},
+		{2, 0, 2, gethcmn.Hash{0xb2}, 4, gethcmn.Hash{0xc4}},
+		{-1, 1, 2, gethcmn.Hash{0xb2}, 4, gethcmn.Hash{0xc5}},
+	}
+
+	for _, testCase := range testCases {
+		ret, err := _api.GetBlockByNumber(testCase.num, false)
+		require.NoError(t, err)
+		require.Equal(t, testCase.height, ret["number"])
+		require.Equal(t, hexutil.Bytes(testCase.hash[:]), ret["hash"])
+
+		txCount := _api.GetBlockTransactionCountByNumber(testCase.num)
+		require.Equal(t, testCase.txCount, *txCount)
+
+		if testCase.txCount > 0 {
+			tx, err := _api.GetTransactionByBlockNumberAndIndex(testCase.num, testCase.txIdx)
+			require.NoError(t, err)
+			require.Equal(t, testCase.txHash, tx.Hash)
+		}
+	}
 }
 
 func TestGetBlockByNumAndHash(t *testing.T) {

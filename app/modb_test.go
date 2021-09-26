@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -124,4 +125,48 @@ func TestGetLogsMaxResults(t *testing.T) {
 	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2, filterFunc)
 	require.Equal(t, "too many candidicate entries to be returned, please limit the difference between startHeight and endHeight", err.Error())
 	require.Len(t, logs, 0)
+}
+
+func TestGetBlockHashByHeight(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+
+	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
+	_app.EnsureTxSuccess(tx.Hash())
+	_app.ExecTxsInBlock()
+	_app.WaitMS(500)
+
+	ctx := _app.GetRpcContext()
+	hash := ctx.GetBlockHashByHeight(1)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
+		hex.EncodeToString(hash[:]))
+	hash = ctx.GetBlockHashByHeight(2)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002",
+		hex.EncodeToString(hash[:]))
+	hash = ctx.GetBlockHashByHeight(3)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000003",
+		hex.EncodeToString(hash[:]))
+	hash = ctx.GetBlockHashByHeight(4)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000",
+		hex.EncodeToString(hash[:]))
+	ctx.Close(false)
+	_app.Stop()
+
+	_app = _app.ReloadApp()
+	ctx = _app.GetRpcContext()
+	hash = ctx.GetBlockHashByHeight(1)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
+		hex.EncodeToString(hash[:]))
+	hash = ctx.GetBlockHashByHeight(2)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002",
+		hex.EncodeToString(hash[:]))
+	hash = ctx.GetBlockHashByHeight(3)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000003",
+		hex.EncodeToString(hash[:]))
+	hash = ctx.GetBlockHashByHeight(4)
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000",
+		hex.EncodeToString(hash[:]))
+	ctx.Close(false)
+	_app.DestroyWithoutCheck()
 }

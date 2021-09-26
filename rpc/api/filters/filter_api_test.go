@@ -292,6 +292,64 @@ func TestGetLogs_addrFilter(t *testing.T) {
 	require.Len(t, logs, 2)
 }
 
+func TestGetLogs_blockRangeFilter(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createFiltersAPI(_app)
+
+	addr := gethcmn.Address{0xA1, 0x23}
+	addBlock(_app, testutils.NewMdbBlockBuilder().
+		Height(0).Hash(gethcmn.Hash{0xB0}).
+		Tx(gethcmn.Hash{0xC0}, types.Log{Address: addr, Topics: [][32]byte{{0xD0}}}).
+		Build())
+	addBlock(_app, testutils.NewMdbBlockBuilder().
+		Height(1).Hash(gethcmn.Hash{0xB1}).
+		Tx(gethcmn.Hash{0xC1}, types.Log{Address: addr, Topics: [][32]byte{{0xD1}}}).
+		Tx(gethcmn.Hash{0xC2}, types.Log{Address: addr, Topics: [][32]byte{{0xD2}}}).
+		Build())
+	addBlock(_app, testutils.NewMdbBlockBuilder().
+		Height(2).Hash(gethcmn.Hash{0xB2}).
+		Tx(gethcmn.Hash{0xC3}, types.Log{Address: addr, Topics: [][32]byte{{0xD3}}}).
+		Tx(gethcmn.Hash{0xC4}, types.Log{Address: addr, Topics: [][32]byte{{0xD4}}}).
+		Tx(gethcmn.Hash{0xC5}, types.Log{Address: addr, Topics: [][32]byte{{0xD5}}}).
+		Build())
+
+	testCases := []struct {
+		hFrom int64
+		hTo   int64
+		nLogs int
+	}{
+		{0, 0, 1},
+		{0, 1, 3},
+		{0, 2, 6},
+		{0, 3, 6},
+		{0, -1, 6},
+		{0, -2, 6},
+		{1, 0, 0},
+		{1, 1, 2},
+		{1, 2, 5},
+		{1, 3, 5},
+		{1, -1, 5},
+		{2, 1, 0},
+		{2, 2, 3},
+		{2, 3, 3},
+		{2, -1, 3},
+		{-1, -1, 3},
+		{-1, 0, 0},
+		{-1, 1, 0},
+		{-1, 2, 3},
+		{-1, 3, 3},
+	}
+
+	for _, testCase := range testCases {
+		f := testutils.NewFilterBuilder().BlockRange(testCase.hFrom, testCase.hTo).Addresses(addr).Build()
+		logs, err := _api.GetLogs(f)
+		require.NoError(t, err)
+		require.Len(t, logs, testCase.nLogs,
+			"from:%d,to:%d,n:%d", testCase.hFrom, testCase.hTo, testCase.nLogs)
+	}
+}
+
 func TestGetLogs_OneTx(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	defer _app.Destroy()

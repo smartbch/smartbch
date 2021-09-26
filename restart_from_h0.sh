@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 export EVMWRAP=libevmwrap.so
-alias smartbchd='go run github.com/smartbch/smartbch/cmd/smartbchd'
+go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
 
 NODE_HOME=~/.smartbchd/
 TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
@@ -17,15 +17,15 @@ TEST_KEYS="0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9,\
 
 rm -rf $NODE_HOME
 echo 'initializing node ...'
-smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
-  --init-balance=10000000000000000000 \
+./smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
+  --init-balance=100000000000000000000 \
   --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
 sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
 
 echo 'generating consensus key info ...'
-CPK=$(smartbchd generate-consensus-key-info --home=$NODE_HOME)
+CPK=$(./smartbchd generate-consensus-key-info --home=$NODE_HOME)
 echo 'generating genesis validator ...'
-VAL=$(smartbchd generate-genesis-validator --home=$NODE_HOME \
+VAL=$(./smartbchd generate-genesis-validator --home=$NODE_HOME \
   0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9 \
   --consensus-pubkey $CPK \
   --staking-coin 10000000000000000000000 \
@@ -36,10 +36,10 @@ VAL=$(smartbchd generate-genesis-validator --home=$NODE_HOME \
 mv ./priv_validator_key.json $NODE_HOME/config/
 
 echo 'adding genesis validator ...'
-smartbchd add-genesis-validator --home=$NODE_HOME $VAL
+./smartbchd add-genesis-validator --home=$NODE_HOME $VAL
 
 #export NODIASM=1
 #export NOSTACK=1
 #export NOINSTLOG=1
 echo 'starting node ...'
-smartbchd start --home $NODE_HOME --unlock $TEST_KEYS #--test.min-gas-price=0
+./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS

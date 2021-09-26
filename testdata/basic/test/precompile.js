@@ -1,13 +1,16 @@
+const gasPrice = 10000000000;
+
 contract("Precompile", async (accounts) => {
 
     it('sha256', async () => {
         const nonce = await web3.eth.getTransactionCount(accounts[0]);
         const tx = await web3.eth.sendTransaction({
-            from : accounts[0],
-            to   : "0x0000000000000000000000000000000000000002", 
-            nonce: nonce,
-            value: 1,
-            data : "0x1234",
+            from    : accounts[0],
+            to      : "0x0000000000000000000000000000000000000002", 
+            nonce   : nonce,
+            value   : 1,
+            data    : "0x1234",
+            gasPrice: gasPrice
         });
         // console.log(tx);
 

@@ -13,6 +13,7 @@ import (
 	tmcmds "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
+	tmcli "github.com/tendermint/tendermint/libs/cli"
 	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
@@ -129,13 +130,13 @@ func interceptLoadConfig() (conf *param.ChainConfig, err error) {
 	appConfigFilePath := filepath.Join(rootDir, "config/app.toml")
 	var appConf *param.AppConfig
 	if _, err := os.Stat(appConfigFilePath); os.IsNotExist(err) {
-		appConf, _ = param.ParseConfig()
+		appConf, _ = param.ParseConfig(viper.GetString(tmcli.HomeFlag))
 		param.WriteConfigFile(appConfigFilePath, appConf)
 	}
 	if appConf == nil {
 		viper.SetConfigName("app")
 		err = viper.MergeInConfig()
-		appConf, _ = param.ParseConfig()
+		appConf, _ = param.ParseConfig(viper.GetString(tmcli.HomeFlag))
 	}
 	conf = &param.ChainConfig{}
 	conf.NodeConfig = nodeConfig

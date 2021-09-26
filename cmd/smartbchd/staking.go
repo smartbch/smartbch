@@ -86,10 +86,12 @@ smartbchd staking \
 			var intro [32]byte
 			copy(intro[:], viper.GetString(flagIntroduction))
 
-			rewardTo := common.HexToAddress(viper.GetString(flagRewardTo))
-			if rewardTo.String() == "" {
+			rewardToString := viper.GetString(flagRewardTo)
+			rewardTo := common.HexToAddress(rewardToString)
+			if rewardToString == "" {
 				rewardTo = ethutils.PrivKeyToAddr(priKey)
 			}
+
 			if fType == edit {
 				data := staking.PackEditValidator(rewardTo, intro)
 				return printSignedTx(sCoin.ToBig(), data, nonce, priKey, chainID.ToBig())
@@ -120,11 +122,11 @@ smartbchd staking \
 	cmd.Flags().String(flagStakingCoin, "0", "staking coin")
 	cmd.Flags().String(flagRewardTo, "", "validator rewardTo address")
 	cmd.Flags().String(flagType, "", "validator function type, including create, edit, retire, increase, decrease")
-	cmd.Flags().String(flagIntroduction, "genesis validator", "introduction")
+	cmd.Flags().String(flagIntroduction, "", "introduction")
 	cmd.Flags().Bool(flagVerbose, false, "display verbose information")
-	cmd.Flags().Uint64(flagGasPrice, 1, "specify gas price")
+	cmd.Flags().Uint64(flagGasPrice, 1500000000, "specify gas price")
 	cmd.Flags().String(flagChainId, "", "specify gas price")
-	cmd.Flags().Uint64(flagNonce, 0, "specify tx nonce")
+	cmd.Flags().Uint64(flagNonce, 1, "specify tx nonce")
 	cmd.Flags().String(flagValKey, "", "specify from address private key")
 
 	_ = cmd.MarkFlagRequired(flagType)

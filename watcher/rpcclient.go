@@ -22,7 +22,7 @@ const (
 	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
 	//verbose = 2, show all txs rawdata
 	ReqStrBlock    = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
-	ReqStrTx       = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true] }`
+	ReqStrTx       = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
 	ReqStrEpochs   = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
 	ReqStrCCEpochs = `{"jsonrpc": "2.0", "method": "sbch_getCCEpochs", "params": ["%s","%s"], "id":1}`
 )
@@ -143,7 +143,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 		return nil, err
 	}
 	if bi.Height > 0 {
-		nomination := client.getNomination(bi.Tx[0])
+		nomination := getNomination(bi.Tx[0])
 		if nomination != nil {
 			bchBlock.Nominations = append(bchBlock.Nominations, *nomination)
 		}
@@ -152,7 +152,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 	return bchBlock, nil
 }
 
-func (client *RpcClient) getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
+func getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
 	pubKey, ok := coinbase.GetValidatorPubKey()
 	if ok {
 		return &stakingtypes.Nomination{
@@ -226,8 +226,8 @@ func (client *RpcClient) getBlock(hash string) (*types.BlockInfo, error) {
 	return &blockInfoResp.Result, nil
 }
 
-func (client *RpcClient) getTx(hash string) (*types.TxInfo, error) {
-	respData, err := client.sendRequest(fmt.Sprintf(ReqStrTx, hash))
+func (client *RpcClient) getTx(hash string, blockhash string) (*types.TxInfo, error) {
+	respData, err := client.sendRequest(fmt.Sprintf(ReqStrTx, hash, blockhash))
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +303,6 @@ func (client *RpcClient) GetBlockHash(height int64) (string, error) {
 func (client *RpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
 	return client.getBlock(hash)
 }
-func (client *RpcClient) GetTxInfo(hash string) (*types.TxInfo, error) {
-	return client.getTx(hash)
+func (client *RpcClient) GetTxInfo(hash string, blockhash string) (*types.TxInfo, error) {
+	return client.getTx(hash, blockhash)
 }
