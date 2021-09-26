@@ -25,6 +25,7 @@ import (
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/rpc/internal/ethapi"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/staking"
 )
 
 var counterContractCreationBytecode = testutils.HexToBytes(`
@@ -92,6 +93,20 @@ func TestChainId(t *testing.T) {
 
 	id := _api.ChainId()
 	require.Equal(t, "0x1", id.String())
+}
+
+func TestGasPrice(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	_app.WaitLock()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	ctx := _app.GetRunTxContext()
+	staking.SaveMinGasPrice(ctx, 10_000_000_000, false)
+	ctx.Close(true)
+	_app.ExecTxsInBlock()
+
+	require.Equal(t, "0x2540be400", _api.GasPrice().String())
 }
 
 func TestBlockNum(t *testing.T) {

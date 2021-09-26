@@ -20,6 +20,7 @@ import (
 	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/staking"
 )
 
 const (
@@ -34,7 +35,8 @@ var fakeBlock0 = &types.Block{
 	Timestamp: 1627574400, // 2021-07-30
 	ParentHash: [32]byte{
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	},
 }
 
 var _ PublicEthAPI = (*ethAPI)(nil)
@@ -134,7 +136,11 @@ func (api *ethAPI) Coinbase() (common.Address, error) {
 
 // https://eth.wiki/json-rpc/API#eth_gasPrice
 func (api *ethAPI) GasPrice() *hexutil.Big {
-	return (*hexutil.Big)(big.NewInt(0))
+	val, err := api.GetStorageAt(staking.StakingContractAddress, staking.SlotMinGasPriceHex, -1)
+	if err != nil {
+		return (*hexutil.Big)(big.NewInt(0))
+	}
+	return (*hexutil.Big)(big.NewInt(0).SetBytes(val))
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBalance

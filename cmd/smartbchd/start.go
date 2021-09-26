@@ -61,14 +61,20 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 		},
 	}
 	tcmd.AddNodeFlags(cmd)
+	_ = cmd.Flags().MarkHidden("rpc.laddr")
+	_ = cmd.Flags().MarkHidden("rpc.grpc_laddr")
+	_ = cmd.Flags().MarkHidden("rpc.unsafe")
+	_ = cmd.Flags().MarkHidden("rpc.pprof_laddr")
+	_ = cmd.Flags().MarkHidden("proxy_app")
+
 	defaultRpcCfg := tmrpcserver.DefaultConfig()
 	cmd.PersistentFlags().String("log_level", ctx.Config.NodeConfig.LogLevel, "Log level")
 	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
 	cmd.Flags().Int64(flagGenesisMainnetHeight, 0, "genesis bch mainnet height for validator voting watched")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
-	cmd.Flags().String(flagRpcAddrSecure, "tcp://:9545", "HTTPS-RPC server listening address")
+	cmd.Flags().String(flagRpcAddrSecure, "tcp://:9545", "HTTPS-RPC server listening address, use special value \"off\" to disable HTTPS")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
-	cmd.Flags().String(flagWsAddrSecure, "tcp://:9546", "WSS-RPC server listening address")
+	cmd.Flags().String(flagWsAddrSecure, "tcp://:9546", "WSS-RPC server listening address, use special value \"off\" to disable WSS")
 	cmd.Flags().String(flagCorsDomain, "*", "Comma separated list of domains from which to accept cross origin requests (browser enforced)")
 	cmd.Flags().Uint(flagMaxOpenConnections, uint(defaultRpcCfg.MaxOpenConnections), "max open connections of RPC server")
 	cmd.Flags().Uint(flagReadTimeout, 10, "read timeout (in seconds) of RPC server")

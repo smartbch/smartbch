@@ -58,15 +58,19 @@ type ChainConfig struct {
 }
 
 var (
-	home                = os.ExpandEnv("$HOME/.smartbchd")
-	defaultAppDataPath  = filepath.Join(home, "data", AppDataPath)
-	defaultModbDataPath = filepath.Join(home, "data", ModbDataPath)
+	defaultHome = os.ExpandEnv("$HOME/.smartbchd")
 )
 
 func DefaultAppConfig() *AppConfig {
+	return DefaultAppConfigWithHome(defaultHome)
+}
+func DefaultAppConfigWithHome(home string) *AppConfig {
+	if home == "" {
+		home = defaultHome
+	}
 	return &AppConfig{
-		AppDataPath:             defaultAppDataPath,
-		ModbDataPath:            defaultModbDataPath,
+		AppDataPath:             filepath.Join(home, "data", AppDataPath),
+		ModbDataPath:            filepath.Join(home, "data", ModbDataPath),
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 		RetainBlocks:            DefaultRetainBlocks,
 		NumKeptBlocks:           DefaultNumKeptBlocks,

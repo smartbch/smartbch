@@ -53,6 +53,7 @@ const (
 	InvalidMinGasPrice   uint32 = 107
 	HasPendingTx         uint32 = 108
 	MempoolBusy          uint32 = 109
+	GasLimitTooSmall     uint32 = 110
 )
 
 type App struct {
@@ -320,6 +321,10 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
+	intrGas, err := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
+	if err != nil || tx.Gas() < intrGas {
+		return abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
+	}
 	if tx.Gas() > param.MaxTxGasLimit {
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
 	}

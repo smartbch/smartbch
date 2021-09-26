@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/holiman/uint256"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	"github.com/smartbch/smartbch/internal/bigutils"
@@ -425,4 +426,66 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
 	_app.EnsureTxSuccess(tx.Hash())
 	require.NotEmpty(t, _app.GetCode(contractAddr))
+}
+
+func TestBlockHashBug(t *testing.T) {
+	_abi := ethutils.MustParseABI(`
+[
+    {
+      "inputs": [],
+      "name": "lastBlockHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "saveLastBlockHash",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+`)
+
+	// testdata/basic/contracts/BlockHash2.sol
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b50610156806100206000396000f3fe
+608060405234801561001057600080fd5b50600436106100365760003560e01c
+806336cd93951461003b5780635c0ecfad14610045575b600080fd5b61004361
+0063565b005b61004d610079565b60405161005a919061008e565b6040518091
+0390f35b60014361007091906100a9565b40600081905550565b60005481565b
+610088816100dd565b82525050565b60006020820190506100a3600083018461
+007f565b92915050565b60006100b4826100e7565b91506100bf836100e7565b
+9250828210156100d2576100d16100f1565b5b828203905092915050565b6000
+819050919050565b6000819050919050565b7f4e487b71000000000000000000
+00000000000000000000000000000000000000600052601160045260246000fd
+fea26469706673582212205b27aaf95d4dba4e9bc245e37a361d0750a786f092
+bd0c4e850d868d2f7aa12664736f6c63430008000033
+`)
+
+	key, addr := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+
+	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	saveLastBlockHashInput := _abi.MustPack("saveLastBlockHash")
+	getLastBlockHashInput := _abi.MustPack("lastBlockHash")
+
+	for i := 0; i < 10; i++ {
+		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, saveLastBlockHashInput)
+		_app.EnsureTxSuccess(tx.Hash())
+		statusCode, _, retData := _app.Call(addr, contractAddr, getLastBlockHashInput)
+		require.Equal(t, 0, statusCode)
+		println(hex.EncodeToString(retData))
+		require.False(t, uint256.NewInt().SetBytes32(retData).IsZero())
+	}
 }
