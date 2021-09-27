@@ -123,7 +123,6 @@ func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 		Hash:             tx.Hash,
 		Input:            tx.Input,
 		Nonce:            hexutil.Uint64(tx.Nonce),
-		To:               &gethcmn.Address{},
 		TransactionIndex: &idx,
 		Value:            (*hexutil.Big)(bigutils.U256FromSlice32(tx.Value[:]).ToBig()),
 		//V:
@@ -131,7 +130,10 @@ func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 		//S:
 	}
 	copy(resp.BlockHash[:], tx.BlockHash[:])
-	copy(resp.To[:], tx.To[:])
+	if !isZeroAddress(tx.To) {
+		resp.To = &gethcmn.Address{}
+		copy(resp.To[:], tx.To[:])
+	}
 	return resp
 }
 
@@ -150,13 +152,16 @@ func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
 		"blockHash":         gethcmn.Hash(tx.BlockHash),
 		"blockNumber":       hexutil.Uint64(tx.BlockNumber),
 		"from":              gethcmn.Address(tx.From),
-		"to":                gethcmn.Address(tx.To),
+		"to":                nil,
 		"cumulativeGasUsed": hexutil.Uint64(tx.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"gasUsed":           hexutil.Uint64(tx.GasUsed),
 		"logs":              types.ToGethLogs(tx.Logs),
 		"logsBloom":         hexutil.Bytes(tx.LogsBloom[:]),
 		"status":            hexutil.Uint(tx.Status),
+	}
+	if !isZeroAddress(tx.To) {
+		resp["to"] = gethcmn.Address(tx.To)
 	}
 	if !isZeroAddress(tx.ContractAddress) {
 		resp["contractAddress"] = gethcmn.Address(tx.ContractAddress)

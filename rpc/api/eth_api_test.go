@@ -495,6 +495,42 @@ func TestGetTxReceipt_notFound(t *testing.T) {
 	require.Nil(t, ret)
 }
 
+func TestContractCreationTxToAddr(t *testing.T) {
+	key, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	_app.WaitLock()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, blockNum, _ := _app.DeployContractInBlock(key, counterContractCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	blockResult, err := _api.GetBlockByNumber(gethrpc.BlockNumber(blockNum), true)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(blockResult), `"to":null`)
+
+	blockHash := gethcmn.BytesToHash(blockResult["hash"].(hexutil.Bytes))
+	blockResult, err = _api.GetBlockByHash(blockHash, true)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(blockResult), `"to":null`)
+
+	txResult, err := _api.GetTransactionByHash(tx.Hash())
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(txResult), `"to":null`)
+
+	txResult, err = _api.GetTransactionByBlockNumberAndIndex(gethrpc.BlockNumber(blockNum), 0)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(txResult), `"to":null`)
+
+	txResult, err = _api.GetTransactionByBlockHashAndIndex(blockHash, 0)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(txResult), `"to":null`)
+
+	receiptResult, err := _api.GetTransactionReceipt(tx.Hash())
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(receiptResult), `"to":null`)
+}
+
 func TestCall_NoFromAddr(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.WaitLock()
