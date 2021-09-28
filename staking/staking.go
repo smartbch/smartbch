@@ -3,8 +3,10 @@ package staking
 import (
 	"bytes"
 	"container/heap"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -53,6 +55,14 @@ var (
 	    function decreaseMinGasPrice() external;
 	    //9ce06909
 	    function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
+		//
+		function proposal(uint target)
+		//
+		function vote(uint target)
+		//
+		function executeProposal()
+		//
+		function getVote(address validator)
 	}*/
 	SelectorCreateValidator     [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
 	SelectorEditValidator       [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
@@ -60,17 +70,26 @@ var (
 	SelectorIncreaseMinGasPrice [4]byte = [4]byte{0xf2, 0x01, 0x6e, 0x8e}
 	SelectorDecreaseMinGasPrice [4]byte = [4]byte{0x69, 0x6e, 0x6a, 0xd2}
 	SelectorSumVotingPower      [4]byte = [4]byte{0x9c, 0xe0, 0x69, 0x09}
+	SelectorProposal            [4]byte = [4]byte{}
+	SelectorVote                [4]byte = [4]byte{}
+	SelectorExecuteProposal     [4]byte = [4]byte{}
+	SelectorGetVote             [4]byte = [4]byte{}
 
 	//slot
-	SlotStakingInfo     string = strings.Repeat(string([]byte{0}), 32)
-	SlotAllBurnt        string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
-	SlotMinGasPrice     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
-	SlotLastMinGasPrice string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
-	SlotValatorsMap     string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
-	SlotValatorsArray   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
+	SlotStakingInfo               string = strings.Repeat(string([]byte{0}), 32)
+	SlotAllBurnt                  string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
+	SlotMinGasPrice               string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
+	SlotLastMinGasPrice           string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+	SlotMinGasPriceProposalTarget string = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
+	SlotVoters                    string = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
+
+	SlotValatorsMap   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
+	SlotValatorsArray string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
 
 	// slot in hex
 	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
+
+	votingSlotHashPrefix [4]byte = [4]byte{'v', 'o', 't', 'e'}
 )
 
 var (
@@ -96,25 +115,30 @@ var (
 	GasOfMinGasPriceOp uint64 = 50_000
 
 	//minGasPrice
-	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
-	MinGasPriceDeltaRateInBlock uint64 = 16
-	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every tx can change
-	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
-	MinGasPriceLowerBound       uint64 = 1_000_000_000   //1gwei
+	DefaultMinGasPrice      uint64 = 10_000_000_000  //10gwei
+	MinGasPriceDeltaRate    uint64 = 5               //gas delta rate every proposal can change
+	MinGasPriceUpperBound   uint64 = 500_000_000_000 //500gwei
+	MinGasPriceLowerBound   uint64 = 10_000_000      //0.01gwei
+	DefaultProposalDuration uint64 = 60 * 60 * 24    //24hour
 )
 
 var (
 	/*------error info------*/
-	InvalidCallData                   = errors.New("invalid call data")
-	InvalidSelector                   = errors.New("invalid selector")
-	BalanceNotEnough                  = errors.New("balance is not enough")
-	NoSuchValidator                   = errors.New("no such validator")
-	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than max")
-	MinGasPriceTooSmall               = errors.New("minGasPrice smaller than max")
-	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
-	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
-	InvalidArgument                   = errors.New("invalid argument")
-	CreateValidatorCoinLtInitAmount   = errors.New("validator's staking coin less than init amount")
+	InvalidCallData                 = errors.New("invalid call data")
+	InvalidSelector                 = errors.New("invalid selector")
+	BalanceNotEnough                = errors.New("balance is not enough")
+	NoSuchValidator                 = errors.New("no such validator")
+	ValidatorNotActive              = errors.New("validator not active")
+	MinGasPriceTooBig               = errors.New("minGasPrice bigger than max")
+	MinGasPriceTooSmall             = errors.New("minGasPrice smaller than max")
+	OperatorNotValidator            = errors.New("minGasPrice operator not validator or its rewardTo")
+	InvalidArgument                 = errors.New("invalid argument")
+	CreateValidatorCoinLtInitAmount = errors.New("validator's staking coin less than init amount")
+	StillInProposal                 = errors.New("still in proposal")
+	NotInProposal                   = errors.New("not in proposal")
+	TargetExceedChangeDelta         = errors.New("minGasPrice target exceeds the allowable range")
+	ProposalHasFinished             = errors.New("proposal has finished")
+	ProposalNotFinished             = errors.New("proposal not finished")
 )
 
 // get a slot number to store an epoch's validators
@@ -173,10 +197,19 @@ func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		return retire(ctx, tx)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
-		return handleMinGasPrice(ctx, tx.From, true, s.logger)
+		return handleMinGasPrice()
 	case SelectorDecreaseMinGasPrice:
 		//function decreaseMinGasPrice() external;
-		return handleMinGasPrice(ctx, tx.From, false, s.logger)
+		return handleMinGasPrice()
+	case SelectorProposal:
+		return createProposal(ctx, uint64(currBlock.Timestamp), tx)
+	case SelectorVote:
+		return vote(ctx, uint64(currBlock.Timestamp), tx)
+	case SelectorExecuteProposal:
+		return executeProposal(ctx, uint64(currBlock.Timestamp), tx)
+	case SelectorGetVote:
+		return getVote(ctx, tx)
+
 	default:
 		status = StatusFailed
 		outData = []byte(InvalidSelector.Error())
@@ -366,46 +399,179 @@ func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []m
 	return
 }
 
-func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = StatusFailed //default status is failed
+func createProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
 	gasUsed = GasOfMinGasPriceOp
-	mGP := LoadMinGasPrice(ctx, false)
-	lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
-	info := LoadStakingInfo(ctx)
-	isValidatorOrRewardTo := false
-	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	for _, v := range activeValidators {
-		if v.Address == sender || v.RewardTo == sender {
-			isValidatorOrRewardTo = true
-			break
-		}
-	}
-	if !isValidatorOrRewardTo {
-		logger.Debug("sender is not active validator or its rewardTo", "sender", sender.String())
-		outData = []byte(OperatorNotValidator.Error())
-		return
-	}
-	if isIncrease {
-		mGP += MinGasPriceDeltaRate * mGP / 100
-	} else {
-		mGP -= MinGasPriceDeltaRate * mGP / 100
-	}
-	logger.Debug(fmt.Sprintf("mGP(%d),lastMGP(%d),increase(%v)", mGP, lastMGP, isIncrease))
 
-	if mGP < MinGasPriceLowerBound {
-		outData = []byte(MinGasPriceTooSmall.Error())
+	info := LoadStakingInfo(ctx)
+	val := info.GetValidatorByAddr(tx.From)
+	if val == nil {
+		outData = []byte(NoSuchValidator.Error())
 		return
 	}
-	if mGP > MinGasPriceUpperBound {
-		outData = []byte(MinGasPriceTooBig.Error())
+	if val.VotingPower == 0 {
+		outData = []byte(ValidatorNotActive.Error())
 		return
 	}
-	if (mGP > lastMGP && 100*(mGP-lastMGP) > MinGasPriceDeltaRateInBlock*lastMGP) ||
-		(mGP < lastMGP && 100*(lastMGP-mGP) > MinGasPriceDeltaRateInBlock*lastMGP) {
-		outData = []byte(MinGasPriceExceedBlockChangeDelta.Error())
+	target, _ := LoadProposal(ctx)
+	if target != 0 {
+		outData = []byte(StillInProposal.Error())
 		return
 	}
-	SaveMinGasPrice(ctx, mGP, false)
+	callData := tx.Data[4:]
+	if len(callData) != 32 {
+		outData = []byte(InvalidCallData.Error())
+		return
+	}
+	target = binary.BigEndian.Uint64(callData[24:])
+	lastMinGasPrice := LoadMinGasPrice(ctx, true)
+	if err := checkTarget(lastMinGasPrice, target); err != nil {
+		outData = []byte(err.Error())
+		return
+	}
+
+	SaveProposal(ctx, target, now+DefaultProposalDuration)
+	SaveVote(ctx, tx.From, target, uint64(val.VotingPower))
+	AddVoters(ctx, tx.From)
+	status = StatusSuccess
+	return
+}
+
+func vote(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfMinGasPriceOp
+
+	info := LoadStakingInfo(ctx)
+	val := info.GetValidatorByAddr(tx.From)
+	if val == nil {
+		outData = []byte(NoSuchValidator.Error())
+		return
+	}
+	if val.VotingPower == 0 {
+		outData = []byte(ValidatorNotActive.Error())
+		return
+	}
+	target, deadline := LoadProposal(ctx)
+	if target == 0 {
+		outData = []byte(NotInProposal.Error())
+		return
+	}
+	if now >= deadline {
+		outData = []byte(ProposalHasFinished.Error())
+		return
+	}
+	callData := tx.Data[4:]
+	if len(callData) != 32 {
+		outData = []byte(InvalidCallData.Error())
+		return
+	}
+	target = binary.BigEndian.Uint64(callData[24:])
+	lastMinGasPrice := LoadMinGasPrice(ctx, true)
+	if target == 0 {
+		target = lastMinGasPrice
+	}
+	if err := checkTarget(lastMinGasPrice, target); err != nil {
+		outData = []byte(err.Error())
+		return
+	}
+	SaveVote(ctx, tx.From, target, uint64(val.VotingPower))
+	AddVoters(ctx, tx.From)
+
+	status = StatusSuccess
+	return
+}
+
+func checkTarget(lastMinGasPrice, target uint64) error {
+	if lastMinGasPrice*MinGasPriceDeltaRate < target ||
+		lastMinGasPrice/MinGasPriceDeltaRate > target {
+		return TargetExceedChangeDelta
+	}
+	if target > MinGasPriceUpperBound {
+		return MinGasPriceTooBig
+	}
+	if target < MinGasPriceLowerBound {
+		return MinGasPriceTooSmall
+	}
+	return nil
+}
+
+func executeProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfMinGasPriceOp
+
+	target, deadline := LoadProposal(ctx)
+	if target == 0 {
+		outData = []byte(NotInProposal.Error())
+		return
+	}
+	if now < deadline {
+		outData = []byte(ProposalNotFinished.Error())
+		return
+	}
+	voters := GetVoters(ctx)
+	target = CalculateTarget(ctx, voters)
+	SaveMinGasPrice(ctx, target, true)
+	DeleteProposalInfos(ctx, voters)
+
+	status = StatusSuccess
+	return
+}
+
+func CalculateTarget(ctx *mevmtypes.Context, voters []common.Address) uint64 {
+	var totalPower uint64
+	var totalTarget uint64
+	var targets []uint64
+	for _, voter := range voters {
+		target, votingPower := LoadVote(ctx, voter)
+		targets = append(targets, target)
+		totalPower += votingPower
+		totalTarget += votingPower * target
+	}
+	t1 := CalcMedian(targets)
+	t2 := totalTarget / totalPower
+	return (t1 + t2) / 2
+}
+
+func CalcMedian(nums []uint64) uint64 {
+	sort.Slice(nums, func(i, j int) bool {
+		return nums[i] < nums[j]
+	})
+	index := len(nums) / 2
+	if 2*index == len(nums) {
+		return (nums[index-1] + nums[index]) / 2
+	}
+	return nums[index]
+}
+
+func DeleteProposalInfos(ctx *mevmtypes.Context, voters []common.Address) {
+	DeleteVoters(ctx)
+	for _, v := range voters {
+		DeleteVote(ctx, v)
+	}
+	DeleteProposal(ctx)
+}
+
+func getVote(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfMinGasPriceOp
+
+	callData := tx.Data[4:]
+	if len(callData) != 32 {
+		outData = []byte(InvalidCallData.Error())
+		return
+	}
+	var from common.Address
+	from.SetBytes(callData[24:])
+	target, _ := LoadVote(ctx, from)
+
+	outData = make([]byte, 0, 32)
+	uint256.NewInt(target).WriteToSlice(outData)
+
+	status = StatusSuccess
+	return
+}
+
+func handleMinGasPrice() (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusSuccess
 	return
 }
@@ -500,6 +666,73 @@ func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 	} else {
 		ctx.SetStorageAt(StakingContractSequence, SlotMinGasPrice, b[:])
 	}
+}
+
+func LoadProposal(ctx *mevmtypes.Context) (uint64, uint64) {
+	var bz []byte
+	bz = ctx.GetStorageAt(StakingContractSequence, SlotMinGasPriceProposalTarget)
+	if len(bz) == 0 {
+		SaveProposal(ctx, 0, 0)
+		return 0, 0
+	}
+	return binary.BigEndian.Uint64(bz[:8]), binary.BigEndian.Uint64(bz[8:])
+}
+
+func SaveProposal(ctx *mevmtypes.Context, target, deadline uint64) {
+	var b [16]byte
+	binary.BigEndian.PutUint64(b[:8], target)
+	binary.BigEndian.PutUint64(b[8:], deadline)
+	ctx.SetStorageAt(StakingContractSequence, SlotMinGasPriceProposalTarget, b[:])
+}
+
+func DeleteProposal(ctx *mevmtypes.Context) {
+	SaveProposal(ctx, 0, 0)
+}
+
+func LoadVote(ctx *mevmtypes.Context, validator common.Address) (target, votingPower uint64) {
+	var b [16]byte
+	binary.BigEndian.PutUint64(b[:8], target)
+	binary.BigEndian.PutUint64(b[8:], votingPower)
+	key := sha256.Sum256(append(votingSlotHashPrefix[:], validator.Bytes()...))
+	bz := ctx.GetStorageAt(StakingContractSequence, string(key[:]))
+	if len(bz) == 0 {
+		return 0, 0
+	}
+	return binary.BigEndian.Uint64(bz[:8]), binary.BigEndian.Uint64(bz[8:])
+}
+
+func SaveVote(ctx *mevmtypes.Context, validator common.Address, target, votingPower uint64) {
+	var b [16]byte
+	binary.BigEndian.PutUint64(b[:8], target)
+	binary.BigEndian.PutUint64(b[8:], votingPower)
+	key := sha256.Sum256(append(votingSlotHashPrefix[:], validator.Bytes()...))
+	ctx.SetStorageAt(StakingContractSequence, string(key[:]), b[:])
+}
+
+func DeleteVote(ctx *mevmtypes.Context, validator common.Address) {
+	key := sha256.Sum256(append(votingSlotHashPrefix[:], validator.Bytes()...))
+	ctx.DeleteStorageAt(StakingContractSequence, string(key[:]))
+}
+
+func AddVoters(ctx *mevmtypes.Context, validator common.Address) {
+	var voters []common.Address
+	voters = append(GetVoters(ctx), validator)
+	bz, _ := json.Marshal(voters)
+	ctx.SetStorageAt(StakingContractSequence, SlotVoters, bz)
+}
+
+func GetVoters(ctx *mevmtypes.Context) (voters []common.Address) {
+	var bz []byte
+	bz = ctx.GetStorageAt(StakingContractSequence, SlotVoters)
+	if len(bz) == 0 {
+		return nil
+	}
+	_ = json.Unmarshal(bz, &voters)
+	return voters
+}
+
+func DeleteVoters(ctx *mevmtypes.Context) {
+	ctx.DeleteStorageAt(StakingContractSequence, SlotVoters)
 }
 
 // =========================================================================================

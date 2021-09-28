@@ -92,7 +92,7 @@ func TestStaking(t *testing.T) {
 	ctx = _app.GetRunTxContext()
 	mp := staking.LoadMinGasPrice(ctx, false)
 	ctx.Close(false)
-	require.Equal(t, 105, int(mp))
+	require.Equal(t, 100, int(mp))
 
 	//test validator retire
 	ctx = _app.GetRunTxContext()
@@ -259,19 +259,6 @@ func TestRetireValidator(t *testing.T) {
 	require.Equal(t, true, vals.Validators[1].IsRetiring)
 }
 
-func TestUpdateMinGasPrice(t *testing.T) {
-	key1, _ := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key1)
-	defer _app.Destroy()
-
-	require.Equal(t, uint64(0), _app.GetMinGasPrice(true))
-	require.Equal(t, uint64(0), _app.GetMinGasPrice(false))
-
-	data := staking.PackIncreaseMinGasPrice()
-	tx, _ := _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 123, data)
-	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", staking.OperatorNotValidator.Error())
-}
-
 //func TestStakingUpdate(t *testing.T) {
 //	key1, addr1 := testutils.GenKeyAndAddr()
 //	key2, _ := testutils.GenKeyAndAddr()
@@ -343,8 +330,6 @@ e5ecaa37fb0567c5e1d65e9b415ac736394100f34def27956650f764736f6c63
 		staking.PackCreateValidator(addr1, intro, pubKey),
 		staking.PackEditValidator(addr1, intro),
 		staking.PackRetire(),
-		staking.PackIncreaseMinGasPrice(),
-		staking.PackDecreaseMinGasPrice(),
 		//staking.PackSumVotingPower([]common.Address{addr1}),
 	}
 
