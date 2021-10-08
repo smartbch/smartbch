@@ -125,9 +125,9 @@ func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 		Nonce:            hexutil.Uint64(tx.Nonce),
 		TransactionIndex: &idx,
 		Value:            (*hexutil.Big)(bigutils.U256FromSlice32(tx.Value[:]).ToBig()),
-		//V:
-		//R:
-		//S:
+		V:                (*hexutil.Big)(big.NewInt(int64(tx.V))),
+		R:                (*hexutil.Big)(bigutils.U256FromSlice32(tx.R[:]).ToBig()),
+		S:                (*hexutil.Big)(bigutils.U256FromSlice32(tx.S[:]).ToBig()),
 	}
 	copy(resp.BlockHash[:], tx.BlockHash[:])
 	if !isZeroAddress(tx.To) {
