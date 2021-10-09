@@ -90,26 +90,6 @@ func buildRetireValCallEntry(sender common.Address) *callEntry {
 	return c
 }
 
-func buildChangeMinGasPriceCallEntry(sender common.Address, isIncrease bool) *callEntry {
-	c := &callEntry{
-		Address: staking.StakingContractAddress,
-		Tx:      nil,
-	}
-	c.Tx = &types.TxToRun{
-		BasicTx: types.BasicTx{
-			From: sender,
-			To:   c.Address,
-		},
-	}
-	c.Tx.Data = make([]byte, 0, 100)
-	if isIncrease {
-		c.Tx.Data = append(c.Tx.Data, staking.SelectorIncreaseMinGasPrice[:]...)
-	} else {
-		c.Tx.Data = append(c.Tx.Data, staking.SelectorDecreaseMinGasPrice[:]...)
-	}
-	return c
-}
-
 func TestStaking(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
@@ -182,7 +162,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	tx.BasicTx.Data = staking.PackCreateValidator(sender, [32]byte{1}, [32]byte{2})
 	tx.BasicTx.Value[31] = 100
 	tx.BasicTx.From = sender
-	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, status, 0)
 
 	tx.BasicTx.Data = staking.PackProposal(target)
@@ -196,7 +176,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	staking.SaveStakingInfo(ctx, info)
 
 	tx.BasicTx.Data = staking.PackProposal(target)
-	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, status, 0)
 	target1, deadline := staking.LoadProposal(ctx)
 	require.Equal(t, target.Uint64(), target1)
@@ -204,7 +184,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 
 	voteTarget := target.Add(target, big.NewInt(100))
 	tx.BasicTx.Data = staking.PackVote(voteTarget)
-	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, status, 0)
 	tar, votingPower := staking.LoadVote(ctx, sender)
 	require.Equal(t, voteTarget.Uint64(), tar)
@@ -212,7 +192,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 
 	blk.Timestamp = now + int64(staking.DefaultProposalDuration) + 1
 	tx.BasicTx.Data = staking.PackExecuteProposal()
-	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, status, 0)
 	minGasPrice := staking.LoadMinGasPrice(ctx, true)
 	require.Equal(t, voteTarget.Uint64(), minGasPrice)

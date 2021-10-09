@@ -668,8 +668,7 @@ func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 }
 
 func LoadProposal(ctx *mevmtypes.Context) (target uint64, deadline uint64) {
-	var bz []byte
-	bz = ctx.GetStorageAt(StakingContractSequence, SlotMinGasPriceProposalTarget)
+	bz := ctx.GetStorageAt(StakingContractSequence, SlotMinGasPriceProposalTarget)
 	if len(bz) == 0 {
 		SaveProposal(ctx, 0, 0)
 		return 0, 0
@@ -714,15 +713,13 @@ func DeleteVote(ctx *mevmtypes.Context, validator common.Address) {
 }
 
 func AddVoters(ctx *mevmtypes.Context, validator common.Address) {
-	var voters []common.Address
-	voters = append(GetVoters(ctx), validator)
+	voters := append(GetVoters(ctx), validator)
 	bz, _ := json.Marshal(voters)
 	ctx.SetStorageAt(StakingContractSequence, SlotVoters, bz)
 }
 
 func GetVoters(ctx *mevmtypes.Context) (voters []common.Address) {
-	var bz []byte
-	bz = ctx.GetStorageAt(StakingContractSequence, SlotVoters)
+	bz := ctx.GetStorageAt(StakingContractSequence, SlotVoters)
 	if len(bz) == 0 {
 		return nil
 	}
