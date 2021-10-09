@@ -713,7 +713,13 @@ func DeleteVote(ctx *mevmtypes.Context, validator common.Address) {
 }
 
 func AddVoters(ctx *mevmtypes.Context, validator common.Address) {
-	voters := append(GetVoters(ctx), validator)
+	voters := GetVoters(ctx)
+	for _, v := range voters {
+		if validator == v {
+			return
+		}
+	}
+	voters = append(voters, validator)
 	bz, _ := json.Marshal(voters)
 	ctx.SetStorageAt(StakingContractSequence, SlotVoters, bz)
 }

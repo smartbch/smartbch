@@ -189,6 +189,9 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	tar, votingPower := staking.LoadVote(ctx, sender)
 	require.Equal(t, voteTarget.Uint64(), tar)
 	require.Equal(t, uint64(1), votingPower)
+	voters := staking.GetVoters(ctx)
+	require.Equal(t, 1, len(voters))
+	require.Equal(t, sender, voters[0])
 
 	blk.Timestamp = now + int64(staking.DefaultProposalDuration) + 1
 	tx.BasicTx.Data = staking.PackExecuteProposal()
@@ -196,6 +199,14 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	require.Equal(t, status, 0)
 	minGasPrice := staking.LoadMinGasPrice(ctx, true)
 	require.Equal(t, voteTarget.Uint64(), minGasPrice)
+	target1, deadline = staking.LoadProposal(ctx)
+	require.Equal(t, uint64(0), target1)
+	require.Equal(t, uint64(0), deadline)
+	voters = staking.GetVoters(ctx)
+	require.Equal(t, 0, len(voters))
+	target1, votingPower = staking.LoadVote(ctx, sender)
+	require.Equal(t, uint64(0), target1)
+	require.Equal(t, uint64(0), votingPower)
 }
 
 func TestSwitchEpoch(t *testing.T) {
