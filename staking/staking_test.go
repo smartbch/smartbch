@@ -2,7 +2,9 @@ package staking_test
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -151,6 +153,69 @@ func TestStaking(t *testing.T) {
 	e.Execute(ctx, nil, c.Tx)
 	_, info = staking.LoadStakingAccAndInfo(ctx)
 	require.True(t, info.Validators[1].IsRetiring)
+}
+
+func TestMinGasPriceAdjust(t *testing.T) {
+	key, sender := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+	staking.InitialStakingAmount = uint256.NewInt(0)
+	ctx := _app.GetRunTxContext()
+
+	e := &staking.StakingContractExecutor{}
+	e.Init(ctx)
+
+	target := big.NewInt(1000_000_000)
+	tx := types.TxToRun{
+		BasicTx: types.BasicTx{
+			Data: staking.PackProposal(target),
+		},
+	}
+	now := time.Now().Unix()
+	blk := types.BlockInfo{
+		Timestamp: now,
+	}
+	status, _, _, outData := e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 1)
+	require.True(t, bytes.Equal(outData, []byte(staking.NoSuchValidator.Error())))
+
+	tx.BasicTx.Data = staking.PackCreateValidator(sender, [32]byte{1}, [32]byte{2})
+	tx.BasicTx.Value[31] = 100
+	tx.BasicTx.From = sender
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+
+	tx.BasicTx.Data = staking.PackProposal(target)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 1)
+	require.True(t, bytes.Equal(outData, []byte(staking.ValidatorNotActive.Error())))
+
+	info := staking.LoadStakingInfo(ctx)
+
+	info.Validators[1].VotingPower = 1
+	staking.SaveStakingInfo(ctx, info)
+
+	tx.BasicTx.Data = staking.PackProposal(target)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	target1, deadline := staking.LoadProposal(ctx)
+	require.Equal(t, target.Uint64(), target1)
+	require.Equal(t, now+int64(staking.DefaultProposalDuration), int64(deadline))
+
+	voteTarget := target.Add(target, big.NewInt(100))
+	tx.BasicTx.Data = staking.PackVote(voteTarget)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	tar, votingPower := staking.LoadVote(ctx, sender)
+	require.Equal(t, voteTarget.Uint64(), tar)
+	require.Equal(t, uint64(1), votingPower)
+
+	blk.Timestamp = now + int64(staking.DefaultProposalDuration) + 1
+	tx.BasicTx.Data = staking.PackExecuteProposal()
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	minGasPrice := staking.LoadMinGasPrice(ctx, true)
+	require.Equal(t, voteTarget.Uint64(), minGasPrice)
 }
 
 func TestSwitchEpoch(t *testing.T) {

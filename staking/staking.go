@@ -55,14 +55,14 @@ var (
 	    function decreaseMinGasPrice() external;
 	    //9ce06909
 	    function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
-		//
-		function proposal(uint target)
-		//
-		function vote(uint target)
-		//
-		function executeProposal()
-		//
-		function getVote(address validator)
+		//30326c17
+		function proposal(uint target) external;
+		//0121b93f
+		function vote(uint target) external;
+		//373058b8
+		function executeProposal() external;
+		//8d337b81
+		function getVote(address validator) external view returns (uint)
 	}*/
 	SelectorCreateValidator     [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
 	SelectorEditValidator       [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
@@ -70,10 +70,10 @@ var (
 	SelectorIncreaseMinGasPrice [4]byte = [4]byte{0xf2, 0x01, 0x6e, 0x8e}
 	SelectorDecreaseMinGasPrice [4]byte = [4]byte{0x69, 0x6e, 0x6a, 0xd2}
 	SelectorSumVotingPower      [4]byte = [4]byte{0x9c, 0xe0, 0x69, 0x09}
-	SelectorProposal            [4]byte = [4]byte{}
-	SelectorVote                [4]byte = [4]byte{}
-	SelectorExecuteProposal     [4]byte = [4]byte{}
-	SelectorGetVote             [4]byte = [4]byte{}
+	SelectorProposal            [4]byte = [4]byte{0x30, 0x32, 0x6c, 0x17}
+	SelectorVote                [4]byte = [4]byte{0x01, 0x21, 0xb9, 0x3f}
+	SelectorExecuteProposal     [4]byte = [4]byte{0x37, 0x30, 0x58, 0xb8}
+	SelectorGetVote             [4]byte = [4]byte{0x8d, 0x33, 0x7b, 0x81}
 
 	//slot
 	SlotStakingInfo               string = strings.Repeat(string([]byte{0}), 32)
@@ -131,7 +131,6 @@ var (
 	ValidatorNotActive              = errors.New("validator not active")
 	MinGasPriceTooBig               = errors.New("minGasPrice bigger than max")
 	MinGasPriceTooSmall             = errors.New("minGasPrice smaller than max")
-	OperatorNotValidator            = errors.New("minGasPrice operator not validator or its rewardTo")
 	InvalidArgument                 = errors.New("invalid argument")
 	CreateValidatorCoinLtInitAmount = errors.New("validator's staking coin less than init amount")
 	StillInProposal                 = errors.New("still in proposal")
@@ -482,8 +481,8 @@ func vote(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int
 }
 
 func checkTarget(lastMinGasPrice, target uint64) error {
-	if lastMinGasPrice*MinGasPriceDeltaRate < target ||
-		lastMinGasPrice/MinGasPriceDeltaRate > target {
+	if lastMinGasPrice != 0 && (lastMinGasPrice*MinGasPriceDeltaRate < target ||
+		lastMinGasPrice/MinGasPriceDeltaRate > target) {
 		return TargetExceedChangeDelta
 	}
 	if target > MinGasPriceUpperBound {
@@ -668,7 +667,7 @@ func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 	}
 }
 
-func LoadProposal(ctx *mevmtypes.Context) (uint64, uint64) {
+func LoadProposal(ctx *mevmtypes.Context) (target uint64, deadline uint64) {
 	var bz []byte
 	bz = ctx.GetStorageAt(StakingContractSequence, SlotMinGasPriceProposalTarget)
 	if len(bz) == 0 {
