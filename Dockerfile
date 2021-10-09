@@ -2,14 +2,16 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
+ARG GOLANG_VERSION="1.17.2"
+
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get -y update && apt-get -y upgrade
 RUN apt-get -y install gcc-8 g++-8 gcc g++ libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev wget make git
 
 RUN mkdir /build
 WORKDIR /build
-RUN wget https://dl.google.com/go/go1.16.3.linux-amd64.tar.gz
-RUN tar zxvf go1.16.3.linux-amd64.tar.gz
+RUN wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+RUN tar zxvf go${GOLANG_VERSION}.linux-amd64.tar.gz
 RUN mv go /usr/local
 RUN mkdir -p /go/bin
 RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v5.18.4.tar.gz
