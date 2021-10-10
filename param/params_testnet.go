@@ -33,4 +33,8 @@ const (
 	// ccEpoch param
 	BlocksInCCEpoch    int64 = 3
 	CCEpochSwitchDelay int64 = 3*10 + 10
+
+	// fork params
+	XHedgeForkHeight      int64  = 5000000
+	XHedgeContractAddress string = "0x123456"
 )

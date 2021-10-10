@@ -580,9 +580,28 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], nil, app.logger,
+			var posVotes map[[32]byte]int64
+			var xHedgeSequence uint64
+			if app.block.Number >= param.XHedgeForkHeight {
+				xHedgeContractAddress := gethcmn.Address{}
+				xHedgeContractAddress.SetBytes(gethcmn.FromHex(param.XHedgeContractAddress))
+				acc := ctx.GetAccount(xHedgeContractAddress)
+				if acc == nil {
+					return
+				}
+				xHedgeSequence = acc.Sequence()
+				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
+			}
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
 				param.StakingMinVotingPercentPerEpoch, param.StakingMinVotingPubKeysPercentPerEpoch)
 			app.epochList = app.epochList[1:]
+			if app.block.Number >= param.XHedgeForkHeight && xHedgeSequence != 0 {
+				var pubkey2Power = make(map[[32]byte]int64)
+				for _, v := range newValidators {
+					pubkey2Power[v.Pubkey] = v.VotingPower
+				}
+				staking.CreateInitVotes(ctx, xHedgeSequence, pubkey2Power)
+			}
 		}
 	}
 
