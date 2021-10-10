@@ -560,10 +560,10 @@ func getVote(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 		return
 	}
 	var from common.Address
-	from.SetBytes(callData[24:])
+	from.SetBytes(callData[12:])
 	target, _ := LoadVote(ctx, from)
 
-	outData = make([]byte, 0, 32)
+	outData = make([]byte, 32)
 	uint256.NewInt(target).WriteToSlice(outData)
 
 	status = StatusSuccess

@@ -193,6 +193,14 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	require.Equal(t, 1, len(voters))
 	require.Equal(t, sender, voters[0])
 
+	tx.BasicTx.Data = staking.PackGetVote(sender)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	require.Equal(t, 32, len(outData))
+	out := big.Int{}
+	out.SetBytes(outData)
+	require.Equal(t, target.Uint64(), out.Uint64())
+
 	blk.Timestamp = now + int64(staking.DefaultProposalDuration) + 1
 	tx.BasicTx.Data = staking.PackExecuteProposal()
 	status, _, _, _ = e.Execute(ctx, &blk, &tx)
