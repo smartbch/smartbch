@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 	"path"
 	"strconv"
@@ -81,6 +82,7 @@ type App struct {
 	lastGasRefund   uint256.Int  // recorded in last block's postCommit, used in current block's refresh
 	lastGasFee      uint256.Int  // recorded in last block's postCommit, used in current block's refresh
 	lastMinGasPrice uint64       // recorded in refresh, used in next block's CheckTx and Commit
+	txid2sigMap     map[[32]byte][65]byte
 
 	// feeds
 	chainFeed event.Feed // For pub&sub new blocks
@@ -155,6 +157,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
+	app.txid2sigMap = make(map[[32]byte][65]byte)
 	app.touchedAddrs = make(map[gethcmn.Address]int)
 	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
 
@@ -459,8 +462,27 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 	tx, err := ethutils.DecodeTx(req.Tx)
 	if err == nil {
 		app.txEngine.CollectTx(tx)
+		app.txid2sigMap[tx.Hash()] = encodeVRS(tx)
 	}
 	return abcitypes.ResponseDeliverTx{Code: abcitypes.CodeTypeOK}
+}
+
+func encodeVRS(tx *gethtypes.Transaction) [65]byte {
+	v, r, s := tx.RawSignatureValues()
+	r256, _ := uint256.FromBig(r)
+	s256, _ := uint256.FromBig(s)
+
+	bs := [65]byte{}
+	bs[0] = byte(v.Uint64())
+	copy(bs[1:33], r256.PaddedBytes(32))
+	copy(bs[33:65], s256.PaddedBytes(32))
+	return bs
+}
+func DecodeVRS(bs [65]byte) (v, r, s *big.Int) {
+	v = big.NewInt(int64(bs[0]))
+	r = big.NewInt(0).SetBytes(bs[1:33])
+	s = big.NewInt(0).SetBytes(bs[33:65])
+	return
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
@@ -625,10 +647,11 @@ func (app *App) refresh() {
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
 		if app.config.AppConfig.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.AppConfig.NumKeptBlocksInMoDB {
-			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB)
+			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB, app.txid2sigMap)
 		} else {
-			app.historyStore.AddBlock(&prevBlk4MoDB, -1) // do not prune moeingdb
+			app.historyStore.AddBlock(&prevBlk4MoDB, -1, app.txid2sigMap) // do not prune moeingdb
 		}
+		app.txid2sigMap = make(map[[32]byte][65]byte)
 		app.publishNewBlock(&prevBlk4MoDB)
 		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}

@@ -175,8 +175,9 @@ func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrp
 func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error) {
 	var zeroHash common.Hash
 	var txs []*types.Transaction
+	var sigs [][65]byte
 	if hash == zeroHash {
-		return blockToRpcResp(fakeBlock0, txs), nil
+		return blockToRpcResp(fakeBlock0, txs, sigs), nil
 	}
 	block, err := api.backend.BlockByHash(hash)
 	if err != nil {
@@ -191,9 +192,11 @@ func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 		if err != nil {
 			return nil, err
 		}
+
+		sigs = api.backend.GetSigs(txs)
 	}
 
-	return blockToRpcResp(block, txs), nil
+	return blockToRpcResp(block, txs, sigs), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByNumber
@@ -207,13 +210,16 @@ func (api *ethAPI) GetBlockByNumber(blockNum gethrpc.BlockNumber, fullTx bool) (
 	}
 
 	var txs []*types.Transaction
+	var sigs [][65]byte
 	if fullTx {
 		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
 		if err != nil {
 			return nil, err
 		}
+
+		sigs = api.backend.GetSigs(txs)
 	}
-	return blockToRpcResp(block, txs), nil
+	return blockToRpcResp(block, txs, sigs), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockTransactionCountByHash
@@ -262,11 +268,11 @@ func (api *ethAPI) GetTransactionByBlockNumberAndIndex(blockNum gethrpc.BlockNum
 
 // https://eth.wiki/json-rpc/API#eth_getTransactionByHash
 func (api *ethAPI) GetTransactionByHash(hash common.Hash) (*rpctypes.Transaction, error) {
-	tx, _, _, _, err := api.backend.GetTransaction(hash)
+	tx, sig, err := api.backend.GetTransaction(hash)
 	if err != nil {
 		return nil, nil
 	}
-	return txToRpcResp(tx), nil
+	return txToRpcResp(tx, sig), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getTransactionCount
@@ -296,17 +302,17 @@ func (api *ethAPI) getTxByIdx(block *types.Block, idx hexutil.Uint) (*rpctypes.T
 	}
 
 	txHash := block.Transactions[idx]
-	tx, _, _, _, err := api.backend.GetTransaction(txHash)
+	tx, sig, err := api.backend.GetTransaction(txHash)
 	if err != nil {
 		return nil, err
 	}
 
-	return txToRpcResp(tx), nil
+	return txToRpcResp(tx, sig), nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getTransactionReceipt
 func (api *ethAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
-	tx, _, _, _, err := api.backend.GetTransaction(hash)
+	tx, _, err := api.backend.GetTransaction(hash)
 	if err != nil {
 		// the transaction is not yet available
 		return nil, nil

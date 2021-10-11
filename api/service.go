@@ -65,7 +65,7 @@ type BackendService interface {
 
 	// Transaction pool API
 	SendRawTx(signedTx []byte) (common.Hash, error)
-	GetTransaction(txHash common.Hash) (tx *motypes.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error)
+	GetTransaction(txHash common.Hash) (tx *motypes.Transaction, sig [65]byte, err error)
 	//GetPoolTransactions() (types.Transactions, error)
 	//GetPoolTransaction(txHash common.Hash) *types.Transaction
 	//GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
@@ -100,6 +100,7 @@ type BackendService interface {
 	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight, limit uint32) ([]motypes.Log, error)
 	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
 	GetTxListByHeightWithRange(height uint32, start, end int) (tx []*motypes.Transaction, err error)
+	GetSigs(txs []*motypes.Transaction) [][65]byte
 	GetFromAddressCount(addr common.Address) int64
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64

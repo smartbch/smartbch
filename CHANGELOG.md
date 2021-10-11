@@ -5,7 +5,8 @@
 * JSON-RPC
   * Changed hardcoded HTTPS ports to parameters (PR#23)
   * Fixed a bug of eth_getBlockByNumber
-  * Implement eth_gasPrice
+  * Fixed eth_gasPrice
+  * Fixed transaction's V,R,S (issue#25)
 * Command
   * `smartbchd start` will not ignore `--home` option
   * `smartbchd start` can disable HTTPS-RPC and WSS-RPC server now

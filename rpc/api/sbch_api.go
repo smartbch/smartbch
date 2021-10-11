@@ -72,7 +72,9 @@ func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
 	if err != nil {
 		return nil, err
 	}
-	return txsToRpcResp(txs), nil
+
+	sigs := sbch.backend.GetSigs(txs)
+	return txsToRpcResp(txs, sigs), nil
 }
 
 func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
@@ -83,7 +85,9 @@ func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
 	if err != nil {
 		return nil, err
 	}
-	return txsToRpcResp(txs), nil
+
+	sigs := sbch.backend.GetSigs(txs)
+	return txsToRpcResp(txs, sigs), nil
 }
 
 func (sbch sbchAPI) QueryTxByAddr(addr gethcmn.Address,
@@ -94,7 +98,9 @@ func (sbch sbchAPI) QueryTxByAddr(addr gethcmn.Address,
 	if err != nil {
 		return nil, err
 	}
-	return txsToRpcResp(txs), nil
+
+	sigs := sbch.backend.GetSigs(txs)
+	return txsToRpcResp(txs, sigs), nil
 }
 
 func (sbch sbchAPI) prepareHeightRange(startHeight, endHeight gethrpc.BlockNumber) (uint32, uint32) {

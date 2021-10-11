@@ -281,16 +281,16 @@ func (_app *TestApp) GetTestPubkey() crypto.PubKey {
 func (_app *TestApp) StoreBlocks(blocks ...*modbtypes.Block) {
 	ctx := _app.GetRunTxContext()
 	for _, block := range blocks {
-		ctx.StoreBlock(block)
+		ctx.StoreBlock(block, nil)
 	}
-	ctx.StoreBlock(nil) // flush previous block
+	ctx.StoreBlock(nil, nil) // flush previous block
 	ctx.Close(true)
 }
 func (_app *TestApp) AddBlocksToHistory(blocks ...*modbtypes.Block) {
 	for _, blk := range blocks {
-		_app.HistoryStore().AddBlock(blk, -1)
+		_app.HistoryStore().AddBlock(blk, -1, nil)
 	}
-	_app.HistoryStore().AddBlock(nil, -1)
+	_app.HistoryStore().AddBlock(nil, -1, nil)
 	_app.WaitMS(10)
 }
 
