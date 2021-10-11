@@ -65,39 +65,4 @@ contract("RPC/QueryTx", async (accounts) => {
         assert.equal(block.transactions[0].to, null); 
     });
 
-    it('TxVRS', async () => {
-        const from = accounts[0];
-        const to = accounts[1];
-        const result = await web3.eth.sendTransaction(
-            {from: from, to: to, value: 10000, gasPrice: 10000000000});
-
-        // console.log(result);
-        const txHash = result.transactionHash;
-
-        let tx = await web3.eth.getTransaction(txHash);
-        assert.isNotNull(tx.v);
-        assert.isNotNull(tx.r);
-        assert.isNotNull(tx.s);
-
-        tx = await web3.eth.getTransactionFromBlock(tx.blockNumber, 0);
-        assert.isNotNull(tx.v);
-        assert.isNotNull(tx.r);
-        assert.isNotNull(tx.s);
-
-        tx = await web3.eth.getTransactionFromBlock(tx.blockHash, 0);
-        assert.isNotNull(tx.v);
-        assert.isNotNull(tx.r);
-        assert.isNotNull(tx.s);
-
-        let block = await web3.eth.getBlock(tx.blockNumber, true);
-        assert.isNotNull(block.transactions[0].v);
-        assert.isNotNull(block.transactions[0].r);
-        assert.isNotNull(block.transactions[0].s);
-
-        block = await web3.eth.getBlock(tx.blockHash, true);
-        assert.isNotNull(block.transactions[0].v);
-        assert.isNotNull(block.transactions[0].r);
-        assert.isNotNull(block.transactions[0].s);
-    });
-
 });

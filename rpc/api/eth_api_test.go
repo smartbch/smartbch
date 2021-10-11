@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"math"
 	"math/big"
-	"regexp"
 	"sync"
 	"testing"
 
@@ -530,46 +529,6 @@ func TestContractCreationTxToAddr(t *testing.T) {
 	receiptResult, err := _api.GetTransactionReceipt(tx.Hash())
 	require.NoError(t, err)
 	require.Contains(t, testutils.ToJSON(receiptResult), `"to":null`)
-}
-
-func TestTxVRS(t *testing.T) {
-	key1, _ := testutils.GenKeyAndAddr()
-	key2, addr2 := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key1, key2)
-	_app.WaitLock()
-	defer _app.Destroy()
-	_api := createEthAPI(_app)
-
-	tx, blockNum := _app.MakeAndExecTxInBlock(key1, addr2, 123, nil)
-	_app.EnsureTxSuccess(tx.Hash())
-
-	blockResult, err := _api.GetBlockByNumber(gethrpc.BlockNumber(blockNum), true)
-	require.NoError(t, err)
-	checkTxVRS(t, blockResult)
-
-	blockHash := gethcmn.BytesToHash(blockResult["hash"].(hexutil.Bytes))
-	blockResult, err = _api.GetBlockByHash(blockHash, true)
-	require.NoError(t, err)
-	checkTxVRS(t, blockResult)
-
-	txResult, err := _api.GetTransactionByHash(tx.Hash())
-	require.NoError(t, err)
-	checkTxVRS(t, txResult)
-
-	txResult, err = _api.GetTransactionByBlockNumberAndIndex(gethrpc.BlockNumber(blockNum), 0)
-	require.NoError(t, err)
-	checkTxVRS(t, txResult)
-
-	txResult, err = _api.GetTransactionByBlockHashAndIndex(blockHash, 0)
-	require.NoError(t, err)
-	checkTxVRS(t, txResult)
-}
-
-func checkTxVRS(t *testing.T, resp interface{}) {
-	respJSON := testutils.ToJSON(resp)
-	require.True(t, hexutil.MustDecodeUint64(regexp.MustCompile(`"v":"(0x[0-9a-fA-F]+)"`).FindStringSubmatch(respJSON)[1]) > 0)
-	require.True(t, hexutil.MustDecodeBig(regexp.MustCompile(`"r":"(0x[0-9a-fA-F]+)"`).FindStringSubmatch(respJSON)[1]).Sign() > 0)
-	require.True(t, hexutil.MustDecodeBig(regexp.MustCompile(`"s":"(0x[0-9a-fA-F]+)"`).FindStringSubmatch(respJSON)[1]).Sign() > 0)
 }
 
 func TestCall_NoFromAddr(t *testing.T) {
