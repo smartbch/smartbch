@@ -1,3 +1,4 @@
+//go:build params_testnet
 // +build params_testnet
 
 package param
