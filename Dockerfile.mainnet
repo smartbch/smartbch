@@ -3,7 +3,7 @@ FROM ubuntu:20.04
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
 ARG SMARTBCH_VERSION="0.3.4"
-ARG MOEINGEVM_VERSION="0.3.1"
+ARG MOEINGEVM_VERSION="0.3.2"
 
 # Update file limit
 RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.conf
