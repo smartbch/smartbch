@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.4 (not released yet)
+## v0.3.4
 
 * JSON-RPC
   * Changed hardcoded HTTPS ports to parameters (PR#23)
@@ -10,6 +10,9 @@
 * Command
   * `smartbchd start` will not ignore `--home` option
   * `smartbchd start` can disable HTTPS-RPC and WSS-RPC server now
+* Library
+  * Upgrade moeingdb to v0.3.3
+  * Upgrade moeingevm to v0.3.2
 
 
 ## v0.3.3
@@ -19,8 +22,6 @@
   * Fix a bug and improve `smartbchd staking` command
 * Staking
   * Fixed getrawtransaction rpc call (PR#21)
-* Library
-  * Upgrade moeingevm to v0.3.2
 
 
 ## v0.3.2
