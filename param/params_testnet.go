@@ -33,8 +33,14 @@ const (
 	// ccEpoch param
 	BlocksInCCEpoch    int64 = 3
 	CCEpochSwitchDelay int64 = 3*10 + 10
+)
 
+var (
 	// fork params
 	XHedgeForkHeight      int64  = 5000000
 	XHedgeContractAddress string = "0x123456"
+
+	// open the ShaGateSwitch before ShaGateForkHeight reached
+	ShaGateSwitch     bool  = false
+	ShaGateForkHeight int64 = 8000000
 )

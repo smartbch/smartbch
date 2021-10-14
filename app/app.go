@@ -155,7 +155,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	ctx := app.GetRunTxContext()
 
 	ebp.RegisterPredefinedContract(ctx, staking.StakingContractAddress, staking.NewStakingContractExecutor(app.logger.With("module", "staking")))
-	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
@@ -193,22 +192,21 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*-------set ccInfo------*/
-	ccInfo := crosschain.LoadCCInfo(ctx)
-	if ccInfo.CurrEpochNum == 0 && ccInfo.GenesisMainnetBlockHeight == 0 {
-		ccInfo.GenesisMainnetBlockHeight = genesisCCHeight
-		crosschain.SaveCCInfo(ctx, ccInfo)
+	var lastCCEpochEndHeight int64
+	if param.ShaGateSwitch {
+		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
+		ccInfo := crosschain.LoadCCInfo(ctx)
+		if ccInfo.CurrEpochNum == 0 && ccInfo.GenesisMainnetBlockHeight == 0 {
+			ccInfo.GenesisMainnetBlockHeight = genesisCCHeight
+			crosschain.SaveCCInfo(ctx, ccInfo)
+		}
+		lastCCEpochEndHeight = ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
 	}
-	fmt.Println(ccInfo)
-	//for test with fake node
-	//acc := ctx.GetAccount(crosschain.CCContractAddress)
-	//acc.UpdateBalance(uint256.NewInt(1000_0000))
-	//ctx.SetAccount(crosschain.CCContractAddress, acc)
 
 	/*------set watcher------*/
 	watcherLogger := app.logger.With("module", "watcher")
 	client := watcher.NewRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, "text/plain;", watcherLogger)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	lastCCEpochEndHeight := ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
 	app.watcher = watcher.NewWatcher(watcherLogger, lastEpochEndHeight, lastCCEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
@@ -502,6 +500,12 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
+
+	// fork prepares
+	if app.block.Number >= param.XHedgeForkHeight {
+		crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")).Init(ctx)
+	}
+
 	//distribute previous block gas fee
 	var blockReward = app.lastGasFee
 	if !app.lastGasRefund.IsZero() {
@@ -527,7 +531,9 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
-	app.handleCCEpoch(ctx)
+	if param.ShaGateSwitch && app.block.Number >= param.ShaGateForkHeight {
+		app.handleCCEpoch(ctx)
+	}
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 

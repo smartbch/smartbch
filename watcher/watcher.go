@@ -199,6 +199,9 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 }
 
 func (watcher *Watcher) CCEpochSpeedup() {
+	if !param.ShaGateSwitch {
+		return
+	}
 	start := uint64(watcher.lastKnownCCEpochNum) + 1
 	for {
 		epochs := watcher.smartBchRpcClient.GetCCEpochs(start, start+100)
@@ -275,6 +278,9 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 }
 
 func (watcher *Watcher) generateNewCCEpoch() {
+	if !param.ShaGateSwitch {
+		return
+	}
 	epoch := watcher.buildNewCCEpoch()
 	watcher.ccEpochList = append(watcher.ccEpochList, epoch)
 	watcher.logger.Debug("Generate new cc epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
