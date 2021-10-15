@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/tendermint/tendermint/libs/log"
 
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
@@ -15,9 +16,15 @@ type PublicTxPoolAPI interface {
 }
 
 type txPoolAPI struct {
+	logger log.Logger
 }
 
-func (txPoolAPI) Content() map[string]map[string]map[string]*rpctypes.Transaction {
+func newTxPoolAPI(logger log.Logger) PublicTxPoolAPI {
+	return txPoolAPI{logger: logger}
+}
+
+func (api txPoolAPI) Content() map[string]map[string]map[string]*rpctypes.Transaction {
+	api.logger.Debug("txpool_content")
 	content := map[string]map[string]map[string]*rpctypes.Transaction{
 		"pending": make(map[string]map[string]*rpctypes.Transaction),
 		"queued":  make(map[string]map[string]*rpctypes.Transaction),
@@ -25,7 +32,8 @@ func (txPoolAPI) Content() map[string]map[string]map[string]*rpctypes.Transactio
 	return content
 }
 
-func (txPoolAPI) Status() map[string]hexutil.Uint {
+func (api txPoolAPI) Status() map[string]hexutil.Uint {
+	api.logger.Debug("txpool_status")
 	pending, queue := 0, 0
 	return map[string]hexutil.Uint{
 		"pending": hexutil.Uint(pending),
@@ -33,7 +41,8 @@ func (txPoolAPI) Status() map[string]hexutil.Uint {
 	}
 }
 
-func (txPoolAPI) Inspect() map[string]map[string]map[string]string {
+func (api txPoolAPI) Inspect() map[string]map[string]map[string]string {
+	api.logger.Debug("txpool_inspect")
 	content := map[string]map[string]map[string]string{
 		"pending": make(map[string]map[string]string),
 		"queued":  make(map[string]map[string]string),

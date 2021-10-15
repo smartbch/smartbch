@@ -14,10 +14,12 @@ type EvmAPI interface {
 	Mine(ts hexutil.Uint64) error
 }
 
+//nolint
 func newEvmAPI(backend sbchapi.BackendService) EvmAPI {
 	return evmAPI{backend}
 }
 
+//nolint
 type evmAPI struct {
 	backend sbchapi.BackendService
 }
