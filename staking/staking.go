@@ -129,8 +129,8 @@ var (
 	BalanceNotEnough                = errors.New("balance is not enough")
 	NoSuchValidator                 = errors.New("no such validator")
 	ValidatorNotActive              = errors.New("validator not active")
-	MinGasPriceTooBig               = errors.New("minGasPrice bigger than max")
-	MinGasPriceTooSmall             = errors.New("minGasPrice smaller than max")
+	MinGasPriceTooBig               = errors.New("minGasPrice bigger than allowed highest value")
+	MinGasPriceTooSmall             = errors.New("minGasPrice smaller than allowed lowest value")
 	InvalidArgument                 = errors.New("invalid argument")
 	CreateValidatorCoinLtInitAmount = errors.New("validator's staking coin less than init amount")
 	StillInProposal                 = errors.New("still in proposal")
@@ -482,7 +482,7 @@ func vote(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int
 
 func checkTarget(lastMinGasPrice, target uint64) error {
 	if lastMinGasPrice != 0 && (lastMinGasPrice*MinGasPriceDeltaRate < target ||
-		lastMinGasPrice/MinGasPriceDeltaRate > target) {
+		lastMinGasPrice > target*MinGasPriceDeltaRate) {
 		return TargetExceedChangeDelta
 	}
 	if target > MinGasPriceUpperBound {
@@ -572,6 +572,7 @@ func getVote(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 
 func handleMinGasPrice() (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusSuccess
+	gasUsed = GasOfMinGasPriceOp
 	return
 }
 
