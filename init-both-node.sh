@@ -69,8 +69,16 @@ docker-compose run smartbch_node init sync_node --chain-id 0x2711
 echo "Replace genesis.json"
 cp -fr genesis.json smartbch_node_data/config/.
 
-
+my_ip=$(ip route get 8.8.8.8 | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
+echo "This machine's ip: $my_ip"
 # replacing a line in a file
-text='seeds = "niceseedmadude@10.66.66.123:26656"'
+echo "Configuring p2p seeds"
+seed_address=\"$NODEID@$my_ip:26656\"
 # sed -i "s/^Current date.*/beat ${text}/" beat.txt
-sed -i "s/^seeds =.*/${text}/" smartbch_node_data/config/config.toml
+sed -i "s/^seeds =.*/seeds = $seed_address/" smartbch_node_data/config/config.toml
+echo
+
+echo "Configuring RPC"
+rpc=\"$my_ip:8545\"
+sudo sed -i "s/^mainnet-rpc-url.*/mainnet-rpc-url = $rpc/" ./smartbch_node_data/config/app.toml
+echo
