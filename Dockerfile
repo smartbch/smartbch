@@ -43,4 +43,6 @@ RUN go install -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
 VOLUME ["/root/.smartbchd"]
 
 ENTRYPOINT ["smartbchd"]
-EXPOSE 8545 8546
+EXPOSE 8545 8546 26656 26657 26658 26660 26659
+
+

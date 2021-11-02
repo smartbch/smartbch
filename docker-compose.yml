@@ -6,6 +6,37 @@ services:
     command: start
     ports:
       - "8545:8545"
+      - "26656:26656"
+      - "26657:26657"
+      - "26658:26658"
+      - "26659:26659"
+      - "26660:26660"
     restart: always
     volumes:
       - ./smartbch_data:/root/.smartbchd
+  # smartbch2:
+  #   build: .
+  #   command: start
+  #   ports:
+  #     - "8544:8545"
+  #     - "26661:26656"
+  #     - "26662:26657"
+  #     - "26663:26658"
+  #     - "26664:26659"
+  #     - "26665:26660"
+  #   restart: always
+  #   volumes:
+  #     - ./smartbch_data2:/root/.smartbchd
+  # smartbch3:
+  #   build: .
+  #   command: start
+  #   ports:
+  #     - "8543:8545"
+  #     - "26666:26656"
+  #     - "26667:26657"
+  #     - "26668:26658"
+  #     - "26669:26659"
+  #     - "26670:26660"
+  #   restart: always
+  #   volumes:
+  #     - ./smartbch_data3:/root/.smartbchd
