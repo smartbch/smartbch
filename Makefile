@@ -20,7 +20,7 @@
 
 # .PHONY: all build build-linux
 
-init:
+genesis:
 	bash init.sh
 
 up:
@@ -28,5 +28,11 @@ up:
 
 down:
 	docker-compose down
+
+clean:
+	bash clean.sh
+
+both:
+	bash init-both-node.sh
 
 reset: down up

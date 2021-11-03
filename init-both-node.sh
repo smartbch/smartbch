@@ -8,8 +8,11 @@ echo "=============="
 echo "Genesis Node"
 echo "=============="
 echo "Generating Keys"
+mkdir keys 
 docker-compose run smartbch_genesis gen-test-keys -n 10 > test-keys.txt
 echo
+
+ 
 
 echo "Init the node, include the keys from the last step as a comma separated list."
 
@@ -34,7 +37,7 @@ NODEID=${BIT[11]} # choose index 11 of BIT array
 
 echo Genesis node Id: $NODEID
 echo $NODEID > genesis_node_id.txt
-
+rm -fr json_node_id.txt
 CPK=$(docker-compose run -w /root/.smartbchd/ smartbch_genesis generate-consensus-key-info)
 docker-compose run --entrypoint mv smartbch_genesis /root/.smartbchd/priv_validator_key.json /root/.smartbchd/config
 echo
@@ -53,6 +56,8 @@ docker-compose run smartbch_genesis add-genesis-validator --home=/root/.smartbch
 
 echo "Copy genesis.json"
 cp smartbch_genesis_data/config/genesis.json .
+mv ./test-keys.txt ./keys
+mv ./genesis_node_id.txt ./keys
 
 echo
 echo "Genesis node setup Finished!"
@@ -71,7 +76,7 @@ docker-compose run smartbch_node init sync_node --chain-id 0x2711
 
 echo "Replace genesis.json"
 cp -fr genesis.json smartbch_node_data/config/.
-
+rm genesis.json
 # get localhost ip
 
 # replacing line that starts with "seeds =" with $seed_address
@@ -85,3 +90,5 @@ echo "Configuring RPC"
 rpc=\"smartbch_genesis:8545\"
 sudo sed -i "s/^mainnet-rpc-url.*/mainnet-rpc-url = $rpc/" ./smartbch_node_data/config/app.toml
 echo
+echo "Keys and genesis node id can be found at ./keys"
+echo "Sync node setup Finished!"
