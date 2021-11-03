@@ -73,17 +73,15 @@ echo "Replace genesis.json"
 cp -fr genesis.json smartbch_node_data/config/.
 
 # get localhost ip
-my_ip=$(ip route get 8.8.8.8 | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
-echo "This machine's ip: $my_ip"
 
 # replacing line that starts with "seeds =" with $seed_address
 echo "Configuring p2p seeds"
-seed_address=\"$NODEID@$my_ip:26656\"
+seed_address=\"$NODEID@smartbch_genesis:26656\"
 sed -i "s/^seeds =.*/seeds = $seed_address/" smartbch_node_data/config/config.toml
 echo
 
 # replacing line that starts with "mainnet-rpc-url" with $rpc
 echo "Configuring RPC"
-rpc=\"$my_ip:8545\"
+rpc=\"smartbch_genesis:8545\"
 sudo sed -i "s/^mainnet-rpc-url.*/mainnet-rpc-url = $rpc/" ./smartbch_node_data/config/app.toml
 echo
