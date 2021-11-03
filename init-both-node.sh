@@ -24,13 +24,13 @@ NID=$(docker-compose run smartbch_genesis init mynode --chain-id 0x2711 \
     )
 echo
 
-# getting nodeId from json file
+# getting nodeId from json_node_id file
 K1=$(tail -1 json_node_id.txt)
 
 # splitting K1 for node Id
 IFS='\"' #colon as delimiter
 read -ra BIT <<<"$K1" # split string into :array name BIT
-NODEID=${BIT[11]} # choose index 3 of BIT array
+NODEID=${BIT[11]} # choose index 11 of BIT array
 
 echo Genesis node Id: $NODEID
 echo $NODEID > genesis_node_id.txt
@@ -46,7 +46,7 @@ VAL=$(docker-compose run smartbch_genesis generate-genesis-validator $K1 \
   --consensus-pubkey $CPK \
   --staking-coin 10000000000000000000000 \
   --voting-power 1 \
-  --introduction "tester" \
+  --introduction "happygenesis" \
   --home /root/.smartbchd
   )
 docker-compose run smartbch_genesis add-genesis-validator --home=/root/.smartbchd $VAL
@@ -58,7 +58,10 @@ echo
 echo "Genesis node setup Finished!"
 
 
+# ==============
 # Sync-node
+# ==============
+
 echo "=============="
 echo "Sync Node"
 echo "=============="
@@ -69,15 +72,17 @@ docker-compose run smartbch_node init sync_node --chain-id 0x2711
 echo "Replace genesis.json"
 cp -fr genesis.json smartbch_node_data/config/.
 
+# get localhost ip
 my_ip=$(ip route get 8.8.8.8 | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
 echo "This machine's ip: $my_ip"
-# replacing a line in a file
+
+# replacing line that starts with "seeds =" with $seed_address
 echo "Configuring p2p seeds"
 seed_address=\"$NODEID@$my_ip:26656\"
-# sed -i "s/^Current date.*/beat ${text}/" beat.txt
 sed -i "s/^seeds =.*/seeds = $seed_address/" smartbch_node_data/config/config.toml
 echo
 
+# replacing line that starts with "mainnet-rpc-url" with $rpc
 echo "Configuring RPC"
 rpc=\"$my_ip:8545\"
 sudo sed -i "s/^mainnet-rpc-url.*/mainnet-rpc-url = $rpc/" ./smartbch_node_data/config/app.toml
