@@ -73,13 +73,17 @@ sudo make init-both
 ### Start the containers
 
 ```
-make up
+make up-both
 ```
 
 ### Removing containers and cleaning volumes
 
-```
+In order to remove the leftover volumes, we can execute the following command:
 
+WARNING: This will delete the volumes attached to your smartbch containers.
+
+```
+make clean
 ```
 
 
