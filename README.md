@@ -65,15 +65,63 @@ rm -rf smartbch_data/
 ## Setting up multiple nodes
 
 ### First init the nodes
+First we need to init the nodes to generate the genesis data, this script will initialize the node and add the
+relevant seed information into the non-genesis node.
 
 ```
 sudo make init-both
+
+Expected output:
+
+==============
+Genesis Node
+==============
+Generating Keys
+Creating network "smartbch_default" with the default driver
+Creating smartbch_smartbch_genesis_run ... done
+
+Init the node, include the keys from the last step as a comma separated list.
+Creating smartbch_smartbch_genesis_run ... done
+
+Genesis node Id: a53a8b00f4a70abae47db0130491cfac4a6d3dbd
+Creating smartbch_smartbch_genesis_run ... done
+Creating smartbch_smartbch_genesis_run ... done
+
+Generate genesis validator
+Creating smartbch_smartbch_genesis_run ... done
+Creating smartbch_smartbch_genesis_run ... done
+Copy genesis.json
+
+Genesis node setup Finished!
+==============
+Sync Node
+==============
+Init chain id
+Creating smartbch_smartbch_node_run ... done
+preparing genesis file ...
+saving genesis file ...
+{"moniker":"sync_node","chain_id":"0x2711","node_id":"fc5c360eaf50b85ddb8a198c41f80aaa69471ea0","gentxs_dir":"","app_message":null}
+Replace genesis.json
+Configuring p2p seeds
+
+Configuring RPC
+
+Keys and genesis node id can be found at ./keys
+Sync node setup Finished!
 ```
 
 ### Start the containers
+After the nodes are initialized, we can start them with the following command:
 
 ```
-make up-both
+make up-multi
+
+Expected output:
+❯ make up-multi                                                                                                                                                                                    11:17:39
+docker-compose up -d
+Creating smartbch_smartbch_genesis_1 ... done
+Creating smartbch_smartbch_node_1    ... done
+
 ```
 
 ### Removing containers and cleaning volumes
@@ -84,6 +132,24 @@ WARNING: This will delete the volumes attached to your smartbch containers.
 
 ```
 make clean
+
+Expected output:
+❯ make clean                                                                                                                                                                                       11:21:40
+bash clean.sh
+Are you sure? your data will be unrecoverable [y/n]
+y
+Stopping smartbch_smartbch_genesis_1 ... done
+Removing smartbch_smartbch_genesis_1                ... done
+Removing smartbch_smartbch_genesis_run_5d0f6254e045 ... done
+Removing smartbch_smartbch_genesis_run_933bc0036c9a ... done
+Removing smartbch_smartbch_genesis_run_a44d0c38f9b0 ... done
+Removing smartbch_smartbch_genesis_run_95f3bb1a0309 ... done
+Removing smartbch_smartbch_genesis_run_cec5442a1c34 ... done
+Removing smartbch_smartbch_genesis_run_fb3d4c07a7bd ... done
+Removing network smartbch_default
+Cleaning previous node data
+Done!
+
 ```
 
 
