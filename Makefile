@@ -20,10 +20,10 @@
 
 # .PHONY: all build build-linux
 
-genesis:
-	bash init.sh
-
 up:
+	docker-compose up -d smartbch_genesis
+
+up-multi:
 	docker-compose up -d
 
 down:
@@ -32,7 +32,10 @@ down:
 clean:
 	bash clean.sh
 
-both:
+init:
+	bash init.sh
+
+init-both:
 	bash init-both-node.sh
 
 reset: down up

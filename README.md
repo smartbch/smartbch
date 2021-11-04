@@ -61,6 +61,29 @@ rm -rf smartbch_data/
 <br/>
 
 
+
+## Setting up multiple nodes
+
+### First init the nodes
+
+```
+sudo make init-both
+```
+
+### Start the containers
+
+```
+make up
+```
+
+### Removing containers and cleaning volumes
+
+```
+
+```
+
+
+
 ## Deploying a contract
 
 ### Install metamask
