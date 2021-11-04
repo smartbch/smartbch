@@ -65,10 +65,10 @@ RUN cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smar
 # Setup smartbchd
 RUN cp /smart_bch/smartbch/smartbchd /build/smartbchd
 WORKDIR /root
-RUN /build/smartbchd init mynode --chain-id 0x2710
-RUN wget https://github.com/smartbch/artifacts/releases/download/v0.0.3/dot.smartbchd.tgz
-RUN tar zxvf dot.smartbchd.tgz
-RUN cp -rf dot.smartbchd/* .smartbchd/
+# RUN /build/smartbchd init mynode --chain-id 0x2710
+# RUN wget https://github.com/smartbch/artifacts/releases/download/v0.0.3/dot.smartbchd.tgz
+# RUN tar zxvf dot.smartbchd.tgz
+# RUN cp -rf dot.smartbchd/* .smartbch_node_data/
 
 # Go back to main workdir.
 WORKDIR /build

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+    smartbch_node:
+        image: actorforth/smartbch-mainnet:latest
+        # build: .
+        command: start --mainnet-genesis-height=698502
+        ports:
+          - "8546:8545"
+          - "26661:26656"
+          - "26662:26657"
+          - "26663:26658"
+          - "26664:26659"
+          - "26665:26660"
+        restart: always
+        volumes:
+          - ./smartbch_node_data:/root/.smartbchd

@@ -26,6 +26,9 @@ up:
 up-multi:
 	docker-compose up -d
 
+up-main:
+	docker-compose -f mainnet.yml up -d
+
 down:
 	docker-compose down
 
@@ -34,6 +37,9 @@ clean:
 
 init:
 	bash init.sh
+
+init-main:
+	bash init-mainnet.sh
 
 init-both:
 	bash init-both-node.sh
