@@ -1,4 +1,12 @@
+version: "3.7"
 
 services:
+  docker-compose-env:
     build: .
+    # image: docker/compose:debian-1.29.2
+    environment:
+      - HOST_SRC_PATH=${HOST_SRC_PATH}
     volumes:
+      - ./components:/var/tmp/
+      - /Users/naach/dev/sandbox/sandbox-af/smartbch/data/:/var/tmp/data
+      - /var/run/docker.sock:/var/run/docker.sock
