@@ -43,5 +43,5 @@ echo 'adding genesis validator ...'
 #export NOSTACK=1
 #export NOINSTLOG=1
 echo 'starting node ...'
-./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off wss.addr=off \
+./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
   --log_level='json-rpc:debug,*:info'
