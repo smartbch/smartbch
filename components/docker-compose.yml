@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   smartbch_genesis:
-    build: .
+    image: actorforth/smartbch-testnet-unoptimize:v0.3.4
+    # build: .
     command: start
     ports:
       - "8545:8545"
@@ -15,7 +16,8 @@ services:
     volumes:
       - ${HOST_SRC_PATH}/data/smartbch_genesis_data:/root/.smartbchd
   smartbch_node:
-    build: .
+    image: actorforth/smartbch-testnet-unoptimize:v0.3.4
+    # build: .
     command: start
     ports:
       - "8546:8545"

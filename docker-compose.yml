@@ -8,5 +8,5 @@ services:
       - HOST_SRC_PATH=${HOST_SRC_PATH}
     volumes:
       - ./components:/var/tmp/
-      - /Users/naach/dev/sandbox/sandbox-af/smartbch/data/:/var/tmp/data
+      - ${HOST_SRC_PATH}/data/:/var/tmp/data
       - /var/run/docker.sock:/var/run/docker.sock
