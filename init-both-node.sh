@@ -5,14 +5,6 @@ mkdir keys
 docker-compose -f /var/tmp/docker-compose.yml run smartbch_genesis gen-test-keys -n 10 > test-keys.txt
 echo
 
-echo cat
-cat test-keys.txt
-echo cat
-
-echo here is ls
-ls -a
-echo here is ls
-
 echo "=============="
 echo "Genesis Node"
 echo "Init the node, include the keys from the previous step as a comma separated list."
@@ -20,44 +12,20 @@ echo "=============="
 # put json node id into json_node_id.txt file
 # then tail it out so that bash would recognize it as a string
 # there should be a better way to do this...
-NID=$(docker-compose -f /var/tmp/docker-compose.yml run smartbch_genesis init mynode --chain-id 0x2711 \
+docker-compose -f /var/tmp/docker-compose.yml run smartbch_genesis init mynode --chain-id 0x2711 \
     --init-balance=10000000000000000000 \
     --test-keys=`paste -d, -s test-keys.txt` \
     --home=/root/.smartbchd --overwrite \
-    | tee json_node_id.txt
-    )
-echo
+    2> json_node_id.txt
 
-echo tee
-tee json_node_id.txt
-echo tee
-
-
-echo here is NID
-echo $NID
-echo here is NID
-
-echo here is ls
-ls -a
-echo here is ls
 
 # getting nodeId from json_node_id file
 K1=$(tail -1 json_node_id.txt)
-echo here is cat
-cat json_node_id.txt
-echo here is cat
-
-echo here is k1
-echo $K1
-echo here is k1
 
 # splitting K1 for node Id
 IFS='\"' #colon as delimiter
 read -ra BIT <<<"$K1" # split string into :array name BIT
 NODEID=${BIT[11]} # choose index 11 of BIT array
-echo here is nodeid
-echo $NODEID
-echo here is nodeid
 
 echo Genesis node Id: $NODEID
 echo $NODEID > genesis_node_id.txt

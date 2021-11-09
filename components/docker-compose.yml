@@ -13,7 +13,7 @@ services:
       - "26660:26660"
     restart: always
     volumes:
-      - /Users/naach/dev/sandbox/sandbox-af/smartbch/data/smartbch_genesis_data:/root/.smartbchd
+      - ${HOST_SRC_PATH}/data/smartbch_genesis_data:/root/.smartbchd
   smartbch_node:
     build: .
     command: start
@@ -26,4 +26,4 @@ services:
       - "26665:26660"
     restart: always
     volumes:
-      - /Users/naach/dev/sandbox/sandbox-af/smartbch/data/smartbch_node_data:/root/.smartbchd
+      - ${HOST_SRC_PATH}/data/smartbch_node_data:/root/.smartbchd
