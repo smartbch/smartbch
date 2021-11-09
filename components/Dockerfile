@@ -29,8 +29,8 @@ ENV LD_LIBRARY_PATH=$ROCKSDB_PATH
 
 RUN mkdir /smart_bch
 WORKDIR /smart_bch
-RUN git clone https://github.com/smartbch/moeingevm.git
-RUN git clone https://github.com/smartbch/smartbch.git
+RUN git clone --branch v0.3.2 https://github.com/smartbch/moeingevm.git
+RUN git clone --branch v0.3.4 https://github.com/smartbch/smartbch.git
 
 WORKDIR /smart_bch/moeingevm/evmwrap
 RUN make
@@ -44,5 +44,3 @@ VOLUME ["/root/.smartbchd"]
 
 ENTRYPOINT ["smartbchd"]
 EXPOSE 8545 8546 26656 26657 26658 26660 26659
-
-
