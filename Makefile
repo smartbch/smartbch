@@ -1,4 +1,4 @@
-export HOST_SRC_PATH=/Users/naach/dev/sandbox/sandbox-af/smartbch
+export HOST_SRC_PATH=$(shell pwd)
 
 
 up:
