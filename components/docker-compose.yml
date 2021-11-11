@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  smartbch_genesis:
+    image: actorforth/smartbch-testnet-unoptimize:v0.3.4
+    # build: .
+    command: start
+    ports:
+      - "8545:8545"
+      - "26656:26656"
+      - "26657:26657"
+      - "26658:26658"
+      - "26659:26659"
+      - "26660:26660"
+    restart: always
+    volumes:
+      - ${HOST_SRC_PATH}/data/smartbch_genesis_data:/root/.smartbchd
+  smartbch_node:
+    image: actorforth/smartbch-testnet-unoptimize:v0.3.4
+    # build: .
+    command: start
+    ports:
+      - "8546:8545"
+      - "26661:26656"
+      - "26662:26657"
+      - "26663:26658"
+      - "26664:26659"
+      - "26665:26660"
+    restart: always
+    volumes:
+      - ${HOST_SRC_PATH}/data/smartbch_node_data:/root/.smartbchd

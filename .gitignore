@@ -38,4 +38,6 @@ keys*.txt
 cmd/stresstest/stresstest
 
 smartbch_data/
+smartbch_genesis_data/
+smartbch_node_data/
 *.txt

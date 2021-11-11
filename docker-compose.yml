@@ -1,11 +1,12 @@
-version: '3.8'
+version: "3.7"
 
 services:
-  smartbch:
+  docker-compose-env:
     build: .
-    command: start
-    ports:
-      - "8545:8545"
-    restart: always
+    image: actorforth/docker-compose-env:v0.0.1
+    environment:
+      - HOST_SRC_PATH=${HOST_SRC_PATH}
     volumes:
-      - ./smartbch_data:/root/.smartbchd
+      - ./components:/var/tmp/
+      - ${HOST_SRC_PATH}/data/:/var/tmp/data
+      - /var/run/docker.sock:/var/run/docker.sock
