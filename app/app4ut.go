@@ -46,8 +46,8 @@ func (app *App) AddEpochForTest(e *stakingtypes.Epoch) { // breaks normal functi
 }
 
 func (app *App) AddBlockFotTest(mdbBlock *modbtypes.Block) { // breaks normal function, only used in test
-	app.historyStore.AddBlock(mdbBlock, -1)
-	app.historyStore.AddBlock(nil, -1) // To Flush
+	app.historyStore.AddBlock(mdbBlock, -1, nil)
+	app.historyStore.AddBlock(nil, -1, nil) // To Flush
 	app.publishNewBlock(mdbBlock)
 }
 

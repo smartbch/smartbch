@@ -13,6 +13,7 @@ import (
 
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
+	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
@@ -69,7 +70,7 @@ func createGethTxFromSendTxArgs(args rpctypes.SendTxArgs) (*gethtypes.Transactio
 	return tx, nil
 }
 
-func blockToRpcResp(block *types.Block, txs []*types.Transaction) map[string]interface{} {
+func blockToRpcResp(block *types.Block, txs []*types.Transaction, sigs [][65]byte) map[string]interface{} {
 	result := map[string]interface{}{
 		"number":           hexutil.Uint64(block.Number),
 		"hash":             hexutil.Bytes(block.Hash[:]),
@@ -96,7 +97,7 @@ func blockToRpcResp(block *types.Block, txs []*types.Transaction) map[string]int
 	if len(txs) > 0 {
 		rpcTxs := make([]*rpctypes.Transaction, len(txs))
 		for i, tx := range txs {
-			rpcTxs[i] = txToRpcResp(tx)
+			rpcTxs[i] = txToRpcResp(tx, sigs[i])
 		}
 		result["transactions"] = rpcTxs
 	}
@@ -104,15 +105,16 @@ func blockToRpcResp(block *types.Block, txs []*types.Transaction) map[string]int
 	return result
 }
 
-func txsToRpcResp(txs []*types.Transaction) []*rpctypes.Transaction {
+func txsToRpcResp(txs []*types.Transaction, sigs [][65]byte) []*rpctypes.Transaction {
 	rpcTxs := make([]*rpctypes.Transaction, len(txs))
 	for i, tx := range txs {
-		rpcTxs[i] = txToRpcResp(tx)
+		rpcTxs[i] = txToRpcResp(tx, sigs[i])
 	}
 	return rpcTxs
 }
 
-func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
+func txToRpcResp(tx *types.Transaction, rawSig [65]byte) *rpctypes.Transaction {
+	v, r, s := app.DecodeVRS(rawSig)
 	idx := hexutil.Uint64(tx.TransactionIndex)
 	resp := &rpctypes.Transaction{
 		BlockHash:        &gethcmn.Hash{},
@@ -123,15 +125,17 @@ func txToRpcResp(tx *types.Transaction) *rpctypes.Transaction {
 		Hash:             tx.Hash,
 		Input:            tx.Input,
 		Nonce:            hexutil.Uint64(tx.Nonce),
-		To:               &gethcmn.Address{},
 		TransactionIndex: &idx,
 		Value:            (*hexutil.Big)(bigutils.U256FromSlice32(tx.Value[:]).ToBig()),
-		//V:
-		//R:
-		//S:
+		V:                (*hexutil.Big)(v),
+		R:                (*hexutil.Big)(r),
+		S:                (*hexutil.Big)(s),
 	}
 	copy(resp.BlockHash[:], tx.BlockHash[:])
-	copy(resp.To[:], tx.To[:])
+	if !isZeroAddress(tx.To) {
+		resp.To = &gethcmn.Address{}
+		copy(resp.To[:], tx.To[:])
+	}
 	return resp
 }
 
@@ -150,13 +154,16 @@ func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {
 		"blockHash":         gethcmn.Hash(tx.BlockHash),
 		"blockNumber":       hexutil.Uint64(tx.BlockNumber),
 		"from":              gethcmn.Address(tx.From),
-		"to":                gethcmn.Address(tx.To),
+		"to":                nil,
 		"cumulativeGasUsed": hexutil.Uint64(tx.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"gasUsed":           hexutil.Uint64(tx.GasUsed),
 		"logs":              types.ToGethLogs(tx.Logs),
 		"logsBloom":         hexutil.Bytes(tx.LogsBloom[:]),
 		"status":            hexutil.Uint(tx.Status),
+	}
+	if !isZeroAddress(tx.To) {
+		resp["to"] = gethcmn.Address(tx.To)
 	}
 	if !isZeroAddress(tx.ContractAddress) {
 		resp["contractAddress"] = gethcmn.Address(tx.ContractAddress)

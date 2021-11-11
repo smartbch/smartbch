@@ -11,6 +11,7 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethfilters "github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/tendermint/tendermint/libs/log"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	mapi "github.com/smartbch/smartbch/api"
@@ -36,6 +37,7 @@ type filterAPI struct {
 	events    *EventSystem
 	filtersMu sync.Mutex
 	filters   map[rpc.ID]*filter
+	logger    log.Logger
 }
 
 // filter is a helper struct that holds meta information over the filter type
@@ -49,11 +51,12 @@ type filter struct {
 	s        *Subscription // associated subscription in event system
 }
 
-func NewAPI(backend mapi.BackendService) PublicFilterAPI {
+func NewAPI(backend mapi.BackendService, logger log.Logger) PublicFilterAPI {
 	_api := &filterAPI{
 		backend: backend,
 		filters: make(map[rpc.ID]*filter),
 		events:  NewEventSystem(backend, false),
+		logger:  logger,
 	}
 
 	go _api.timeoutLoop()
@@ -95,6 +98,7 @@ func (api *filterAPI) timeoutLoop() {
 //
 // https://eth.wiki/json-rpc/API#eth_newFilter
 func (api *filterAPI) NewFilter(crit gethfilters.FilterCriteria) (filterID rpc.ID, err error) {
+	api.logger.Debug("eth_newFilter")
 	logs := make(chan []*gethtypes.Log)
 	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), logs)
 	if err != nil {
@@ -137,6 +141,7 @@ func (api *filterAPI) NewFilter(crit gethfilters.FilterCriteria) (filterID rpc.I
 //
 // https://eth.wiki/json-rpc/API#eth_newblockfilter
 func (api *filterAPI) NewBlockFilter() rpc.ID {
+	api.logger.Debug("eth_newBlockFilter")
 	var (
 		headers   = make(chan *motypes.Header)
 		headerSub = api.events.SubscribeNewHeads(headers)
@@ -176,6 +181,7 @@ func (api *filterAPI) NewBlockFilter() rpc.ID {
 //
 // https://eth.wiki/json-rpc/API#eth_uninstallfilter
 func (api *filterAPI) UninstallFilter(id rpc.ID) bool {
+	api.logger.Debug("eth_uninstallFilter")
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
 	if found {
@@ -197,6 +203,7 @@ func (api *filterAPI) UninstallFilter(id rpc.ID) bool {
 //
 // https://eth.wiki/json-rpc/API#eth_getfilterchanges
 func (api *filterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
+	api.logger.Debug("eth_uninstallFilter")
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
 
@@ -232,6 +239,7 @@ func (api *filterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 //
 // https://eth.wiki/json-rpc/API#eth_getfilterlogs
 func (api *filterAPI) GetFilterLogs(id rpc.ID) ([]*gethtypes.Log, error) {
+	api.logger.Debug("eth_getFilterLogs")
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
 	api.filtersMu.Unlock()
@@ -246,6 +254,7 @@ func (api *filterAPI) GetFilterLogs(id rpc.ID) ([]*gethtypes.Log, error) {
 //
 // https://eth.wiki/json-rpc/API#eth_getLogs
 func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log, error) {
+	api.logger.Debug("eth_getLogs")
 	if crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
 		filter := NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics)

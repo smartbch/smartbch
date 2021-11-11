@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/tendermint/tendermint/libs/log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/watcher"
 )

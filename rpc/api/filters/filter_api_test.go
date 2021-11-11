@@ -498,7 +498,7 @@ func TestGetLogs_OneTx(t *testing.T) {
 
 func createFiltersAPI(_app *testutils.TestApp) PublicFilterAPI {
 	backend := api.NewBackend(nil, _app.App)
-	return NewAPI(backend)
+	return NewAPI(backend, _app.Logger())
 }
 
 func addBlock(_app *testutils.TestApp, block *modbtypes.Block) {

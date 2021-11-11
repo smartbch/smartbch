@@ -13,9 +13,9 @@ const (
 	namespaceNet    = "net"
 	namespaceWeb3   = "web3"
 	namespaceTxPool = "txpool"
-	namespaceEVM    = "evm"
 	namespaceSBCH   = "sbch"
 	namespaceTM     = "tm"
+	//namespaceEVM    = "evm"
 	//namespacePersonal = "personal"
 
 	apiVersion = "1.0"
@@ -25,14 +25,15 @@ const (
 func GetAPIs(backend sbchapi.BackendService,
 	logger log.Logger, testKeys []string) []rpc.API {
 
+	logger = logger.With("module", "json-rpc")
 	_ethAPI := newEthAPI(backend, testKeys, logger)
-	_netAPI := newNetAPI(backend.ChainId().Uint64())
-	_filterAPI := filters.NewAPI(backend)
-	_web3API := web3API{}
-	_txPoolAPI := txPoolAPI{}
-	_sbchAPI := newSbchAPI(backend)
-	_evmAPI := newEvmAPI(backend)
-	_tmAPI := newTendermintAPI(backend)
+	_netAPI := newNetAPI(backend.ChainId().Uint64(), logger)
+	_filterAPI := filters.NewAPI(backend, logger)
+	_web3API := newWeb3API(logger)
+	_txPoolAPI := newTxPoolAPI(logger)
+	_sbchAPI := newSbchAPI(backend, logger)
+	_tmAPI := newTendermintAPI(backend, logger)
+	//_evmAPI := newEvmAPI(backend)
 
 	return []rpc.API{
 		{
@@ -69,12 +70,6 @@ func GetAPIs(backend sbchapi.BackendService,
 			Namespace: namespaceSBCH,
 			Version:   apiVersion,
 			Service:   _sbchAPI,
-			Public:    true,
-		},
-		{
-			Namespace: namespaceEVM,
-			Version:   apiVersion,
-			Service:   _evmAPI,
 			Public:    true,
 		},
 		{

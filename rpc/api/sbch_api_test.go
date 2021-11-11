@@ -439,5 +439,5 @@ func TestQueryLogs_OneTx(t *testing.T) {
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {
 	backend := api.NewBackend(nil, _app.App)
-	return newSbchAPI(backend)
+	return newSbchAPI(backend, _app.Logger())
 }

@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/smartbch/smartbch/crosschain"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math"
 	"math/big"
 
@@ -25,6 +23,8 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
@@ -106,7 +106,7 @@ func (backend *apiBackend) GetNonce(address common.Address) (uint64, error) {
 	return 0, types.ErrAccNotFound
 }
 
-func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockIndex uint64, err error) {
+func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transaction, sig [65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
@@ -114,9 +114,10 @@ func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transac
 		return
 	}
 	if tx != nil {
-		blockHash = tx.BlockHash
-		blockNumber = uint64(tx.BlockNumber)
-		blockIndex = uint64(tx.TransactionIndex)
+		//blockHash = tx.BlockHash
+		//blockNumber = uint64(tx.BlockNumber)
+		//blockIndex = uint64(tx.TransactionIndex)
+		sig = ctx.GetTxSigByHash(txHash)
 	} else {
 		err = errors.New("tx with specific hash not exist")
 	}
@@ -223,7 +224,7 @@ func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Ha
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) GetTxListByHeight(height uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, err error) {
 	return backend.GetTxListByHeightWithRange(height, 0, math.MaxInt32)
 }
 func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, err error) {
@@ -231,6 +232,18 @@ func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end 
 	defer ctx.Close(false)
 
 	return ctx.GetTxListByHeightWithRange(height, start, end)
+}
+
+func (backend *apiBackend) GetSigs(txs []*types.Transaction) [][65]byte {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	sigs := make([][65]byte, len(txs))
+	for i, tx := range txs {
+		sigs[i] = ctx.GetTxSigByHash(tx.Hash)
+	}
+
+	return sigs
 }
 
 func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {

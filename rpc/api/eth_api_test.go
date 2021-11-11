@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math"
 	"math/big"
+	"regexp"
 	"sync"
 	"testing"
 
@@ -116,8 +117,8 @@ func TestBlockNum(t *testing.T) {
 	_api := createEthAPI(_app)
 
 	ctx := _app.GetRunTxContext()
-	ctx.Db.AddBlock(&modbtypes.Block{Height: 0x100}, -1)
-	ctx.Db.AddBlock(nil, -1) //To Flush
+	ctx.Db.AddBlock(&modbtypes.Block{Height: 0x100}, -1, nil)
+	ctx.Db.AddBlock(nil, -1, nil) //To Flush
 	ctx.Close(true)
 
 	num, err := _api.BlockNumber()
@@ -493,6 +494,83 @@ func TestGetTxReceipt_notFound(t *testing.T) {
 	ret, err := _api.GetTransactionReceipt(gethcmn.Hash{0x78})
 	require.NoError(t, err)
 	require.Nil(t, ret)
+}
+
+func TestContractCreationTxToAddr(t *testing.T) {
+	key, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	_app.WaitLock()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, blockNum, _ := _app.DeployContractInBlock(key, counterContractCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	blockResult, err := _api.GetBlockByNumber(gethrpc.BlockNumber(blockNum), true)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(blockResult), `"to":null`)
+
+	blockHash := gethcmn.BytesToHash(blockResult["hash"].(hexutil.Bytes))
+	blockResult, err = _api.GetBlockByHash(blockHash, true)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(blockResult), `"to":null`)
+
+	txResult, err := _api.GetTransactionByHash(tx.Hash())
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(txResult), `"to":null`)
+
+	txResult, err = _api.GetTransactionByBlockNumberAndIndex(gethrpc.BlockNumber(blockNum), 0)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(txResult), `"to":null`)
+
+	txResult, err = _api.GetTransactionByBlockHashAndIndex(blockHash, 0)
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(txResult), `"to":null`)
+
+	receiptResult, err := _api.GetTransactionReceipt(tx.Hash())
+	require.NoError(t, err)
+	require.Contains(t, testutils.ToJSON(receiptResult), `"to":null`)
+}
+
+func TestTxVRS(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	_app.WaitLock()
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, blockNum := _app.MakeAndExecTxInBlock(key1, addr2, 123, nil)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	blockResult, err := _api.GetBlockByNumber(gethrpc.BlockNumber(blockNum), true)
+	require.NoError(t, err)
+	checkTxVRS(t, tx, blockResult)
+
+	blockHash := gethcmn.BytesToHash(blockResult["hash"].(hexutil.Bytes))
+	blockResult, err = _api.GetBlockByHash(blockHash, true)
+	require.NoError(t, err)
+	checkTxVRS(t, tx, blockResult)
+
+	txResult, err := _api.GetTransactionByHash(tx.Hash())
+	require.NoError(t, err)
+	checkTxVRS(t, tx, txResult)
+
+	txResult, err = _api.GetTransactionByBlockNumberAndIndex(gethrpc.BlockNumber(blockNum), 0)
+	require.NoError(t, err)
+	checkTxVRS(t, tx, txResult)
+
+	txResult, err = _api.GetTransactionByBlockHashAndIndex(blockHash, 0)
+	require.NoError(t, err)
+	checkTxVRS(t, tx, txResult)
+}
+
+func checkTxVRS(t *testing.T, tx *gethtypes.Transaction, resp interface{}) {
+	v, r, s := tx.RawSignatureValues()
+	respJSON := testutils.ToJSON(resp)
+	require.Equal(t, v, hexutil.MustDecodeBig(regexp.MustCompile(`"v":"(0x[0-9a-fA-F]+)"`).FindStringSubmatch(respJSON)[1]), "V")
+	require.Equal(t, r, hexutil.MustDecodeBig(regexp.MustCompile(`"r":"(0x[0-9a-fA-F]+)"`).FindStringSubmatch(respJSON)[1]), "R")
+	require.Equal(t, s, hexutil.MustDecodeBig(regexp.MustCompile(`"s":"(0x[0-9a-fA-F]+)"`).FindStringSubmatch(respJSON)[1]), "S")
 }
 
 func TestCall_NoFromAddr(t *testing.T) {
