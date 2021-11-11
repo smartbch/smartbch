@@ -92,8 +92,8 @@ type App struct {
 
 	//engine
 	txEngine     ebp.TxExecutor
-	reorderSeed  int64                   // recorded in BeginBlock, used in Commit
-	touchedAddrs map[gethcmn.Address]int // recorded in Commint, used in next block's CheckTx
+	reorderSeed  int64            // recorded in BeginBlock, used in Commit
+	touchedAddrs ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
 
 	//watcher
 	watcher     *watcher.Watcher
@@ -158,7 +158,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
-	app.touchedAddrs = make(map[gethcmn.Address]int)
+	app.touchedAddrs = ebp.GetEmptyNonceMatcher()
 	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
 
 	/*------set refresh field------*/
@@ -313,10 +313,6 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		}
 		app.sigCacheAdd(txid, SenderAndHeight{sender, app.currHeight})
 	}
-	if _, ok := app.touchedAddrs[sender]; ok {
-		// if the sender is touched, it is most likely to have an uncertain nonce, so we reject it
-		return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
-	}
 	if req.Type == abcitypes.CheckTxType_Recheck {
 		// During rechecking, if the sender has not been touched or lose balance, the tx can pass
 		if _, ok := app.sep206SenderSet[sender]; !ok {
@@ -344,7 +340,7 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
 	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
-	if err != nil {
+	if err != nil && !app.touchedAddrs.MatchLatestNonce(sender, tx.Nonce()) {
 		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
