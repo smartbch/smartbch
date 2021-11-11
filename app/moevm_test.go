@@ -31,17 +31,17 @@ func TestInternalTxCalls(t *testing.T) {
 
 	tx1, _, contract3Addr := _app.DeployContractInBlock(key, contract3CreationBytecode)
 	_app.EnsureTxSuccess(tx1.Hash())
-	println(contract3Addr.String())
+	//println(contract3Addr.String())
 
 	tx2, _, contract2Addr := _app.DeployContractInBlock(key,
 		joinBytes(contract2CreationBytecode, make([]byte, 12), contract3Addr[:]))
 	_app.EnsureTxSuccess(tx2.Hash())
-	println(contract2Addr.String())
+	//println(contract2Addr.String())
 
 	tx3, _, contract1Addr := _app.DeployContractInBlock(key,
 		joinBytes(contract1CreationBytecode, make([]byte, 12), contract2Addr[:], make([]byte, 12), contract3Addr[:]))
 	_app.EnsureTxSuccess(tx3.Hash())
-	println(contract1Addr.String())
+	//println(contract1Addr.String())
 
 	/*
 		contract1.call2()
@@ -56,6 +56,8 @@ func TestInternalTxCalls(t *testing.T) {
 	tx4, _ := _app.MakeAndExecTxInBlock(key, contract1Addr, 0, callData)
 	_app.EnsureTxSuccess(tx4.Hash())
 	moTx4 := _app.GetTx(tx4.Hash())
+	require.Len(t, moTx4.InternalTxCalls, 7)
+	require.Len(t, moTx4.InternalTxReturns, 7)
 	for _, call := range moTx4.InternalTxCalls {
 		fmt.Println(hex.EncodeToString(call.Input))
 	}
