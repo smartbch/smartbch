@@ -14,13 +14,11 @@ clean:
 	bash clean.sh
 
 init-rebuild:
-	make down && make clean && docker-compose up   --build --force-recreate
+	make down && make clean && mkdir data && docker-compose up   --build --force-recreate
 
 init:
 	make down && make clean && mkdir data && docker-compose up
 
-init-both:
-	bash init-both-node.sh
 
 reset:
 	cd components && down up
