@@ -343,8 +343,11 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
 	}
 	acc, err := ctx.CheckNonce(sender, tx.Nonce())
-	if err != nil && !app.touchedAddrs.MatchLatestNonce(sender, tx.Nonce()) {
-		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
+	if err != nil {
+		if (err == types.ErrNonceTooLarge && !app.touchedAddrs.MatchLatestNonce(sender, tx.Nonce())) || err == types.ErrNonceTooSmall {
+			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
+		}
+		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: err.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
