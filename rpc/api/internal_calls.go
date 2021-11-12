@@ -22,6 +22,7 @@ const (
 type InternalTx struct {
 	depth          int32
 	path           string
+	count          int
 	CallPath       string           `json:"callPath"`
 	From           gethcmn.Address  `json:"from"`
 	To             gethcmn.Address  `json:"to"`
@@ -44,32 +45,32 @@ func buildCallList(tx *motypes.Transaction) []*InternalTx {
 		callList[i] = callSite
 
 		if len(callStack) == 0 { // first call
-			callSite.path = "_0"
-			callSite.CallPath = callType + callSite.path
 			callStack = append(callStack, callSite)
+			callSite.CallPath = callType + getCallPath(callStack)
 			continue
 		}
 
 		lastCallSite := callStack[len(callStack)-1]
 		if call.Depth == lastCallSite.depth+1 { // depth++
-			callSite.path = fmt.Sprintf("%s_%d", lastCallSite.path, call.Depth)
-			callSite.CallPath = callType + callSite.path
 			callStack = append(callStack, callSite)
+			callSite.CallPath = callType + getCallPath(callStack)
 			continue
 		}
 
 		if call.Depth <= lastCallSite.depth { // last calls return
 			n := lastCallSite.depth - call.Depth
-			for i := int32(0); i <= n; i++ {
+			for j := int32(0); j <= n; j++ {
+				if j == n {
+					callSite.count = lastCallSite.count + 1
+				}
 				addRetInfo(lastCallSite, tx.InternalTxReturns[0])
 				tx.InternalTxReturns = tx.InternalTxReturns[1:]
 				callStack = callStack[:len(callStack)-1]
 				lastCallSite = callStack[len(callStack)-1]
 			}
 
-			callSite.path = fmt.Sprintf("%s_%d", lastCallSite.path, call.Depth)
-			callSite.CallPath = callType + callSite.path
 			callStack = append(callStack, callSite)
+			callSite.CallPath = callType + getCallPath(callStack)
 			continue
 		}
 	}
@@ -122,4 +123,12 @@ func getCallType(kind int, flags uint32) string {
 	default:
 		return "call"
 	}
+}
+
+func getCallPath(cs []*InternalTx) string {
+	path := ""
+	for _, call := range cs {
+		path += fmt.Sprintf("_%d", call.count)
+	}
+	return path
 }

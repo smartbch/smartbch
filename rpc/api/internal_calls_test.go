@@ -257,7 +257,7 @@ func TestGetTransactionReceipt(t *testing.T) {
     "output": "0x0000000000000000000000000000000000000000000001000000000000000000"
   },
   {
-    "callPath": "call_0_1",
+    "callPath": "call_0_0",
     "from": "0xe32d21f68654d87a4aad8c80616db99d95dde0f1",
     "to": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "gasLimit": 939806,
@@ -268,7 +268,7 @@ func TestGetTransactionReceipt(t *testing.T) {
     "output": "0x0000000000000000000000000000000000000000000001010000000000000000"
   },
   {
-    "callPath": "call_0_1_2",
+    "callPath": "call_0_0_0",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
     "gasLimit": 901447,
@@ -279,7 +279,7 @@ func TestGetTransactionReceipt(t *testing.T) {
     "output": "0x0000000000000000000000000000000000000000000001020000000000000000"
   },
   {
-    "callPath": "staticcall_0_1_2",
+    "callPath": "staticcall_0_0_1",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
     "gasLimit": 877229,
@@ -301,7 +301,7 @@ func TestGetTransactionReceipt(t *testing.T) {
     "output": "0x0000000000000000000000000000000000000000000001050000000000000000"
   },
   {
-    "callPath": "call_0_1_2",
+    "callPath": "call_0_1_0",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
     "gasLimit": 869198,
@@ -312,7 +312,7 @@ func TestGetTransactionReceipt(t *testing.T) {
     "output": "0x0000000000000000000000000000000000000000000001060000000000000000"
   },
   {
-    "callPath": "staticcall_0_1_2",
+    "callPath": "staticcall_0_1_1",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
     "gasLimit": 863880,
