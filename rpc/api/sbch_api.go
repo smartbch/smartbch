@@ -32,6 +32,7 @@ type SbchAPI interface {
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
+	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 }
 
 type sbchAPI struct {
@@ -234,4 +235,16 @@ func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]
 		"ok":                   ok,
 		"error":                msg,
 	}
+}
+
+func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error) {
+	sbch.logger.Debug("sbch_getTransactionReceipt")
+	tx, _, err := sbch.backend.GetTransaction(hash)
+	if err != nil {
+		// the transaction is not yet available
+		return nil, nil
+	}
+	ret := txToReceiptRpcResp(tx)
+	ret["internalTransactions"] = buildCallList(tx)
+	return ret, nil
 }

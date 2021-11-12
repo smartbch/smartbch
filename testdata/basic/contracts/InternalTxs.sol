@@ -39,7 +39,7 @@ contract Contract2 {
     function call3(uint256 id) public returns (uint256) {
         counter++;
         Contract3(contract3).callMe(id + 1);
-        Contract3(contract3).callMe(id + 2);
+        Contract3(contract3).callMeStatic(id + 2);
         return id << 64;
     }
 
@@ -51,6 +51,9 @@ contract Contract3 {
 
     function callMe(uint256 id) public returns (uint256) {
         counter++;
+        return id << 64;
+    }
+    function callMeStatic(uint256 id) public pure  returns (uint256) {
         return id << 64;
     }
 
