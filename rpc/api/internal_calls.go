@@ -32,7 +32,7 @@ type InternalTx struct {
 	StatusCode     hexutil.Uint64   `json:"status"`
 	GasUsed        hexutil.Uint64   `json:"gasUsed"`
 	Output         hexutil.Bytes    `json:"output"`
-	CreatedAddress *gethcmn.Address `json:"createdAddress,omitempty"`
+	CreatedAddress *gethcmn.Address `json:"contractAddress,omitempty"`
 }
 
 func buildCallList(tx *motypes.Transaction) []*InternalTx {
