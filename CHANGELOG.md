@@ -1,6 +1,11 @@
 # Changelog
 
-## v0.3.5 (not released yet)
+## v0.4.0 (not released yet)
+
+* JSON-RPC
+  * Add sbch_getTransactionReceipt
+  * Add sbch_getCCEpochs
+
 
 ## v0.3.4
 
