@@ -26,11 +26,11 @@ type InternalTx struct {
 	CallPath       string           `json:"callPath"`
 	From           gethcmn.Address  `json:"from"`
 	To             gethcmn.Address  `json:"to"`
-	GasLimit       hexutil.Uint64   `json:"gasLimit"`
+	GasLimit       hexutil.Uint64   `json:"gas"`
 	Value          *hexutil.Big     `json:"value"`
 	Input          hexutil.Bytes    `json:"input"`
-	StatusCode     hexutil.Uint64   `json:"statusCode"`
-	GasLeft        hexutil.Uint64   `json:"gasLeft"`
+	StatusCode     hexutil.Uint64   `json:"status"`
+	GasUsed        hexutil.Uint64   `json:"gasUsed"`
 	Output         hexutil.Bytes    `json:"output"`
 	CreatedAddress *gethcmn.Address `json:"createdAddress,omitempty"`
 }
@@ -97,7 +97,7 @@ func newCallSite(call motypes.InternalTxCall) *InternalTx {
 }
 func addRetInfo(callSite *InternalTx, ret motypes.InternalTxReturn) {
 	callSite.StatusCode = hexutil.Uint64(ret.StatusCode)
-	callSite.GasLeft = hexutil.Uint64(ret.GasLeft)
+	callSite.GasUsed = callSite.GasLimit - hexutil.Uint64(ret.GasLeft)
 	callSite.Output = ret.Output
 	if !isZeroAddress(ret.CreateAddress) {
 		var addr gethcmn.Address = ret.CreateAddress

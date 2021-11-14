@@ -249,81 +249,82 @@ func TestGetTransactionReceipt(t *testing.T) {
     "callPath": "call_0",
     "from": "0x6db26a33492ccc4006599ed88b569c0b13c5d17a",
     "to": "0xe32d21f68654d87a4aad8c80616db99d95dde0f1",
-    "gasLimit": "0xeef6c",
+    "gas": "0xeef6c",
     "value": "0x0",
     "input": "0xa11a1f360000000000000000000000000000000000000000000000000000000000000100",
-    "statusCode": "0x0",
-    "gasLeft": "0xd94af",
+    "status": "0x0",
+    "gasUsed": "0x15abd",
     "output": "0x0000000000000000000000000000000000000000000001000000000000000000"
   },
   {
     "callPath": "call_0_0",
     "from": "0xe32d21f68654d87a4aad8c80616db99d95dde0f1",
     "to": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
-    "gasLimit": "0xe571e",
+    "gas": "0xe571e",
     "value": "0x0",
     "input": "0xa27eaec20000000000000000000000000000000000000000000000000000000000000101",
-    "statusCode": "0x0",
-    "gasLeft": "0xd94b0",
+    "status": "0x0",
+    "gasUsed": "0xc26e",
     "output": "0x0000000000000000000000000000000000000000000001010000000000000000"
   },
   {
     "callPath": "call_0_0_0",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
-    "gasLimit": "0xdc147",
+    "gas": "0xdc147",
     "value": "0x0",
     "input": "0xe73620c30000000000000000000000000000000000000000000000000000000000000102",
-    "statusCode": "0x0",
-    "gasLeft": "0xd6cee",
+    "status": "0x0",
+    "gasUsed": "0x5459",
     "output": "0x0000000000000000000000000000000000000000000001020000000000000000"
   },
   {
     "callPath": "staticcall_0_0_1",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
-    "gasLimit": "0xd62ad",
+    "gas": "0xd62ad",
     "value": "0x0",
     "input": "0x09010e930000000000000000000000000000000000000000000000000000000000000103",
-    "statusCode": "0x0",
-    "gasLeft": "0xd6060",
+    "status": "0x0",
+    "gasUsed": "0x24d",
     "output": "0x0000000000000000000000000000000000000000000001030000000000000000"
   },
   {
     "callPath": "call_0_1",
     "from": "0xe32d21f68654d87a4aad8c80616db99d95dde0f1",
     "to": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
-    "gasLimit": "0xd8c25",
+    "gas": "0xd8c25",
     "value": "0x0",
     "input": "0xa27eaec20000000000000000000000000000000000000000000000000000000000000105",
-    "statusCode": "0x0",
-    "gasLeft": "0xd5fb7",
+    "status": "0x0",
+    "gasUsed": "0x2c6e",
     "output": "0x0000000000000000000000000000000000000000000001050000000000000000"
   },
   {
     "callPath": "call_0_1_0",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
-    "gasLimit": "0xd434e",
+    "gas": "0xd434e",
     "value": "0x0",
     "input": "0xe73620c30000000000000000000000000000000000000000000000000000000000000106",
-    "statusCode": "0x0",
-    "gasLeft": "0xd39f5",
+    "status": "0x0",
+    "gasUsed": "0x959",
     "output": "0x0000000000000000000000000000000000000000000001060000000000000000"
   },
   {
     "callPath": "staticcall_0_1_1",
     "from": "0xa8115c4df61f9fb1e686d1692cd53fa4d4ced237",
     "to": "0x0eefec15be847ced628df09459cb9b8492337210",
-    "gasLimit": "0xd2e88",
+    "gas": "0xd2e88",
     "value": "0x0",
     "input": "0x09010e930000000000000000000000000000000000000000000000000000000000000107",
-    "statusCode": "0x0",
-    "gasLeft": "0xd2c3b",
+    "status": "0x0",
+    "gasUsed": "0x24d",
     "output": "0x0000000000000000000000000000000000000000000001070000000000000000"
   }
 ]`
 	ret, err := _api.GetTransactionReceipt(tx4.Hash())
 	require.NoError(t, err)
+	//println(testutils.ToPrettyJSON(ret["internalTransactions"]))
 	require.Equal(t, callList, testutils.ToPrettyJSON(ret["internalTransactions"]))
 }
