@@ -21,7 +21,6 @@ const (
 
 type InternalTx struct {
 	depth          int32
-	path           string
 	count          int
 	CallPath       string           `json:"callPath"`
 	From           gethcmn.Address  `json:"from"`
@@ -35,7 +34,7 @@ type InternalTx struct {
 	CreatedAddress *gethcmn.Address `json:"contractAddress,omitempty"`
 }
 
-func buildCallList(tx *motypes.Transaction) []*InternalTx {
+func buildInternalCallList(tx *motypes.Transaction) []*InternalTx {
 	callList := make([]*InternalTx, len(tx.InternalTxCalls))
 	var callStack []*InternalTx
 

@@ -139,12 +139,18 @@ func txToRpcResp(tx *types.Transaction, rawSig [65]byte) *rpctypes.Transaction {
 	return resp
 }
 
-func txsToReceiptRpcResp(txs []*types.Transaction) []map[string]interface{} {
+func txsToReceiptsWithInternalTxs(txs []*types.Transaction) []map[string]interface{} {
 	rpcTxs := make([]map[string]interface{}, len(txs))
 	for i, tx := range txs {
-		rpcTxs[i] = txToReceiptRpcResp(tx)
+		rpcTxs[i] = txToReceiptWithInternalTxs(tx)
 	}
 	return rpcTxs
+}
+
+func txToReceiptWithInternalTxs(tx *types.Transaction) map[string]interface{} {
+	resp := txToReceiptRpcResp(tx)
+	resp["internalTransactions"] = buildInternalCallList(tx)
+	return resp
 }
 
 func txToReceiptRpcResp(tx *types.Transaction) map[string]interface{} {

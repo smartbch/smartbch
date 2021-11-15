@@ -72,7 +72,7 @@ func (sbch sbchAPI) GetTxListByHeightWithRange(height gethrpc.BlockNumber, start
 	if err != nil {
 		return nil, err
 	}
-	return txsToReceiptRpcResp(txs), nil
+	return txsToReceiptsWithInternalTxs(txs), nil
 }
 
 func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
@@ -244,7 +244,6 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 		// the transaction is not yet available
 		return nil, nil
 	}
-	ret := txToReceiptRpcResp(tx)
-	ret["internalTransactions"] = buildCallList(tx)
+	ret := txToReceiptWithInternalTxs(tx)
 	return ret, nil
 }

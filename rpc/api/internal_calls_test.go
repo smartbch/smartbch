@@ -9,6 +9,7 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/bigutils"
@@ -232,7 +233,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 				=> contract3.callMe()
 	*/
 	callData := testutils.JoinBytes(testutils.HexToBytes(methodIdCall2), bigutils.NewU256(0x100).PaddedBytes(32))
-	tx4, _ := _app.MakeAndExecTxInBlock(key, contract1Addr, 0, callData)
+	tx4, h4 := _app.MakeAndExecTxInBlock(key, contract1Addr, 0, callData)
 	_app.EnsureTxSuccess(tx4.Hash())
 	moTx4 := _app.GetTx(tx4.Hash())
 	require.Len(t, moTx4.InternalTxCalls, 7)
@@ -327,4 +328,9 @@ func TestGetTransactionReceipt(t *testing.T) {
 	require.NoError(t, err)
 	//println(testutils.ToPrettyJSON(ret["internalTransactions"]))
 	require.Equal(t, callList, testutils.ToPrettyJSON(ret["internalTransactions"]))
+
+	retTxs, err := _api.GetTxListByHeight(gethrpc.BlockNumber(h4))
+	require.NoError(t, err)
+	require.Len(t, retTxs, 1)
+	require.Equal(t, ret, retTxs[0])
 }

@@ -5,6 +5,7 @@
 * JSON-RPC
   * Add sbch_getTransactionReceipt
   * Add sbch_getCCEpochs
+  * Update sbch_getTxListByHeight and sbch_getTxListByHeightWithRange to return internal transactions
 
 
 ## v0.3.4
