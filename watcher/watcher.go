@@ -45,19 +45,19 @@ type Watcher struct {
 	ccEpochList          []*cctypes.CCEpoch
 	lastKnownCCEpochNum  int64
 
-	speedup                bool
 	numBlocksToClearMemory int
 	waitingBlockDelayTime  int
 	parallelNum            int
+
+	chainConfig *param.ChainConfig
 }
 
-// A new watch will start watching from lastHeight+1, using rpcClient
-func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, rpcClient types.RpcClient, smartBchUrl string, lastKnownEpochNum int64, speedup bool) *Watcher {
+func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
 	return &Watcher{
 		logger: logger,
 
-		rpcClient:         rpcClient,
-		smartBchRpcClient: NewRpcClient(smartBchUrl, "", "", "application/json", logger),
+		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", logger),
+		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", logger),
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
@@ -67,7 +67,6 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, rpcCl
 		epochList:              make([]*stakingtypes.Epoch, 0, 10),
 
 		EpochChan: make(chan *stakingtypes.Epoch, 10000),
-		speedup:   speedup,
 
 		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
 		numBlocksToClearMemory: NumBlocksToClearMemory,
@@ -79,6 +78,7 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, rpcCl
 		numBlocksInCCEpoch:   param.BlocksInCCEpoch,
 
 		parallelNum: 10,
+		chainConfig: chainConfig,
 	}
 }
 
@@ -168,7 +168,7 @@ func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
 }
 
 func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight int64) int64 {
-	if watcher.speedup {
+	if watcher.chainConfig.AppConfig.Speedup {
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestMainnetHeight < latestFinalizedHeight+watcher.numBlocksInEpoch {
@@ -199,7 +199,7 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 }
 
 func (watcher *Watcher) CCEpochSpeedup() {
-	if !param.ShaGateSwitch {
+	if !watcher.chainConfig.ShaGateSwitch {
 		return
 	}
 	start := uint64(watcher.lastKnownCCEpochNum) + 1
@@ -278,7 +278,7 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 }
 
 func (watcher *Watcher) generateNewCCEpoch() {
-	if !param.ShaGateSwitch {
+	if !watcher.chainConfig.ShaGateSwitch {
 		return
 	}
 	epoch := watcher.buildNewCCEpoch()

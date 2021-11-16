@@ -95,15 +95,6 @@ var (
 var (
 	/*------param------*/
 	//staking
-	//InitialStakingAmount *uint256.Int = uint256.NewInt(0).Mul(
-	//	uint256.NewInt(1000),
-	//	uint256.NewInt(Uint64_1e18))
-	//MinimumStakingAmount *uint256.Int = uint256.NewInt(0).Mul(
-	//	uint256.NewInt(800),
-	//	uint256.NewInt(Uint64_1e18))
-	//SlashedStakingAmount *uint256.Int = uint256.NewInt(0).Mul(
-	//	uint256.NewInt(10),
-	//	uint256.NewInt(Uint64_1e18))
 	InitialStakingAmount *uint256.Int = uint256.NewInt(0)
 
 	MinimumStakingAmount *uint256.Int = uint256.NewInt(0)
@@ -115,29 +106,32 @@ var (
 	GasOfMinGasPriceOp uint64 = 50_000
 
 	//minGasPrice
-	DefaultMinGasPrice      uint64 = 10_000_000_000  //10gwei
-	MinGasPriceDeltaRate    uint64 = 5               //gas delta rate every proposal can change
-	MinGasPriceUpperBound   uint64 = 500_000_000_000 //500gwei
-	MinGasPriceLowerBound   uint64 = 10_000_000      //0.01gwei
-	DefaultProposalDuration uint64 = 60 * 60 * 24    //24hour
+	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
+	MinGasPriceDeltaRateInBlock uint64 = 16
+	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every proposal can change
+	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
+	MinGasPriceLowerBound       uint64 = 1_000_000_000   //1gwei
+	DefaultProposalDuration     uint64 = 60 * 60 * 24    //24hour
 )
 
 var (
 	/*------error info------*/
-	InvalidCallData                 = errors.New("invalid call data")
-	InvalidSelector                 = errors.New("invalid selector")
-	BalanceNotEnough                = errors.New("balance is not enough")
-	NoSuchValidator                 = errors.New("no such validator")
-	ValidatorNotActive              = errors.New("validator not active")
-	MinGasPriceTooBig               = errors.New("minGasPrice bigger than allowed highest value")
-	MinGasPriceTooSmall             = errors.New("minGasPrice smaller than allowed lowest value")
-	InvalidArgument                 = errors.New("invalid argument")
-	CreateValidatorCoinLtInitAmount = errors.New("validator's staking coin less than init amount")
-	StillInProposal                 = errors.New("still in proposal")
-	NotInProposal                   = errors.New("not in proposal")
-	TargetExceedChangeDelta         = errors.New("minGasPrice target exceeds the allowable range")
-	ProposalHasFinished             = errors.New("proposal has finished")
-	ProposalNotFinished             = errors.New("proposal not finished")
+	InvalidCallData                   = errors.New("invalid call data")
+	InvalidSelector                   = errors.New("invalid selector")
+	BalanceNotEnough                  = errors.New("balance is not enough")
+	NoSuchValidator                   = errors.New("no such validator")
+	ValidatorNotActive                = errors.New("validator not active")
+	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
+	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than allowed highest value")
+	MinGasPriceTooSmall               = errors.New("minGasPrice smaller than allowed lowest value")
+	InvalidArgument                   = errors.New("invalid argument")
+	CreateValidatorCoinLtInitAmount   = errors.New("validator's staking coin less than init amount")
+	MinGasPriceExceedBlockChangeDelta = errors.New("the amount of variation in minGasPrice exceeds the allowable range")
+	StillInProposal                   = errors.New("still in proposal")
+	NotInProposal                     = errors.New("not in proposal")
+	TargetExceedChangeDelta           = errors.New("minGasPrice target exceeds the allowable range")
+	ProposalHasFinished               = errors.New("proposal has finished")
+	ProposalNotFinished               = errors.New("proposal not finished")
 )
 
 // get a slot number to store an epoch's validators
@@ -196,23 +190,36 @@ func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		return retire(ctx, tx)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
-		return handleMinGasPrice()
+		return handleMinGasPrice(ctx, tx.From, true, s.logger)
 	case SelectorDecreaseMinGasPrice:
 		//function decreaseMinGasPrice() external;
-		return handleMinGasPrice()
+		return handleMinGasPrice(ctx, tx.From, false, s.logger)
 	case SelectorProposal:
-		return createProposal(ctx, uint64(currBlock.Timestamp), tx)
+		if ctx.IsXHedgeFork() {
+			return createProposal(ctx, uint64(currBlock.Timestamp), tx)
+		} else {
+			return handleInvalidSelector()
+		}
 	case SelectorVote:
-		return vote(ctx, uint64(currBlock.Timestamp), tx)
+		if ctx.IsXHedgeFork() {
+			return vote(ctx, uint64(currBlock.Timestamp), tx)
+		} else {
+			return handleInvalidSelector()
+		}
 	case SelectorExecuteProposal:
-		return executeProposal(ctx, uint64(currBlock.Timestamp), tx)
+		if ctx.IsXHedgeFork() {
+			return executeProposal(ctx, uint64(currBlock.Timestamp), tx)
+		} else {
+			return handleInvalidSelector()
+		}
 	case SelectorGetVote:
-		return getVote(ctx, tx)
-
+		if ctx.IsXHedgeFork() {
+			return getVote(ctx, tx)
+		} else {
+			return handleInvalidSelector()
+		}
 	default:
-		status = StatusFailed
-		outData = []byte(InvalidSelector.Error())
-		return
+		return handleInvalidSelector()
 	}
 }
 
@@ -516,6 +523,12 @@ func executeProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) 
 	return
 }
 
+func handleInvalidSelector() (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	outData = []byte(InvalidSelector.Error())
+	return
+}
+
 func CalculateTarget(ctx *mevmtypes.Context, voters []common.Address) uint64 {
 	var totalPower uint64
 	var totalTarget uint64
@@ -570,9 +583,52 @@ func getVote(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 	return
 }
 
-func handleMinGasPrice() (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = StatusSuccess
-	gasUsed = GasOfMinGasPriceOp
+func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	if ctx.IsXHedgeFork() {
+		status = StatusSuccess
+		gasUsed = GasOfMinGasPriceOp
+	} else {
+		status = StatusFailed //default status is failed
+		gasUsed = GasOfMinGasPriceOp
+		mGP := LoadMinGasPrice(ctx, false)
+		lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
+		info := LoadStakingInfo(ctx)
+		isValidatorOrRewardTo := false
+		activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+		for _, v := range activeValidators {
+			if v.Address == sender || v.RewardTo == sender {
+				isValidatorOrRewardTo = true
+				break
+			}
+		}
+		if !isValidatorOrRewardTo {
+			logger.Debug("sender is not active validator or its rewardTo", "sender", sender.String())
+			outData = []byte(OperatorNotValidator.Error())
+			return
+		}
+		if isIncrease {
+			mGP += MinGasPriceDeltaRate * mGP / 100
+		} else {
+			mGP -= MinGasPriceDeltaRate * mGP / 100
+		}
+		logger.Debug(fmt.Sprintf("mGP(%d),lastMGP(%d),increase(%v)", mGP, lastMGP, isIncrease))
+
+		if mGP < MinGasPriceLowerBound {
+			outData = []byte(MinGasPriceTooSmall.Error())
+			return
+		}
+		if mGP > MinGasPriceUpperBound {
+			outData = []byte(MinGasPriceTooBig.Error())
+			return
+		}
+		if (mGP > lastMGP && 100*(mGP-lastMGP) > MinGasPriceDeltaRateInBlock*lastMGP) ||
+			(mGP < lastMGP && 100*(lastMGP-mGP) > MinGasPriceDeltaRateInBlock*lastMGP) {
+			outData = []byte(MinGasPriceExceedBlockChangeDelta.Error())
+			return
+		}
+		SaveMinGasPrice(ctx, mGP, false)
+		status = StatusSuccess
+	}
 	return
 }
 

@@ -196,7 +196,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*-------set ccInfo------*/
 	var lastCCEpochEndHeight int64
-	if param.ShaGateSwitch {
+	if app.config.ShaGateSwitch {
 		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
 		ccInfo := crosschain.LoadCCInfo(ctx)
 		if ccInfo.CurrEpochNum == 0 && ccInfo.GenesisMainnetBlockHeight == 0 {
@@ -207,10 +207,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set watcher------*/
-	watcherLogger := app.logger.With("module", "watcher")
-	client := watcher.NewRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, "text/plain;", watcherLogger)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = watcher.NewWatcher(watcherLogger, lastEpochEndHeight, lastCCEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, lastCCEpochEndHeight, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(forTest)
@@ -523,7 +521,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	ctx := app.GetRunTxContext()
 
 	// fork prepares
-	if app.block.Number >= param.XHedgeForkHeight {
+	if ctx.IsXHedgeFork() {
 		crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")).Init(ctx)
 	}
 
@@ -552,7 +550,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
-	if param.ShaGateSwitch && app.block.Number >= param.ShaGateForkHeight {
+	if app.config.ShaGateSwitch && ctx.IsShaGateFork() {
 		app.handleCCEpoch(ctx)
 	}
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
@@ -614,9 +612,9 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 				app.block.Number, app.epochList[0].Number))
 			var posVotes map[[32]byte]int64
 			var xHedgeSequence uint64
-			if app.block.Number >= param.XHedgeForkHeight {
+			if ctx.IsXHedgeFork() {
 				xHedgeContractAddress := gethcmn.Address{}
-				xHedgeContractAddress.SetBytes(gethcmn.FromHex(param.XHedgeContractAddress))
+				xHedgeContractAddress.SetBytes(gethcmn.FromHex(app.config.XHedgeContractAddress))
 				acc := ctx.GetAccount(xHedgeContractAddress)
 				if acc == nil {
 					return
@@ -627,7 +625,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
 				param.StakingMinVotingPercentPerEpoch, param.StakingMinVotingPubKeysPercentPerEpoch)
 			app.epochList = app.epochList[1:]
-			if app.block.Number >= param.XHedgeForkHeight && xHedgeSequence != 0 {
+			if ctx.IsXHedgeFork() && xHedgeSequence != 0 {
 				var pubkey2Power = make(map[[32]byte]int64)
 				for _, v := range newValidators {
 					pubkey2Power[v.Pubkey] = v.VotingPower
@@ -810,6 +808,9 @@ func (app *App) GetRunTxContext() *types.Context {
 	r := rabbit.NewRabbitStore(app.trunk)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
 	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {

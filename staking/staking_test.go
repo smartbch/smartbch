@@ -141,6 +141,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
 	ctx := _app.GetRunTxContext()
+	ctx.SetXHedgeForkBlock(0)
 
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
@@ -343,6 +344,7 @@ func TestInvalidExecuteProposal(t *testing.T) {
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
 	ctx := _app.GetRunTxContext()
+	ctx.SetXHedgeForkBlock(0)
 
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
@@ -372,6 +374,7 @@ func TestInvalidVote(t *testing.T) {
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
 	ctx := _app.GetRunTxContext()
+	ctx.SetXHedgeForkBlock(0)
 
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
@@ -397,6 +400,7 @@ func TestInvalidVote(t *testing.T) {
 	status, _, _, _ = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, status, 0)
 
+	tx.BasicTx.Data = staking.PackVote(target)
 	status, _, _, outData = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, staking.StatusFailed, status)
 	require.True(t, bytes.Equal(outData, []byte(staking.ValidatorNotActive.Error())))
@@ -419,6 +423,6 @@ func TestInvalidVote(t *testing.T) {
 	tx.BasicTx.Data = staking.PackVote(big.NewInt(0))
 	staking.SaveMinGasPrice(ctx, staking.MinGasPriceLowerBound-1, true)
 	status, _, _, outData = e.Execute(ctx, &blk, &tx)
-	require.Equal(t, staking.StatusSuccess, status)
-	require.True(t, bytes.Equal(outData, []byte(staking.MinGasPriceTooSmall.Error())))
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.TargetExceedChangeDelta.Error())))
 }

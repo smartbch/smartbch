@@ -1,6 +1,8 @@
 package staking
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/smartbch/moeingevm/types"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,7 +48,10 @@ func TestCalcMedian(t *testing.T) {
 
 //add gas consume
 func TestHandleMinGasPrice(t *testing.T) {
-	status, _, gasUsed, _ := handleMinGasPrice()
+	ctx := types.NewContext(nil, nil)
+	ctx.SetCurrentHeight(1)
+	ctx.SetXHedgeForkBlock(0)
+	status, _, gasUsed, _ := handleMinGasPrice(ctx, common.Address{}, false, nil)
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, GasOfMinGasPriceOp, gasUsed)
 }

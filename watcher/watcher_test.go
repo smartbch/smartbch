@@ -129,8 +129,9 @@ func (m *MockEpochConsumer) consume() {
 }
 
 func TestRun(t *testing.T) {
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(log.NewNopLogger(), 0, 0, client, "", 0, false)
+	w.rpcClient = client
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan
@@ -141,8 +142,8 @@ func TestRun(t *testing.T) {
 }
 
 func TestRunWithNewEpoch(t *testing.T) {
-	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(log.NewNopLogger(), 0, 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	c := MockEpochConsumer{
 		w: w,
 	}
@@ -165,8 +166,8 @@ func TestRunWithNewEpoch(t *testing.T) {
 }
 
 func TestRunWithFork(t *testing.T) {
-	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	w := NewWatcher(log.NewNopLogger(), 0, 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
 	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)
 	catchupChan := make(chan bool, 1)
