@@ -196,6 +196,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*-------set ccInfo------*/
 	var lastCCEpochEndHeight int64
+	app.logger.Debug("config", app.config.ShaGateForkBlock, "xHedge", app.config.XHedgeForkBlock)
 	if app.config.ShaGateSwitch {
 		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
 		ccInfo := crosschain.LoadCCInfo(ctx)
@@ -521,6 +522,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	ctx := app.GetRunTxContext()
 
 	// fork prepares
+	app.logger.Debug("ixXHedgeFork", ctx.IsXHedgeFork(), "xHedge in ctx", ctx.XHedgeForkBlock)
 	if ctx.IsXHedgeFork() {
 		crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")).Init(ctx)
 	}
