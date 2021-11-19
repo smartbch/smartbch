@@ -95,7 +95,7 @@ type App struct {
 	//engine
 	txEngine     ebp.TxExecutor
 	reorderSeed  int64            // recorded in BeginBlock, used in Commit
-	touchedAddrs ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
+	nonceMatcher ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
 
 	//watcher
 	watcher     *watcher.Watcher
@@ -110,13 +110,14 @@ type App struct {
 	currValidators  []*stakingtypes.Validator // it is needed to compute validatorUpdate
 	validatorUpdate []*stakingtypes.Validator // tendermint wants to know validators whose voting power change
 
+	//speedup
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache map[gethcmn.Hash]SenderAndHeight
-
 	// the senders who send native tokens through sep206 in the last block
 	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
 	// it shows how many tx remains in the mempool after committing a new block
-	recheckCounter int
+	recheckCounter          int
+	addr2NonceSetForCheckTx map[gethcmn.Address]uint64
 }
 
 // The value entry of signature cache. The Height helps in evicting old entries.
@@ -161,8 +162,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
 	app.txid2sigMap = make(map[[32]byte][65]byte)
-	app.touchedAddrs = ebp.GetEmptyNonceMatcher()
+	app.nonceMatcher = ebp.GetEmptyNonceMatcher()
 	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
+	app.addr2NonceSetForCheckTx = make(map[gethcmn.Address]uint64)
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -341,21 +343,57 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 	if tx.Gas() > param.MaxTxGasLimit {
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
 	}
-	acc, err := ctx.CheckNonce(sender, tx.Nonce())
-	if err != nil {
-		if (err == types.ErrNonceTooLarge && !app.touchedAddrs.MatchLatestNonce(sender, tx.Nonce())) || err == types.ErrNonceTooSmall {
-			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
+	acc := ctx.GetAccount(sender)
+	if acc == nil {
+		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
+	}
+	matched, dbNonce := app.nonceMatcher.MatchLatestNonce(sender, tx.Nonce())
+	checkDbNonce := acc.Nonce()
+
+	//for debug
+	//cachedNonceForDebug, exist := app.addr2NonceSetForCheckTx[sender]
+	//if exist {
+	//	fmt.Printf("height:%d, checkDbNonce:%d, dbNonce:%d, tx.nonce:%d, cachedNonce:%d\n", app.currHeight, checkDbNonce, dbNonce, tx.Nonce(), cachedNonceForDebug)
+	//} else {
+	//	fmt.Printf("height:%d, checkDbNonce:%d, dbNonce:%d, tx.nonce:%d, cachedNonce is nil\n", app.currHeight, checkDbNonce, dbNonce, tx.Nonce())
+	//}
+
+	if tx.Nonce() < checkDbNonce {
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
+	}
+	if tx.Nonce() > checkDbNonce {
+		if !matched {
+			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
+		} else /*smaller nonce tx from same sender has been in prev block*/ {
+			cachedNonce, ok := app.addr2NonceSetForCheckTx[sender]
+			/*only allow continuous pending tx
+			when sender has many tx in prev block,
+			jump directly to the largest nonce in check context which will be updated to execute truck in refresh()*/
+			if (!ok && tx.Nonce() != checkDbNonce+1) || (ok && tx.Nonce() != cachedNonce+1) {
+				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
+			}
 		}
-		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: err.Error()}
+	} else {
+		//remove tx which already in block but not execute in time, dbNonce always 1 greater
+		if matched && tx.Nonce()+1 == dbNonce {
+			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrSameNonceAlredyInBlock.Error()}
+		}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
-	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
+	err = ctx.DeductTxFeeWithSpecificNonce(sender, acc, tx.Gas(), gasPrice, tx.Nonce()+1)
 	if err != nil {
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
 	}
+	app.addr2NonceSetForCheckTx[sender] = tx.Nonce()
+	// refresh memory when set reach 0.1 GB
+	if len(app.addr2NonceSetForCheckTx) == 5_000_000 {
+		app.addr2NonceSetForCheckTx = nil
+		app.addr2NonceSetForCheckTx = make(map[gethcmn.Address]uint64)
+	}
+
 	dirty = true
 	app.logger.Debug("leave check tx!")
 	return abcitypes.ResponseCheckTx{
@@ -558,7 +596,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
+	app.nonceMatcher = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	if bi == nil {

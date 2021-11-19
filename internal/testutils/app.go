@@ -328,7 +328,6 @@ func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	addr := ethutils.PrivKeyToAddr(privKey)
 	nonce := _app.GetNonce(addr)
 	chainID := _app.ChainID().ToBig()
-
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(gasPrice),

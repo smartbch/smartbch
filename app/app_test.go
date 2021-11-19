@@ -172,7 +172,7 @@ func TestCheckTx_hasPending(t *testing.T) {
 	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
 	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	_app.AddTxsInBlock(1, tx1)
-	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx2))
+	require.Equal(t, uint32(0x68), _app.CheckNewTxABCI(tx2))
 }
 
 func TestCheckTx_sep206SenderSet(t *testing.T) {
