@@ -9,6 +9,7 @@ contract("Errors", async (accounts) => {
     });
 
     it('revert, returns gas', async () => {
+        // console.log(await web3.eth.getBalance(accounts[0]));
         try  {
             await contract.setN_revert(100, { 
                 gasPrice: (10n**10n).toString(),
@@ -18,6 +19,7 @@ contract("Errors", async (accounts) => {
             assert(error, "Expected an error but did not get one");
             console.log(error.receipt);
         }
+        // console.log(await web3.eth.getBalance(accounts[0]));
     });
 
     it('revert', async () => {
