@@ -39,7 +39,6 @@ import (
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/seps"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher"
@@ -95,7 +94,7 @@ type App struct {
 	//engine
 	txEngine     ebp.TxExecutor
 	reorderSeed  int64            // recorded in BeginBlock, used in Commit
-	touchedAddrs ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
+	nonceMatcher ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
 
 	//watcher
 	watcher     *watcher.Watcher
@@ -113,8 +112,6 @@ type App struct {
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache map[gethcmn.Hash]SenderAndHeight
 
-	// the senders who send native tokens through sep206 in the last block
-	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
 }
@@ -150,7 +147,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		param.EbpExeRoundCount,
 		param.EbpRunnerNumber,
 		param.EbpParallelNum,
-		5000 /*not consensus relevant*/, app.signer)
+		5000, /*not consensus relevant*/
+		app.signer,
+		app.logger.With("module", "engine"))
 	//ebp.AdjustGasUsed = false
 
 	/*------set system contract------*/
@@ -161,8 +160,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
 	app.txid2sigMap = make(map[[32]byte][65]byte)
-	app.touchedAddrs = ebp.GetEmptyNonceMatcher()
-	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
+	app.nonceMatcher = ebp.GetEmptyNonceMatcher()
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -315,53 +313,90 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		}
 		app.sigCacheAdd(txid, SenderAndHeight{sender, app.currHeight})
 	}
-	if req.Type == abcitypes.CheckTxType_Recheck {
-		// During rechecking, if the sender has not been touched or lose balance, the tx can pass
-		if _, ok := app.sep206SenderSet[sender]; !ok {
-			return abcitypes.ResponseCheckTx{
-				Code:      abcitypes.CodeTypeOK,
-				GasWanted: int64(tx.Gas()),
-			}
-		}
-	}
-	return app.checkTxWithContext(tx, sender)
+	return app.checkTxWithContext(tx, sender, req.Type)
 }
 
-func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
+func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address, txType abcitypes.CheckTxType) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
-	intrGas, err := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
-	if err != nil || tx.Gas() < intrGas {
-		return abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
+	if ok, res := checkGasLimit(tx); !ok {
+		return res
 	}
-	if tx.Gas() > param.MaxTxGasLimit {
-		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	acc := ctx.GetAccount(sender)
+	if acc == nil {
+		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
 	}
-	acc, err := ctx.CheckNonce(sender, tx.Nonce())
-	if err != nil {
-		if (err == types.ErrNonceTooLarge && !app.touchedAddrs.MatchLatestNonce(sender, tx.Nonce())) || err == types.ErrNonceTooSmall {
-			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
-		}
-		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: err.Error()}
+	//may not need nonceMatcher, can update checkTxCtx in reCheckTx directly
+	latestNonce, exist := app.nonceMatcher.GetLatestNonce(sender)
+
+	app.logger.Debug("checkTxWithContext",
+		"isReCheckTx", txType == abcitypes.CheckTxType_Recheck,
+		"tx.nonce", tx.Nonce(),
+		"account.nonce", acc.Nonce(),
+		"latestNonce", latestNonce)
+
+	targetNonce := acc.Nonce()
+	if exist && latestNonce > acc.Nonce() {
+		targetNonce = latestNonce
+	}
+	if tx.Nonce() > targetNonce {
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
+	} else if tx.Nonce() < targetNonce {
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	gasFee := uint256.NewInt(0).Mul(gasPrice, uint256.NewInt(tx.Gas()))
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
-	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+	if !exist {
+		err2 := ctx.DeductTxFeeWithSpecificNonce(sender, acc, tx.Gas(), gasPrice, tx.Nonce()+1)
+		if err2 != nil {
+			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+		}
+	} else {
+		balance, ok := app.nonceMatcher.GetLatestBalance(sender)
+		if !ok || balance.Cmp(gasFee) < 0 {
+			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+		}
 	}
+
+	//update nonceMatcher
+	app.nonceMatcher.SetLatestNonce(sender, tx.Nonce()+1)
+	balance := ctx.GetAccount(sender).Balance().Clone()
+	if exist {
+		balance, _ = app.nonceMatcher.GetLatestBalance(sender)
+		balance.Sub(balance, gasFee)
+	}
+	value, _ := uint256.FromBig(tx.Value())
+	if balance.Cmp(value) < 0 {
+		app.nonceMatcher.SetLatestBalance(sender, uint256.NewInt(0))
+	} else {
+		balance = balance.Sub(balance, value)
+		app.nonceMatcher.SetLatestBalance(sender, balance)
+	}
+	app.logger.Debug("checkTxWithContext:", "value", value.String(), "balance", balance.String())
 	dirty = true
 	app.logger.Debug("leave check tx!")
 	return abcitypes.ResponseCheckTx{
 		Code:      abcitypes.CodeTypeOK,
 		GasWanted: int64(tx.Gas()),
 	}
+}
+
+func checkGasLimit(tx *gethtypes.Transaction) (ok bool, res abcitypes.ResponseCheckTx) {
+	intrinsicGas, err2 := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
+	if err2 != nil || tx.Gas() < intrinsicGas {
+		return false, abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
+	}
+	if tx.Gas() > param.MaxTxGasLimit {
+		return false, abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	}
+	return true, abcitypes.ResponseCheckTx{}
 }
 
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
@@ -558,7 +593,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
+	app.nonceMatcher = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	if bi == nil {
@@ -710,7 +745,6 @@ func (app *App) refresh() {
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
 		var wg sync.WaitGroup
-		app.sep206SenderSet = app.getSep206SenderSet(&wg)
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -742,27 +776,6 @@ func (app *App) refresh() {
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
-}
-
-// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
-// through sep206 in the last block
-func (app *App) getSep206SenderSet(wg *sync.WaitGroup) map[gethcmn.Address]struct{} {
-	res := make(map[gethcmn.Address]struct{})
-	wg.Add(1)
-	go func() {
-		for _, tx := range app.txEngine.CommittedTxs() {
-			for _, log := range tx.Logs {
-				if log.Address == seps.SEP206Addr && len(log.Topics) == 3 &&
-					log.Topics[0] == modbtypes.TransferEvent {
-					var addr gethcmn.Address
-					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
-					res[addr] = struct{}{}
-				}
-			}
-		}
-		wg.Done()
-	}()
-	return res
 }
 
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {

@@ -25,7 +25,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.3.0
 	github.com/smartbch/moeingdb v0.3.3
-	github.com/smartbch/moeingevm v0.3.2-0.20211117024034-1671e20f96ee
+	github.com/smartbch/moeingevm v0.3.2-0.20211124090345-a237fc467a62
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3

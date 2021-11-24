@@ -4,8 +4,6 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/tendermint/tendermint/libs/log"
 
-	gethcmn "github.com/ethereum/go-ethereum/common"
-
 	modbtypes "github.com/smartbch/moeingdb/types"
 	moevmtc "github.com/smartbch/moeingevm/evmwrap/testcase"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
@@ -21,11 +19,6 @@ func (app *App) HistoryStore() modbtypes.DB {
 
 func (app *App) BlockNum() int64 {
 	return app.block.Number
-}
-
-func (app *App) IsInSenderSet(addr gethcmn.Address) bool {
-	_, found := app.sep206SenderSet[addr]
-	return found
 }
 
 //nolint
