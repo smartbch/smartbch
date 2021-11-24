@@ -47,7 +47,7 @@ type PublicEthAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error)
 	ChainId() hexutil.Uint64
 	Coinbase() (common.Address, error)
-	EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error)
+	EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error)
 	GasPrice() *hexutil.Big
 	GetBalance(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Big, error)
 	GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error)
@@ -464,7 +464,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 }
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas
-func (api *ethAPI) EstimateGas(args rpctypes.CallArgs) (hexutil.Uint64, error) {
+func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error) {
 	api.logger.Debug("eth_estimateGas")
 	tx, from, err := api.createGethTxFromCallArgs(args)
 	if err != nil {
