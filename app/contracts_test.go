@@ -211,6 +211,56 @@ b5007928aa64736f6c63430007000033
 	require.Equal(t, "n must be less than 10", reason)
 }
 
+func TestRevertReturnRemainingGas(t *testing.T) {
+	// see testdata/basic/contracts/Errors.sol
+	creationBytecode := testutils.HexToBytes(`
+608060405234801561001057600080fd5b50610190806100206000396000f3fe
+608060405234801561001057600080fd5b50600436106100415760003560e01c
+806312f28d51146100465780632e52d60614610074578063e0ada09a14610092
+575b600080fd5b6100726004803603602081101561005c57600080fd5b810190
+80803590602001909291905050506100c0565b005b61007c6100d4565b604051
+8082815260200191505060405180910390f35b6100be60048036036020811015
+6100a857600080fd5b81019080803590602001909291905050506100da565b00
+5b600a81106100ca57fe5b8060008190555050565b60005481565b600a811061
+0150576040517f08c379a0000000000000000000000000000000000000000000
+0000000000000081526004018080602001828103825260168152602001807f6e
+206d757374206265206c657373207468616e2031300000000000000000000081
+525060200191505060405180910390fd5b806000819055505056fea264697066
+7358221220d21f014f3ec821cd1b466e1c9964010b3eb579a9153a8d63eb5116
+b5007928aa64736f6c63430007000033
+`)
+
+	key, addr := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+
+	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	bal0 := _app.GetBalance(addr)
+
+	// setN_revert() ok
+	callData1 := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000004")
+	tx1, _ := _app.MakeAndSignTxWithGas(key, &contractAddr, 0, callData1, 500000, 1)
+	_app.ExecTxInBlock(tx1)
+	_app.EnsureTxSuccess(tx1.Hash())
+	moTx1 := _app.GetTx(tx1.Hash())
+	bal1 := _app.GetBalance(addr)
+	require.Equal(t, uint64(500000), moTx1.Gas)
+	require.Equal(t, uint64(500000), moTx1.GasUsed)
+	require.Equal(t, uint64(500000), bal0.Sub(bal0, bal1).Uint64())
+
+	// setN_revert() revert
+	callData2 := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000064")
+	tx2, _ := _app.MakeAndSignTxWithGas(key, &contractAddr, 0, callData2, 500000, 1)
+	_app.ExecTxInBlock(tx2)
+	_app.EnsureTxFailed(tx2.Hash(), "revert")
+	moTx2 := _app.GetTx(tx2.Hash())
+	bal2 := _app.GetBalance(addr)
+	require.Equal(t, uint64(500000), moTx2.Gas)
+	require.Equal(t, uint64(500000), moTx2.GasUsed)
+	require.Equal(t, uint64(500000), bal1.Sub(bal1, bal2).Uint64())
+}
+
 func TestInvalidOpcode(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
