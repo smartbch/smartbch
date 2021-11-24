@@ -239,6 +239,7 @@ b5007928aa64736f6c63430007000033
 	bal0 := _app.GetBalance(addr)
 
 	// setN_revert() ok
+	// the gasLimit 500000 is too high, 50000 is enough
 	callData1 := testutils.HexToBytes("0xe0ada09a0000000000000000000000000000000000000000000000000000000000000004")
 	tx1, _ := _app.MakeAndSignTxWithGas(key, &contractAddr, 0, callData1, 500000, 1)
 	_app.ExecTxInBlock(tx1)
