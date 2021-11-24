@@ -10,9 +10,9 @@ contract("Errors", async (accounts) => {
 
     it('revert, returns gas', async () => {
         try  {
-            await contract.setN_revert.estimateGas(100, { 
+            await contract.setN_revert(100, { 
                 gasPrice: (10n**10n).toString(),
-                gasLimit: (10n**8n).toString(),
+                gas: (10n**7n).toString(),
             });
         } catch(error) {
             assert(error, "Expected an error but did not get one");
