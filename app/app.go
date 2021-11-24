@@ -369,18 +369,18 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 			/*only allow continuous pending tx
 			when sender has many tx in prev block,
 			jump directly to the largest nonce in check context which will be updated to execute truck in refresh()*/
-			if !ok && tx.Nonce() != checkDbNonce+1{
+			if !ok && tx.Nonce() != checkDbNonce+1 {
 				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
 			}
 			if ok && tx.Nonce() < cachedNonce+1 {
 				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
-			}else if ok && tx.Nonce() > cachedNonce+1 {
+			} else if ok && tx.Nonce() > cachedNonce+1 {
 				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
 			}
 		}
 	} else {
 		//remove tx which already in block but not execute in time, dbNonce always 1 greater
-		if (matched && tx.Nonce()+1 == dbNonce) || (ok && tx.Nonce() <= cachedNonce){
+		if (matched && tx.Nonce()+1 == dbNonce) || (ok && tx.Nonce() <= cachedNonce) {
 			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrSameNonceAlredyInBlock.Error()}
 		}
 	}
