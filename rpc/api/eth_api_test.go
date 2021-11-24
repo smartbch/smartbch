@@ -666,7 +666,7 @@ func TestEstimateGas(t *testing.T) {
 	ret, err := _api.EstimateGas(ethapi.CallArgs{
 		From: &fromAddr,
 		Data: testutils.ToHexutilBytes(counterContractCreationBytecode),
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, 96908, int(ret))
 }
