@@ -92,9 +92,9 @@ type App struct {
 	scope     event.SubscriptionScope
 
 	//engine
-	txEngine     ebp.TxExecutor
-	reorderSeed  int64            // recorded in BeginBlock, used in Commit
-	nonceMatcher ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
+	txEngine    ebp.TxExecutor
+	reorderSeed int64        // recorded in BeginBlock, used in Commit
+	frontier    ebp.Frontier // recorded in Commint, used in next block's CheckTx
 
 	//watcher
 	watcher     *watcher.Watcher
@@ -160,7 +160,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
 	app.txid2sigMap = make(map[[32]byte][65]byte)
-	app.nonceMatcher = ebp.GetEmptyNonceMatcher()
+	app.frontier = ebp.GetEmptyFrontier()
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -330,8 +330,8 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 	if acc == nil {
 		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
 	}
-	//may not need nonceMatcher, can update checkTxCtx in reCheckTx directly
-	latestNonce, exist := app.nonceMatcher.GetLatestNonce(sender)
+	//may not need frontier, can update checkTxCtx in reCheckTx directly
+	latestNonce, exist := app.frontier.GetLatestNonce(sender)
 
 	app.logger.Debug("checkTxWithContext",
 		"isReCheckTx", txType == abcitypes.CheckTxType_Recheck,
@@ -359,25 +359,32 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
 		}
 	} else {
-		balance, ok := app.nonceMatcher.GetLatestBalance(sender)
+		balance, ok := app.frontier.GetLatestBalance(sender)
 		if !ok || balance.Cmp(gasFee) < 0 {
 			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
 		}
 	}
-
-	//update nonceMatcher
-	app.nonceMatcher.SetLatestNonce(sender, tx.Nonce()+1)
+	if exist {
+		totalGasLimit, _ := app.frontier.GetLatestTotalGasLimit(sender)
+		totalGasLimit += tx.Gas()
+		if totalGasLimit > app.config.AppConfig.FrontierGasLimit {
+			return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "send transaction too frequent"}
+		}
+		app.frontier.SetLatestTotalGasLimit(sender, totalGasLimit)
+	}
+	//update frontier
+	app.frontier.SetLatestNonce(sender, tx.Nonce()+1)
 	balance := ctx.GetAccount(sender).Balance().Clone()
 	if exist {
-		balance, _ = app.nonceMatcher.GetLatestBalance(sender)
+		balance, _ = app.frontier.GetLatestBalance(sender)
 		balance.Sub(balance, gasFee)
 	}
 	value, _ := uint256.FromBig(tx.Value())
 	if balance.Cmp(value) < 0 {
-		app.nonceMatcher.SetLatestBalance(sender, uint256.NewInt(0))
+		app.frontier.SetLatestBalance(sender, uint256.NewInt(0))
 	} else {
 		balance = balance.Sub(balance, value)
-		app.nonceMatcher.SetLatestBalance(sender, balance)
+		app.frontier.SetLatestBalance(sender, balance)
 	}
 	app.logger.Debug("checkTxWithContext:", "value", value.String(), "balance", balance.String())
 	dirty = true
@@ -593,7 +600,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.nonceMatcher = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
+	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	if bi == nil {
