@@ -231,6 +231,56 @@ func TestCheckTx_manyTxInMempool(t *testing.T) {
 	require.Equal(t, "bad nonce: tx nonce is smaller than the account nonce", info)
 }
 
+func TestCheckTx_cannotPayGasFee(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		InitAmt:  uint256.NewInt(90000),
+		PrivKeys: []string{key1, key2},
+	})
+	defer _app.Destroy()
+	_app.SetMinGasPrice(1)
+
+	tx1, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 1, nil, 30000, 1, 0)
+	tx2, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 2, nil, 30000, 1, 1)
+	tx3, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 3, nil, 30000, 1, 2)
+	_app.AddTxsInBlock(1, tx1)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))
+	require.Equal(t, app.CannotPayGasFee, _app.CheckNewTxABCI(tx3))
+
+	tx4, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 1, nil, 30000, 1, 0)
+	tx5, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 2, nil, 30000, 1, 1)
+	tx6, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 3, nil, 30000, 1, 2)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx4))
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx5))
+	require.Equal(t, app.CannotPayGasFee, _app.CheckNewTxABCI(tx6))
+}
+
+func TestCheckTx_totalGasLimit(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		InitAmt:  uint256.NewInt(20000000),
+		PrivKeys: []string{key1, key2},
+	})
+	defer _app.Destroy()
+	_app.SetMinGasPrice(1)
+
+	tx1, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 1, nil, 2000000, 1, 0)
+	tx2, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 2, nil, 2000000, 1, 1)
+	tx3, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 3, nil, 3000001, 1, 2)
+	_app.AddTxsInBlock(1, tx1)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))
+	require.Equal(t, app.GasLimitInvalid, _app.CheckNewTxABCI(tx3))
+
+	tx4, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 1, nil, 2000000, 1, 0)
+	tx5, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 2, nil, 3000001, 1, 1)
+	tx6, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 3, nil, 2000000, 1, 2)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx4))
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx5))
+	require.Equal(t, app.GasLimitInvalid, _app.CheckNewTxABCI(tx6))
+}
+
 func TestIncorrectNonceErr(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_, addr2 := testutils.GenKeyAndAddr()
