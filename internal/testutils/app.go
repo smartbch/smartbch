@@ -59,15 +59,43 @@ type TestApp struct {
 	initAllBalance *uint256.Int
 }
 
+type TestAppInitArgs struct {
+	StartHeight *int64
+	StartTime   *time.Time
+	ValPubKey   *crypto.PubKey
+	InitAmt     *uint256.Int
+	PrivKeys    []string
+}
+
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
+	return CreateTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
 }
 
-func CreateTestAppWithInitAmt(initAmt *uint256.Int, keys ...string) *TestApp {
-	return CreateTestApp0(time.Now(), ed25519.GenPrivKey().PubKey(), initAmt, keys...)
+func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
+	startHeight := int64(0)
+	if args.StartHeight != nil {
+		startHeight = *args.StartHeight
+	}
+
+	startTime := time.Now()
+	if args.StartTime != nil {
+		startTime = *args.StartTime
+	}
+
+	pubKey := ed25519.GenPrivKey().PubKey()
+	if args.ValPubKey != nil {
+		pubKey = *args.ValPubKey
+	}
+
+	initAmt := bigutils.NewU256(DefaultInitBalance)
+	if args.InitAmt != nil {
+		initAmt = args.InitAmt
+	}
+
+	return CreateTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
 }
 
-func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
+func CreateTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
 	err := os.RemoveAll(testAdsDir)
 	if err != nil {
 		panic("remove test ads failed " + err.Error())
@@ -102,9 +130,16 @@ func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint2
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Height:          startHeight,
 		Time:            startTime,
 		ProposerAddress: valPubKey.Address(),
 	}})
+	_app.EndBlock(abci.RequestEndBlock{
+		Height: startHeight,
+	})
+	if startHeight > 1 {
+		_app.AddBlockFotTest(&modbtypes.Block{Height: startHeight - 1})
+	}
 	stateRoot := _app.Commit().Data
 	if debug {
 		fmt.Println("h: 0 StateRoot:", hex.EncodeToString(stateRoot))
@@ -328,7 +363,6 @@ func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	addr := ethutils.PrivKeyToAddr(privKey)
 	nonce := _app.GetNonce(addr)
 	chainID := _app.ChainID().ToBig()
-
 	txData := &gethtypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: big.NewInt(gasPrice),

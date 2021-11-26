@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 )
 
 func HexToHash32(s string) common.Hash {
@@ -30,4 +31,12 @@ func HexToBytes(s string) []byte {
 		panic(err)
 	}
 	return bytes
+}
+
+func HexToU256(s string) *uint256.Int {
+	n, err := uint256.FromHex(s)
+	if err != nil {
+		panic(err)
+	}
+	return n
 }
