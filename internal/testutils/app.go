@@ -68,7 +68,7 @@ type TestAppInitArgs struct {
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
 }
 
 func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
@@ -92,10 +92,10 @@ func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
 		initAmt = args.InitAmt
 	}
 
-	return CreateTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
+	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
 }
 
-func CreateTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
+func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
 	err := os.RemoveAll(testAdsDir)
 	if err != nil {
 		panic("remove test ads failed " + err.Error())
@@ -127,6 +127,7 @@ func CreateTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	//reset config for test
 	staking.DefaultMinGasPrice = 0
 	staking.MinGasPriceLowerBound = 0
+	//setMinGasPrice(_app, 0)
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
@@ -207,6 +208,17 @@ func (_app *TestApp) Destroy() {
 
 func (_app *TestApp) WaitMS(n int64) {
 	time.Sleep(time.Duration(n) * time.Millisecond)
+}
+
+func (_app *TestApp) SetMinGasPrice(gp uint64) {
+	setMinGasPrice(_app.App, gp)
+	_app.ExecTxsInBlock()
+}
+func setMinGasPrice(_app *app.App, gp uint64) {
+	ctx := _app.GetRunTxContext()
+	staking.SaveMinGasPrice(ctx, gp, true)
+	staking.SaveMinGasPrice(ctx, gp, false)
+	ctx.Close(true)
 }
 
 func (_app *TestApp) GetMinGasPrice(isLast bool) uint64 {

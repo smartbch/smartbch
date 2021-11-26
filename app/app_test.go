@@ -22,6 +22,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 )
 
@@ -98,7 +99,7 @@ func TestBlock(t *testing.T) {
 	require.Len(t, blk2.Transactions, 0)
 }
 
-func TestCheckTx(t *testing.T) {
+func TestCheckTx_basics(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
@@ -137,14 +138,16 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
 }
 
-func TestCheckTx_GasLimitTooSmall(t *testing.T) {
+func TestCheckTx_badGasLimit(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	tx := ethutils.NewTx(0, &addr1, big.NewInt(100), 20999, big.NewInt(10), nil)
-	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
-	require.Equal(t, app.GasLimitTooSmall, _app.CheckNewTxABCI(tx))
+	tx1, _ := _app.MakeAndSignTxWithGas(key1, &addr1, 1, nil, 20999, 1)
+	require.Equal(t, app.GasLimitTooSmall, _app.CheckNewTxABCI(tx1))
+
+	tx2, _ := _app.MakeAndSignTxWithGas(key1, &addr1, 1, nil, param.MaxTxGasLimit+1, 1)
+	require.Equal(t, app.GasLimitInvalid, _app.CheckNewTxABCI(tx2))
 }
 
 func TestCheckTxNonce_serial(t *testing.T) {
@@ -171,7 +174,27 @@ func TestCheckTx_hasPending(t *testing.T) {
 	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
 	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	_app.AddTxsInBlock(1, tx1)
-	require.Equal(t, uint32(0x68), _app.CheckNewTxABCI(tx2))
+	require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx2))
+}
+
+func TestCheckTx_senderNotFound(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	tx, _ := _app.MakeAndSignTx(key2, &addr1, 1, nil)
+	require.Equal(t, app.SenderNotFound, _app.CheckNewTxABCI(tx))
+}
+
+func TestCheckTx_badGasPrice(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+
+	_app.SetMinGasPrice(100)
+	tx, _ := _app.MakeAndSignTxWithGas(key1, &addr1, 1, nil, 123456, 99)
+	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
 }
 
 func TestCheckTx_manyTxInMempool(t *testing.T) {
