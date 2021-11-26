@@ -352,8 +352,21 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	return _app.MakeAndSignTxWithGas(hexPrivKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice)
 }
 
+func (_app *TestApp) MakeAndSignTxWithNonce(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, nonce int64) (*gethtypes.Transaction, gethcmn.Address) {
+
+	return _app.MakeAndSignTxWithAllArgs(hexPrivKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice, nonce)
+}
+
 func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	toAddr *gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
+
+	return _app.MakeAndSignTxWithAllArgs(hexPrivKey, toAddr, val, data, gasLimit, gasPrice, -1)
+}
+
+func (_app *TestApp) MakeAndSignTxWithAllArgs(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64,
+	nonce int64) (*gethtypes.Transaction, gethcmn.Address) {
 
 	privKey, _, err := ethutils.HexToPrivKey(hexPrivKey)
 	if err != nil {
@@ -361,10 +374,14 @@ func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	}
 
 	addr := ethutils.PrivKeyToAddr(privKey)
-	nonce := _app.GetNonce(addr)
+	nonceU64 := uint64(nonce)
+	if nonce < 0 {
+		nonceU64 = _app.GetNonce(addr)
+	}
+
 	chainID := _app.ChainID().ToBig()
 	txData := &gethtypes.LegacyTx{
-		Nonce:    nonce,
+		Nonce:    nonceU64,
 		GasPrice: big.NewInt(gasPrice),
 		Gas:      gasLimit,
 		To:       toAddr,
@@ -504,16 +521,21 @@ func (_app *TestApp) EnsureTxFailedWithOutData(hash gethcmn.Hash, statusStr, out
 }
 
 func (_app *TestApp) CheckNewTxABCI(tx *gethtypes.Transaction) uint32 {
-	res := _app.CheckTx(abci.RequestCheckTx{
-		Tx:   MustEncodeTx(tx),
-		Type: abci.CheckTxType_New,
-	})
-	return res.Code
+	code, _ := _app.CheckTxABCI(tx, true)
+	return code
 }
 func (_app *TestApp) RecheckTxABCI(tx *gethtypes.Transaction) uint32 {
+	code, _ := _app.CheckTxABCI(tx, false)
+	return code
+}
+func (_app *TestApp) CheckTxABCI(tx *gethtypes.Transaction, newTx bool) (uint32, string) {
+	txCheckType := abci.CheckTxType_New
+	if !newTx {
+		txCheckType = abci.CheckTxType_Recheck
+	}
 	res := _app.CheckTx(abci.RequestCheckTx{
 		Tx:   MustEncodeTx(tx),
-		Type: abci.CheckTxType_Recheck,
+		Type: txCheckType,
 	})
-	return res.Code
+	return res.Code, res.Info
 }

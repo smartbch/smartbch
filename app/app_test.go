@@ -174,6 +174,40 @@ func TestCheckTx_hasPending(t *testing.T) {
 	require.Equal(t, uint32(0x68), _app.CheckNewTxABCI(tx2))
 }
 
+func TestCheckTx_manyTxInMempool(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+
+	tx1, _ := _app.MakeAndSignTxWithNonce(key1, &addr2, 1, nil, 0)
+	tx2, _ := _app.MakeAndSignTxWithNonce(key1, &addr2, 2, nil, 1)
+	tx3, _ := _app.MakeAndSignTxWithNonce(key1, &addr2, 3, nil, 2)
+	_app.AddTxsInBlock(1, tx1)
+
+	//require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx3)) // rejected
+	//require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))          // ok
+	//require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx2)) // rejected
+	//require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx3))          // ok
+	//require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx3)) // rejected
+
+	code, info := _app.CheckTxABCI(tx3, true)
+	require.Equal(t, app.AccountNonceMismatch, code)
+	require.Equal(t, "bad nonce: tx nonce is larger than the account nonce", info)
+
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))
+
+	code, info = _app.CheckTxABCI(tx2, true)
+	require.Equal(t, app.AccountNonceMismatch, code)
+	require.Equal(t, "bad nonce: tx nonce is smaller than the account nonce", info)
+
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx3))
+
+	code, info = _app.CheckTxABCI(tx3, true)
+	require.Equal(t, app.AccountNonceMismatch, code)
+	require.Equal(t, "bad nonce: tx nonce is smaller than the account nonce", info)
+}
+
 func TestIncorrectNonceErr(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_, addr2 := testutils.GenKeyAndAddr()
