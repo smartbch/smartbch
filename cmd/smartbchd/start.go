@@ -47,6 +47,7 @@ const (
 	flagSmartBchUrl          = "smartbch-url"
 	flagWatcherSpeedup       = "watcher-speedup"
 	flagRpcOnly              = "rpc-only"
+	flagStopHeight           = "stop-height"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -88,6 +89,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
 	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
+	cmd.Flags().Int64(flagStopHeight, -1, "stop in specific height")
 
 	return cmd
 }
@@ -97,6 +99,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	nodeCfg.TxIndex.Indexer = "null"
 	nodeCfg.Mempool.Size = 10000
 	nodeCfg.Mempool.MaxTxsBytes = 4 * 1024 * 1024 * 1024
+	ctx.Config.StopHeight = viper.GetInt64(flagStopHeight)
 	chainID, err := getChainID(ctx)
 	if err != nil {
 		return nil, err
@@ -151,10 +154,11 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	keyfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/key.pem")
 	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certfileDir, keyfileDir,
 		serverCfg, rpcBackend, ctx.Logger, strings.Split(unlockedKeys, ","))
-
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
 	}
+	appImpl.RpcServer = rpcServer
+	appImpl.TmNode = tmNode
 	TrapSignal(func() {
 		if tmNode.IsRunning() {
 			_ = rpcServer.Stop()

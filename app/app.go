@@ -26,6 +26,8 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	"github.com/tendermint/tendermint/libs/log"
+	tmservice "github.com/tendermint/tendermint/libs/service"
+	"github.com/tendermint/tendermint/node"
 
 	"github.com/smartbch/moeingads"
 	"github.com/smartbch/moeingads/store"
@@ -113,6 +115,9 @@ type App struct {
 	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
+
+	TmNode    *node.Node
+	RpcServer tmservice.Service
 }
 
 // The value entry of signature cache. The Height helps in evicting old entries.
@@ -422,6 +427,16 @@ func (app *App) createGenesisAccounts(alloc gethcore.GenesisAlloc) {
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
+	if app.config.StopHeight != -1 && req.Header.Height > app.config.StopHeight {
+		_ = app.RpcServer.Stop()
+		app.logger.Info(fmt.Sprintf("stop rpc server after commit block %d\n", req.Header.Height))
+		app.Stop()
+		app.logger.Info(fmt.Sprintf("stop app after commit block %d\n", req.Header.Height))
+		go app.TmNode.Stop()
+		time.Sleep(100 * time.Millisecond)
+		app.logger.Info(fmt.Sprintf("stop node after commit block %d\n", req.Header.Height))
+		os.Exit(0)
+	}
 	//app.randomPanic(5000, 7919)
 	app.block = &types.Block{
 		Number:    req.Header.Height,

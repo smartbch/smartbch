@@ -55,6 +55,7 @@ type AppConfig struct {
 type ChainConfig struct {
 	NodeConfig *config.Config `mapstructure:"node_config"`
 	AppConfig  *AppConfig     `mapstructure:"app_config"`
+	StopHeight int64
 }
 
 var (
