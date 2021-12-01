@@ -2,8 +2,8 @@ version: "3.7"
 
 services:
   docker-compose-env:
-    build: .
-    # image: ghcr.io/actorforth/docker-compose-env:v0.0.2
+    # build: .
+    image: ghcr.io/actorforth/docker-compose-env:v0.0.3
     environment:
       - HOST_SRC_PATH=${HOST_SRC_PATH}
     volumes:
