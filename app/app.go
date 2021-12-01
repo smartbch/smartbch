@@ -116,8 +116,9 @@ type App struct {
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
 
-	TmNode    *node.Node
-	RpcServer tmservice.Service
+	TmNode       *node.Node
+	RpcServer    tmservice.Service
+	LastBlockTxs int64
 }
 
 // The value entry of signature cache. The Height helps in evicting old entries.
@@ -427,17 +428,21 @@ func (app *App) createGenesisAccounts(alloc gethcore.GenesisAlloc) {
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
-	if app.config.StopHeight != -1 && req.Header.Height > app.config.StopHeight {
+	if app.config.StopHeight != -1 && req.Header.Height > app.config.StopHeight && app.LastBlockTxs == 0 {
 		_ = app.RpcServer.Stop()
-		app.logger.Info(fmt.Sprintf("stop rpc server after commit block %d\n", req.Header.Height))
+		//app.logger.Info(fmt.Sprintf("stop rpc server after commit block %d\n", req.Header.Height))
 		//app.Stop()
 		//app.logger.Info(fmt.Sprintf("stop app after commit block %d\n", req.Header.Height))
 		//go app.TmNode.Stop()
-		//time.Sleep(100 * time.Millisecond)
-		//app.logger.Info(fmt.Sprintf("stop node after commit block %d\n", req.Header.Height))
+		go func() {
+			panic("hit the stop height")
+		}()
+		time.Sleep(100 * time.Millisecond)
+		app.logger.Info(fmt.Sprintf("stop node after commit block %d\n", req.Header.Height))
 		//os.Exit(0)
-		panic("hit the stop height")
 	}
+	app.LastBlockTxs = 0
+
 	//app.randomPanic(5000, 7919)
 	app.block = &types.Block{
 		Number:    req.Header.Height,
@@ -474,6 +479,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 }
 
 func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeliverTx {
+	app.LastBlockTxs ++
 	app.block.Size += int64(req.Size())
 	tx, err := ethutils.DecodeTx(req.Tx)
 	if err == nil {
