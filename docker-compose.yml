@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   docker-compose-env:
-    build: .
+    # build: .
     image: actorforth/docker-compose-env:v0.0.1
     environment:
       - HOST_SRC_PATH=${HOST_SRC_PATH}
