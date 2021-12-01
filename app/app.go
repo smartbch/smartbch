@@ -430,12 +430,13 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	if app.config.StopHeight != -1 && req.Header.Height > app.config.StopHeight {
 		_ = app.RpcServer.Stop()
 		app.logger.Info(fmt.Sprintf("stop rpc server after commit block %d\n", req.Header.Height))
-		app.Stop()
-		app.logger.Info(fmt.Sprintf("stop app after commit block %d\n", req.Header.Height))
-		go app.TmNode.Stop()
-		time.Sleep(100 * time.Millisecond)
-		app.logger.Info(fmt.Sprintf("stop node after commit block %d\n", req.Header.Height))
-		os.Exit(0)
+		//app.Stop()
+		//app.logger.Info(fmt.Sprintf("stop app after commit block %d\n", req.Header.Height))
+		//go app.TmNode.Stop()
+		//time.Sleep(100 * time.Millisecond)
+		//app.logger.Info(fmt.Sprintf("stop node after commit block %d\n", req.Header.Height))
+		//os.Exit(0)
+		panic("hit the stop height")
 	}
 	//app.randomPanic(5000, 7919)
 	app.block = &types.Block{
