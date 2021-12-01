@@ -13,8 +13,6 @@ echo "BCH Node RPC URL: $target"
 echo "Init chain id"
 docker-compose -f /var/tmp/docker-compose.yml run smartbch_node init sync_node --chain-id 0x2710
 
-ls -la /var/tmp/mainnet-config
-
 echo "Adding config files"
 cp -rf /var/tmp/mainnet-config/* /var/tmp/data/smartbch_node_data/
 
