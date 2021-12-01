@@ -20,7 +20,7 @@ init-rebuild:
 	make down && make clean && mkdir data && docker-compose up --build --force-recreate
 
 init-mainnet:
-	make down && make clean && mkdir data && docker-compose run --entrypoint "/usr/src/app/init-mainnet.sh" docker-compose-env 
+	make down && make clean && mkdir data && docker-compose build && docker-compose run --entrypoint "/usr/src/app/init-mainnet.sh" docker-compose-env 
 
 init-regtest:
 	make down && make clean && mkdir data && docker-compose up

@@ -6,7 +6,7 @@ services:
         # build: .
         command: start --mainnet-genesis-height=698502
         ports:
-          - "8546:8545"
+          - "8545:8545"
           - "26661:26656"
           - "26662:26657"
           - "26663:26658"
@@ -14,4 +14,4 @@ services:
           - "26665:26660"
         restart: always
         volumes:
-          - ./smartbch_node_data:/root/.smartbchd
+          - ./data/smartbch_node_data:/root/.smartbchd

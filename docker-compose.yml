@@ -2,11 +2,12 @@ version: "3.7"
 
 services:
   docker-compose-env:
-    # build: .
-    image: actorforth/docker-compose-env:v0.0.1
+    build: .
+    # image: ghcr.io/actorforth/docker-compose-env:v0.0.2
     environment:
       - HOST_SRC_PATH=${HOST_SRC_PATH}
     volumes:
       - ./components:/var/tmp/
       - ${HOST_SRC_PATH}/data/:/var/tmp/data
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_SRC_PATH}/mainnet-config:/var/tmp/mainnet-config
