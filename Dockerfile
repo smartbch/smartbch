@@ -10,6 +10,8 @@ RUN chmod +x /usr/local/bin/docker-compose
 WORKDIR /usr/src/app
 COPY ./init-both-node.sh ./init-both-node.sh
 RUN chmod +x /usr/src/app/init-both-node.sh
+COPY ./init-mainnet.sh ./init-mainnet.sh
+RUN chmod +x /usr/src/app/init-mainnet.sh
 
 
 ENTRYPOINT ["/usr/src/app/init-both-node.sh"]

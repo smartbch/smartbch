@@ -17,16 +17,13 @@ clean:
 	bash clean.sh
 
 init-rebuild:
-	make down && make clean && mkdir data && docker-compose up   --build --force-recreate
+	make down && make clean && mkdir data && docker-compose up --build --force-recreate
 
-init:
+init-mainnet:
+	make down && make clean && mkdir data && docker-compose run --entrypoint "/usr/src/app/init-mainnet.sh" docker-compose-env 
+
+init-regtest:
 	make down && make clean && mkdir data && docker-compose up
-
-init-main:
-	bash init-mainnet.sh
-
-init-both:
-	bash init-both-node.sh
 
 reset:
 	cd components && down up
