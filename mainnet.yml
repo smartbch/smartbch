@@ -15,16 +15,33 @@ services:
         restart: always
         volumes:
           - ./data/smartbch_node_data:/root/.smartbchd
+        logging:
+          options:
+            max-size: 10m
+            max-file: "10"
+        networks:
+          - smartbch-network
+
     smartbch_healthcheck:
         image: ghcr.io/actorforth/smart_bch_healthcheck:b9ea365
-        command: uvicorn  --port 4911 --workers 4 smartbch_healthcheck:app
+        command: uvicorn --host 0.0.0.0 --port 4911 --workers 4 smartbch_healthcheck:app
         ports:
           - "4911:4911"
         environment:
           # example "https://0.0.0.0:8545" "https://smartbch.fountainhead.cash/mainnet"
           # make sure you include protocols in
-          ETH_RPC_HOST: "http://0.0.0.0:8545"
+          ETH_RPC_HOST: "http://smartbch_node:8545"
           # example "True" "False"
           SSL_ENABLE: "True"
           GOOD_KNOWN_ADDRESS: "0xBC785dB9e0701C829ba4C575Fa2caFa4c873699D"
         restart: always
+        logging:
+          options:
+            max-size: 10m
+            max-file: "10"
+        networks:
+          - smartbch-network
+
+networks:
+  smartbch-network:
+    external: true

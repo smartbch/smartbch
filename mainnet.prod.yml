@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+    smartbch_node:
+        deploy:
+          resources:
+            limits:
+              cpus: '10.00'
+              memory: 32GB
+
+    smartbch_healthcheck:
+        deploy:
+          resources:
+            limits:
+              cpus: '1.00'
+              memory: 2GB
