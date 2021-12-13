@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 	"sort"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -75,6 +76,7 @@ type ethAPI struct {
 	backend  sbchapi.BackendService
 	accounts map[common.Address]*ecdsa.PrivateKey // only for test
 	logger   log.Logger
+	numCall  uint64
 }
 
 func newEthAPI(backend sbchapi.BackendService, testKeys []string, logger log.Logger) *ethAPI {
@@ -448,6 +450,7 @@ func (api *ethAPI) Syncing() (interface{}, error) {
 
 // https://eth.wiki/json-rpc/API#eth_call
 func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error) {
+	atomic.AddUint64(&api.numCall, 1)
 	api.logger.Debug("eth_call", "from", addrToStr(args.From), "to", addrToStr(args.To))
 	// ignore blockNumber temporary
 	tx, from, err := api.createGethTxFromCallArgs(args)

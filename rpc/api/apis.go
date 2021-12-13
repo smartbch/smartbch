@@ -34,7 +34,7 @@ func GetAPIs(backend sbchapi.BackendService,
 	_txPoolAPI := newTxPoolAPI(logger)
 	_sbchAPI := newSbchAPI(backend, logger)
 	_tmAPI := newTendermintAPI(backend, logger)
-	_debugAPI := newDebugAPI()
+	_debugAPI := newDebugAPI(_ethAPI)
 	//_evmAPI := newEvmAPI(backend)
 
 	return []rpc.API{

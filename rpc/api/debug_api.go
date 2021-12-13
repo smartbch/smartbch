@@ -26,17 +26,19 @@ type Stats struct {
 	OsMemSwapTotalMB uint64 `json:"osMemSwapTotalMB"`
 	OsMemSwapUsedMB  uint64 `json:"osMemSwapUsedMB"`
 	OsMemSwapFreeMB  uint64 `json:"osMemSwapFreeMB"`
+	NumEthCall       uint64 `json:"numEthCall"`
 }
 
 type DebugAPI interface {
 	GetStats() Stats
 }
 
-func newDebugAPI() DebugAPI {
-	return &debugAPI{}
+func newDebugAPI(ethAPI *ethAPI) DebugAPI {
+	return &debugAPI{ethAPI: ethAPI}
 }
 
 type debugAPI struct {
+	ethAPI         *ethAPI
 	lastUpdateTime int64
 	stats          Stats
 }
@@ -74,6 +76,8 @@ func (api *debugAPI) updateStats() {
 		api.stats.OsMemSwapUsedMB = toMB(osMemStats.SwapUsed)
 		api.stats.OsMemSwapFreeMB = toMB(osMemStats.SwapFree)
 	}
+
+	api.stats.NumEthCall = atomic.LoadUint64(&api.ethAPI.numCall)
 }
 
 func toMB(n uint64) uint64 {
