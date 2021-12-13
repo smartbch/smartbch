@@ -448,7 +448,7 @@ func (api *ethAPI) Syncing() (interface{}, error) {
 
 // https://eth.wiki/json-rpc/API#eth_call
 func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error) {
-	api.logger.Debug("eth_call")
+	api.logger.Debug("eth_call", "from", addrToStr(args.From), "to", addrToStr(args.To))
 	// ignore blockNumber temporary
 	tx, from, err := api.createGethTxFromCallArgs(args)
 	if err != nil {
@@ -461,6 +461,13 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 	}
 
 	return nil, toCallErr(statusCode, retData)
+}
+
+func addrToStr(addr *common.Address) string {
+	if addr != nil {
+		return addr.Hex()
+	}
+	return "0x"
 }
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas

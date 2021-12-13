@@ -15,6 +15,7 @@ const (
 	namespaceTxPool = "txpool"
 	namespaceSBCH   = "sbch"
 	namespaceTM     = "tm"
+	namespaceDebug  = "debug"
 	//namespaceEVM    = "evm"
 	//namespacePersonal = "personal"
 
@@ -33,6 +34,7 @@ func GetAPIs(backend sbchapi.BackendService,
 	_txPoolAPI := newTxPoolAPI(logger)
 	_sbchAPI := newSbchAPI(backend, logger)
 	_tmAPI := newTendermintAPI(backend, logger)
+	_debugAPI := newDebugAPI()
 	//_evmAPI := newEvmAPI(backend)
 
 	return []rpc.API{
@@ -76,6 +78,12 @@ func GetAPIs(backend sbchapi.BackendService,
 			Namespace: namespaceTM,
 			Version:   apiVersion,
 			Service:   _tmAPI,
+			Public:    true,
+		},
+		{
+			Namespace: namespaceDebug,
+			Version:   apiVersion,
+			Service:   _debugAPI,
 			Public:    true,
 		},
 	}
