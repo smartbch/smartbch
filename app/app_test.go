@@ -22,7 +22,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
-	"github.com/smartbch/smartbch/seps"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 )
 
@@ -99,7 +99,7 @@ func TestBlock(t *testing.T) {
 	require.Len(t, blk2.Transactions, 0)
 }
 
-func TestCheckTx(t *testing.T) {
+func TestCheckTx_basics(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
@@ -138,14 +138,16 @@ func TestCheckTx(t *testing.T) {
 	require.Equal(t, uint32(0), _app.CheckNewTxABCI(tx))
 }
 
-func TestCheckTx_GasLimitTooSmall(t *testing.T) {
+func TestCheckTx_badGasLimit(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	tx := ethutils.NewTx(0, &addr1, big.NewInt(100), 20999, big.NewInt(10), nil)
-	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), key1)
-	require.Equal(t, app.GasLimitTooSmall, _app.CheckNewTxABCI(tx))
+	tx1, _ := _app.MakeAndSignTxWithGas(key1, &addr1, 1, nil, 20999, 1)
+	require.Equal(t, app.GasLimitTooSmall, _app.CheckNewTxABCI(tx1))
+
+	tx2, _ := _app.MakeAndSignTxWithGas(key1, &addr1, 1, nil, param.MaxTxGasLimit+1, 1)
+	require.Equal(t, app.GasLimitInvalid, _app.CheckNewTxABCI(tx2))
 }
 
 func TestCheckTxNonce_serial(t *testing.T) {
@@ -172,48 +174,111 @@ func TestCheckTx_hasPending(t *testing.T) {
 	tx1, _ := _app.MakeAndSignTx(key1, &addr2, 1, nil)
 	tx2, _ := _app.MakeAndSignTx(key1, &addr2, 2, nil)
 	_app.AddTxsInBlock(1, tx1)
-	require.Equal(t, uint32(0x68), _app.CheckNewTxABCI(tx2))
+	require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx2))
 }
 
-func TestCheckTx_sep206SenderSet(t *testing.T) {
+func TestCheckTx_senderNotFound(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
-	key2, addr2 := testutils.GenKeyAndAddr()
-	key3, addr3 := testutils.GenKeyAndAddr()
-	key4, addr4 := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key1, key2, key3, key4)
+	key2, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 
-	// addr1 => addr2
-	data := seps.PackSEP20Transfer(addr2, big.NewInt(101))
-	tx1, _ := _app.MakeAndSignTx(key1, &seps.SEP206Addr, 0, data)
+	tx, _ := _app.MakeAndSignTx(key2, &addr1, 1, nil)
+	require.Equal(t, app.SenderNotFound, _app.CheckNewTxABCI(tx))
+}
 
-	// addr2 => addr3
-	data = seps.PackSEP20Transfer(addr3, big.NewInt(102))
-	tx2, _ := _app.MakeAndSignTx(key2, &seps.SEP206Addr, 0, data)
+func TestCheckTx_badGasPrice(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
 
-	// addr3 => addr4
-	data = seps.PackSEP20Transfer(addr4, big.NewInt(103))
-	tx3, _ := _app.MakeAndSignTx(key3, &seps.SEP206Addr, 0, data)
+	_app.SetMinGasPrice(100)
+	tx, _ := _app.MakeAndSignTxWithGas(key1, &addr1, 1, nil, 123456, 99)
+	require.Equal(t, app.InvalidMinGasPrice, _app.CheckNewTxABCI(tx))
+}
 
-	// addr4 => addr1
-	data = seps.PackSEP20Transfer(addr1, big.NewInt(103))
-	tx4, _ := _app.MakeAndSignTx(key4, &seps.SEP206Addr, 0, data)
+func TestCheckTx_manyTxInMempool(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
 
-	_app.ExecTxsInBlock(tx1, tx2, tx3)
-	_app.EnsureTxSuccess(tx1.Hash())
-	_app.EnsureTxSuccess(tx2.Hash())
-	_app.EnsureTxSuccess(tx3.Hash())
+	tx1, _ := _app.MakeAndSignTxWithNonce(key1, &addr2, 1, nil, 0)
+	tx2, _ := _app.MakeAndSignTxWithNonce(key1, &addr2, 2, nil, 1)
+	tx3, _ := _app.MakeAndSignTxWithNonce(key1, &addr2, 3, nil, 2)
+	_app.AddTxsInBlock(1, tx1)
 
-	require.True(t, _app.IsInSenderSet(addr1))
-	require.True(t, _app.IsInSenderSet(addr2))
-	require.True(t, _app.IsInSenderSet(addr3))
-	require.False(t, _app.IsInSenderSet(addr4))
+	//require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx3)) // rejected
+	//require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))          // ok
+	//require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx2)) // rejected
+	//require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx3))          // ok
+	//require.Equal(t, app.AccountNonceMismatch, _app.CheckNewTxABCI(tx3)) // rejected
 
-	checkResp := _app.RecheckTxABCI(tx1)
-	require.Equal(t, app.AccountNonceMismatch, checkResp)
+	code, info := _app.CheckTxABCI(tx3, true)
+	require.Equal(t, app.AccountNonceMismatch, code)
+	require.Equal(t, "bad nonce: tx nonce is larger than the account nonce", info)
 
-	checkResp = _app.RecheckTxABCI(tx4)
-	require.Equal(t, abci.CodeTypeOK, checkResp)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))
+
+	code, info = _app.CheckTxABCI(tx2, true)
+	require.Equal(t, app.AccountNonceMismatch, code)
+	require.Equal(t, "bad nonce: tx nonce is smaller than the account nonce", info)
+
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx3))
+
+	code, info = _app.CheckTxABCI(tx3, true)
+	require.Equal(t, app.AccountNonceMismatch, code)
+	require.Equal(t, "bad nonce: tx nonce is smaller than the account nonce", info)
+}
+
+func TestCheckTx_cannotPayGasFee(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		InitAmt:  uint256.NewInt(90000),
+		PrivKeys: []string{key1, key2},
+	})
+	defer _app.Destroy()
+	_app.SetMinGasPrice(1)
+
+	tx1, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 1, nil, 30000, 1, 0)
+	tx2, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 2, nil, 30000, 1, 1)
+	tx3, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 3, nil, 30000, 1, 2)
+	_app.AddTxsInBlock(1, tx1)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))
+	require.Equal(t, app.CannotPayGasFee, _app.CheckNewTxABCI(tx3))
+
+	tx4, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 1, nil, 30000, 1, 0)
+	tx5, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 2, nil, 30000, 1, 1)
+	tx6, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 3, nil, 30000, 1, 2)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx4))
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx5))
+	require.Equal(t, app.CannotPayGasFee, _app.CheckNewTxABCI(tx6))
+}
+
+func TestCheckTx_totalGasLimit(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		InitAmt:  uint256.NewInt(20000000),
+		PrivKeys: []string{key1, key2},
+	})
+	defer _app.Destroy()
+	_app.SetMinGasPrice(1)
+
+	tx1, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 1, nil, 2000000, 1, 0)
+	tx2, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 2, nil, 2000000, 1, 1)
+	tx3, _ := _app.MakeAndSignTxWithAllArgs(key1, &addr2, 3, nil, 3000001, 1, 2)
+	_app.AddTxsInBlock(1, tx1)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx2))
+	require.Equal(t, app.GasLimitInvalid, _app.CheckNewTxABCI(tx3))
+
+	tx4, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 1, nil, 2000000, 1, 0)
+	tx5, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 2, nil, 3000001, 1, 1)
+	tx6, _ := _app.MakeAndSignTxWithAllArgs(key2, &addr1, 3, nil, 2000000, 1, 2)
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx4))
+	require.Equal(t, abci.CodeTypeOK, _app.CheckNewTxABCI(tx5))
+	require.Equal(t, app.GasLimitInvalid, _app.CheckNewTxABCI(tx6))
 }
 
 func TestIncorrectNonceErr(t *testing.T) {

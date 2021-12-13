@@ -68,7 +68,7 @@ type TestAppInitArgs struct {
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return CreateTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
 }
 
 func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
@@ -92,10 +92,10 @@ func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
 		initAmt = args.InitAmt
 	}
 
-	return CreateTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
+	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
 }
 
-func CreateTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
+func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
 	err := os.RemoveAll(testAdsDir)
 	if err != nil {
 		panic("remove test ads failed " + err.Error())
@@ -127,6 +127,7 @@ func CreateTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	//reset config for test
 	staking.DefaultMinGasPrice = 0
 	staking.MinGasPriceLowerBound = 0
+	//setMinGasPrice(_app, 0)
 
 	_app.InitChain(abci.RequestInitChain{AppStateBytes: appStateBytes})
 	_app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
@@ -207,6 +208,17 @@ func (_app *TestApp) Destroy() {
 
 func (_app *TestApp) WaitMS(n int64) {
 	time.Sleep(time.Duration(n) * time.Millisecond)
+}
+
+func (_app *TestApp) SetMinGasPrice(gp uint64) {
+	setMinGasPrice(_app.App, gp)
+	_app.ExecTxsInBlock()
+}
+func setMinGasPrice(_app *app.App, gp uint64) {
+	ctx := _app.GetRunTxContext()
+	staking.SaveMinGasPrice(ctx, gp, true)
+	staking.SaveMinGasPrice(ctx, gp, false)
+	ctx.Close(true)
 }
 
 func (_app *TestApp) GetMinGasPrice(isLast bool) uint64 {
@@ -352,8 +364,21 @@ func (_app *TestApp) MakeAndSignTx(hexPrivKey string,
 	return _app.MakeAndSignTxWithGas(hexPrivKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice)
 }
 
+func (_app *TestApp) MakeAndSignTxWithNonce(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, nonce int64) (*gethtypes.Transaction, gethcmn.Address) {
+
+	return _app.MakeAndSignTxWithAllArgs(hexPrivKey, toAddr, val, data, DefaultGasLimit, DefaultGasPrice, nonce)
+}
+
 func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	toAddr *gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, gethcmn.Address) {
+
+	return _app.MakeAndSignTxWithAllArgs(hexPrivKey, toAddr, val, data, gasLimit, gasPrice, -1)
+}
+
+func (_app *TestApp) MakeAndSignTxWithAllArgs(hexPrivKey string,
+	toAddr *gethcmn.Address, val int64, data []byte, gasLimit uint64, gasPrice int64,
+	nonce int64) (*gethtypes.Transaction, gethcmn.Address) {
 
 	privKey, _, err := ethutils.HexToPrivKey(hexPrivKey)
 	if err != nil {
@@ -361,10 +386,14 @@ func (_app *TestApp) MakeAndSignTxWithGas(hexPrivKey string,
 	}
 
 	addr := ethutils.PrivKeyToAddr(privKey)
-	nonce := _app.GetNonce(addr)
+	nonceU64 := uint64(nonce)
+	if nonce < 0 {
+		nonceU64 = _app.GetNonce(addr)
+	}
+
 	chainID := _app.ChainID().ToBig()
 	txData := &gethtypes.LegacyTx{
-		Nonce:    nonce,
+		Nonce:    nonceU64,
 		GasPrice: big.NewInt(gasPrice),
 		Gas:      gasLimit,
 		To:       toAddr,
@@ -504,16 +533,21 @@ func (_app *TestApp) EnsureTxFailedWithOutData(hash gethcmn.Hash, statusStr, out
 }
 
 func (_app *TestApp) CheckNewTxABCI(tx *gethtypes.Transaction) uint32 {
-	res := _app.CheckTx(abci.RequestCheckTx{
-		Tx:   MustEncodeTx(tx),
-		Type: abci.CheckTxType_New,
-	})
-	return res.Code
+	code, _ := _app.CheckTxABCI(tx, true)
+	return code
 }
 func (_app *TestApp) RecheckTxABCI(tx *gethtypes.Transaction) uint32 {
+	code, _ := _app.CheckTxABCI(tx, false)
+	return code
+}
+func (_app *TestApp) CheckTxABCI(tx *gethtypes.Transaction, newTx bool) (uint32, string) {
+	txCheckType := abci.CheckTxType_New
+	if !newTx {
+		txCheckType = abci.CheckTxType_Recheck
+	}
 	res := _app.CheckTx(abci.RequestCheckTx{
 		Tx:   MustEncodeTx(tx),
-		Type: abci.CheckTxType_Recheck,
+		Type: txCheckType,
 	})
-	return res.Code
+	return res.Code, res.Info
 }

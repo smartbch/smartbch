@@ -15,6 +15,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/holiman/uint256 v1.2.0
 	github.com/kr/text v0.2.0 // indirect
+	github.com/mackerelio/go-osstat v0.2.1
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
@@ -24,7 +25,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.3.0
-	github.com/smartbch/moeingdb v0.3.3-0.20211208021729-0ca7b260f7f8
+	github.com/smartbch/moeingdb v0.3.4-0.20211208021729-0ca7b260f7f8
 	github.com/smartbch/moeingevm v0.3.2-0.20211209233058-97e77c2ea182
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
@@ -70,7 +71,6 @@ require (
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.8 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
-	github.com/mackerelio/go-osstat v0.2.1 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20181016162300-f8f6d4d2b643 // indirect

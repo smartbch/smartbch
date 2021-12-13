@@ -50,6 +50,8 @@ type AppConfig struct {
 	MainnetRPCPassword string `mapstructure:"mainnet-rpc-password"`
 	SmartBchRPCUrl     string `mapstructure:"smartbch-rpc-url"`
 	Speedup            bool   `mapstructure:"watcher-speedup"`
+
+	FrontierGasLimit uint64 `mapstructure:"frontier-gaslimit"`
 }
 
 type ChainConfig struct {
@@ -86,6 +88,7 @@ func DefaultAppConfigWithHome(home string) *AppConfig {
 		ChangeRetainEveryN:      DefaultChangeRetainEveryN,
 		PruneEveryN:             DefaultPruneEveryN,
 		MainnetRPCPassword:      "123456",
+		FrontierGasLimit:        uint64(BlockMaxGas / 200), //5Million gas
 	}
 }
 

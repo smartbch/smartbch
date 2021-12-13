@@ -39,7 +39,6 @@ import (
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/seps"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher"
@@ -93,9 +92,9 @@ type App struct {
 	scope     event.SubscriptionScope
 
 	//engine
-	txEngine     ebp.TxExecutor
-	reorderSeed  int64            // recorded in BeginBlock, used in Commit
-	nonceMatcher ebp.NonceMatcher // recorded in Commint, used in next block's CheckTx
+	txEngine    ebp.TxExecutor
+	reorderSeed int64        // recorded in BeginBlock, used in Commit
+	frontier    ebp.Frontier // recorded in Commint, used in next block's CheckTx
 
 	//watcher
 	watcher     *watcher.Watcher
@@ -110,14 +109,11 @@ type App struct {
 	currValidators  []*stakingtypes.Validator // it is needed to compute validatorUpdate
 	validatorUpdate []*stakingtypes.Validator // tendermint wants to know validators whose voting power change
 
-	//speedup
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache map[gethcmn.Hash]SenderAndHeight
-	// the senders who send native tokens through sep206 in the last block
-	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
+
 	// it shows how many tx remains in the mempool after committing a new block
-	recheckCounter          int
-	addr2NonceSetForCheckTx map[gethcmn.Address]uint64
+	recheckCounter int
 }
 
 // The value entry of signature cache. The Height helps in evicting old entries.
@@ -151,7 +147,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		param.EbpExeRoundCount,
 		param.EbpRunnerNumber,
 		param.EbpParallelNum,
-		5000 /*not consensus relevant*/, app.signer)
+		5000, /*not consensus relevant*/
+		app.signer,
+		app.logger.With("module", "engine"))
 	//ebp.AdjustGasUsed = false
 
 	/*------set system contract------*/
@@ -162,9 +160,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
 	app.txid2sigMap = make(map[[32]byte][65]byte)
-	app.nonceMatcher = ebp.GetEmptyNonceMatcher()
-	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
-	app.addr2NonceSetForCheckTx = make(map[gethcmn.Address]uint64)
+	app.frontier = ebp.GetEmptyFrontier()
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -317,94 +313,97 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		}
 		app.sigCacheAdd(txid, SenderAndHeight{sender, app.currHeight})
 	}
-	if req.Type == abcitypes.CheckTxType_Recheck {
-		// During rechecking, if the sender has not been touched or lose balance, the tx can pass
-		if _, ok := app.sep206SenderSet[sender]; !ok {
-			return abcitypes.ResponseCheckTx{
-				Code:      abcitypes.CodeTypeOK,
-				GasWanted: int64(tx.Gas()),
-			}
-		}
-	}
-	return app.checkTxWithContext(tx, sender)
+	return app.checkTxWithContext(tx, sender, req.Type)
 }
 
-func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
+func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address, txType abcitypes.CheckTxType) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
-	intrGas, err := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
-	if err != nil || tx.Gas() < intrGas {
-		return abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
-	}
-	if tx.Gas() > param.MaxTxGasLimit {
-		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	if ok, res := checkGasLimit(tx); !ok {
+		return res
 	}
 	acc := ctx.GetAccount(sender)
 	if acc == nil {
 		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
 	}
-	matched, dbNonce := app.nonceMatcher.MatchLatestNonce(sender, tx.Nonce())
-	checkDbNonce := acc.Nonce()
+	//may not need frontier, can update checkTxCtx in reCheckTx directly
+	latestNonce, exist := app.frontier.GetLatestNonce(sender)
 
-	//for debug
-	//cachedNonceForDebug, exist := app.addr2NonceSetForCheckTx[sender]
-	//if exist {
-	//	fmt.Printf("height:%d, checkDbNonce:%d, dbNonce:%d, tx.nonce:%d, cachedNonce:%d\n", app.currHeight, checkDbNonce, dbNonce, tx.Nonce(), cachedNonceForDebug)
-	//} else {
-	//	fmt.Printf("height:%d, checkDbNonce:%d, dbNonce:%d, tx.nonce:%d, cachedNonce is nil\n", app.currHeight, checkDbNonce, dbNonce, tx.Nonce())
-	//}
+	app.logger.Debug("checkTxWithContext",
+		"isReCheckTx", txType == abcitypes.CheckTxType_Recheck,
+		"tx.nonce", tx.Nonce(),
+		"account.nonce", acc.Nonce(),
+		"latestNonce", latestNonce)
 
-	if tx.Nonce() < checkDbNonce {
+	targetNonce := acc.Nonce()
+	if exist && latestNonce > acc.Nonce() {
+		targetNonce = latestNonce
+	}
+	if tx.Nonce() > targetNonce {
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
+	} else if tx.Nonce() < targetNonce {
 		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
 	}
-	cachedNonce, ok := app.addr2NonceSetForCheckTx[sender]
-	if tx.Nonce() > checkDbNonce {
-		if !matched {
-			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
-		} else /*smaller nonce tx from same sender has been in prev block*/ {
-			/*only allow continuous pending tx
-			when sender has many tx in prev block,
-			jump directly to the largest nonce in check context which will be updated to execute truck in refresh()*/
-			if !ok && tx.Nonce() != checkDbNonce+1 {
-				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
-			}
-			if ok && tx.Nonce() < cachedNonce+1 {
-				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
-			} else if ok && tx.Nonce() > cachedNonce+1 {
-				return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
-			}
-		}
-	} else {
-		//remove tx which already in block but not execute in time, dbNonce always 1 greater
-		if (matched && tx.Nonce()+1 == dbNonce) || (ok && tx.Nonce() <= cachedNonce) {
-			return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrSameNonceAlredyInBlock.Error()}
-		}
-	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	gasFee := uint256.NewInt(0).Mul(gasPrice, uint256.NewInt(tx.Gas()))
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
-	err = ctx.DeductTxFeeWithSpecificNonce(sender, acc, tx.Gas(), gasPrice, tx.Nonce()+1)
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+	if !exist {
+		err2 := ctx.DeductTxFeeWithSpecificNonce(sender, acc, tx.Gas(), gasPrice, tx.Nonce()+1)
+		if err2 != nil {
+			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+		}
+	} else {
+		balance, ok := app.frontier.GetLatestBalance(sender)
+		if !ok || balance.Cmp(gasFee) < 0 {
+			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+		}
 	}
-	app.addr2NonceSetForCheckTx[sender] = tx.Nonce()
-	// refresh memory when set reach 0.1 GB
-	if len(app.addr2NonceSetForCheckTx) == 5_000_000 {
-		app.addr2NonceSetForCheckTx = nil
-		app.addr2NonceSetForCheckTx = make(map[gethcmn.Address]uint64)
+	if exist {
+		totalGasLimit, _ := app.frontier.GetLatestTotalGasLimit(sender)
+		totalGasLimit += tx.Gas()
+		if totalGasLimit > app.config.AppConfig.FrontierGasLimit {
+			return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "send transaction too frequent"}
+		}
+		app.frontier.SetLatestTotalGasLimit(sender, totalGasLimit)
 	}
-
+	//update frontier
+	app.frontier.SetLatestNonce(sender, tx.Nonce()+1)
+	balance := ctx.GetAccount(sender).Balance().Clone()
+	if exist {
+		balance, _ = app.frontier.GetLatestBalance(sender)
+		balance.Sub(balance, gasFee)
+	}
+	value, _ := uint256.FromBig(tx.Value())
+	if balance.Cmp(value) < 0 {
+		app.frontier.SetLatestBalance(sender, uint256.NewInt(0))
+	} else {
+		balance = balance.Sub(balance, value)
+		app.frontier.SetLatestBalance(sender, balance)
+	}
+	app.logger.Debug("checkTxWithContext:", "value", value.String(), "balance", balance.String())
 	dirty = true
 	app.logger.Debug("leave check tx!")
 	return abcitypes.ResponseCheckTx{
 		Code:      abcitypes.CodeTypeOK,
 		GasWanted: int64(tx.Gas()),
 	}
+}
+
+func checkGasLimit(tx *gethtypes.Transaction) (ok bool, res abcitypes.ResponseCheckTx) {
+	intrinsicGas, err2 := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
+	if err2 != nil || tx.Gas() < intrinsicGas {
+		return false, abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
+	}
+	if tx.Gas() > param.MaxTxGasLimit {
+		return false, abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	}
+	return true, abcitypes.ResponseCheckTx{}
 }
 
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
@@ -601,7 +600,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.nonceMatcher = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
+	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	if bi == nil {
@@ -753,7 +752,6 @@ func (app *App) refresh() {
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
 		var wg sync.WaitGroup
-		app.sep206SenderSet = app.getSep206SenderSet(&wg)
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -785,27 +783,6 @@ func (app *App) refresh() {
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
-}
-
-// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
-// through sep206 in the last block
-func (app *App) getSep206SenderSet(wg *sync.WaitGroup) map[gethcmn.Address]struct{} {
-	res := make(map[gethcmn.Address]struct{})
-	wg.Add(1)
-	go func() {
-		for _, tx := range app.txEngine.CommittedTxs() {
-			for _, log := range tx.Logs {
-				if log.Address == seps.SEP206Addr && len(log.Topics) == 3 &&
-					log.Topics[0] == modbtypes.TransferEvent {
-					var addr gethcmn.Address
-					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
-					res[addr] = struct{}{}
-				}
-			}
-		}
-		wg.Done()
-	}()
-	return res
 }
 
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
