@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.5
+
+* JSON-RPC
+  * Add request logs
+  * Improve eth_estimateGas
+* Library
+  * Upgrade moeingdb to v0.3.4
+  * Upgrade moeingevm to v0.3.3
+
+
 ## v0.3.4
 
 * JSON-RPC
