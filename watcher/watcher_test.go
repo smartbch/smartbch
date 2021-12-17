@@ -1,4 +1,4 @@
-package staking
+package watcher
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/staking/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher/types"
 )
 
 type MockBCHNode struct {
@@ -35,9 +36,9 @@ func buildMockBCHNodeWithOnlyValidator1() *MockBCHNode {
 			Timestamp:   int64(i * 10 * 60),
 			HashId:      [32]byte{byte(i + 1)},
 			ParentBlk:   [32]byte{byte(i)},
-			Nominations: make([]types.Nomination, 1),
+			Nominations: make([]stakingtypes.Nomination, 1),
 		}
-		m.blocks[i].Nominations[0] = types.Nomination{
+		m.blocks[i].Nominations[0] = stakingtypes.Nomination{
 			Pubkey:         testValidatorPubkey1,
 			NominatedCount: 1,
 		}
@@ -53,7 +54,7 @@ func buildMockBCHNodeWithReorg() *MockBCHNode {
 		Timestamp:   99 * 10 * 60,
 		HashId:      [32]byte{byte(100)},
 		ParentBlk:   [32]byte{byte(199)},
-		Nominations: make([]types.Nomination, 1),
+		Nominations: make([]stakingtypes.Nomination, 1),
 	}
 	m.reorgBlocks = make(map[[32]byte]*types.BCHBlock)
 	m.reorgBlocks[[32]byte{byte(199)}] = &types.BCHBlock{
@@ -61,7 +62,7 @@ func buildMockBCHNodeWithReorg() *MockBCHNode {
 		Timestamp:   98 * 10 * 60,
 		HashId:      [32]byte{byte(199)},
 		ParentBlk:   [32]byte{byte(98)},
-		Nominations: make([]types.Nomination, 1),
+		Nominations: make([]stakingtypes.Nomination, 1),
 	}
 	return m
 }
@@ -99,7 +100,7 @@ func (m MockRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return m.node.blocks[height-1]
 }
 
-func (m MockRpcClient) GetEpochs(start, end uint64) []*types.Epoch {
+func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
 	fmt.Printf("mock Rpc not support get Epoch")
 	return nil
 }
@@ -108,7 +109,7 @@ var _ types.RpcClient = MockRpcClient{}
 
 type MockEpochConsumer struct {
 	w         *Watcher
-	epochList []*types.Epoch
+	epochList []*stakingtypes.Epoch
 }
 
 //nolint
@@ -183,11 +184,11 @@ func TestRunWithFork(t *testing.T) {
 }
 
 func TestEpochSort(t *testing.T) {
-	epoch := &types.Epoch{
-		Nominations: make([]*types.Nomination, 100),
+	epoch := &stakingtypes.Epoch{
+		Nominations: make([]*stakingtypes.Nomination, 100),
 	}
 	for i := 0; i < 100; i++ {
-		epoch.Nominations[i] = &types.Nomination{
+		epoch.Nominations[i] = &stakingtypes.Nomination{
 			Pubkey:         [32]byte{byte(i)},
 			NominatedCount: int64(i/5 + 1),
 		}

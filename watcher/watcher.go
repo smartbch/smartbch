@@ -1,4 +1,4 @@
-package staking
+package watcher
 
 import (
 	"bytes"
@@ -11,7 +11,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/staking/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher/types"
 )
 
 const (
@@ -27,7 +28,7 @@ type Watcher struct {
 	rpcClient         types.RpcClient
 	smartBchRpcClient types.RpcClient
 
-	EpochChan chan *types.Epoch
+	EpochChan chan *stakingtypes.Epoch
 
 	lastEpochEndHeight    int64
 	latestFinalizedHeight int64
@@ -35,7 +36,7 @@ type Watcher struct {
 
 	hashToBlock            map[[32]byte]*types.BCHBlock
 	heightToFinalizedBlock map[int64]*types.BCHBlock
-	epochList              []*types.Epoch
+	epochList              []*stakingtypes.Epoch
 
 	speedup bool
 
@@ -58,9 +59,9 @@ func NewWatcher(logger log.Logger, lastHeight int64, rpcClient types.RpcClient, 
 
 		hashToBlock:            make(map[[32]byte]*types.BCHBlock),
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
-		epochList:              make([]*types.Epoch, 0, 10),
+		epochList:              make([]*stakingtypes.Epoch, 0, 10),
 
-		EpochChan: make(chan *types.Epoch, 10000),
+		EpochChan: make(chan *stakingtypes.Epoch, 10000),
 		speedup:   speedup,
 
 		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
@@ -219,13 +220,13 @@ func (watcher *Watcher) generateNewEpoch() {
 	watcher.ClearOldData()
 }
 
-func (watcher *Watcher) buildNewEpoch() *types.Epoch {
-	epoch := &types.Epoch{
+func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
+	epoch := &stakingtypes.Epoch{
 		StartHeight: watcher.lastEpochEndHeight + 1,
-		Nominations: make([]*types.Nomination, 0, 10),
+		Nominations: make([]*stakingtypes.Nomination, 0, 10),
 	}
 	startTime := int64(1 << 62)
-	var valMapByPubkey = make(map[[32]byte]*types.Nomination)
+	var valMapByPubkey = make(map[[32]byte]*stakingtypes.Nomination)
 	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
 		blk, ok := watcher.heightToFinalizedBlock[i]
 		if !ok {
@@ -267,7 +268,7 @@ func (watcher *Watcher) CheckSanity(forTest bool) {
 
 //sort by pubkey (small to big) first; then sort by nominationCount;
 //so nominations sort by NominationCount, if count is equal, smaller pubkey stand front
-func sortEpochNominations(epoch *types.Epoch) {
+func sortEpochNominations(epoch *stakingtypes.Epoch) {
 	sort.Slice(epoch.Nominations, func(i, j int) bool {
 		return bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0
 	})

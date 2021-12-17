@@ -17,34 +17,11 @@ var (
 	ValidatorPubkeyAlreadyExists  = errors.New("Validator's pubkey already exists")
 )
 
-// These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
-type RpcClient interface {
-	GetLatestHeight() int64
-	GetBlockByHeight(height int64) *BCHBlock
-	GetBlockByHash(hash [32]byte) *BCHBlock
-	GetEpochs(start, end uint64) []*Epoch
-}
-
 // Currently the first Vout in a coinbase transaction can nominate one validator with one vote
 // In the future it maybe extend to nominate multiple validators with different weights
 type Nomination struct {
 	Pubkey         [32]byte // The validator's ED25519 pubkey used in tendermint
 	NominatedCount int64
-}
-
-// This struct contains the useful information of a BCH block
-type BCHBlock struct {
-	Height      int64
-	Timestamp   int64
-	HashId      [32]byte
-	ParentBlk   [32]byte
-	Nominations []Nomination
-}
-
-//not check Nominations
-func (b *BCHBlock) Equal(o *BCHBlock) bool {
-	return b.Height == o.Height && b.Timestamp == o.Timestamp &&
-		b.HashId == o.HashId && b.ParentBlk == o.ParentBlk
 }
 
 // An epoch elects several validators in NumBlocksInEpoch blocks

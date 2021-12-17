@@ -11,17 +11,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
 	rpcjson "github.com/gorilla/rpc/json"
-
-	"github.com/smartbch/smartbch/staking"
+	watcher "github.com/smartbch/smartbch/watcher/types"
 )
 
-type BlockInfoRespList []*staking.BlockInfoResp
-type TxInfoRespList []*staking.TxInfoResp
+type BlockInfoRespList []*watcher.BlockInfoResp
+type TxInfoRespList []*watcher.TxInfoResp
 
 var Blockcount int64
 var BlockHeight2Hash map[int64]string
-var BlockHash2Content map[string]*staking.BlockInfoResp
-var TxHash2Content map[string]*staking.TxInfoResp
+var BlockHash2Content map[string]*watcher.BlockInfoResp
+var TxHash2Content map[string]*watcher.TxInfoResp
 
 type BlockcountService struct{}
 
@@ -43,7 +42,7 @@ func (_ *BlockhashService) Call(r *http.Request, args *int64, result *string) er
 
 type BlockService struct{}
 
-func (_ *BlockService) Call(r *http.Request, args *string, result *staking.BlockInfo) error {
+func (_ *BlockService) Call(r *http.Request, args *string, result *watcher.BlockInfo) error {
 	info, ok := BlockHash2Content[*args]
 	if !ok {
 		return errors.New("No such block hash")
@@ -54,7 +53,7 @@ func (_ *BlockService) Call(r *http.Request, args *string, result *staking.Block
 
 type TxService struct{}
 
-func (_ *TxService) Call(r *http.Request, args *string, result *staking.TxInfo) error {
+func (_ *TxService) Call(r *http.Request, args *string, result *watcher.TxInfo) error {
 	info, ok := TxHash2Content[*args]
 	if !ok {
 		return errors.New("No such tx hash")
@@ -106,8 +105,8 @@ func readTxInfoList() {
 
 func main() {
 	BlockHeight2Hash = make(map[int64]string)
-	BlockHash2Content = make(map[string]*staking.BlockInfoResp)
-	TxHash2Content = make(map[string]*staking.TxInfoResp)
+	BlockHash2Content = make(map[string]*watcher.BlockInfoResp)
+	TxHash2Content = make(map[string]*watcher.TxInfoResp)
 	readBlockInfoList()
 	readTxInfoList()
 	fmt.Println("Load finished")
