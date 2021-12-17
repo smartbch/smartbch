@@ -110,7 +110,7 @@ func CreateTestApp0(startTime time.Time, valPubKey crypto.PubKey, initAmt *uint2
 		fmt.Println("h: 0 StateRoot:", hex.EncodeToString(stateRoot))
 	}
 
-	allBalance := uint256.NewInt()
+	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()
 	}
@@ -129,7 +129,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
 	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
-	allBalance := uint256.NewInt()
+	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()
 	}
@@ -146,7 +146,7 @@ func (_app *TestApp) DestroyWithoutCheck() {
 }
 
 func (_app *TestApp) Destroy() {
-	allBalance := uint256.NewInt()
+	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.App.SumAllBalance()
 	}
@@ -375,7 +375,7 @@ func (_app *TestApp) ExecTxsInBlock(txs ...*gethtypes.Transaction) int64 {
 
 func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) int64 {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Hash: uint256.NewInt().SetUint64(uint64(height)).PaddedBytes(32),
+		Hash: uint256.NewInt(uint64(height)).PaddedBytes(32),
 		Header: tmproto.Header{
 			Height:          height,
 			Time:            _app.StartTime.Add(BlockInterval * time.Duration(height)),
@@ -397,7 +397,7 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 }
 func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Hash: uint256.NewInt().SetUint64(uint64(currHeight + 1)).PaddedBytes(32),
+		Hash: uint256.NewInt(0).SetUint64(uint64(currHeight + 1)).PaddedBytes(32),
 		Header: tmproto.Header{
 			Height: currHeight + 1,
 			Time:   _app.StartTime.Add(BlockInterval * time.Duration(currHeight+1)),

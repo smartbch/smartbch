@@ -486,6 +486,6 @@ bd0c4e850d868d2f7aa12664736f6c63430008000033
 		statusCode, _, retData := _app.Call(addr, contractAddr, getLastBlockHashInput)
 		require.Equal(t, 0, statusCode)
 		println(hex.EncodeToString(retData))
-		require.False(t, uint256.NewInt().SetBytes32(retData).IsZero())
+		require.False(t, uint256.NewInt(0).SetBytes32(retData).IsZero())
 	}
 }

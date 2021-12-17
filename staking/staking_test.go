@@ -116,7 +116,7 @@ func TestStaking(t *testing.T) {
 	e := &staking.StakingContractExecutor{}
 	e.Init(ctx)
 
-	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+	staking.InitialStakingAmount = uint256.NewInt(0)
 
 	// test create validator
 	c := buildCreateValCallEntry(sender, 101, 11, 1)
@@ -157,7 +157,7 @@ func TestSwitchEpoch(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
-	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+	staking.InitialStakingAmount = uint256.NewInt(0)
 	ctx := _app.GetRunTxContext()
 	//build new epoch
 	e := &types2.Epoch{
@@ -171,7 +171,7 @@ func TestSwitchEpoch(t *testing.T) {
 		Pubkey:         pubkey,
 		NominatedCount: 1,
 	})
-	staking.MinimumStakingAmount = uint256.NewInt().SetUint64(0)
+	staking.MinimumStakingAmount = uint256.NewInt(0)
 	//add another validator
 	exe := &staking.StakingContractExecutor{}
 	exe.Init(ctx)
@@ -189,7 +189,7 @@ func TestSwitchEpoch(t *testing.T) {
 	info.Validators[0].VotingPower = 1
 	info.Validators[1].VotingPower = 1
 	staking.SaveStakingInfo(ctx, info)
-	collectedFee := uint256.NewInt().SetUint64(10000)
+	collectedFee := uint256.NewInt(10000)
 	voters := make([][32]byte, 2)
 	voters[0] = pubkey
 	voters[1] = info.Validators[1].Pubkey
@@ -205,8 +205,8 @@ func TestSwitchEpoch(t *testing.T) {
 		voterReward = info.PendingRewards[0]
 		proposerReward = info.PendingRewards[1]
 	}
-	require.Equal(t, uint64((10000-1500-8500*15/100)/2/2), uint256.NewInt().SetBytes32(voterReward.Amount[:]).Uint64())
-	require.Equal(t, uint64(10000/2-(10000-1500-8500*15/100)/2/2), uint256.NewInt().SetBytes32(proposerReward.Amount[:]).Uint64())
+	require.Equal(t, uint64((10000-1500-8500*15/100)/2/2), uint256.NewInt(0).SetBytes32(voterReward.Amount[:]).Uint64())
+	require.Equal(t, uint64(10000/2-(10000-1500-8500*15/100)/2/2), uint256.NewInt(0).SetBytes32(proposerReward.Amount[:]).Uint64())
 	require.Equal(t, uint64(10100), stakingAcc.Balance().Uint64())
 	//clear validator pendingReward for testing clearUp
 	info.PendingRewards = []*types2.PendingReward{proposerReward}
@@ -241,9 +241,9 @@ func TestSlash(t *testing.T) {
 	info := staking.LoadStakingInfo(ctx)
 	info.Validators[0].StakedCoins[31] = 100
 	staking.SaveStakingInfo(ctx, info)
-	totalSlashed := staking.Slash(ctx, &info, slashedPubkey, uint256.NewInt().SetUint64(1))
+	totalSlashed := staking.Slash(ctx, &info, slashedPubkey, uint256.NewInt(1))
 	require.Equal(t, uint64(1), totalSlashed.Uint64())
-	allBurnt := uint256.NewInt()
+	allBurnt := uint256.NewInt(0)
 	bz := ctx.GetStorageAt(staking.StakingContractSequence, staking.SlotAllBurnt)
 	if len(bz) != 0 {
 		allBurnt.SetBytes32(bz)
@@ -261,7 +261,7 @@ func TestGasPriceAdjustment(t *testing.T) {
 	e := staking.NewStakingContractExecutor(log.NewNopLogger())
 	e.Init(ctx)
 	staking.SaveMinGasPrice(ctx, staking.DefaultMinGasPrice, true)
-	staking.InitialStakingAmount = uint256.NewInt().SetUint64(0)
+	staking.InitialStakingAmount = uint256.NewInt(0)
 
 	//create validator
 	c := buildCreateValCallEntry(sender, 101, 11, 1)

@@ -48,7 +48,7 @@ func newValidatorsInfo(currValidators []*stakingtypes.Validator,
 		info.PendingRewards[i] = &PendingReward{
 			Address:  pr.Address,
 			EpochNum: pr.EpochNum,
-			Amount:   uint256.NewInt().SetBytes(pr.Amount[:]).String(),
+			Amount:   uint256.NewInt(0).SetBytes(pr.Amount[:]).String(),
 		}
 	}
 

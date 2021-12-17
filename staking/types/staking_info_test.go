@@ -75,7 +75,7 @@ func TestGetActiveValidators(t *testing.T) {
 	}
 
 	min := [32]byte{0x11}
-	vals := si.GetActiveValidators(uint256.NewInt().SetBytes32(min[:]))
+	vals := si.GetActiveValidators(uint256.NewInt(0).SetBytes32(min[:]))
 	require.Len(t, vals, 4)
 	require.Equal(t, [20]byte{0xad, 0x06}, vals[0].Address)
 	require.Equal(t, [20]byte{0xad, 0x07}, vals[1].Address)

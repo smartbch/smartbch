@@ -80,10 +80,10 @@ var (
 	//SlashedStakingAmount *uint256.Int = uint256.NewInt().Mul(
 	//	uint256.NewInt().SetUint64(10),
 	//	uint256.NewInt().SetUint64(1000_000_000_000_000_000))
-	InitialStakingAmount *uint256.Int = uint256.NewInt()
+	InitialStakingAmount *uint256.Int = uint256.NewInt(0)
 
-	MinimumStakingAmount *uint256.Int = uint256.NewInt()
-	SlashedStakingAmount *uint256.Int = uint256.NewInt()
+	MinimumStakingAmount *uint256.Int = uint256.NewInt(0)
+	SlashedStakingAmount *uint256.Int = uint256.NewInt(0)
 
 	GasOfValidatorOp   uint64 = 400_000
 	GasOfMinGasPriceOp uint64 = 50_000
@@ -220,8 +220,8 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 		totalPower += val.VotingPower
 	}
 	var result [64]byte
-	uint256.NewInt().SetUint64(uint64(summedPower)).WriteToSlice(result[:32])
-	uint256.NewInt().SetUint64(uint64(totalPower)).WriteToSlice(result[32:])
+	uint256.NewInt(uint64(summedPower)).WriteToSlice(result[:32])
+	uint256.NewInt(uint64(totalPower)).WriteToSlice(result[32:])
 	return result[:], nil
 }
 
@@ -253,7 +253,7 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 	var pubkey [32]byte
 	copy(pubkey[:], callData[64:])
 
-	if uint256.NewInt().SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
+	if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
 		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
 		return
 	}
@@ -301,9 +301,9 @@ func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, l
 	if len(intro) != 0 {
 		val.Introduction = intro
 	}
-	coins4staking := uint256.NewInt().SetBytes32(tx.Value[:])
+	coins4staking := uint256.NewInt(0).SetBytes32(tx.Value[:])
 	if !coins4staking.IsZero() {
-		stakedCoins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
+		stakedCoins := uint256.NewInt(0).SetBytes32(val.StakedCoins[:])
 		stakedCoins.Add(stakedCoins, coins4staking)
 		val.StakedCoins = stakedCoins.Bytes32()
 	}
@@ -319,7 +319,7 @@ func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingA
 	status = StatusFailed //default status is failed
 	sender := ctx.GetAccount(tx.From)
 	balance := sender.Balance()
-	coins4staking := uint256.NewInt().SetBytes32(tx.Value[:])
+	coins4staking := uint256.NewInt(0).SetBytes32(tx.Value[:])
 	if balance.Lt(coins4staking) {
 		outData = []byte(BalanceNotEnough.Error())
 		return
@@ -537,7 +537,7 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 	if val == nil {
 		return // If tendermint works fine, we'll never reach here
 	}
-	coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
+	coins := uint256.NewInt(0).SetBytes32(val.StakedCoins[:])
 	if coins.Lt(amount) { // not enough coins to be slashed
 		totalSlashed = coins.Clone()
 		coins.SetUint64(0)
@@ -558,7 +558,7 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 
 // Increase the slot of 'all burnt' inside stakingAcc
 func incrAllBurnt(ctx *mevmtypes.Context, amount *uint256.Int) {
-	allBurnt := uint256.NewInt()
+	allBurnt := uint256.NewInt(0)
 	bz := ctx.GetStorageAt(StakingContractSequence, SlotAllBurnt)
 	if len(bz) != 0 {
 		allBurnt.SetBytes32(bz)
@@ -582,7 +582,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
 
 	//burn half of the collected fees
-	halfFeeToBurn := uint256.NewInt().Rsh(collectedFee, 1)
+	halfFeeToBurn := uint256.NewInt(0).Rsh(collectedFee, 1)
 	collectedFee.Sub(collectedFee, halfFeeToBurn)
 	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
 
@@ -596,18 +596,18 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 		votedPower += val.VotingPower
 	}
 
-	proposerBaseFee := uint256.NewInt()
-	proposerExtraFee := uint256.NewInt()
+	proposerBaseFee := uint256.NewInt(0)
+	proposerExtraFee := uint256.NewInt(0)
 	if proposer != [32]byte{} {
 		// proposerBaseFee and proposerExtraFee both go to the proposer
-		proposerBaseFee = uint256.NewInt().Mul(collectedFee,
-			uint256.NewInt().SetUint64(param.StakingBaseProposerPercentage))
-		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt().SetUint64(100))
+		proposerBaseFee = uint256.NewInt(0).Mul(collectedFee,
+			uint256.NewInt(param.StakingBaseProposerPercentage))
+		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt(100))
 		collectedFee.Sub(collectedFee, proposerBaseFee)
-		proposerExtraFee = uint256.NewInt().Mul(collectedFee,
-			uint256.NewInt().SetUint64(param.StakingExtraProposerPercentage))
-		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt().SetUint64(uint64(votedPower)))
-		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt().SetUint64(uint64(100*totalVotingPower)))
+		proposerExtraFee = uint256.NewInt(0).Mul(collectedFee,
+			uint256.NewInt(param.StakingExtraProposerPercentage))
+		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt(uint64(votedPower)))
+		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt(uint64(100*totalVotingPower)))
 		collectedFee.Sub(collectedFee, proposerExtraFee)
 	}
 	rwdMapByAddr := info.GetCurrRewardMapByAddr()
@@ -618,8 +618,8 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 			continue // proposer will be handled at the next step
 		}
 		val := valMapByPubkey[voter]
-		rwdCoins := uint256.NewInt().Mul(collectedFee, uint256.NewInt().SetUint64(uint64(val.VotingPower)))
-		rwdCoins.Div(rwdCoins, uint256.NewInt().SetUint64(uint64(votedPower)))
+		rwdCoins := uint256.NewInt(0).Mul(collectedFee, uint256.NewInt(uint64(val.VotingPower)))
+		rwdCoins.Div(rwdCoins, uint256.NewInt(uint64(votedPower)))
 		remainedFee.Sub(remainedFee, rwdCoins)
 		distributeToValidator(info, rwdMapByAddr, rwdCoins, val)
 	}
@@ -627,7 +627,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	if proposer != [32]byte{} {
 		//distribute to the proposer
 		proposerVal := valMapByPubkey[proposer]
-		coins := uint256.NewInt().Add(proposerBaseFee, remainedFee)
+		coins := uint256.NewInt(0).Add(proposerBaseFee, remainedFee)
 		distributeToValidator(info, rwdMapByAddr, coins, proposerVal)
 	} else if !remainedFee.IsZero() {
 		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, remainedFee)
@@ -651,7 +651,7 @@ func distributeToValidator(info *types.StakingInfo, rwdMapByAddr map[[20]byte]*t
 		}
 		info.PendingRewards = append(info.PendingRewards, rwd)
 	}
-	coins := uint256.NewInt().SetBytes32(rwd.Amount[:])
+	coins := uint256.NewInt(0).SetBytes32(rwd.Amount[:])
 	coins.Add(coins, rwdCoins)
 	rwd.Amount = coins.Bytes32()
 }
@@ -754,9 +754,9 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 		}
 		val := valMapByAddr[pr.Address]
 		if _, ok := rewardMap[val.RewardTo]; !ok {
-			rewardMap[val.RewardTo] = uint256.NewInt()
+			rewardMap[val.RewardTo] = uint256.NewInt(0)
 		}
-		rewardMap[val.RewardTo].Add(rewardMap[val.RewardTo], uint256.NewInt().SetBytes32(pr.Amount[:]))
+		rewardMap[val.RewardTo].Add(rewardMap[val.RewardTo], uint256.NewInt(0).SetBytes32(pr.Amount[:]))
 	}
 	info.PendingRewards = newPRList
 
@@ -786,7 +786,7 @@ func updateVotingPower(info *types.StakingInfo, pubkey2power map[[32]byte]int64)
 		if !ok || val.IsRetiring {
 			continue
 		}
-		if uint256.NewInt().SetBytes32(val.StakedCoins[:]).Cmp(MinimumStakingAmount) >= 0 {
+		if uint256.NewInt(0).SetBytes32(val.StakedCoins[:]).Cmp(MinimumStakingAmount) >= 0 {
 			val.VotingPower = power
 		}
 	}
@@ -803,7 +803,7 @@ func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *ty
 		if acc == nil {
 			acc = mevmtypes.ZeroAccountInfo()
 		}
-		coins := uint256.NewInt().SetBytes32(val.StakedCoins[:])
+		coins := uint256.NewInt(0).SetBytes32(val.StakedCoins[:])
 		stakingAccBalance.Sub(stakingAccBalance, coins)
 		balance := acc.Balance()
 		balance.Add(balance, coins)
