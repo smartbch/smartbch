@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -13,9 +12,7 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 
-	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
@@ -54,8 +51,7 @@ c664736f6c634300060c0033
 
 func TestEmitLogs(t *testing.T) {
 	key, addr := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp0(time.Now(),
-		ed25519.GenPrivKey().PubKey(), bigutils.NewU256(1000000000), key)
+	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 
 	// see testdata/basic/contracts/EventEmitter.sol
