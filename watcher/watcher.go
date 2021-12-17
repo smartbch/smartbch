@@ -172,12 +172,12 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestMainnetHeight < latestFinalizedHeight+watcher.numBlocksInEpoch {
-				watcher.CCEpochSpeedup()
+				watcher.ccEpochSpeedup()
 				break
 			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
 			if len(epochs) == 0 {
-				watcher.CCEpochSpeedup()
+				watcher.ccEpochSpeedup()
 				break
 			}
 			for _, e := range epochs {
@@ -198,7 +198,7 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 	return latestFinalizedHeight
 }
 
-func (watcher *Watcher) CCEpochSpeedup() {
+func (watcher *Watcher) ccEpochSpeedup() {
 	if !watcher.chainConfig.ShaGateSwitch {
 		return
 	}

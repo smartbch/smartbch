@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/smartbch/smartbch/param"
 	"math"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/types"
+	"github.com/smartbch/smartbch/param"
 )
 
 const (
