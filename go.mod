@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/DataDog/zstd v1.4.8 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
+	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/coinexchain/randsrc v0.2.0
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
@@ -26,7 +27,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.3.0
 	github.com/smartbch/moeingdb v0.3.4-0.20211208021729-0ca7b260f7f8
-	github.com/smartbch/moeingevm v0.3.2-0.20211214081342-cfb350e78e12
+	github.com/smartbch/moeingevm v0.3.2-0.20211224082138-78690baad3fb
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
@@ -35,6 +36,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.10
 	github.com/tinylib/msgp v1.1.5
+	github.com/vechain/go-ecvrf v0.0.0-20200326080414-5b7e9ee61906
 	golang.org/x/net v0.0.0-20210421230115-4e50805a0758 // indirect
 	google.golang.org/genproto v0.0.0-20210422153429-2279cbceda62 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
@@ -46,7 +48,6 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
