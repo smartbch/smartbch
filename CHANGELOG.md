@@ -1,13 +1,11 @@
 # Changelog
 
-## v0.3.5
+## v0.4.0 (not released yet)
 
 * JSON-RPC
-  * Add request logs
-  * Improve eth_estimateGas
-* Library
-  * Upgrade moeingdb to v0.3.4
-  * Upgrade moeingevm to v0.3.3
+  * Add sbch_getTransactionReceipt
+  * Add sbch_getCCEpochs
+  * Update sbch_getTxListByHeight and sbch_getTxListByHeightWithRange to return internal transactions
 
 
 ## v0.3.4

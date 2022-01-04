@@ -35,9 +35,10 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/seps"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher"
@@ -91,13 +92,14 @@ type App struct {
 	scope     event.SubscriptionScope
 
 	//engine
-	txEngine     ebp.TxExecutor
-	reorderSeed  int64                   // recorded in BeginBlock, used in Commit
-	touchedAddrs map[gethcmn.Address]int // recorded in Commint, used in next block's CheckTx
+	txEngine    ebp.TxExecutor
+	reorderSeed int64        // recorded in BeginBlock, used in Commit
+	frontier    ebp.Frontier // recorded in Commint, used in next block's CheckTx
 
 	//watcher
-	watcher   *watcher.Watcher
-	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
+	watcher     *watcher.Watcher
+	epochList   []*stakingtypes.Epoch // caches the epochs collected by the watcher
+	ccEpochList []*cctypes.CCEpoch
 
 	//util
 	signer gethtypes.Signer
@@ -110,8 +112,6 @@ type App struct {
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache map[gethcmn.Hash]SenderAndHeight
 
-	// the senders who send native tokens through sep206 in the last block
-	sep206SenderSet map[gethcmn.Address]struct{} // recorded in refresh, used in CheckTx
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
 }
@@ -122,7 +122,7 @@ type SenderAndHeight struct {
 	Height int64
 }
 
-func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight int64, logger log.Logger, forTest bool) *App {
+func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight, genesisCCHeight int64, logger log.Logger, forTest bool) *App {
 	app := &App{}
 
 	/*------set config------*/
@@ -147,20 +147,20 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		param.EbpExeRoundCount,
 		param.EbpRunnerNumber,
 		param.EbpParallelNum,
-		5000 /*not consensus relevant*/, app.signer)
+		5000, /*not consensus relevant*/
+		app.signer,
+		app.logger.With("module", "engine"))
 	//ebp.AdjustGasUsed = false
 
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
-	//init PredefinedSystemContractExecutors before tx execute
-	ebp.PredefinedSystemContractExecutor = staking.NewStakingContractExecutor(app.logger.With("module", "staking"))
-	ebp.PredefinedSystemContractExecutor.Init(ctx)
+
+	ebp.RegisterPredefinedContract(ctx, staking.StakingContractAddress, staking.NewStakingContractExecutor(app.logger.With("module", "staking")))
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
 	// Commit will assign meaningful contents to them
 	app.txid2sigMap = make(map[[32]byte][65]byte)
-	app.touchedAddrs = make(map[gethcmn.Address]int)
-	app.sep206SenderSet = make(map[gethcmn.Address]struct{})
+	app.frontier = ebp.GetEmptyFrontier()
 
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
@@ -192,11 +192,22 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		staking.SaveStakingInfo(ctx, stakingInfo) // only executed at genesis
 	}
 
+	/*-------set ccInfo------*/
+	var lastCCEpochEndHeight int64
+	app.logger.Debug("config", app.config.ShaGateForkBlock, "xHedge", app.config.XHedgeForkBlock)
+	if app.config.ShaGateSwitch {
+		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
+		ccInfo := crosschain.LoadCCInfo(ctx)
+		if ccInfo.CurrEpochNum == 0 && ccInfo.GenesisMainnetBlockHeight == 0 {
+			ccInfo.GenesisMainnetBlockHeight = genesisCCHeight
+			crosschain.SaveCCInfo(ctx, ccInfo)
+		}
+		lastCCEpochEndHeight = ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
+	}
+
 	/*------set watcher------*/
-	watcherLogger := app.logger.With("module", "watcher")
-	client := watcher.NewParallelRpcClient(config.AppConfig.MainnetRPCUrl, config.AppConfig.MainnetRPCUsername, config.AppConfig.MainnetRPCPassword, watcherLogger)
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = watcher.NewWatcher(watcherLogger, lastEpochEndHeight, client, config.AppConfig.SmartBchRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup)
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, lastCCEpochEndHeight, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(forTest)
@@ -212,7 +223,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.MoeingADS) {
 	first := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 	last := [8]byte{255, 255, 255, 255, 255, 255, 255, 255}
-	mads, err := moeingads.NewMoeingADS(config.AppConfig.AppDataPath, false, [][]byte{first[:], last[:]})
+	mads, err := moeingads.NewMoeingADS(config.AppConfig.AppDataPath, config.AppConfig.ArchiveMode,
+					[][]byte{first[:], last[:]})
 	if err != nil {
 		panic(err)
 	}
@@ -302,54 +314,97 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		}
 		app.sigCacheAdd(txid, SenderAndHeight{sender, app.currHeight})
 	}
-	if _, ok := app.touchedAddrs[sender]; ok {
-		// if the sender is touched, it is most likely to have an uncertain nonce, so we reject it
-		return abcitypes.ResponseCheckTx{Code: HasPendingTx, Info: "still has pending transaction"}
-	}
-	if req.Type == abcitypes.CheckTxType_Recheck {
-		// During rechecking, if the sender has not been touched or lose balance, the tx can pass
-		if _, ok := app.sep206SenderSet[sender]; !ok {
-			return abcitypes.ResponseCheckTx{
-				Code:      abcitypes.CodeTypeOK,
-				GasWanted: int64(tx.Gas()),
-			}
-		}
-	}
-	return app.checkTxWithContext(tx, sender)
+	return app.checkTxWithContext(tx, sender, req.Type)
 }
 
-func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address) abcitypes.ResponseCheckTx {
+func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address, txType abcitypes.CheckTxType) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
 	dirty := false
 	defer func(dirtyPtr *bool) {
 		ctx.Close(*dirtyPtr)
 	}(&dirty)
 
-	intrGas, err := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
-	if err != nil || tx.Gas() < intrGas {
-		return abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
+	if ok, res := checkGasLimit(tx); !ok {
+		return res
 	}
-	if tx.Gas() > param.MaxTxGasLimit {
-		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	acc := ctx.GetAccount(sender)
+	if acc == nil {
+		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
 	}
-	acc, err := ctx.CheckNonce(sender, tx.Nonce())
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + err.Error()}
+	//may not need frontier, can update checkTxCtx in reCheckTx directly
+	latestNonce, exist := app.frontier.GetLatestNonce(sender)
+
+	app.logger.Debug("checkTxWithContext",
+		"isReCheckTx", txType == abcitypes.CheckTxType_Recheck,
+		"tx.nonce", tx.Nonce(),
+		"account.nonce", acc.Nonce(),
+		"latestNonce", latestNonce)
+
+	targetNonce := acc.Nonce()
+	if exist && latestNonce > acc.Nonce() {
+		targetNonce = latestNonce
+	}
+	if tx.Nonce() > targetNonce {
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
+	} else if tx.Nonce() < targetNonce {
+		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	gasFee := uint256.NewInt(0).Mul(gasPrice, uint256.NewInt(tx.Gas()))
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
-	err = ctx.DeductTxFee(sender, acc, tx.Gas(), gasPrice)
-	if err != nil {
-		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+	if !exist {
+		err2 := ctx.DeductTxFeeWithSpecificNonce(sender, acc, tx.Gas(), gasPrice, tx.Nonce()+1)
+		if err2 != nil {
+			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+		}
+	} else {
+		balance, ok := app.frontier.GetLatestBalance(sender)
+		if !ok || balance.Cmp(gasFee) < 0 {
+			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
+		}
 	}
+	if exist {
+		totalGasLimit, _ := app.frontier.GetLatestTotalGasLimit(sender)
+		totalGasLimit += tx.Gas()
+		if totalGasLimit > app.config.AppConfig.FrontierGasLimit {
+			return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "send transaction too frequent"}
+		}
+		app.frontier.SetLatestTotalGasLimit(sender, totalGasLimit)
+	}
+	//update frontier
+	app.frontier.SetLatestNonce(sender, tx.Nonce()+1)
+	balance := ctx.GetAccount(sender).Balance().Clone()
+	if exist {
+		balance, _ = app.frontier.GetLatestBalance(sender)
+		balance.Sub(balance, gasFee)
+	}
+	value, _ := uint256.FromBig(tx.Value())
+	if balance.Cmp(value) < 0 {
+		app.frontier.SetLatestBalance(sender, uint256.NewInt(0))
+	} else {
+		balance = balance.Sub(balance, value)
+		app.frontier.SetLatestBalance(sender, balance)
+	}
+	app.logger.Debug("checkTxWithContext:", "value", value.String(), "balance", balance.String())
 	dirty = true
 	app.logger.Debug("leave check tx!")
 	return abcitypes.ResponseCheckTx{
 		Code:      abcitypes.CodeTypeOK,
 		GasWanted: int64(tx.Gas()),
 	}
+}
+
+func checkGasLimit(tx *gethtypes.Transaction) (ok bool, res abcitypes.ResponseCheckTx) {
+	intrinsicGas, err2 := gethcore.IntrinsicGas(tx.Data(), nil, tx.To() == nil, true, true)
+	if err2 != nil || tx.Gas() < intrinsicGas {
+		return false, abcitypes.ResponseCheckTx{Code: GasLimitTooSmall, Info: "gas limit too small"}
+	}
+	if tx.Gas() > param.MaxTxGasLimit {
+		return false, abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "invalid gas limit"}
+	}
+	return true, abcitypes.ResponseCheckTx{}
 }
 
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
@@ -508,6 +563,13 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 
 	ctx := app.GetRunTxContext()
+
+	// fork prepares
+	app.logger.Debug("ixXHedgeFork", ctx.IsXHedgeFork(), "xHedge in ctx", ctx.XHedgeForkBlock)
+	if ctx.IsXHedgeFork() {
+		crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")).Init(ctx)
+	}
+
 	//distribute previous block gas fee
 	var blockReward = app.lastGasFee
 	if !app.lastGasRefund.IsZero() {
@@ -533,10 +595,13 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
+	if app.config.ShaGateSwitch && ctx.IsShaGateFork() {
+		app.handleCCEpoch(ctx)
+	}
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
-	app.touchedAddrs = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
+	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	app.refresh()
 	bi := app.syncBlockInfo()
 	if bi == nil {
@@ -555,6 +620,25 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	return res
 }
 
+func (app *App) handleCCEpoch(ctx *types.Context) {
+	select {
+	case epoch := <-app.watcher.CCEpochChan:
+		app.ccEpochList = append(app.ccEpochList, epoch)
+		app.logger.Debug(fmt.Sprintf("Get new cc epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
+			epoch.Number, epoch.StartHeight, len(app.epochList)))
+	default:
+	}
+	if len(app.ccEpochList) != 0 {
+		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
+		if app.block.Timestamp > app.ccEpochList[0].EndTime+param.CCEpochSwitchDelay {
+			app.logger.Debug(fmt.Sprintf("Switch cc epoch at block(%d), eppchNum(%d)",
+				app.block.Number, app.ccEpochList[0].Number))
+			crosschain.SwitchCCEpoch(ctx, app.ccEpochList[0])
+			app.ccEpochList = app.ccEpochList[1:]
+		}
+	}
+}
+
 func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *uint256.Int) {
 	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, blockReward)
 	app.slashValidators = app.slashValidators[:0]
@@ -571,9 +655,28 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], app.logger,
+			var posVotes map[[32]byte]int64
+			var xHedgeSequence uint64
+			if ctx.IsXHedgeFork() {
+				xHedgeContractAddress := gethcmn.Address{}
+				xHedgeContractAddress.SetBytes(gethcmn.FromHex(app.config.XHedgeContractAddress))
+				acc := ctx.GetAccount(xHedgeContractAddress)
+				if acc == nil {
+					return
+				}
+				xHedgeSequence = acc.Sequence()
+				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
+			}
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
 				param.StakingMinVotingPercentPerEpoch, param.StakingMinVotingPubKeysPercentPerEpoch)
 			app.epochList = app.epochList[1:]
+			if ctx.IsXHedgeFork() && xHedgeSequence != 0 {
+				var pubkey2Power = make(map[[32]byte]int64)
+				for _, v := range newValidators {
+					pubkey2Power[v.Pubkey] = v.VotingPower
+				}
+				staking.CreateInitVotes(ctx, xHedgeSequence, pubkey2Power)
+			}
 		}
 	}
 
@@ -650,7 +753,6 @@ func (app *App) refresh() {
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
 		var wg sync.WaitGroup
-		app.sep206SenderSet = app.getSep206SenderSet(&wg)
 		//use current block commit app hash as prev history block stateRoot
 		prevBlkInfo.StateRoot = app.block.StateRoot
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -682,27 +784,6 @@ func (app *App) refresh() {
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
-}
-
-// Iterate over the txEngine.CommittedTxs, and find the senders who send native tokens to others
-// through sep206 in the last block
-func (app *App) getSep206SenderSet(wg *sync.WaitGroup) map[gethcmn.Address]struct{} {
-	res := make(map[gethcmn.Address]struct{})
-	wg.Add(1)
-	go func() {
-		for _, tx := range app.txEngine.CommittedTxs() {
-			for _, log := range tx.Logs {
-				if log.Address == seps.SEP206Addr && len(log.Topics) == 3 &&
-					log.Topics[0] == modbtypes.TransferEvent {
-					var addr gethcmn.Address
-					copy(addr[:], log.Topics[1][12:]) // Topics[1] is the from-address
-					res[addr] = struct{}{}
-				}
-			}
-		}
-		wg.Done()
-	}()
-	return res
 }
 
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
@@ -739,28 +820,50 @@ func (app *App) Stop() {
 }
 
 func (app *App) GetRpcContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	r := rabbit.NewReadOnlyRabbitStore(app.root)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
+	return c
+}
+func (app *App) GetRpcContextAtHeight(height uint64) *types.Context {
+	c := types.NewContext(nil, nil)
+	r := rabbit.NewReadOnlyRabbitStoreAtHeight(app.root, height)
+	c = c.WithRbt(&r)
+	c = c.WithDb(app.historyStore)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
 	return c
 }
 func (app *App) GetRunTxContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	r := rabbit.NewRabbitStore(app.trunk)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
 	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	c = c.WithDb(app.historyStore)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
 	return c
 }
 func (app *App) GetCheckTxContext() *types.Context {
-	c := types.NewContext(uint64(app.currHeight), nil, nil)
+	c := types.NewContext(nil, nil)
 	r := rabbit.NewRabbitStore(app.checkTrunk)
 	c = c.WithRbt(&r)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
 	return c
 }
 

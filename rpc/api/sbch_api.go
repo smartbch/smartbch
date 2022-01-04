@@ -12,6 +12,7 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -29,7 +30,9 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
+	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 }
 
 type sbchAPI struct {
@@ -69,7 +72,7 @@ func (sbch sbchAPI) GetTxListByHeightWithRange(height gethrpc.BlockNumber, start
 	if err != nil {
 		return nil, err
 	}
-	return txsToReceiptRpcResp(txs), nil
+	return txsToReceiptsWithInternalTxs(txs), nil
 }
 
 func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
@@ -194,6 +197,13 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }
 
+func (sbch sbchAPI) GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error) {
+	if end == 0 {
+		end = start + 10
+	}
+	return sbch.backend.GetCCEpochs(uint64(start), uint64(end))
+}
+
 func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{} {
 	sbch.logger.Debug("sbch_healthCheck")
 	if latestBlockTooOldAge == 0 {
@@ -225,4 +235,15 @@ func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]
 		"ok":                   ok,
 		"error":                msg,
 	}
+}
+
+func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error) {
+	sbch.logger.Debug("sbch_getTransactionReceipt")
+	tx, _, err := sbch.backend.GetTransaction(hash)
+	if err != nil {
+		// the transaction is not yet available
+		return nil, nil
+	}
+	ret := txToReceiptWithInternalTxs(tx)
+	return ret, nil
 }

@@ -107,7 +107,7 @@ func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
-	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
+	_app := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
@@ -164,7 +164,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
-	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
+	newApp := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
 	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()
@@ -262,6 +262,14 @@ func (_app *TestApp) GetStorageAt(addr gethcmn.Address, key []byte) []byte {
 		return ctx.GetStorageAt(acc.Sequence(), string(key))
 	}
 	return nil
+}
+
+func (_app *TestApp) GetDynamicArray(addr gethcmn.Address, arrSlot string) [][]byte {
+	seq := _app.GetSeq(addr)
+
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	return ctx.GetDynamicArray(seq, arrSlot)
 }
 
 func (_app *TestApp) GetCode(addr gethcmn.Address) []byte {

@@ -2,7 +2,9 @@ package staking_test
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -88,26 +90,6 @@ func buildRetireValCallEntry(sender common.Address) *callEntry {
 	return c
 }
 
-func buildChangeMinGasPriceCallEntry(sender common.Address, isIncrease bool) *callEntry {
-	c := &callEntry{
-		Address: staking.StakingContractAddress,
-		Tx:      nil,
-	}
-	c.Tx = &types.TxToRun{
-		BasicTx: types.BasicTx{
-			From: sender,
-			To:   c.Address,
-		},
-	}
-	c.Tx.Data = make([]byte, 0, 100)
-	if isIncrease {
-		c.Tx.Data = append(c.Tx.Data, staking.SelectorIncreaseMinGasPrice[:]...)
-	} else {
-		c.Tx.Data = append(c.Tx.Data, staking.SelectorDecreaseMinGasPrice[:]...)
-	}
-	return c
-}
-
 func TestStaking(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
@@ -151,6 +133,94 @@ func TestStaking(t *testing.T) {
 	e.Execute(ctx, nil, c.Tx)
 	_, info = staking.LoadStakingAccAndInfo(ctx)
 	require.True(t, info.Validators[1].IsRetiring)
+}
+
+func TestMinGasPriceAdjust(t *testing.T) {
+	key, sender := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+	staking.InitialStakingAmount = uint256.NewInt(0)
+	ctx := _app.GetRunTxContext()
+	ctx.SetXHedgeForkBlock(0)
+
+	e := &staking.StakingContractExecutor{}
+	e.Init(ctx)
+
+	target := big.NewInt(1000_000_000)
+	tx := types.TxToRun{
+		BasicTx: types.BasicTx{
+			Data: staking.PackProposal(target),
+		},
+	}
+	now := time.Now().Unix()
+	blk := types.BlockInfo{
+		Timestamp: now,
+	}
+	status, _, _, outData := e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 1)
+	require.True(t, bytes.Equal(outData, []byte(staking.NoSuchValidator.Error())))
+
+	tx.BasicTx.Data = staking.PackCreateValidator(sender, [32]byte{1}, [32]byte{2})
+	tx.BasicTx.Value[31] = 100
+	tx.BasicTx.From = sender
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+
+	tx.BasicTx.Data = staking.PackProposal(target)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 1)
+	require.True(t, bytes.Equal(outData, []byte(staking.ValidatorNotActive.Error())))
+
+	info := staking.LoadStakingInfo(ctx)
+
+	info.Validators[1].VotingPower = 1
+	staking.SaveStakingInfo(ctx, info)
+
+	tx.BasicTx.Data = staking.PackProposal(target)
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	target1, deadline := staking.LoadProposal(ctx)
+	require.Equal(t, target.Uint64(), target1)
+	require.Equal(t, now+int64(staking.DefaultProposalDuration), int64(deadline))
+
+	tx.BasicTx.Data = staking.PackProposal(target)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.StillInProposal.Error())))
+
+	voteTarget := target.Add(target, big.NewInt(100))
+	tx.BasicTx.Data = staking.PackVote(voteTarget)
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	tar, votingPower := staking.LoadVote(ctx, sender)
+	require.Equal(t, voteTarget.Uint64(), tar)
+	require.Equal(t, uint64(1), votingPower)
+	voters := staking.GetVoters(ctx)
+	require.Equal(t, 1, len(voters))
+	require.Equal(t, sender, voters[0])
+
+	tx.BasicTx.Data = staking.PackGetVote(sender)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	require.Equal(t, 32, len(outData))
+	out := big.Int{}
+	out.SetBytes(outData)
+	require.Equal(t, target.Uint64(), out.Uint64())
+
+	blk.Timestamp = now + int64(staking.DefaultProposalDuration) + 1
+	tx.BasicTx.Data = staking.PackExecuteProposal()
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+	minGasPrice := staking.LoadMinGasPrice(ctx, true)
+	require.Equal(t, voteTarget.Uint64(), minGasPrice)
+	target1, deadline = staking.LoadProposal(ctx)
+	require.Equal(t, uint64(0), target1)
+	require.Equal(t, uint64(0), deadline)
+	voters = staking.GetVoters(ctx)
+	require.Equal(t, 0, len(voters))
+	target1, votingPower = staking.LoadVote(ctx, sender)
+	require.Equal(t, uint64(0), target1)
+	require.Equal(t, uint64(0), votingPower)
 }
 
 func TestSwitchEpoch(t *testing.T) {
@@ -212,7 +282,7 @@ func TestSwitchEpoch(t *testing.T) {
 	info.PendingRewards = []*types2.PendingReward{proposerReward}
 	staking.SaveStakingInfo(ctx, info)
 	rewardTo := info.Validators[0].RewardTo
-	staking.SwitchEpoch(ctx, e, log.NewNopLogger(), 0, param.StakingMinVotingPubKeysPercentPerEpoch)
+	staking.SwitchEpoch(ctx, e, nil, log.NewNopLogger(), 0, param.StakingMinVotingPubKeysPercentPerEpoch)
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64(10000/2 /*pending reward not transfer to validator as of EpochCountBeforeRewardMature*/), stakingAcc.Balance().Uint64())
 	acc = ctx.GetAccount(sender)
@@ -223,7 +293,7 @@ func TestSwitchEpoch(t *testing.T) {
 	rewardAcc := ctx.GetAccount(rewardTo)
 	require.Equal(t, uint64(100), rewardAcc.Balance().Uint64())
 
-	staking.SwitchEpoch(ctx, e, log.NewNopLogger(), 0, param.StakingMinVotingPubKeysPercentPerEpoch)
+	staking.SwitchEpoch(ctx, e, nil, log.NewNopLogger(), 0, param.StakingMinVotingPubKeysPercentPerEpoch)
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64((10000-1500-8500*15/100)/2/2), stakingAcc.Balance().Uint64())
 }
@@ -251,63 +321,108 @@ func TestSlash(t *testing.T) {
 	require.Equal(t, uint64(1), allBurnt.Uint64())
 }
 
-func TestGasPriceAdjustment(t *testing.T) {
+func TestLoadEpoch(t *testing.T) {
+	key, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+	ctx := _app.GetRunTxContext()
+
+	epoch, ok := staking.LoadEpoch(ctx, 0)
+	require.Equal(t, int64(0), epoch.StartHeight)
+	require.Equal(t, false, ok)
+
+	epoch = types2.Epoch{StartHeight: 10}
+	staking.SaveEpoch(ctx, 1, &epoch)
+	epoch, ok = staking.LoadEpoch(ctx, 1)
+	require.Equal(t, int64(10), epoch.StartHeight)
+	require.Equal(t, true, ok)
+}
+
+func TestInvalidExecuteProposal(t *testing.T) {
+	key, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+	staking.InitialStakingAmount = uint256.NewInt(0)
+	ctx := _app.GetRunTxContext()
+	ctx.SetXHedgeForkBlock(0)
+
+	e := &staking.StakingContractExecutor{}
+	e.Init(ctx)
+
+	tx := types.TxToRun{
+		BasicTx: types.BasicTx{
+			Data: staking.PackExecuteProposal(),
+		},
+	}
+	now := time.Now().Unix()
+	blk := types.BlockInfo{
+		Timestamp: now,
+	}
+	status, _, _, outData := e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.NotInProposal.Error())))
+
+	staking.SaveProposal(ctx, 100, uint64(now+10000))
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.ProposalNotFinished.Error())))
+}
+
+func TestInvalidVote(t *testing.T) {
 	key, sender := testutils.GenKeyAndAddr()
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
-	staking.DefaultMinGasPrice = 100
-	staking.MinGasPriceUpperBound = 500
-	ctx := _app.GetRunTxContext()
-	e := staking.NewStakingContractExecutor(log.NewNopLogger())
-	e.Init(ctx)
-	staking.SaveMinGasPrice(ctx, staking.DefaultMinGasPrice, true)
 	staking.InitialStakingAmount = uint256.NewInt(0)
+	ctx := _app.GetRunTxContext()
+	ctx.SetXHedgeForkBlock(0)
 
-	//create validator
-	c := buildCreateValCallEntry(sender, 101, 11, 1)
-	require.True(t, e.IsSystemContract(c.Address))
-	e.Execute(ctx, nil, c.Tx)
+	e := &staking.StakingContractExecutor{}
+	e.Init(ctx)
 
-	//increase gasPrice failed as of validator not active
-	c = buildChangeMinGasPriceCallEntry(sender, true)
-	_, _, _, out := e.Execute(ctx, nil, c.Tx)
-	p := staking.LoadMinGasPrice(ctx, false)
-	require.Equal(t, 100, int(p))
-	require.True(t, bytes.Equal([]byte(staking.OperatorNotValidator.Error()), out))
+	target := big.NewInt(100)
+	tx := types.TxToRun{
+		BasicTx: types.BasicTx{
+			Data: staking.PackVote(target),
+		},
+	}
+	now := time.Now().Unix()
 
-	//make validator active
+	blk := types.BlockInfo{
+		Timestamp: now,
+	}
+	status, _, _, outData := e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.NoSuchValidator.Error())))
+
+	tx.BasicTx.Data = staking.PackCreateValidator(sender, [32]byte{1}, [32]byte{2})
+	tx.BasicTx.Value[31] = 100
+	tx.BasicTx.From = sender
+	status, _, _, _ = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, status, 0)
+
+	tx.BasicTx.Data = staking.PackVote(target)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.ValidatorNotActive.Error())))
+
 	info := staking.LoadStakingInfo(ctx)
-	info.Validators[1].StakedCoins = staking.MinimumStakingAmount.Bytes32()
-	info.Validators[1].VotingPower = 1000
+
+	info.Validators[1].VotingPower = 1
 	staking.SaveStakingInfo(ctx, info)
 
-	//increase gasPrice
-	c = buildChangeMinGasPriceCallEntry(sender, true)
-	e.Execute(ctx, nil, c.Tx)
-	p = staking.LoadMinGasPrice(ctx, false)
-	require.Equal(t, 105, int(p))
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.NotInProposal.Error())))
 
-	//increase gasPrice
-	e.Execute(ctx, nil, c.Tx)
-	p = staking.LoadMinGasPrice(ctx, false)
-	require.Equal(t, 110, int(p))
+	staking.SaveProposal(ctx, 100, uint64(now-1000))
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.ProposalHasFinished.Error())))
 
-	//increase gasPrice
-	e.Execute(ctx, nil, c.Tx)
-	p = staking.LoadMinGasPrice(ctx, false)
-	require.Equal(t, 115, int(p))
-
-	//increase gasPrice failed because out of range
-	_, _, _, out = e.Execute(ctx, nil, c.Tx)
-	p = staking.LoadMinGasPrice(ctx, false)
-	pLast := staking.LoadMinGasPrice(ctx, true)
-	require.Equal(t, 100, int(pLast))
-	require.Equal(t, 115, int(p))
-	require.True(t, bytes.Equal([]byte(staking.MinGasPriceExceedBlockChangeDelta.Error()), out))
-
-	//decrease gasPrice
-	c = buildChangeMinGasPriceCallEntry(sender, false)
-	e.Execute(ctx, nil, c.Tx)
-	p = staking.LoadMinGasPrice(ctx, false)
-	require.Equal(t, 110, int(p))
+	staking.SaveProposal(ctx, 100, uint64(now+2000))
+	tx.BasicTx.Data = staking.PackVote(big.NewInt(0))
+	staking.SaveMinGasPrice(ctx, staking.MinGasPriceLowerBound-1, true)
+	status, _, _, outData = e.Execute(ctx, &blk, &tx)
+	require.Equal(t, staking.StatusFailed, status)
+	require.True(t, bytes.Equal(outData, []byte(staking.TargetExceedChangeDelta.Error())))
 }

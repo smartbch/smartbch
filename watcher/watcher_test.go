@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
@@ -105,6 +106,11 @@ func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
 	return nil
 }
 
+func (m MockRpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
+	fmt.Printf("mock Rpc not support get cc Epoch")
+	return nil
+}
+
 var _ types.RpcClient = MockRpcClient{}
 
 type MockEpochConsumer struct {
@@ -123,25 +129,21 @@ func (m *MockEpochConsumer) consume() {
 }
 
 func TestRun(t *testing.T) {
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
+	w.rpcClient = client
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
 	<-catchupChan
 	time.Sleep(1 * time.Second)
 	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
-	//require.Equal(t, int(10+param.StakingNumBlocksInEpoch), len(w.hashToBlock)) //TODO
-	for h, b := range w.hashToBlock {
-		require.True(t, int64(h[0]) == b.Height)
-		require.True(t, h == b.HashId)
-	}
-	require.Equal(t, 90, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, 91, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
 
 func TestRunWithNewEpoch(t *testing.T) {
-	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
-	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	c := MockEpochConsumer{
 		w: w,
 	}
@@ -154,14 +156,9 @@ func TestRunWithNewEpoch(t *testing.T) {
 	time.Sleep(3 * time.Second)
 	//test watcher clear
 	//require.Equal(t, 6*int(WatcherNumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
-	require.Equal(t, 20, len(w.hashToBlock))
-	require.Equal(t, 6*numBlocksInEpoch-1, len(w.heightToFinalizedBlock))
+	require.Equal(t, 6*numBlocksInEpoch, len(w.heightToFinalizedBlock))
 	require.Equal(t, 5, len(w.epochList))
-	for h, b := range w.hashToBlock {
-		require.True(t, int64(h[0]) == b.Height)
-		require.True(t, h == b.HashId)
-	}
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, int64(91), w.latestFinalizedHeight)
 	require.Equal(t, 9, len(c.epochList))
 	for i, e := range c.epochList {
 		require.Equal(t, int64(i*numBlocksInEpoch)+1, e.StartHeight)
@@ -169,8 +166,8 @@ func TestRunWithNewEpoch(t *testing.T) {
 }
 
 func TestRunWithFork(t *testing.T) {
-	client := MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	w := NewWatcher(log.NewNopLogger(), 0, client, "", 0, false)
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
 	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)
 	catchupChan := make(chan bool, 1)
@@ -178,9 +175,8 @@ func TestRunWithFork(t *testing.T) {
 	<-catchupChan
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))
-	require.Equal(t, int(101), len(w.hashToBlock))
-	require.Equal(t, 90, len(w.heightToFinalizedBlock))
-	require.Equal(t, int64(90), w.latestFinalizedHeight)
+	require.Equal(t, 91, len(w.heightToFinalizedBlock))
+	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
 
 func TestEpochSort(t *testing.T) {

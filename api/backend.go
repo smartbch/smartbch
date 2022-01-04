@@ -23,6 +23,8 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
@@ -281,6 +283,25 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	info := staking.LoadStakingInfo(ctx)
 	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
 		epoch, ok := staking.LoadEpoch(ctx, epochNum)
+		if ok {
+			result = append(result, &epoch)
+		}
+	}
+	return result, nil
+}
+
+//[start, end)
+func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
+	if start >= end {
+		return nil, errors.New("invalid start or empty cc epochs")
+	}
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	result := make([]*cctypes.CCEpoch, 0, end-start)
+	info := crosschain.LoadCCInfo(ctx)
+	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
+		epoch, ok := crosschain.LoadCCEpoch(ctx, epochNum)
 		if ok {
 			result = append(result, &epoch)
 		}

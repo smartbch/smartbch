@@ -138,7 +138,7 @@ func interceptLoadConfig() (conf *param.ChainConfig, err error) {
 		err = viper.MergeInConfig()
 		appConf, _ = param.ParseConfig(viper.GetString(tmcli.HomeFlag))
 	}
-	conf = &param.ChainConfig{}
+	conf = param.DefaultConfig()
 	conf.NodeConfig = nodeConfig
 	conf.AppConfig = appConf
 

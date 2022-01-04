@@ -10,7 +10,6 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/seps"
 )
@@ -129,6 +128,58 @@ func TestTransferFrom(t *testing.T) {
 	checkTx(t, _app, h2, tx2.Hash())
 	a2 := callViewMethod(t, _app, "allowance", ownerAddr, spenderAddr)
 	require.Equal(t, uint64(12000), a2.(*big.Int).Uint64())
+}
+
+func TestTransferFrom_drainBCH(t *testing.T) {
+	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
+	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
+	_, receiptAddr := testutils.GenKeyAndAddr()
+
+	initAmt := testutils.HexToU256("0xde0b6b3a7640000") // 1 BCH
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		InitAmt:  initAmt,
+		PrivKeys: []string{ownerKey, spenderKey},
+	})
+	defer _app.Destroy()
+
+	data1 := sep206ABI.MustPack("approve", spenderAddr, initAmt.ToBig())
+	tx1, _ := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	_app.EnsureTxSuccess(tx1.Hash())
+
+	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.ToBig())
+	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+	_app.EnsureTxSuccess(tx2.Hash())
+	require.Equal(t, uint64(0), _app.GetBalance(ownerAddr).Uint64())
+}
+
+func TestTransferFrom_mustLeaveMargin(t *testing.T) {
+	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
+	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
+	_, receiptAddr := testutils.GenKeyAndAddr()
+
+	startHeight := int64(28012340)
+	initAmt := testutils.HexToU256("0xde0b6b3a7640000") // 1 BCH
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		StartHeight: &startHeight,
+		InitAmt:     initAmt,
+		PrivKeys:    []string{ownerKey, spenderKey},
+	})
+	defer _app.Destroy()
+
+	data1 := sep206ABI.MustPack("approve", spenderAddr, initAmt.ToBig())
+	tx1, _ := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	_app.EnsureTxSuccess(tx1.Hash())
+
+	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.ToBig())
+	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+	_app.EnsureTxFailed(tx2.Hash(), "insufficient-balance")
+	require.Equal(t, initAmt.ToBig(), _app.GetBalance(ownerAddr))
+
+	minMargin := testutils.HexToU256("0x38d7ea4c68000") // 0.001BCH
+	data3 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.Sub(initAmt, minMargin).ToBig())
+	tx3, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data3)
+	_app.EnsureTxSuccess(tx3.Hash())
+	require.Equal(t, minMargin.ToBig(), _app.GetBalance(ownerAddr))
 }
 
 func TestTransferEvent(t *testing.T) {
