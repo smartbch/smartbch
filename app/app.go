@@ -319,10 +319,6 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 
 func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address, txType abcitypes.CheckTxType) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
-	dirty := false
-	defer func(dirtyPtr *bool) {
-		ctx.Close(*dirtyPtr)
-	}(&dirty)
 
 	if ok, res := checkGasLimit(tx); !ok {
 		return res
@@ -332,18 +328,18 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
 	}
 	//may not need frontier, can update checkTxCtx in reCheckTx directly
-	latestNonce, exist := app.frontier.GetLatestNonce(sender)
+	targetNonce, exist := app.frontier.GetLatestNonce(sender)
+	if !exist {
+		app.frontier.SetLatestBalance(sender, acc.Balance().Clone())
+		targetNonce = acc.Nonce()
+	}
 
 	app.logger.Debug("checkTxWithContext",
 		"isReCheckTx", txType == abcitypes.CheckTxType_Recheck,
 		"tx.nonce", tx.Nonce(),
 		"account.nonce", acc.Nonce(),
-		"latestNonce", latestNonce)
+		"targetNonce", targetNonce)
 
-	targetNonce := acc.Nonce()
-	if exist && latestNonce > acc.Nonce() {
-		targetNonce = latestNonce
-	}
 	if tx.Nonce() > targetNonce {
 		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooLarge.Error()}
 	} else if tx.Nonce() < targetNonce {
@@ -354,32 +350,23 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
-	if !exist {
-		err2 := ctx.DeductTxFeeWithSpecificNonce(sender, acc, tx.Gas(), gasPrice, tx.Nonce()+1)
-		if err2 != nil {
-			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
-		}
-	} else {
-		balance, ok := app.frontier.GetLatestBalance(sender)
-		if !ok || balance.Cmp(gasFee) < 0 {
-			return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
-		}
+
+	balance, ok := app.frontier.GetLatestBalance(sender)
+	if !ok || balance.Cmp(gasFee) < 0 {
+		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
 	}
-	if exist {
-		totalGasLimit, _ := app.frontier.GetLatestTotalGasLimit(sender)
+	totalGasLimit, _ := app.frontier.GetLatestTotalGas(sender)
+	if exist { // first fresh tx is not counted in
 		totalGasLimit += tx.Gas()
-		if totalGasLimit > app.config.AppConfig.FrontierGasLimit {
-			return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "send transaction too frequent"}
-		}
-		app.frontier.SetLatestTotalGasLimit(sender, totalGasLimit)
 	}
+	if totalGasLimit > app.config.AppConfig.FrontierGasLimit {
+		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "send transaction too frequent"}
+	}
+	app.frontier.SetLatestTotalGas(sender, totalGasLimit)
+
 	//update frontier
 	app.frontier.SetLatestNonce(sender, tx.Nonce()+1)
-	balance := ctx.GetAccount(sender).Balance().Clone()
-	if exist {
-		balance, _ = app.frontier.GetLatestBalance(sender)
-		balance.Sub(balance, gasFee)
-	}
+	balance.Sub(balance, gasFee)
 	value, _ := uint256.FromBig(tx.Value())
 	if balance.Cmp(value) < 0 {
 		app.frontier.SetLatestBalance(sender, uint256.NewInt(0))
@@ -388,7 +375,6 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		app.frontier.SetLatestBalance(sender, balance)
 	}
 	app.logger.Debug("checkTxWithContext:", "value", value.String(), "balance", balance.String())
-	dirty = true
 	app.logger.Debug("leave check tx!")
 	return abcitypes.ResponseCheckTx{
 		Code:      abcitypes.CodeTypeOK,
