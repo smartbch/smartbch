@@ -300,7 +300,7 @@ func (_app *TestApp) GetTx(h gethcmn.Hash) (tx *motypes.Transaction) {
 
 	var err error
 	for i := 0; i < 10; i++ { // retry ten times
-		tx, err = ctx.GetTxByHash(h)
+		tx, _, err = ctx.GetTxByHash(h)
 		if err == nil {
 			return
 		}
@@ -315,7 +315,7 @@ func (_app *TestApp) GetTx(h gethcmn.Hash) (tx *motypes.Transaction) {
 func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
-	txs, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.BlockNum())+1, 0)
+	txs, _, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.BlockNum())+1, 0)
 	if err != nil {
 		panic(err)
 	}

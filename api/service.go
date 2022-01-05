@@ -95,13 +95,12 @@ type BackendService interface {
 	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
 	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter motypes.FilterFunc) ([]motypes.Log, error)
-	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
-	QueryTxByDst(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
-	QueryTxByAddr(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
+	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
+	QueryTxByDst(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
+	QueryTxByAddr(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
 	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight, limit uint32) ([]motypes.Log, error)
-	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
-	GetTxListByHeightWithRange(height uint32, start, end int) (tx []*motypes.Transaction, err error)
-	GetSigs(txs []*motypes.Transaction) [][65]byte
+	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
+	GetTxListByHeightWithRange(height uint32, start, end int) (tx []*motypes.Transaction, sigs [][65]byte, err error)
 	GetFromAddressCount(addr common.Address) int64
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64

@@ -68,7 +68,7 @@ func (sbch sbchAPI) GetTxListByHeightWithRange(height gethrpc.BlockNumber, start
 	if iEnd == 0 {
 		iEnd = -1
 	}
-	txs, err := sbch.backend.GetTxListByHeightWithRange(uint32(height), iStart, iEnd)
+	txs, _, err := sbch.backend.GetTxListByHeightWithRange(uint32(height), iStart, iEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +80,11 @@ func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
 
 	sbch.logger.Debug("sbch_queryTxBySrc")
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxBySrc(addr, _start, _end, uint32(limit))
+	txs, sigs, err := sbch.backend.QueryTxBySrc(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
 
-	sigs := sbch.backend.GetSigs(txs)
 	return txsToRpcResp(txs, sigs), nil
 }
 
@@ -94,12 +93,11 @@ func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
 
 	sbch.logger.Debug("sbch_queryTxByDst")
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxByDst(addr, _start, _end, uint32(limit))
+	txs, sigs, err := sbch.backend.QueryTxByDst(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
 
-	sigs := sbch.backend.GetSigs(txs)
 	return txsToRpcResp(txs, sigs), nil
 }
 
@@ -108,12 +106,11 @@ func (sbch sbchAPI) QueryTxByAddr(addr gethcmn.Address,
 
 	sbch.logger.Debug("sbch_queryTxByAddr")
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxByAddr(addr, _start, _end, uint32(limit))
+	txs, sigs, err := sbch.backend.QueryTxByAddr(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
 
-	sigs := sbch.backend.GetSigs(txs)
 	return txsToRpcResp(txs, sigs), nil
 }
 

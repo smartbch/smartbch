@@ -110,15 +110,10 @@ func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transac
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
-	if tx, err = ctx.GetTxByHash(txHash); err != nil {
+	if tx, sig, err = ctx.GetTxByHash(txHash); err != nil {
 		return
 	}
-	if tx != nil {
-		//blockHash = tx.BlockHash
-		//blockNumber = uint64(tx.BlockNumber)
-		//blockIndex = uint64(tx.TransactionIndex)
-		sig = ctx.GetTxSigByHash(txHash)
-	} else {
+	if tx == nil {
 		err = errors.New("tx with specific hash not exist")
 	}
 	return
@@ -199,19 +194,19 @@ func (backend *apiBackend) QueryLogs(addresses []common.Address, topics [][]comm
 	return ctx.QueryLogs(addresses, topics, startHeight, endHeight, filter)
 }
 
-func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxBySrc(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxByDst(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxByAddr(addr, startHeight, endHeight, limit)
@@ -224,26 +219,14 @@ func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Ha
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, err error) {
+func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, sigs[][65]byte, err error) {
 	return backend.GetTxListByHeightWithRange(height, 0, math.MaxInt32)
 }
-func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, sigs[][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.GetTxListByHeightWithRange(height, start, end)
-}
-
-func (backend *apiBackend) GetSigs(txs []*types.Transaction) [][65]byte {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	sigs := make([][65]byte, len(txs))
-	for i, tx := range txs {
-		sigs[i] = ctx.GetTxSigByHash(tx.Hash)
-	}
-
-	return sigs
 }
 
 func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {
@@ -344,7 +327,7 @@ func (backend *apiBackend) GetReceipts(ctx context.Context, blockNum uint64) (ge
 
 	receipts := make([]*gethtypes.Receipt, 0, 8)
 
-	txs, err := appCtx.GetTxListByHeight(uint32(blockNum))
+	txs, _, err := appCtx.GetTxListByHeight(uint32(blockNum))
 	if err == nil {
 		for _, tx := range txs {
 			receipts = append(receipts, toGethReceipt(tx))
@@ -378,7 +361,7 @@ func (backend *apiBackend) GetLogs(ctx context.Context, blockHash common.Hash) (
 	block, err := appCtx.GetBlockByHash(blockHash)
 	if err == nil && block != nil {
 		for _, txHash := range block.Transactions {
-			tx, err := appCtx.GetTxByHash(txHash)
+			tx, _, err := appCtx.GetTxByHash(txHash)
 			if err == nil && tx != nil {
 				txLogs := types.ToGethLogs(tx.Logs)
 				// fix log.TxHash

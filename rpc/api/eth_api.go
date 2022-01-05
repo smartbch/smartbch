@@ -199,12 +199,10 @@ func (api *ethAPI) GetBlockByHash(hash common.Hash, fullTx bool) (map[string]int
 	}
 
 	if fullTx {
-		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
+		txs, sigs, err = api.backend.GetTxListByHeight(uint32(block.Number))
 		if err != nil {
 			return nil, err
 		}
-
-		sigs = api.backend.GetSigs(txs)
 	}
 
 	return blockToRpcResp(block, txs, sigs), nil
@@ -224,12 +222,10 @@ func (api *ethAPI) GetBlockByNumber(blockNum gethrpc.BlockNumber, fullTx bool) (
 	var txs []*types.Transaction
 	var sigs [][65]byte
 	if fullTx {
-		txs, err = api.backend.GetTxListByHeight(uint32(block.Number))
+		txs, sigs, err = api.backend.GetTxListByHeight(uint32(block.Number))
 		if err != nil {
 			return nil, err
 		}
-
-		sigs = api.backend.GetSigs(txs)
 	}
 	return blockToRpcResp(block, txs, sigs), nil
 }
