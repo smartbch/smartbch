@@ -35,7 +35,6 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
-	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
@@ -192,22 +191,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		staking.SaveStakingInfo(ctx, stakingInfo) // only executed at genesis
 	}
 
-	/*-------set ccInfo------*/
-	var lastCCEpochEndHeight int64
-	app.logger.Debug("config", app.config.ShaGateForkBlock, "xHedge", app.config.XHedgeForkBlock)
-	if app.config.ShaGateSwitch {
-		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")))
-		ccInfo := crosschain.LoadCCInfo(ctx)
-		if ccInfo.CurrEpochNum == 0 && ccInfo.GenesisMainnetBlockHeight == 0 {
-			ccInfo.GenesisMainnetBlockHeight = genesisCCHeight
-			crosschain.SaveCCInfo(ctx, ccInfo)
-		}
-		lastCCEpochEndHeight = ccInfo.GenesisMainnetBlockHeight + param.BlocksInCCEpoch*ccInfo.CurrEpochNum
-	}
-
 	/*------set watcher------*/
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, lastCCEpochEndHeight, stakingInfo.CurrEpochNum, app.config)
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, 0, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(forTest)
@@ -327,7 +313,6 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 	if acc == nil {
 		return abcitypes.ResponseCheckTx{Code: SenderNotFound, Info: types.ErrAccountNotExist.Error()}
 	}
-	//may not need frontier, can update checkTxCtx in reCheckTx directly
 	targetNonce, exist := app.frontier.GetLatestNonce(sender)
 	if !exist {
 		app.frontier.SetLatestBalance(sender, acc.Balance().Clone())
@@ -550,12 +535,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 
 	ctx := app.GetRunTxContext()
 
-	// fork prepares
-	app.logger.Debug("ixXHedgeFork", ctx.IsXHedgeFork(), "xHedge in ctx", ctx.XHedgeForkBlock)
-	if ctx.IsXHedgeFork() {
-		crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain")).Init(ctx)
-	}
-
 	//distribute previous block gas fee
 	var blockReward = app.lastGasFee
 	if !app.lastGasRefund.IsZero() {
@@ -581,9 +560,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		}
 	}
 
-	if app.config.ShaGateSwitch && ctx.IsShaGateFork() {
-		app.handleCCEpoch(ctx)
-	}
 	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
 	ctx.Close(true)
 
@@ -604,25 +580,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		res.RetainHeight = app.currHeight - app.config.AppConfig.RetainBlocks + 1
 	}
 	return res
-}
-
-func (app *App) handleCCEpoch(ctx *types.Context) {
-	select {
-	case epoch := <-app.watcher.CCEpochChan:
-		app.ccEpochList = append(app.ccEpochList, epoch)
-		app.logger.Debug(fmt.Sprintf("Get new cc epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
-			epoch.Number, epoch.StartHeight, len(app.epochList)))
-	default:
-	}
-	if len(app.ccEpochList) != 0 {
-		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
-		if app.block.Timestamp > app.ccEpochList[0].EndTime+param.CCEpochSwitchDelay {
-			app.logger.Debug(fmt.Sprintf("Switch cc epoch at block(%d), eppchNum(%d)",
-				app.block.Number, app.ccEpochList[0].Number))
-			crosschain.SwitchCCEpoch(ctx, app.ccEpochList[0])
-			app.ccEpochList = app.ccEpochList[1:]
-		}
-	}
 }
 
 func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *uint256.Int) {

@@ -232,9 +232,9 @@ func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) (missingBlockHash
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == watcher.numBlocksInEpoch {
 		watcher.generateNewEpoch()
 	}
-	if watcher.latestFinalizedHeight-watcher.lastCCEpochEndHeight == watcher.numBlocksInCCEpoch {
-		watcher.generateNewCCEpoch()
-	}
+	//if watcher.latestFinalizedHeight-watcher.lastCCEpochEndHeight == watcher.numBlocksInCCEpoch {
+	//	watcher.generateNewCCEpoch()
+	//}
 	return nil
 }
 
@@ -301,7 +301,7 @@ func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
 		if epoch.EndTime < blk.Timestamp {
 			epoch.EndTime = blk.Timestamp
 		}
-		epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
+		//epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
 	}
 	return epoch
 }
