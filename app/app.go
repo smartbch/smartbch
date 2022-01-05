@@ -305,7 +305,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 
 func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Address, txType abcitypes.CheckTxType) abcitypes.ResponseCheckTx {
 	ctx := app.GetCheckTxContext()
-
+	defer ctx.Close(false)
 	if ok, res := checkGasLimit(tx); !ok {
 		return res
 	}
