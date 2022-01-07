@@ -27,7 +27,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.3.1-0.20220104120004-eee2e252096c
 	github.com/smartbch/moeingdb v0.3.5-0.20220105145349-f4305c5643bb
-	github.com/smartbch/moeingevm v0.3.2-0.20220105145629-f24677da17f5
+	github.com/smartbch/moeingevm v0.3.2-0.20220107024323-984369a01822
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
@@ -35,7 +35,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.10
-	github.com/tinylib/msgp v1.1.5
+	github.com/tinylib/msgp v1.1.6
 	github.com/vechain/go-ecvrf v0.0.0-20200326080414-5b7e9ee61906
 	golang.org/x/net v0.0.0-20210421230115-4e50805a0758 // indirect
 	google.golang.org/genproto v0.0.0-20210422153429-2279cbceda62 // indirect

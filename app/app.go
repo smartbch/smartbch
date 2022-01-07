@@ -815,10 +815,7 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
 	ctx := app.GetRpcContext()
 	defer ctx.Close(false)
-	runner := &ebp.TxRunner{
-		Ctx: ctx,
-		Tx:  txToRun,
-	}
+	runner := ebp.NewTxRunner(ctx, txToRun);
 	bi := app.blockInfo.Load().(*types.BlockInfo)
 	estimateResult := ebp.RunTxForRpc(bi, estimateGas, runner)
 	return runner, estimateResult
