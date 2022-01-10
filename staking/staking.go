@@ -43,18 +43,18 @@ var (
 	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
 	/*interface Staking {
-	    //0x24d1ed5d
-	    function createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey) external;
-	    //0x9dc159b6
-	    function editValidator(address rewardTo, bytes32 introduction) external;
-	    //0xa4874d77
-	    function retire() external;
-	    //0xf2016e8e
-	    function increaseMinGasPrice() external;
-	    //0x696e6ad2
-	    function decreaseMinGasPrice() external;
-	    //9ce06909
-	    function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
+		//0x24d1ed5d
+		function createValidator(address rewardTo, bytes32 introduction, bytes32 pubkey) external;
+		//0x9dc159b6
+		function editValidator(address rewardTo, bytes32 introduction) external;
+		//0xa4874d77
+		function retire() external;
+		//0xf2016e8e
+		function increaseMinGasPrice() external;
+		//0x696e6ad2
+		function decreaseMinGasPrice() external;
+		//9ce06909
+		function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
 		//30326c17
 		function proposal(uint target) external;
 		//0121b93f
@@ -169,7 +169,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 }
 
 // Staking functions which can be invoked through smart contract calls
-// The extra gas fee distribute to the miners, not refund
+// The extra gas fee is distributed to the validators, not refunded
 func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = StatusFailed

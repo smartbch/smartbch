@@ -2,6 +2,29 @@
 
 ## v0.4.0 (not released yet)
 
+BCH holders can elect validators through the XHedge smart contract.
+
+An optimized scheme to decide the minimum gas price.
+
+Refine SEP206:
+
+  An EOA can only call SEP206's contract address once in a block
+
+  When using "transferFrom", the source account must be left 0.001 BCH.
+
+Add SEP109 to support VRF (verifiable random function)
+
+Allows EOA to send transactions into mempool continuously, across several successive blocks
+
+Add debug API (debug_* RPC endpoints)
+
+Add internal transactions' information in transaction receipt
+
+Support querying main chain blocks in parallel.
+
+Rpcclient will retry after failure for better robustness.
+
+
 * JSON-RPC
   * Add sbch_getTransactionReceipt
   * Add sbch_getCCEpochs
@@ -9,6 +32,14 @@
 * Command
   * Add `--http.api` and `--ws.api` options `smartbchd start` command
 
+## v0.3.5
+
+* JSON-RPC
+  * Add request logs
+  * Improve eth_estimateGas
+* Library
+  * Upgrade moeingdb to v0.3.4
+  * Upgrade moeingevm to v0.3.3
 
 ## v0.3.4
 
