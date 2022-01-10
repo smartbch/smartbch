@@ -771,9 +771,13 @@ func (app *App) GetRpcContext() *types.Context {
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
-func (app *App) GetRpcContextAtHeight(height uint64) *types.Context {
+func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
+	if height < 0 {
+		return app.GetRpcContext()
+	}
+
 	c := types.NewContext(nil, nil)
-	r := rabbit.NewReadOnlyRabbitStoreAtHeight(app.root, height)
+	r := rabbit.NewReadOnlyRabbitStoreAtHeight(app.root, uint64(height))
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
@@ -809,10 +813,10 @@ func (app *App) GetCheckTxContext() *types.Context {
 	return c
 }
 
-func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool) (*ebp.TxRunner, int64) {
+func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool, height int64) (*ebp.TxRunner, int64) {
 	txToRun := &types.TxToRun{}
 	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
-	ctx := app.GetRpcContext()
+	ctx := app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	runner := ebp.NewTxRunner(ctx, txToRun)
 	bi := app.blockInfo.Load().(*types.BlockInfo)

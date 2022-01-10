@@ -63,8 +63,8 @@ func (backend *apiBackend) ChainId() *big.Int {
 	return backend.app.ChainID().ToBig()
 }
 
-func (backend *apiBackend) GetStorageAt(address common.Address, key string) []byte {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetStorageAt(address common.Address, key string, height int64) []byte {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 
 	acc := ctx.GetAccount(address)
@@ -74,8 +74,8 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string) []by
 	return ctx.GetStorageAt(acc.Sequence(), key)
 }
 
-func (backend *apiBackend) GetCode(contract common.Address) (bytecode []byte, codeHash []byte) {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte) {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 
 	info := ctx.GetCode(contract)
@@ -86,8 +86,8 @@ func (backend *apiBackend) GetCode(contract common.Address) (bytecode []byte, co
 	return
 }
 
-func (backend *apiBackend) GetBalance(owner common.Address) (*big.Int, error) {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetBalance(owner common.Address, height int64) (*big.Int, error) {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	b, err := ctx.GetBalance(owner)
 	if err != nil {
@@ -96,8 +96,8 @@ func (backend *apiBackend) GetBalance(owner common.Address) (*big.Int, error) {
 	return b.ToBig(), nil
 }
 
-func (backend *apiBackend) GetNonce(address common.Address) (uint64, error) {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetNonce(address common.Address, height int64) (uint64, error) {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	if acc := ctx.GetAccount(address); acc != nil {
 		return acc.Nonce(), nil
@@ -177,13 +177,13 @@ func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
 	return common.BytesToHash(tx.Hash()), nil
 }
 
-func (backend *apiBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, retData []byte) {
-	runner, _ := backend.app.RunTxForRpc(tx, sender, false)
+func (backend *apiBackend) Call(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte) {
+	runner, _ := backend.app.RunTxForRpc(tx, sender, false, height)
 	return runner.Status, runner.OutData
 }
 
-func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, retData []byte, gas int64) {
-	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
+func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte, gas int64) {
+	runner, gas := backend.app.RunTxForRpc(tx, sender, true, height)
 	return runner.Status, runner.OutData, gas
 }
 

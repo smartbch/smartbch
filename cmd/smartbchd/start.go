@@ -50,6 +50,7 @@ const (
 	flagSmartBchUrl            = "smartbch-url"
 	flagWatcherSpeedup         = "watcher-speedup"
 	flagRpcOnly                = "rpc-only"
+	flagArchiveMode            = "archive-mode"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -94,6 +95,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
 	cmd.Flags().String(flagRpcAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the HTTP-RPC interface")
 	cmd.Flags().String(flagWsAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the WS-RPC interface")
+	cmd.Flags().Bool(flagArchiveMode, false, "enable archive-mode")
 
 	return cmd
 }

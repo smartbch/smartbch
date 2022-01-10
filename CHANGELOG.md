@@ -28,9 +28,18 @@ Rpcclient will retry after failure for better robustness.
 * JSON-RPC
   * Add sbch_getTransactionReceipt
   * Add sbch_getCCEpochs
-  * Update sbch_getTxListByHeight and sbch_getTxListByHeightWithRange to return internal transactions
+  * The following methods return internal transactions
+    * sbch_getTxListByHeight
+    * sbch_getTxListByHeightWithRange
+  * The following methods support extra block parameter now
+    * eth_getBalance
+    * eth_getCode
+    * eth_getTransactionCount
+    * eth_getStorageAt
+    * eth_call
+    * eth_estimateGas
 * Command
-  * Add `--http.api` and `--ws.api` options `smartbchd start` command
+  * Add `--http.api`, `--ws.api` and `--archive-mode` options to `smartbchd start` command
 
 ## v0.3.5
 

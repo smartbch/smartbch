@@ -88,12 +88,12 @@ type BackendService interface {
 	//Engine() consensus.Engine
 
 	//Below is added in moeing chain only
-	GetNonce(address common.Address) (uint64, error)
-	GetBalance(address common.Address) (*big.Int, error)
-	GetCode(contract common.Address) (bytecode []byte, codeHash []byte)
-	GetStorageAt(address common.Address, key string) []byte
-	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
-	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
+	GetNonce(address common.Address, height int64) (uint64, error)
+	GetBalance(address common.Address, height int64) (*big.Int, error)
+	GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte)
+	GetStorageAt(address common.Address, key string, height int64) []byte
+	Call(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte)
+	EstimateGas(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter motypes.FilterFunc) ([]motypes.Log, error)
 	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
 	QueryTxByDst(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)

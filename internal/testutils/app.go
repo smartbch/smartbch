@@ -423,11 +423,11 @@ func (_app *TestApp) CallWithABI(sender, contractAddr gethcmn.Address,
 
 func (_app *TestApp) Call(sender, contractAddr gethcmn.Address, data []byte) (int, string, []byte) {
 	tx := ethutils.NewTx(0, &contractAddr, big.NewInt(0), DefaultGasLimit, big.NewInt(0), data)
-	runner, _ := _app.RunTxForRpc(tx, sender, false)
+	runner, _ := _app.RunTxForRpc(tx, sender, false, -1)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
 func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transaction) (int, string, int64) {
-	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true)
+	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true, -1)
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
 }
 

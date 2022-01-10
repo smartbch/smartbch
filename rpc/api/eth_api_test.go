@@ -134,11 +134,11 @@ func TestGetBalance(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	b, err := _api.GetBalance(addr, -1)
+	b, err := _api.GetBalance(addr, nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x989680", b.String())
 
-	b2, err := _api.GetBalance(addr2, -1)
+	b2, err := _api.GetBalance(addr2, nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x0", b2.String())
 }
@@ -152,10 +152,10 @@ func TestGetTxCount(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	nonce, err := _api.GetTransactionCount(addr1, -1)
+	nonce, err := _api.GetTransactionCount(addr1, nil)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
-	nonce, err = _api.GetTransactionCount(addr2, -1)
+	nonce, err = _api.GetTransactionCount(addr2, nil)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 
@@ -163,16 +163,16 @@ func TestGetTxCount(t *testing.T) {
 		tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
 		_app.EnsureTxSuccess(tx.Hash())
 
-		nonce, err = _api.GetTransactionCount(addr1, -1)
+		nonce, err = _api.GetTransactionCount(addr1, nil)
 		require.NoError(t, err)
 		require.Equal(t, hexutil.Uint64(i+1), *nonce)
 	}
 
-	nonce, err = _api.GetTransactionCount(addr2, -1)
+	nonce, err = _api.GetTransactionCount(addr2, nil)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 
-	nonce, err = _api.GetTransactionCount(addr3, -1)
+	nonce, err = _api.GetTransactionCount(addr3, nil)
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 }
@@ -193,11 +193,11 @@ func TestGetCode(t *testing.T) {
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	c, err := _api.GetCode(addr, -1)
+	c, err := _api.GetCode(addr, nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x1234", c.String())
 
-	c, err = _api.GetCode(addr2, -1)
+	c, err = _api.GetCode(addr2, nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x", c.String())
 }
@@ -218,15 +218,15 @@ func TestGetStorageAt(t *testing.T) {
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	sVal, err := _api.GetStorageAt(addr, "0x"+hex.EncodeToString(sKey), -1)
+	sVal, err := _api.GetStorageAt(addr, "0x"+hex.EncodeToString(sKey), nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x1234", sVal.String())
 
-	sVal, err = _api.GetStorageAt(addr, "0x7890", -1)
+	sVal, err = _api.GetStorageAt(addr, "0x7890", nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x", sVal.String())
 
-	sVal, err = _api.GetStorageAt(addr2, "0x7890", -1)
+	sVal, err = _api.GetStorageAt(addr2, "0x7890", nil)
 	require.NoError(t, err)
 	require.Equal(t, "0x", sVal.String())
 }
@@ -579,7 +579,7 @@ func TestCall_NoFromAddr(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	_, err := _api.Call(ethapi.CallArgs{}, -1)
+	_, err := _api.Call(ethapi.CallArgs{}, nil)
 	require.NoError(t, err)
 }
 
@@ -596,7 +596,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(10),
-	}, -1)
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 
@@ -604,7 +604,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),
-	}, -1)
+	}, nil)
 	require.Error(t, err)
 	//require.Equal(t, []byte{}, []byte(ret))
 }
@@ -620,7 +620,7 @@ func TestCall_DeployContract(t *testing.T) {
 	ret, err := _api.Call(ethapi.CallArgs{
 		From: &fromAddr,
 		Data: testutils.ToHexutilBytes(counterContractCreationBytecode),
-	}, -1)
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 }
@@ -639,7 +639,7 @@ func TestCall_RunGetter(t *testing.T) {
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), fromKey)
 	_app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(fromAddr, tx.Nonce())
-	rtCode, err := _api.GetCode(contractAddr, -1)
+	rtCode, err := _api.GetCode(contractAddr, nil)
 	require.NoError(t, err)
 	require.True(t, len(rtCode) > 0)
 
@@ -649,7 +649,7 @@ func TestCall_RunGetter(t *testing.T) {
 		//From: &fromAddr,
 		To:   &contractAddr,
 		Data: testutils.ToHexutilBytes(data),
-	}, -1)
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000",
 		hex.EncodeToString(results))
@@ -695,7 +695,7 @@ func testRandomTransfer() {
 				From:  &fromAddr,
 				To:    &toAddr,
 				Value: testutils.ToHexutilBig(10),
-			}, -1)
+			}, nil)
 			w.Done()
 		}()
 	}
