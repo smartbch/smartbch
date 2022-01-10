@@ -30,9 +30,11 @@ import (
 const (
 	flagRpcAddr                = "http.addr"
 	flagRpcAddrSecure          = "https.addr"
+	flagRpcAPI                 = "http.api"
 	flagCorsDomain             = "http.corsdomain"
 	flagWsAddr                 = "ws.addr"
 	flagWsAddrSecure           = "wss.addr"
+	flagWsAPI                  = "ws.api"
 	flagMaxOpenConnections     = "rpc.max-open-connections"
 	flagReadTimeout            = "rpc.read-timeout"
 	flagWriteTimeout           = "rpc.write-timeout"
@@ -90,6 +92,8 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
 	cmd.Flags().Bool(flagWatcherSpeedup, false, "Watcher Speedup")
 	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
+	cmd.Flags().String(flagRpcAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the HTTP-RPC interface")
+	cmd.Flags().String(flagWsAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the WS-RPC interface")
 
 	return cmd
 }
@@ -151,8 +155,10 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	unlockedKeys := viper.GetString(flagUnlock)
 	certfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/cert.pem")
 	keyfileDir := filepath.Join(nodeCfg.RootDir, "nodeCfg/key.pem")
+	httpAPI := viper.GetString(flagRpcAPI)
+	wsAPI := viper.GetString(flagWsAPI)
 	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certfileDir, keyfileDir,
-		serverCfg, rpcBackend, ctx.Logger, strings.Split(unlockedKeys, ","))
+		serverCfg, rpcBackend, ctx.Logger, strings.Split(unlockedKeys, ","), httpAPI, wsAPI)
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err

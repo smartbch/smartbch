@@ -6,6 +6,8 @@
   * Add sbch_getTransactionReceipt
   * Add sbch_getCCEpochs
   * Update sbch_getTxListByHeight and sbch_getTxListByHeightWithRange to return internal transactions
+* Command
+  * Add `--http.api` and `--ws.api` options `smartbchd start` command
 
 
 ## v0.3.4

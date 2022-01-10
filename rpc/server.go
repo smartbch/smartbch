@@ -29,6 +29,8 @@ type Server struct {
 	corsDomain   string
 	certFile     string
 	keyFile      string
+	httpAPI      []string
+	wsAPI        []string
 	serverConfig *tmrpcserver.Config
 
 	logger  tmlog.Logger
@@ -47,7 +49,8 @@ type Server struct {
 
 func NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certFile, keyFile string,
 	serverCfg *tmrpcserver.Config, backend api.BackendService,
-	logger tmlog.Logger, unlockedKeys []string) tmservice.Service {
+	logger tmlog.Logger, unlockedKeys []string,
+	httpAPI string, wsAPI string) tmservice.Service {
 
 	impl := &Server{
 		rpcAddr:      rpcAddr,
@@ -61,6 +64,8 @@ func NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certFil
 		unlockedKeys: unlockedKeys,
 		rpcHttpsAddr: rpcAddrSecure, //"tcp://:9545",
 		wssAddr:      wsAddrSecure,  //"tcp://:9546",
+		httpAPI:      strings.Split(httpAPI, ","),
+		wsAPI:        strings.Split(wsAPI, ","),
 	}
 	return tmservice.NewBaseService(logger, "", impl)
 }
@@ -75,7 +80,7 @@ func (server *Server) OnStart() error {
 
 func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	server.httpServer = gethrpc.NewServer()
-	if err = registerApis(server.httpServer, apis); err != nil {
+	if err = registerApis(server.httpServer, server.httpAPI, apis); err != nil {
 		return err
 	}
 
@@ -115,7 +120,7 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 
 func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	server.wsServer = gethrpc.NewServer()
-	if err = registerApis(server.wsServer, apis); err != nil {
+	if err = registerApis(server.wsServer, server.wsAPI, apis); err != nil {
 		return err
 	}
 
@@ -175,13 +180,24 @@ func (server *Server) stopWS() {
 	}
 }
 
-func registerApis(rpcServer *gethrpc.Server, apis []gethrpc.API) error {
+func registerApis(rpcServer *gethrpc.Server, namespaces []string, apis []gethrpc.API) error {
 	for _, _api := range apis {
-		if err := rpcServer.RegisterName(_api.Namespace, _api.Service); err != nil {
-			return err
+		if exists(namespaces, _api.Namespace) {
+			if err := rpcServer.RegisterName(_api.Namespace, _api.Service); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+func exists(set []string, find string) bool {
+	for _, s := range set {
+		if s == find {
+			return true
+		}
+	}
+	return false
 }
 
 func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
