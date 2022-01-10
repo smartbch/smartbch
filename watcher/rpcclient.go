@@ -163,13 +163,13 @@ func getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
 	return nil
 }
 
-func (client *RpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
-	var ccInfos []*cctypes.CCTransferInfo
-	for _, info := range bi.Tx {
-		ccInfos = append(ccInfos, info.GetCCTransferInfos()...)
-	}
-	return ccInfos
-}
+//func (client *RpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
+//	var ccInfos []*cctypes.CCTransferInfo
+//	for _, info := range bi.Tx {
+//		ccInfos = append(ccInfos, info.GetCCTransferInfos()...)
+//	}
+//	return ccInfos
+//}
 
 func (client *RpcClient) getCurrHeight() int64 {
 	var respData []byte

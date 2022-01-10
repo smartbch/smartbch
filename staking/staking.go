@@ -110,7 +110,7 @@ var (
 	MinGasPriceDeltaRateInBlock uint64 = 16
 	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every proposal can change
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
-	MinGasPriceLowerBound       uint64 = 10_000_000   //0.01gwei
+	MinGasPriceLowerBound       uint64 = 10_000_000      //0.01gwei
 	DefaultProposalDuration     uint64 = 60 * 60 * 24    //24hour
 )
 

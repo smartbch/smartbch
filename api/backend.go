@@ -219,10 +219,10 @@ func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Ha
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, sigs[][65]byte, err error) {
+func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, sigs [][65]byte, err error) {
 	return backend.GetTxListByHeightWithRange(height, 0, math.MaxInt32)
 }
-func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, sigs[][65]byte, err error) {
+func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 

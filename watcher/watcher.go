@@ -277,34 +277,34 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 	return epoch
 }
 
-func (watcher *Watcher) generateNewCCEpoch() {
-	if !watcher.chainConfig.ShaGateSwitch {
-		return
-	}
-	epoch := watcher.buildNewCCEpoch()
-	watcher.ccEpochList = append(watcher.ccEpochList, epoch)
-	watcher.logger.Debug("Generate new cc epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
-	watcher.CCEpochChan <- epoch
-	watcher.lastCCEpochEndHeight = watcher.latestFinalizedHeight
-}
+//func (watcher *Watcher) generateNewCCEpoch() {
+//	if !watcher.chainConfig.ShaGateSwitch {
+//		return
+//	}
+//	epoch := watcher.buildNewCCEpoch()
+//	watcher.ccEpochList = append(watcher.ccEpochList, epoch)
+//	watcher.logger.Debug("Generate new cc epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
+//	watcher.CCEpochChan <- epoch
+//	watcher.lastCCEpochEndHeight = watcher.latestFinalizedHeight
+//}
 
-func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
-	epoch := &cctypes.CCEpoch{
-		StartHeight:   watcher.lastCCEpochEndHeight + 1,
-		TransferInfos: make([]*cctypes.CCTransferInfo, 0, 10),
-	}
-	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
-		blk, ok := watcher.heightToFinalizedBlock[i]
-		if !ok {
-			panic("Missing Block")
-		}
-		if epoch.EndTime < blk.Timestamp {
-			epoch.EndTime = blk.Timestamp
-		}
-		//epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
-	}
-	return epoch
-}
+//func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
+//	epoch := &cctypes.CCEpoch{
+//		StartHeight:   watcher.lastCCEpochEndHeight + 1,
+//		TransferInfos: make([]*cctypes.CCTransferInfo, 0, 10),
+//	}
+//	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
+//		blk, ok := watcher.heightToFinalizedBlock[i]
+//		if !ok {
+//			panic("Missing Block")
+//		}
+//		if epoch.EndTime < blk.Timestamp {
+//			epoch.EndTime = blk.Timestamp
+//		}
+//		//epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
+//	}
+//	return epoch
+//}
 
 func (watcher *Watcher) CheckSanity(forTest bool) {
 	if !forTest {

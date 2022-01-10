@@ -35,7 +35,6 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
@@ -96,9 +95,9 @@ type App struct {
 	frontier    ebp.Frontier // recorded in Commint, used in next block's CheckTx
 
 	//watcher
-	watcher     *watcher.Watcher
-	epochList   []*stakingtypes.Epoch // caches the epochs collected by the watcher
-	ccEpochList []*cctypes.CCEpoch
+	watcher   *watcher.Watcher
+	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
+	//ccEpochList []*cctypes.CCEpoch
 
 	//util
 	signer gethtypes.Signer
@@ -210,7 +209,7 @@ func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.Mo
 	first := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 	last := [8]byte{255, 255, 255, 255, 255, 255, 255, 255}
 	mads, err := moeingads.NewMoeingADS(config.AppConfig.AppDataPath, config.AppConfig.ArchiveMode,
-					[][]byte{first[:], last[:]})
+		[][]byte{first[:], last[:]})
 	if err != nil {
 		panic(err)
 	}
@@ -815,7 +814,7 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
 	ctx := app.GetRpcContext()
 	defer ctx.Close(false)
-	runner := ebp.NewTxRunner(ctx, txToRun);
+	runner := ebp.NewTxRunner(ctx, txToRun)
 	bi := app.blockInfo.Load().(*types.BlockInfo)
 	estimateResult := ebp.RunTxForRpc(bi, estimateGas, runner)
 	return runner, estimateResult
