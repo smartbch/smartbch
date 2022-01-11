@@ -16,8 +16,6 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
-	"github.com/holiman/uint256"
-
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
@@ -67,6 +65,34 @@ var counterContractABI = ethutils.MustParseABI(`
 	"outputs": [],
 	"stateMutability": "nonpayable",
 	"type": "function"
+  }
+]
+`)
+
+var blockNumContractCreationBytecode = testutils.HexToBytes(`
+608060405234801561001057600080fd5b5060b58061001f6000396000f3fe60
+80604052348015600f57600080fd5b506004361060285760003560e01c806319
+efb11d14602d575b600080fd5b60336047565b604051603e9190605c565b6040
+5180910390f35b600043905090565b6056816075565b82525050565b60006020
+82019050606f6000830184604f565b92915050565b600081905091905056fea2
+646970667358221220927f2a776b2a2aa6496d4ed2002aff988e39cdce12e8ec
+7b8d73d0e0c44c19eb64736f6c63430008000033
+`)
+
+var blockNumContractABI = ethutils.MustParseABI(`
+[
+  {
+    "inputs": [],
+    "name": "getHeight",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ]
 `)
@@ -220,7 +246,7 @@ func TestGetStorageAt(t *testing.T) {
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	val0 := uint256.NewInt(0).PaddedBytes(32)
+	val0 := testutils.UintToBytes32(0)
 	require.Equal(t, sVal, getStorageAt(_api, addr, "0x"+hex.EncodeToString(sKey), -1))
 	require.Equal(t, val0, getStorageAt(_api, addr, "0x7890", -1))
 	require.Equal(t, val0, getStorageAt(_api, addr2, "0x7890", -1))
@@ -711,7 +737,7 @@ func TestArchiveQuery_nonArchiveMode(t *testing.T) {
 	for h := gethrpc.LatestBlockNumber; h < 10; h++ {
 		require.Equal(t, uint64(1), getTxCount(_api, addr1, h))
 		require.Equal(t, uint64(9999000), getBalance(_api, addr1, h))
-		require.Equal(t, uint256.NewInt(0).PaddedBytes(32), getStorageAt(_api, addr1, "0x0", h))
+		require.Equal(t, testutils.UintToBytes32(0), getStorageAt(_api, addr1, "0x0", h))
 		require.Len(t, getCode(_api, addr1, h), 0)
 	}
 }
@@ -773,15 +799,73 @@ func TestArchiveQuery_getCodeAndStorageAt(t *testing.T) {
 	}
 
 	// getStorageAt
-	val0 := uint256.NewInt(0).PaddedBytes(32)
-	val1 := uint256.NewInt(111).PaddedBytes(32)
-	val3 := uint256.NewInt(333).PaddedBytes(32)
+	val0 := testutils.UintToBytes32(0)
+	val1 := testutils.UintToBytes32(111)
+	val3 := testutils.UintToBytes32(333)
 	slot0 := "0x0"
 	require.Equal(t, val0, getStorageAt(_api, counterAddr, slot0, 7))
 	require.Equal(t, val0, getStorageAt(_api, counterAddr, slot0, 8))
 	require.Equal(t, val1, getStorageAt(_api, counterAddr, slot0, 9))
 	require.Equal(t, val1, getStorageAt(_api, counterAddr, slot0, 10))
 	require.Equal(t, val3, getStorageAt(_api, counterAddr, slot0, 11))
+}
+
+func TestArchiveQuery_call(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, h, counterAddr := _app.DeployContractInBlock(key1, counterContractCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	require.Equal(t, int64(1), h)
+
+	for i := 0; i < 5; i++ {
+		tx, h := _app.MakeAndExecTxInBlock(key1, counterAddr, 0,
+			counterContractABI.MustPack("update", big.NewInt(int64(100+i))))
+		_app.EnsureTxSuccess(tx.Hash())
+		require.Equal(t, int64(3+i*2), h) // 3, 5, 7, 9, 11
+	}
+
+	data := counterContractABI.MustPack("counter")
+	require.Equal(t, []byte{}, call(_api, addr1, counterAddr, data, 0))
+	require.Equal(t, testutils.UintToBytes32(0), call(_api, addr1, counterAddr, data, 1))
+	require.Equal(t, testutils.UintToBytes32(0), call(_api, addr1, counterAddr, data, 2))
+	require.Equal(t, testutils.UintToBytes32(100), call(_api, addr1, counterAddr, data, 3))
+	require.Equal(t, testutils.UintToBytes32(100), call(_api, addr1, counterAddr, data, 4))
+	require.Equal(t, testutils.UintToBytes32(201), call(_api, addr1, counterAddr, data, 5))
+	require.Equal(t, testutils.UintToBytes32(201), call(_api, addr1, counterAddr, data, 6))
+	require.Equal(t, testutils.UintToBytes32(303), call(_api, addr1, counterAddr, data, 7))
+	require.Equal(t, testutils.UintToBytes32(303), call(_api, addr1, counterAddr, data, 8))
+	require.Equal(t, testutils.UintToBytes32(406), call(_api, addr1, counterAddr, data, 9))
+	require.Equal(t, testutils.UintToBytes32(406), call(_api, addr1, counterAddr, data, 10))
+	require.Equal(t, testutils.UintToBytes32(510), call(_api, addr1, counterAddr, data, 11))
+	require.Equal(t, testutils.UintToBytes32(510), call(_api, addr1, counterAddr, data, -1))
+}
+
+func TestArchiveQuery_blockNum(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1, key2)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, h, blockNumAddr := _app.DeployContractInBlock(key1, blockNumContractCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	require.Equal(t, int64(1), h)
+
+	for i := 0; i < 3; i++ {
+		tx, h := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+		_app.EnsureTxSuccess(tx.Hash())
+		require.Equal(t, int64(3+i*2), h) // 3, 5, 7
+	}
+
+	data := blockNumContractABI.MustPack("getHeight")
+	require.Equal(t, testutils.UintToBytes32(8), call(_api, addr1, blockNumAddr, data, -1))
+	// TODO
+	require.Equal(t, testutils.UintToBytes32(1), call(_api, addr1, blockNumAddr, data, 1))
+	require.Equal(t, testutils.UintToBytes32(2), call(_api, addr1, blockNumAddr, data, 2))
+	require.Equal(t, testutils.UintToBytes32(3), call(_api, addr1, blockNumAddr, data, 3))
 }
 
 func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
@@ -799,10 +883,6 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 		}...)
 	}
 	return b.Build()
-}
-
-func TestArchiveQuery_call(t *testing.T) {
-	// TODO
 }
 
 func getTxCount(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
@@ -832,4 +912,15 @@ func getStorageAt(_api *ethAPI, addr gethcmn.Address, key string, h gethrpc.Bloc
 		panic(err)
 	}
 	return c
+}
+func call(_api *ethAPI, from, to gethcmn.Address, data []byte, h gethrpc.BlockNumber) []byte {
+	results, err := _api.Call(rpctypes.CallArgs{
+		From: &from,
+		To:   &to,
+		Data: (*hexutil.Bytes)(&data),
+	}, h)
+	if err != nil {
+		panic(err)
+	}
+	return results
 }

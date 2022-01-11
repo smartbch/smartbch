@@ -12,7 +12,6 @@ import (
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
 
@@ -122,7 +121,7 @@ func TestInternalTxCalls(t *testing.T) {
 				=> contract3.callMe()
 				=> contract3.callMe()
 	*/
-	callData := testutils.JoinBytes(testutils.HexToBytes(methodIdCall2), bigutils.NewU256(0x100).PaddedBytes(32))
+	callData := testutils.JoinBytes(testutils.HexToBytes(methodIdCall2), testutils.UintToBytes32(0x100))
 	tx4, _ := _app.MakeAndExecTxInBlock(key, contract1Addr, 0, callData)
 	_app.EnsureTxSuccess(tx4.Hash())
 	moTx4 := _app.GetTx(tx4.Hash())
@@ -232,7 +231,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 				=> contract3.callMe()
 				=> contract3.callMe()
 	*/
-	callData := testutils.JoinBytes(testutils.HexToBytes(methodIdCall2), bigutils.NewU256(0x100).PaddedBytes(32))
+	callData := testutils.JoinBytes(testutils.HexToBytes(methodIdCall2), testutils.UintToBytes32(0x100))
 	tx4, h4 := _app.MakeAndExecTxInBlock(key, contract1Addr, 0, callData)
 	_app.EnsureTxSuccess(tx4.Hash())
 	moTx4 := _app.GetTx(tx4.Hash())
