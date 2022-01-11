@@ -194,7 +194,13 @@ func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrp
 
 	hash := common.HexToHash(key)
 	key = string(hash[:])
-	return api.backend.GetStorageAt(addr, key, height), nil
+	val := api.backend.GetStorageAt(addr, key, height)
+	if val == nil {
+		var zeroHash = common.Hash{}
+		val = zeroHash[:]
+	}
+
+	return val, nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBlockByHash

@@ -16,10 +16,10 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/holiman/uint256"
 
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/types"
-
 	"github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
@@ -214,22 +214,16 @@ func TestGetStorageAt(t *testing.T) {
 	ctx := _app.GetRunTxContext()
 	seq := ctx.GetAccount(addr).Sequence()
 	sKey := bytes.Repeat([]byte{0xab, 0xcd}, 16)
-	ctx.SetStorageAt(seq, string(sKey), []byte{0x12, 0x34})
+	sVal := bytes.Repeat([]byte{0x12, 0x34}, 16)
+	ctx.SetStorageAt(seq, string(sKey), sVal)
 	ctx.Close(true)
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	sVal, err := _api.GetStorageAt(addr, "0x"+hex.EncodeToString(sKey), -1)
-	require.NoError(t, err)
-	require.Equal(t, "0x1234", sVal.String())
-
-	sVal, err = _api.GetStorageAt(addr, "0x7890", -1)
-	require.NoError(t, err)
-	require.Equal(t, "0x", sVal.String())
-
-	sVal, err = _api.GetStorageAt(addr2, "0x7890", -1)
-	require.NoError(t, err)
-	require.Equal(t, "0x", sVal.String())
+	val0 := uint256.NewInt(0).PaddedBytes(32)
+	require.Equal(t, sVal, getStorageAt(_api, addr, "0x"+hex.EncodeToString(sKey), -1))
+	require.Equal(t, val0, getStorageAt(_api, addr, "0x7890", -1))
+	require.Equal(t, val0, getStorageAt(_api, addr2, "0x7890", -1))
 }
 
 func TestQueryBlockByNum(t *testing.T) {
@@ -717,8 +711,8 @@ func TestArchiveQuery_nonArchiveMode(t *testing.T) {
 	for h := gethrpc.LatestBlockNumber; h < 10; h++ {
 		require.Equal(t, uint64(1), getTxCount(_api, addr1, h))
 		require.Equal(t, uint64(9999000), getBalance(_api, addr1, h))
+		require.Equal(t, uint256.NewInt(0).PaddedBytes(32), getStorageAt(_api, addr1, "0x0", h))
 		require.Len(t, getCode(_api, addr1, h), 0)
-		require.Len(t, getStorageAt(_api, addr1, "", h), 0)
 	}
 }
 
@@ -744,6 +738,52 @@ func TestArchiveQuery_getTxCountAndBalance(t *testing.T) {
 	require.Equal(t, uint64(9995000), getBalance(_api, addr1, -1))
 }
 
+func TestArchiveQuery_getCodeAndStorageAt(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1, key2)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	for i := int64(0); i < 3; i++ {
+		tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+		_app.EnsureTxSuccess(tx.Hash())
+	}
+
+	tx, h, counterAddr := _app.DeployContractInBlock(key1, counterContractCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	require.Equal(t, int64(7), h)
+
+	tx1, h1 := _app.MakeAndExecTxInBlock(key1, counterAddr, 0,
+		counterContractABI.MustPack("update", big.NewInt(111)))
+	_app.EnsureTxSuccess(tx1.Hash())
+	require.Equal(t, int64(9), h1)
+
+	tx2, h2 := _app.MakeAndExecTxInBlock(key1, counterAddr, 0,
+		counterContractABI.MustPack("update", big.NewInt(222)))
+	_app.EnsureTxSuccess(tx2.Hash())
+	require.Equal(t, int64(11), h2)
+
+	// getCode
+	for i := 0; i < 7; i++ {
+		require.Len(t, getCode(_api, counterAddr, gethrpc.BlockNumber(i)), 0)
+	}
+	for i := 7; i < 12; i++ {
+		require.Len(t, getCode(_api, counterAddr, gethrpc.BlockNumber(i)), 178)
+	}
+
+	// getStorageAt
+	val0 := uint256.NewInt(0).PaddedBytes(32)
+	val1 := uint256.NewInt(111).PaddedBytes(32)
+	val3 := uint256.NewInt(333).PaddedBytes(32)
+	slot0 := "0x0"
+	require.Equal(t, val0, getStorageAt(_api, counterAddr, slot0, 7))
+	require.Equal(t, val0, getStorageAt(_api, counterAddr, slot0, 8))
+	require.Equal(t, val1, getStorageAt(_api, counterAddr, slot0, 9))
+	require.Equal(t, val1, getStorageAt(_api, counterAddr, slot0, 10))
+	require.Equal(t, val3, getStorageAt(_api, counterAddr, slot0, 11))
+}
+
 func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
 	backend := api.NewBackend(nil, _app.App)
 	return newEthAPI(backend, testKeys, _app.Logger())
@@ -759,6 +799,10 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 		}...)
 	}
 	return b.Build()
+}
+
+func TestArchiveQuery_call(t *testing.T) {
+	// TODO
 }
 
 func getTxCount(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
