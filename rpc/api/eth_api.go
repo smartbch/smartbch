@@ -46,22 +46,22 @@ var errPendingBlockNum = errors.New("pending block number is not supported")
 type PublicEthAPI interface {
 	Accounts() ([]common.Address, error)
 	BlockNumber() (hexutil.Uint64, error)
-	Call(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Bytes, error)
+	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error)
 	ChainId() hexutil.Uint64
 	Coinbase() (common.Address, error)
 	EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error)
 	GasPrice() *hexutil.Big
-	GetBalance(addr common.Address, blockNum *gethrpc.BlockNumber) (*hexutil.Big, error)
+	GetBalance(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Big, error)
 	GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error)
 	GetBlockByNumber(blockNum gethrpc.BlockNumber, fullTx bool) (map[string]interface{}, error)
 	GetBlockTransactionCountByHash(hash common.Hash) *hexutil.Uint
 	GetBlockTransactionCountByNumber(blockNum gethrpc.BlockNumber) *hexutil.Uint
-	GetCode(addr common.Address, blockNum *gethrpc.BlockNumber) (hexutil.Bytes, error)
-	GetStorageAt(addr common.Address, key string, blockNum *gethrpc.BlockNumber) (hexutil.Bytes, error)
+	GetCode(addr common.Address, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error)
+	GetStorageAt(addr common.Address, key string, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error)
 	GetTransactionByBlockHashAndIndex(hash common.Hash, idx hexutil.Uint) (*rpctypes.Transaction, error)
 	GetTransactionByBlockNumberAndIndex(blockNum gethrpc.BlockNumber, idx hexutil.Uint) (*rpctypes.Transaction, error)
 	GetTransactionByHash(hash common.Hash) (*rpctypes.Transaction, error)
-	GetTransactionCount(addr common.Address, blockNum *gethrpc.BlockNumber) (*hexutil.Uint64, error)
+	GetTransactionCount(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Uint64, error)
 	GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error)
 	GetUncleByBlockHashAndIndex(hash common.Hash, idx hexutil.Uint) map[string]interface{}
 	GetUncleByBlockNumberAndIndex(number hexutil.Uint, idx hexutil.Uint) map[string]interface{}
@@ -144,7 +144,7 @@ func (api *ethAPI) Coinbase() (common.Address, error) {
 // https://eth.wiki/json-rpc/API#eth_gasPrice
 func (api *ethAPI) GasPrice() *hexutil.Big {
 	api.logger.Debug("eth_gasPrice")
-	val, err := api.GetStorageAt(staking.StakingContractAddress, staking.SlotMinGasPriceHex, nil)
+	val, err := api.GetStorageAt(staking.StakingContractAddress, staking.SlotMinGasPriceHex, -1)
 	if err != nil {
 		return (*hexutil.Big)(big.NewInt(0))
 	}
@@ -152,7 +152,7 @@ func (api *ethAPI) GasPrice() *hexutil.Big {
 }
 
 // https://eth.wiki/json-rpc/API#eth_getBalance
-func (api *ethAPI) GetBalance(addr common.Address, blockNum *gethrpc.BlockNumber) (*hexutil.Big, error) {
+func (api *ethAPI) GetBalance(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Big, error) {
 	api.logger.Debug("eth_getBalance")
 
 	height, err := api.getHeightArg(blockNum)
@@ -171,7 +171,7 @@ func (api *ethAPI) GetBalance(addr common.Address, blockNum *gethrpc.BlockNumber
 }
 
 // https://eth.wiki/json-rpc/API#eth_getCode
-func (api *ethAPI) GetCode(addr common.Address, blockNum *gethrpc.BlockNumber) (hexutil.Bytes, error) {
+func (api *ethAPI) GetCode(addr common.Address, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
 	api.logger.Debug("eth_getCode")
 
 	height, err := api.getHeightArg(blockNum)
@@ -184,7 +184,7 @@ func (api *ethAPI) GetCode(addr common.Address, blockNum *gethrpc.BlockNumber) (
 }
 
 // https://eth.wiki/json-rpc/API#eth_getStorageAt
-func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum *gethrpc.BlockNumber) (hexutil.Bytes, error) {
+func (api *ethAPI) GetStorageAt(addr common.Address, key string, blockNum gethrpc.BlockNumber) (hexutil.Bytes, error) {
 	api.logger.Debug("eth_getStorageAt")
 
 	height, err := api.getHeightArg(blockNum)
@@ -305,7 +305,7 @@ func (api *ethAPI) GetTransactionByHash(hash common.Hash) (*rpctypes.Transaction
 }
 
 // https://eth.wiki/json-rpc/API#eth_getTransactionCount
-func (api *ethAPI) GetTransactionCount(addr common.Address, blockNum *gethrpc.BlockNumber) (*hexutil.Uint64, error) {
+func (api *ethAPI) GetTransactionCount(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Uint64, error) {
 	api.logger.Debug("eth_getTransactionCount")
 
 	height, err := api.getHeightArg(blockNum)
@@ -467,7 +467,7 @@ func (api *ethAPI) Syncing() (interface{}, error) {
 }
 
 // https://eth.wiki/json-rpc/API#eth_call
-func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Bytes, error) {
+func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error) {
 	atomic.AddUint64(&api.numCall, 1)
 	api.logger.Debug("eth_call", "from", addrToStr(args.From), "to", addrToStr(args.To))
 
@@ -504,9 +504,12 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNum
 		return 0, err
 	}
 
-	height, err := api.getHeightArg(blockNr)
-	if err != nil {
-		return 0, err
+	height := gethrpc.LatestBlockNumber.Int64()
+	if blockNr != nil {
+		height, err = api.getHeightArg(*blockNr)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	statusCode, retData, gas := api.backend.EstimateGas(tx, from, height)
@@ -556,12 +559,9 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 	return tx, from, nil
 }
 
-func (api *ethAPI) getHeightArg(blockNum *gethrpc.BlockNumber) (int64, error) {
-	if blockNum == nil {
-		return int64(gethrpc.LatestBlockNumber), nil
-	}
-	if *blockNum == gethrpc.PendingBlockNumber {
+func (api *ethAPI) getHeightArg(blockNum gethrpc.BlockNumber) (int64, error) {
+	if blockNum == gethrpc.PendingBlockNumber {
 		return 0, errPendingBlockNum
 	}
-	return int64(*blockNum), nil
+	return blockNum.Int64(), nil
 }
