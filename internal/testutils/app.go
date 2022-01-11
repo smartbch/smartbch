@@ -65,10 +65,14 @@ type TestAppInitArgs struct {
 	ValPubKey   *crypto.PubKey
 	InitAmt     *uint256.Int
 	PrivKeys    []string
+	ArchiveMode bool
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys, false)
+}
+func CreateTestAppInArchiveMode(keys ...string) *TestApp {
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys, true)
 }
 
 func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
@@ -92,10 +96,12 @@ func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
 		initAmt = args.InitAmt
 	}
 
-	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
+	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys, args.ArchiveMode)
 }
 
-func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
+func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys []string,
+	archiveMode bool) *TestApp {
+
 	err := os.RemoveAll(testAdsDir)
 	if err != nil {
 		panic("remove test ads failed " + err.Error())
@@ -107,6 +113,7 @@ func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
+	params.AppConfig.ArchiveMode = archiveMode
 	_app := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)

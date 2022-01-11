@@ -44,6 +44,8 @@ import (
 
 var _ abcitypes.Application = (*App)(nil)
 
+//var errNotInArchiveMode = errors.New("not in archive mode")
+
 const (
 	CannotDecodeTx       uint32 = 101
 	CannotRecoverSender  uint32 = 102
@@ -773,6 +775,10 @@ func (app *App) GetRpcContext() *types.Context {
 }
 func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	if height < 0 {
+		return app.GetRpcContext()
+	}
+	if !app.config.AppConfig.ArchiveMode {
+		// TODO: throw error?
 		return app.GetRpcContext()
 	}
 

@@ -29,6 +29,7 @@ import (
 	"github.com/smartbch/smartbch/staking"
 )
 
+// ../../testdata/counter/contracts/Counter.sol
 var counterContractCreationBytecode = testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060b28061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060325760003560e01c806361
@@ -702,6 +703,47 @@ func testRandomTransfer() {
 	w.Wait()
 }
 
+func TestArchiveQuery_nonArchiveMode(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1, key2)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	// no errors
+	for h := gethrpc.LatestBlockNumber; h < 10; h++ {
+		require.Equal(t, uint64(1), getTxCount(_api, addr1, h))
+		require.Equal(t, uint64(9999000), getBalance(_api, addr1, h))
+		require.Len(t, getCode(_api, addr1, h), 0)
+		require.Len(t, getStorageAt(_api, addr1, "", h), 0)
+	}
+}
+
+func TestArchiveQuery_getTxCountAndBalance(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1, key2)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	for i := int64(0); i < 5; i++ {
+		tx, h := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+		_app.EnsureTxSuccess(tx.Hash())
+		require.Equal(t, i*2+1, h) // 1, 3, 5, 7, 9, ...
+	}
+
+	for i := 0; i < 10; i++ {
+		h := gethrpc.BlockNumber(i)
+		require.Equal(t, uint64((h+1)/2), getTxCount(_api, addr1, h))
+		require.Equal(t, uint64(10000000-1000*((h+1)/2)), getBalance(_api, addr1, h))
+	}
+	require.Equal(t, uint64(5), getTxCount(_api, addr1, -1))
+	require.Equal(t, uint64(9995000), getBalance(_api, addr1, -1))
+}
+
 func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
 	backend := api.NewBackend(nil, _app.App)
 	return newEthAPI(backend, testKeys, _app.Logger())
@@ -717,4 +759,33 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 		}...)
 	}
 	return b.Build()
+}
+
+func getTxCount(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
+	txCount, err := _api.GetTransactionCount(addr, h)
+	if err != nil {
+		panic(err)
+	}
+	return uint64(*txCount)
+}
+func getBalance(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
+	b, err := _api.GetBalance(addr, h)
+	if err != nil {
+		panic(err)
+	}
+	return (*b).ToInt().Uint64()
+}
+func getCode(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) []byte {
+	c, err := _api.GetCode(addr, h)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+func getStorageAt(_api *ethAPI, addr gethcmn.Address, key string, h gethrpc.BlockNumber) []byte {
+	c, err := _api.GetStorageAt(addr, key, h)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
