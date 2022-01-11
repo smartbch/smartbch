@@ -110,6 +110,7 @@ var (
 	MinGasPriceDeltaRateInBlock uint64 = 16
 	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every proposal can change
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
+	MinGasPriceLowerBoundOld    uint64 = 1_000_000_000   //1gwei
 	MinGasPriceLowerBound       uint64 = 10_000_000      //0.01gwei
 	DefaultProposalDuration     uint64 = 60 * 60 * 24    //24hour
 )
@@ -613,7 +614,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 		}
 		logger.Debug(fmt.Sprintf("mGP(%d),lastMGP(%d),increase(%v)", mGP, lastMGP, isIncrease))
 
-		if mGP < MinGasPriceLowerBound {
+		if mGP < MinGasPriceLowerBoundOld {
 			outData = []byte(MinGasPriceTooSmall.Error())
 			return
 		}
