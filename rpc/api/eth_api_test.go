@@ -967,9 +967,8 @@ func TestArchiveQuery_blockNum(t *testing.T) {
 	require.Equal(t, int64(9), h)
 	require.Equal(t, uint64(9), getBlockNum(_api))
 
-	// TODO
 	data := blockNumContractABI.MustPack("getHeight")
-	require.Equal(t, testutils.UintToBytes32(10), call(_api, addr1, blockNumAddr, data, -1))
+	require.Equal(t, testutils.UintToBytes32(10), call(_api, addr1, blockNumAddr, data, -1)) // ??
 	require.Equal(t, testutils.UintToBytes32(9), call(_api, addr1, blockNumAddr, data, 9))
 	require.Equal(t, testutils.UintToBytes32(1), call(_api, addr1, blockNumAddr, data, 1))
 	require.Equal(t, testutils.UintToBytes32(2), call(_api, addr1, blockNumAddr, data, 2))
@@ -977,6 +976,7 @@ func TestArchiveQuery_blockNum(t *testing.T) {
 
 	data = blockNumContractABI.MustPack("getBalance", addr1)
 	require.Equal(t, testutils.UintToBytes32(9997000), call(_api, addr1, blockNumAddr, data, -1))
+	require.Equal(t, testutils.UintToBytes32(9997000), call(_api, addr1, blockNumAddr, data, 9))
 	require.Equal(t, testutils.UintToBytes32(9998000), call(_api, addr1, blockNumAddr, data, 5))
 	require.Equal(t, testutils.UintToBytes32(9999000), call(_api, addr1, blockNumAddr, data, 3))
 	require.Equal(t, testutils.UintToBytes32(10000000), call(_api, addr1, blockNumAddr, data, 1))
