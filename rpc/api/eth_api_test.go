@@ -734,12 +734,66 @@ func TestArchiveQuery_nonArchiveMode(t *testing.T) {
 	_app.EnsureTxSuccess(tx.Hash())
 
 	// no errors
-	for h := gethrpc.LatestBlockNumber; h < 10; h++ {
+	for h := gethrpc.PendingBlockNumber; h < 10; h++ {
 		require.Equal(t, uint64(1), getTxCount(_api, addr1, h))
 		require.Equal(t, uint64(9999000), getBalance(_api, addr1, h))
 		require.Equal(t, testutils.UintToBytes32(0), getStorageAt(_api, addr1, "0x0", h))
 		require.Len(t, getCode(_api, addr1, h), 0)
 	}
+}
+
+func TestArchiveQuery_futureBlock(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1, key2)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	blockNum := gethrpc.BlockNumber(10)
+	errMsg := "block has not been mined"
+
+	_, err := _api.GetTransactionCount(addr1, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.GetBalance(addr1, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.GetCode(addr1, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.GetStorageAt(addr1, "0x0123", blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.Call(rpctypes.CallArgs{}, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.EstimateGas(rpctypes.CallArgs{}, &blockNum)
+	require.Equal(t, errMsg, err.Error())
+}
+
+func TestArchiveQuery_pendingBlock(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1, key2)
+	defer _app.Destroy()
+	_api := createEthAPI(_app)
+
+	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	blockNum := gethrpc.PendingBlockNumber
+	errMsg := "pending block is not supported"
+
+	_, err := _api.GetTransactionCount(addr1, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.GetBalance(addr1, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.GetCode(addr1, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.GetStorageAt(addr1, "0x0123", blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.Call(rpctypes.CallArgs{}, blockNum)
+	require.Equal(t, errMsg, err.Error())
+	_, err = _api.EstimateGas(rpctypes.CallArgs{}, &blockNum)
+	require.Equal(t, errMsg, err.Error())
 }
 
 func TestArchiveQuery_getTxCountAndBalance(t *testing.T) {

@@ -435,3 +435,7 @@ func (backend *apiBackend) NodeInfo() Info {
 func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }
+
+func (backend *apiBackend) IsArchiveMode() bool {
+	return backend.app.IsArchiveMode()
+}

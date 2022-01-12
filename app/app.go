@@ -44,8 +44,6 @@ import (
 
 var _ abcitypes.Application = (*App)(nil)
 
-//var errNotInArchiveMode = errors.New("not in archive mode")
-
 const (
 	CannotDecodeTx       uint32 = 101
 	CannotRecoverSender  uint32 = 102
@@ -774,11 +772,7 @@ func (app *App) GetRpcContext() *types.Context {
 	return c
 }
 func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
-	if height < 0 {
-		return app.GetRpcContext()
-	}
-	if !app.config.AppConfig.ArchiveMode {
-		// TODO: throw error?
+	if !app.config.AppConfig.ArchiveMode || height < 0 {
 		return app.GetRpcContext()
 	}
 
@@ -863,6 +857,10 @@ func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	minGasPrice := staking.LoadMinGasPrice(ctx, false)
 	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
 	return newValidatorsInfo(app.currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
+}
+
+func (app *App) IsArchiveMode() bool {
+	return app.config.AppConfig.ArchiveMode
 }
 
 //nolint

@@ -41,7 +41,11 @@ var fakeBlock0 = &types.Block{
 }
 
 var _ PublicEthAPI = (*ethAPI)(nil)
-var errPendingBlockNum = errors.New("pending block number is not supported")
+
+var (
+	errPendingBlockNum = errors.New("pending block is not supported")
+	errFutureBlockNum  = errors.New("block has not been mined")
+)
 
 type PublicEthAPI interface {
 	Accounts() ([]common.Address, error)
@@ -477,11 +481,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 	atomic.AddUint64(&api.numCall, 1)
 	api.logger.Debug("eth_call", "from", addrToStr(args.From), "to", addrToStr(args.To))
 
-	tx, from, err := api.createGethTxFromCallArgs(args)
-	if err != nil {
-		return hexutil.Bytes{}, err
-	}
-
+	tx, from := api.createGethTxFromCallArgs(args)
 	height, err := api.getHeightArg(blockNr)
 	if err != nil {
 		return hexutil.Bytes{}, err
@@ -505,13 +505,11 @@ func addrToStr(addr *common.Address) string {
 // https://eth.wiki/json-rpc/API#eth_estimateGas
 func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error) {
 	api.logger.Debug("eth_estimateGas")
-	tx, from, err := api.createGethTxFromCallArgs(args)
-	if err != nil {
-		return 0, err
-	}
+	tx, from := api.createGethTxFromCallArgs(args)
 
 	height := gethrpc.LatestBlockNumber.Int64()
 	if blockNr != nil {
+		var err error
 		height, err = api.getHeightArg(*blockNr)
 		if err != nil {
 			return 0, err
@@ -527,7 +525,7 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNum
 }
 
 func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
-) (*gethtypes.Transaction, common.Address, error) {
+) (*gethtypes.Transaction, common.Address) {
 
 	var from, to common.Address
 	if args.From != nil {
@@ -562,12 +560,19 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 	}
 
 	tx := ethutils.NewTx(0, &to, val, gasLimit, gasPrice, data)
-	return tx, from, nil
+	return tx, from
 }
 
 func (api *ethAPI) getHeightArg(blockNum gethrpc.BlockNumber) (int64, error) {
-	if blockNum == gethrpc.PendingBlockNumber {
-		return 0, errPendingBlockNum
+	if !api.backend.IsArchiveMode() {
+		return -1, nil
 	}
+	if blockNum == gethrpc.PendingBlockNumber {
+		return -1, errPendingBlockNum
+	}
+	if blockNum > 0 && blockNum.Int64() > api.backend.LatestHeight() {
+		return -1, errFutureBlockNum
+	}
+
 	return blockNum.Int64(), nil
 }

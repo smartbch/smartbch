@@ -111,4 +111,6 @@ type BackendService interface {
 	//tendermint info
 	NodeInfo() Info
 	ValidatorsInfo() app.ValidatorsInfo
+
+	IsArchiveMode() bool
 }
