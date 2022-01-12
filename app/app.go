@@ -782,7 +782,7 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
 	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
-	c.SetCurrentHeight(app.currHeight)
+	c.SetCurrentHeight(height)
 	return c
 }
 func (app *App) GetRunTxContext() *types.Context {
@@ -820,6 +820,19 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	defer ctx.Close(false)
 	runner := ebp.NewTxRunner(ctx, txToRun)
 	bi := app.blockInfo.Load().(*types.BlockInfo)
+	if height > 0 {
+		blk, err := ctx.GetBlockByHeight(uint64(height))
+		if err != nil {
+			return nil, 0
+		}
+		bi = &types.BlockInfo{
+			Coinbase:  blk.Miner,
+			Number:    blk.Number,
+			Timestamp: blk.Timestamp,
+			ChainId:   app.chainId.Bytes32(),
+			Hash:      blk.Hash,
+		}
+	}
 	estimateResult := ebp.RunTxForRpc(bi, estimateGas, runner)
 	return runner, estimateResult
 }

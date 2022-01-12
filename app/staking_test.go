@@ -91,7 +91,7 @@ func TestStaking(t *testing.T) {
 	ctx = _app.GetRunTxContext()
 	mp := staking.LoadMinGasPrice(ctx, false)
 	ctx.Close(false)
-	require.Equal(t, 105, int(mp))
+	require.Equal(t, 100, int(mp)) // IncreaseMinGasPrice is a nop after xhedge fork
 
 	//test validator retire
 	ctx = _app.GetRunTxContext()
