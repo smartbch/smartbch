@@ -70,13 +70,23 @@ var counterContractABI = ethutils.MustParseABI(`
 `)
 
 var blockNumContractCreationBytecode = testutils.HexToBytes(`
-608060405234801561001057600080fd5b5060b58061001f6000396000f3fe60
-80604052348015600f57600080fd5b506004361060285760003560e01c806319
-efb11d14602d575b600080fd5b60336047565b604051603e9190605c565b6040
-5180910390f35b600043905090565b6056816075565b82525050565b60006020
-82019050606f6000830184604f565b92915050565b600081905091905056fea2
-646970667358221220927f2a776b2a2aa6496d4ed2002aff988e39cdce12e8ec
-7b8d73d0e0c44c19eb64736f6c63430008000033
+608060405234801561001057600080fd5b506101ee806100206000396000f3fe
+608060405234801561001057600080fd5b50600436106100415760003560e01c
+806319efb11d14610046578063b51c4f9614610064578063f8b2cb4f14610094
+575b600080fd5b61004e6100c4565b60405161005b919061014a565b60405180
+910390f35b61007e60048036038101906100799190610112565b6100cc565b60
+405161008b919061014a565b60405180910390f35b6100ae6004803603810190
+6100a99190610112565b6100dc565b6040516100bb919061014a565b60405180
+910390f35b600043905090565b600080823b905080915050919050565b600081
+73ffffffffffffffffffffffffffffffffffffffff16319050919050565b6000
+8135905061010c816101a1565b92915050565b60006020828403121561012457
+600080fd5b6000610132848285016100fd565b91505092915050565b61014481
+610197565b82525050565b600060208201905061015f600083018461013b565b
+92915050565b600061017082610177565b9050919050565b600073ffffffffff
+ffffffffffffffffffffffffffffff82169050919050565b6000819050919050
+565b6101aa81610165565b81146101b557600080fd5b5056fea2646970667358
+221220504a116324170389d1965252e1547c0e5b9079226a56b91b390f5ec18f
+654d5a64736f6c63430008000033
 `)
 
 var blockNumContractABI = ethutils.MustParseABI(`
@@ -84,6 +94,44 @@ var blockNumContractABI = ethutils.MustParseABI(`
   {
     "inputs": [],
     "name": "getHeight",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "addr",
+        "type": "address"
+      }
+    ],
+    "name": "getBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "addr",
+        "type": "address"
+      }
+    ],
+    "name": "getCodeSize",
     "outputs": [
       {
         "internalType": "uint256",
@@ -914,12 +962,30 @@ func TestArchiveQuery_blockNum(t *testing.T) {
 		require.Equal(t, int64(3+i*2), h) // 3, 5, 7
 	}
 
-	data := blockNumContractABI.MustPack("getHeight")
-	require.Equal(t, testutils.UintToBytes32(8), call(_api, addr1, blockNumAddr, data, -1))
+	tx, h, counterAddr := _app.DeployContractInBlock(key1, counterContractCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	require.Equal(t, int64(9), h)
+	require.Equal(t, uint64(9), getBlockNum(_api))
+
 	// TODO
-	require.Equal(t, testutils.UintToBytes32(1), call(_api, addr1, blockNumAddr, data, 1))
-	require.Equal(t, testutils.UintToBytes32(2), call(_api, addr1, blockNumAddr, data, 2))
-	require.Equal(t, testutils.UintToBytes32(3), call(_api, addr1, blockNumAddr, data, 3))
+	data := blockNumContractABI.MustPack("getHeight")
+	require.Equal(t, testutils.UintToBytes32(10), call(_api, addr1, blockNumAddr, data, -1))
+	require.Equal(t, testutils.UintToBytes32(10), call(_api, addr1, blockNumAddr, data, 9))
+	//require.Equal(t, testutils.UintToBytes32(1), call(_api, addr1, blockNumAddr, data, 1))
+	//require.Equal(t, testutils.UintToBytes32(2), call(_api, addr1, blockNumAddr, data, 2))
+	//require.Equal(t, testutils.UintToBytes32(3), call(_api, addr1, blockNumAddr, data, 3))
+
+	data = blockNumContractABI.MustPack("getBalance", addr1)
+	require.Equal(t, testutils.UintToBytes32(9997000), call(_api, addr1, blockNumAddr, data, -1))
+	require.Equal(t, testutils.UintToBytes32(9998000), call(_api, addr1, blockNumAddr, data, 5))
+	require.Equal(t, testutils.UintToBytes32(9999000), call(_api, addr1, blockNumAddr, data, 3))
+	require.Equal(t, testutils.UintToBytes32(10000000), call(_api, addr1, blockNumAddr, data, 1))
+
+	data = blockNumContractABI.MustPack("getCodeSize", counterAddr)
+	require.Equal(t, testutils.UintToBytes32(178), call(_api, addr1, blockNumAddr, data, -1))
+	require.Equal(t, testutils.UintToBytes32(178), call(_api, addr1, blockNumAddr, data, 9))
+	require.Equal(t, testutils.UintToBytes32(0), call(_api, addr1, blockNumAddr, data, 8))
+	require.Equal(t, testutils.UintToBytes32(0), call(_api, addr1, blockNumAddr, data, 7))
 }
 
 func createEthAPI(_app *testutils.TestApp, testKeys ...string) *ethAPI {
@@ -939,6 +1005,13 @@ func newMdbBlock(hash gethcmn.Hash, height int64,
 	return b.Build()
 }
 
+func getBlockNum(_api *ethAPI) uint64 {
+	n, err := _api.BlockNumber()
+	if err != nil {
+		panic(err)
+	}
+	return uint64(n)
+}
 func getTxCount(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
 	txCount, err := _api.GetTransactionCount(addr, h)
 	if err != nil {

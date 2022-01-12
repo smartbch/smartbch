@@ -7,4 +7,14 @@ contract BlockNum {
         return block.number;
     }
 
+    function getBalance(address addr) external view returns (uint) {
+        return addr.balance;
+    }
+
+    function getCodeSize(address addr) external view returns (uint) {
+        uint size;
+        assembly { size := extcodesize(addr) }
+        return size;
+    }
+
 }

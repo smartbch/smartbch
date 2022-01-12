@@ -645,8 +645,6 @@ github.com/smartbch/moeingads v0.3.1-0.20220110090835-5b9f0dad0a9e h1:VCS/ghx5Oe
 github.com/smartbch/moeingads v0.3.1-0.20220110090835-5b9f0dad0a9e/go.mod h1:D0LaKAsnls5FYYRYp8/pzac/ItKoYr4vBic/q1RYZlg=
 github.com/smartbch/moeingdb v0.3.5-0.20220105145349-f4305c5643bb h1:jWDkUjRdXiyHuFDy5E+AF+ENDKIL6LWUmXtb8hXceF4=
 github.com/smartbch/moeingdb v0.3.5-0.20220105145349-f4305c5643bb/go.mod h1:r23LK/bZwDMypQiPbfQXYnBPQJOLxXe2mjGBf4H6wXs=
-github.com/smartbch/moeingevm v0.3.2-0.20220110091129-451358873a65 h1:a3KlTBXxP5kEVaxJVHTryai71C4HJzkrs1kSPTTTSLE=
-github.com/smartbch/moeingevm v0.3.2-0.20220110091129-451358873a65/go.mod h1:fm1ZGaShR7/JIECw4pCinDxQ4O7IfLN8gLzPqNxcyNs=
 github.com/smartbch/moeingevm v0.3.2-0.20220112004922-7f8d7a5702ef h1:+3eOMJ1X46NQyAqJn2SpRbMAHDPJN+w7dOAH+9iXYak=
 github.com/smartbch/moeingevm v0.3.2-0.20220112004922-7f8d7a5702ef/go.mod h1:fm1ZGaShR7/JIECw4pCinDxQ4O7IfLN8gLzPqNxcyNs=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d h1:zE9ykElWQ6/NYmHa3jpm/yHnI4xSofP+UP6SpjHcSeM=
