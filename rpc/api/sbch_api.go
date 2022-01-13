@@ -258,27 +258,3 @@ func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*
 	callDetail := sbch.backend.Call2(tx, from, height)
 	return toRpcCallDetail(callDetail), nil
 }
-
-func toRpcCallDetail(detail *sbchapi.CallDetail) *CallDetail {
-	return &CallDetail{
-		Status:                 detail.Status,
-		GasUsed:                hexutil.Uint64(detail.GasUsed),
-		OutData:                detail.OutData,
-		Logs:                   toGethLogs(detail.Logs),
-		CreatedContractAddress: detail.CreatedContractAddress,
-		InternalTxs:            buildInternalCallList(detail.InternalTxCalls, detail.InternalTxReturns),
-		RwLists:                detail.RwLists,
-	}
-}
-
-func toGethLogs(evmLogs []motypes.EvmLog) []*gethtypes.Log {
-	gethLogs := make([]*gethtypes.Log, len(evmLogs))
-	for i, evmLog := range evmLogs {
-		gethLogs[i] = &gethtypes.Log{
-			Address: evmLog.Address,
-			Topics:  evmLog.Topics,
-			Data:    evmLog.Data,
-		}
-	}
-	return gethLogs
-}

@@ -6,12 +6,8 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	gethtypes "github.com/ethereum/go-ethereum/core/types"
-
 	motypes "github.com/smartbch/moeingevm/types"
 )
-
-// TODO: rename file to sbch_types.go
 
 const (
 	callModeStaticCall = 1
@@ -23,16 +19,7 @@ const (
 	callKindCreate2      = 4
 )
 
-type CallDetail struct {
-	Status                 int                     `json:"status"`
-	GasUsed                hexutil.Uint64          `json:"gasUsed"`
-	OutData                hexutil.Bytes           `json:"returnData"`
-	Logs                   []*gethtypes.Log        `json:"logs"`
-	CreatedContractAddress gethcmn.Address         `json:"contractAddress"`
-	InternalTxs            []*InternalTx           `json:"internalTransactions"`
-	RwLists                *motypes.ReadWriteLists `json:"rwLists"`
-}
-
+// TODO: rename file to sbch_rpc_types.go
 type InternalTx struct {
 	depth          int32
 	count          int
