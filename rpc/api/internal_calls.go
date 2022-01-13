@@ -6,8 +6,12 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
+
 	motypes "github.com/smartbch/moeingevm/types"
 )
+
+// TODO: rename file to sbch_types.go
 
 const (
 	callModeStaticCall = 1
@@ -18,6 +22,16 @@ const (
 	callKindCreate       = 3
 	callKindCreate2      = 4
 )
+
+type CallDetail struct {
+	Status                 int                     `json:"status"`
+	GasUsed                hexutil.Uint64          `json:"gasUsed"`
+	OutData                hexutil.Bytes           `json:"returnData"`
+	Logs                   []*gethtypes.Log        `json:"logs"`
+	CreatedContractAddress gethcmn.Address         `json:"contractAddress"`
+	InternalTxs            []*InternalTx           `json:"internalTransactions"`
+	RwLists                *motypes.ReadWriteLists `json:"rwLists"`
+}
 
 type InternalTx struct {
 	depth          int32
@@ -34,11 +48,13 @@ type InternalTx struct {
 	CreatedAddress *gethcmn.Address `json:"contractAddress,omitempty"`
 }
 
-func buildInternalCallList(tx *motypes.Transaction) []*InternalTx {
-	callList := make([]*InternalTx, len(tx.InternalTxCalls))
+func buildInternalCallList(internalTxCalls []motypes.InternalTxCall,
+	internalTxReturns []motypes.InternalTxReturn) []*InternalTx {
+
+	callList := make([]*InternalTx, len(internalTxCalls))
 	var callStack []*InternalTx
 
-	for i, call := range tx.InternalTxCalls {
+	for i, call := range internalTxCalls {
 		callType := getCallType(call.Kind, call.Flags)
 		callSite := newCallSite(call)
 		callList[i] = callSite
@@ -62,8 +78,8 @@ func buildInternalCallList(tx *motypes.Transaction) []*InternalTx {
 				if j == n {
 					callSite.count = lastCallSite.count + 1
 				}
-				addRetInfo(lastCallSite, tx.InternalTxReturns[0])
-				tx.InternalTxReturns = tx.InternalTxReturns[1:]
+				addRetInfo(lastCallSite, internalTxReturns[0])
+				internalTxReturns = internalTxReturns[1:]
 				callStack = callStack[:len(callStack)-1]
 				lastCallSite = callStack[len(callStack)-1]
 			}
@@ -77,8 +93,8 @@ func buildInternalCallList(tx *motypes.Transaction) []*InternalTx {
 	for len(callStack) > 0 {
 		callSite := callStack[len(callStack)-1]
 		callStack = callStack[:len(callStack)-1]
-		addRetInfo(callSite, tx.InternalTxReturns[0])
-		tx.InternalTxReturns = tx.InternalTxReturns[1:]
+		addRetInfo(callSite, internalTxReturns[0])
+		internalTxReturns = internalTxReturns[1:]
 	}
 
 	return callList

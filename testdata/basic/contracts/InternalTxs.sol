@@ -3,6 +3,8 @@ pragma solidity >=0.8.0;
 
 contract Contract1 {
 
+    event Call(uint256 id);
+
     uint256 public counter;
     address public contract2;
     address public contract3;
@@ -13,12 +15,14 @@ contract Contract1 {
     }
 
     function call2(uint256 id) public returns (uint256) {
+        emit Call(id);
         counter++;
         Contract2(contract2).call3(id + 1);
         Contract2(contract2).call3(id + 5);
         return id << 64;
     }
     function call3(uint256 id) public returns (uint256) {
+        emit Call(id);
         counter++;
         Contract3(contract3).callMe(id + 1);
         Contract3(contract3).callMe(id + 5);

@@ -149,7 +149,7 @@ func txsToReceiptsWithInternalTxs(txs []*types.Transaction) []map[string]interfa
 
 func txToReceiptWithInternalTxs(tx *types.Transaction) map[string]interface{} {
 	resp := txToReceiptRpcResp(tx)
-	resp["internalTransactions"] = buildInternalCallList(tx)
+	resp["internalTransactions"] = buildInternalCallList(tx.InternalTxCalls, tx.InternalTxReturns)
 	return resp
 }
 

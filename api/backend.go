@@ -177,6 +177,20 @@ func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
 	return common.BytesToHash(tx.Hash()), nil
 }
 
+func (backend *apiBackend) Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail {
+	runner, _ := backend.app.RunTxForRpc(tx, sender, false, height)
+	return &CallDetail{
+		Status:                 runner.Status,
+		GasUsed:                runner.GasUsed,
+		OutData:                runner.OutData,
+		Logs:                   runner.Logs,
+		CreatedContractAddress: runner.CreatedContractAddress,
+		InternalTxCalls:        runner.InternalTxCalls,
+		InternalTxReturns:      runner.InternalTxReturns,
+		RwLists:                runner.RwLists,
+	}
+}
+
 func (backend *apiBackend) Call(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte) {
 	runner, _ := backend.app.RunTxForRpc(tx, sender, false, height)
 	return runner.Status, runner.OutData

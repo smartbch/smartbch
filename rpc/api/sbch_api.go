@@ -33,6 +33,7 @@ type SbchAPI interface {
 	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
+	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error)
 }
 
 type sbchAPI struct {
@@ -243,4 +244,41 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 	}
 	ret := txToReceiptWithInternalTxs(tx)
 	return ret, nil
+}
+
+func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error) {
+	sbch.logger.Debug("sbch_call")
+
+	tx, from := createGethTxFromCallArgs(args)
+	height, err := getHeightArg(sbch.backend, blockNr)
+	if err != nil {
+		return nil, err
+	}
+
+	callDetail := sbch.backend.Call2(tx, from, height)
+	return toRpcCallDetail(callDetail), nil
+}
+
+func toRpcCallDetail(detail *sbchapi.CallDetail) *CallDetail {
+	return &CallDetail{
+		Status:                 detail.Status,
+		GasUsed:                hexutil.Uint64(detail.GasUsed),
+		OutData:                detail.OutData,
+		Logs:                   toGethLogs(detail.Logs),
+		CreatedContractAddress: detail.CreatedContractAddress,
+		InternalTxs:            buildInternalCallList(detail.InternalTxCalls, detail.InternalTxReturns),
+		RwLists:                detail.RwLists,
+	}
+}
+
+func toGethLogs(evmLogs []motypes.EvmLog) []*gethtypes.Log {
+	gethLogs := make([]*gethtypes.Log, len(evmLogs))
+	for i, evmLog := range evmLogs {
+		gethLogs[i] = &gethtypes.Log{
+			Address: evmLog.Address,
+			Topics:  evmLog.Topics,
+			Data:    evmLog.Data,
+		}
+	}
+	return gethLogs
 }

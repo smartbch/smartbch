@@ -17,6 +17,17 @@ import (
 	"github.com/smartbch/smartbch/staking/types"
 )
 
+type CallDetail struct {
+	Status                 int
+	GasUsed                uint64
+	OutData                []byte
+	Logs                   []motypes.EvmLog
+	CreatedContractAddress common.Address
+	InternalTxCalls        []motypes.InternalTxCall
+	InternalTxReturns      []motypes.InternalTxReturn
+	RwLists                *motypes.ReadWriteLists
+}
+
 type FilterService interface {
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*motypes.Header, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*motypes.Header, error)
@@ -93,6 +104,7 @@ type BackendService interface {
 	GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte)
 	GetStorageAt(address common.Address, key string, height int64) []byte
 	Call(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte)
+	Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail
 	EstimateGas(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter motypes.FilterFunc) ([]motypes.Log, error)
 	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)

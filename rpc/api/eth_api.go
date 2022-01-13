@@ -481,7 +481,7 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (he
 	atomic.AddUint64(&api.numCall, 1)
 	api.logger.Debug("eth_call", "from", addrToStr(args.From), "to", addrToStr(args.To))
 
-	tx, from := api.createGethTxFromCallArgs(args)
+	tx, from := createGethTxFromCallArgs(args)
 	height, err := api.getHeightArg(blockNr)
 	if err != nil {
 		return hexutil.Bytes{}, err
@@ -505,7 +505,7 @@ func addrToStr(addr *common.Address) string {
 // https://eth.wiki/json-rpc/API#eth_estimateGas
 func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error) {
 	api.logger.Debug("eth_estimateGas")
-	tx, from := api.createGethTxFromCallArgs(args)
+	tx, from := createGethTxFromCallArgs(args)
 
 	height := gethrpc.LatestBlockNumber.Int64()
 	if blockNr != nil {
@@ -524,7 +524,7 @@ func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNum
 	return 0, toCallErr(statusCode, retData)
 }
 
-func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
+func createGethTxFromCallArgs(args rpctypes.CallArgs,
 ) (*gethtypes.Transaction, common.Address) {
 
 	var from, to common.Address
@@ -564,13 +564,16 @@ func (api *ethAPI) createGethTxFromCallArgs(args rpctypes.CallArgs,
 }
 
 func (api *ethAPI) getHeightArg(blockNum gethrpc.BlockNumber) (int64, error) {
-	if !api.backend.IsArchiveMode() {
+	return getHeightArg(api.backend, blockNum)
+}
+func getHeightArg(backend sbchapi.BackendService, blockNum gethrpc.BlockNumber) (int64, error) {
+	if !backend.IsArchiveMode() {
 		return -1, nil
 	}
 	if blockNum == gethrpc.PendingBlockNumber {
 		return -1, errPendingBlockNum
 	}
-	if blockNum > 0 && blockNum.Int64() > api.backend.LatestHeight() {
+	if blockNum > 0 && blockNum.Int64() > backend.LatestHeight() {
 		return -1, errFutureBlockNum
 	}
 
