@@ -7,7 +7,85 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
+
+// StakingEpoch
+
+type StakingEpoch struct {
+	Number      hexutil.Uint64 `json:"number"`
+	StartHeight hexutil.Uint64 `json:"startHeight"`
+	EndTime     int64          `json:"endTime"`
+	Nominations []*Nomination  `json:"nominations"`
+}
+type Nomination struct {
+	Pubkey         gethcmn.Hash `json:"pubkey"`
+	NominatedCount int64        `json:"nominatedCount"`
+}
+
+func castStakingEpochs(epochs []*stakingtypes.Epoch) []*StakingEpoch {
+	rpcEpochs := make([]*StakingEpoch, len(epochs))
+	for i, epoch := range epochs {
+		rpcEpochs[i] = &StakingEpoch{
+			Number:      hexutil.Uint64(epoch.Number),
+			StartHeight: hexutil.Uint64(epoch.StartHeight),
+			EndTime:     epoch.EndTime,
+			Nominations: castNominations(epoch.Nominations),
+		}
+	}
+	return rpcEpochs
+}
+func castNominations(nominations []*stakingtypes.Nomination) []*Nomination {
+	rpcNominations := make([]*Nomination, len(nominations))
+	for i, nomination := range nominations {
+		rpcNominations[i] = &Nomination{
+			Pubkey:         nomination.Pubkey,
+			NominatedCount: nomination.NominatedCount,
+		}
+	}
+	return rpcNominations
+}
+
+// CCEpoch
+
+type CCEpoch struct {
+	Number        hexutil.Uint64    `json:"number"`
+	StartHeight   hexutil.Uint64    `json:"startHeight"`
+	EndTime       int64             `json:"endTime"`
+	TransferInfos []*CCTransferInfo `json:"transferInfos"`
+}
+type CCTransferInfo struct {
+	UTXO         hexutil.Bytes  `json:"utxo"`
+	Amount       hexutil.Uint64 `json:"amount"`
+	SenderPubkey hexutil.Bytes  `json:"senderPubkey"`
+}
+
+func castCCEpochs(ccEpochs []*cctypes.CCEpoch) []*CCEpoch {
+	rpcEpochs := make([]*CCEpoch, len(ccEpochs))
+	for i, ccEpoch := range ccEpochs {
+		rpcEpochs[i] = &CCEpoch{
+			Number:        hexutil.Uint64(ccEpoch.Number),
+			StartHeight:   hexutil.Uint64(ccEpoch.StartHeight),
+			EndTime:       ccEpoch.EndTime,
+			TransferInfos: castTransferInfos(ccEpoch.TransferInfos),
+		}
+	}
+	return rpcEpochs
+}
+func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
+	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
+	for i, ccTransferInfo := range ccTransferInfos {
+		rpcTransferInfos[i] = &CCTransferInfo{
+			UTXO:         ccTransferInfo.UTXO[:],
+			Amount:       hexutil.Uint64(ccTransferInfo.Amount),
+			SenderPubkey: ccTransferInfo.SenderPubkey[:],
+		}
+	}
+	return rpcTransferInfos
+}
+
+// CallDetail
 
 type CallDetail struct {
 	Status                 int             `json:"status"`

@@ -30,7 +30,9 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) // result is more human-readable
 	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
+	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error)
@@ -194,12 +196,26 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	}
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }
+func (sbch sbchAPI) GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) {
+	epochs, err := sbch.GetEpochs(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return castStakingEpochs(epochs), nil
+}
 
 func (sbch sbchAPI) GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error) {
 	if end == 0 {
 		end = start + 10
 	}
 	return sbch.backend.GetCCEpochs(uint64(start), uint64(end))
+}
+func (sbch sbchAPI) GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) {
+	ccEpochs, err := sbch.GetCCEpochs(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return castCCEpochs(ccEpochs), nil
 }
 
 func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{} {
