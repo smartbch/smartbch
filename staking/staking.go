@@ -517,7 +517,7 @@ func executeProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) 
 	}
 	voters := GetVoters(ctx)
 	target = CalculateTarget(ctx, voters)
-	SaveMinGasPrice(ctx, target, true)
+	SaveMinGasPrice(ctx, target, false)
 	DeleteProposalInfos(ctx, voters)
 
 	status = StatusSuccess

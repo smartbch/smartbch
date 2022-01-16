@@ -211,7 +211,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	tx.BasicTx.Data = staking.PackExecuteProposal()
 	status, _, _, _ = e.Execute(ctx, &blk, &tx)
 	require.Equal(t, status, 0)
-	minGasPrice := staking.LoadMinGasPrice(ctx, true)
+	minGasPrice := staking.LoadMinGasPrice(ctx, false)
 	require.Equal(t, voteTarget.Uint64(), minGasPrice)
 	target1, deadline = staking.LoadProposal(ctx)
 	require.Equal(t, uint64(0), target1)
