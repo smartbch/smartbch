@@ -112,7 +112,7 @@ var (
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
 	MinGasPriceLowerBoundOld    uint64 = 1_000_000_000   //1gwei
 	MinGasPriceLowerBound       uint64 = 10_000_000      //0.01gwei
-	DefaultProposalDuration     uint64 = 60 * 60 * 24    //24hour
+	DefaultProposalDuration     uint64 = 20    //20 s
 )
 
 var (
@@ -196,29 +196,29 @@ func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		//function decreaseMinGasPrice() external;
 		return handleMinGasPrice(ctx, tx.From, false, s.logger)
 	case SelectorProposal:
-		if ctx.IsXHedgeFork() {
+		//if ctx.IsXHedgeFork() {
 			return createProposal(ctx, uint64(currBlock.Timestamp), tx)
-		} else {
-			return handleInvalidSelector()
-		}
+		//} else {
+		//	return handleInvalidSelector()
+		//}
 	case SelectorVote:
-		if ctx.IsXHedgeFork() {
+		//if ctx.IsXHedgeFork() {
 			return vote(ctx, uint64(currBlock.Timestamp), tx)
-		} else {
-			return handleInvalidSelector()
-		}
+		//} else {
+		//	return handleInvalidSelector()
+		//}
 	case SelectorExecuteProposal:
-		if ctx.IsXHedgeFork() {
+		//if ctx.IsXHedgeFork() {
 			return executeProposal(ctx, uint64(currBlock.Timestamp), tx)
-		} else {
-			return handleInvalidSelector()
-		}
+		//} else {
+		//	return handleInvalidSelector()
+		//}
 	case SelectorGetVote:
-		if ctx.IsXHedgeFork() {
+		//if ctx.IsXHedgeFork() {
 			return getVote(ctx, tx)
-		} else {
-			return handleInvalidSelector()
-		}
+		//} else {
+		//	return handleInvalidSelector()
+		//}
 	default:
 		return handleInvalidSelector()
 	}
@@ -517,7 +517,7 @@ func executeProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) 
 	}
 	voters := GetVoters(ctx)
 	target = CalculateTarget(ctx, voters)
-	SaveMinGasPrice(ctx, target, true)
+	SaveMinGasPrice(ctx, target, false)
 	DeleteProposalInfos(ctx, voters)
 
 	status = StatusSuccess
@@ -1080,7 +1080,7 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 	rewardMap := make(map[[20]byte]*uint256.Int)
 	// summarize all the mature rewards
 	for _, pr := range info.PendingRewards {
-		if pr.EpochNum >= info.CurrEpochNum-param.StakingEpochCountBeforeRewardMature {
+		if pr.EpochNum <= info.CurrEpochNum-param.StakingEpochCountBeforeRewardMature {
 			newPRList = append(newPRList, pr) //not mature yet
 			continue
 		}

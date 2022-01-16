@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/p2p"
 	"os"
 	"runtime"
 
@@ -28,6 +29,25 @@ func VersionCmd() *cobra.Command {
 			fmt.Println("Operating System:", runtime.GOOS)
 			fmt.Printf("GOPATH=%s\n", os.Getenv("GOPATH"))
 			fmt.Printf("GOROOT=%s\n", runtime.GOROOT())
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+
+func NodeKeyCmd(ctx *Context) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "node_key",
+		Short: "Print node key",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			nodeCfg := ctx.Config.NodeConfig
+			nodeKey, err := p2p.LoadOrGenNodeKey(nodeCfg.NodeKeyFile())
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s\n", nodeKey.ID())
 			return nil
 		},
 	}

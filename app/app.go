@@ -410,6 +410,8 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 			PubKey: p,
 			Power:  v.VotingPower,
 		}
+		fmt.Printf("Active genesis validator: address(%s), pubkey(%s), votingPower(%d)\n",
+			gethcmn.Address(v.Address).String(), p.String(), v.VotingPower)
 		app.logger.Debug(fmt.Sprintf("Active genesis validator: address(%s), pubkey(%s), votingPower(%d)\n",
 			gethcmn.Address(v.Address).String(), p.String(), v.VotingPower))
 	}

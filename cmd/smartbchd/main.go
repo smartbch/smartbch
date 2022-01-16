@@ -40,6 +40,7 @@ func createSmartbchdCmd() *cobra.Command {
 	rootCmd.AddCommand(AddGenesisValidatorCmd(ctx))
 	rootCmd.AddCommand(StakingCmd(ctx))
 	rootCmd.AddCommand(VersionCmd())
+	rootCmd.AddCommand(NodeKeyCmd(ctx))
 	return rootCmd
 }
 
