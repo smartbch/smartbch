@@ -28,6 +28,7 @@ Rpcclient will retry after failure for better robustness.
 * JSON-RPC
   * Add sbch_getTransactionReceipt
   * Add sbch_getCCEpochs
+  * Add sbch_getCurrEpoch
   * The following methods return internal transactions
     * sbch_getTxListByHeight
     * sbch_getTxListByHeightWithRange

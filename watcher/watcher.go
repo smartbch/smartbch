@@ -225,7 +225,7 @@ func (watcher *Watcher) suspended(delayDuration time.Duration) {
 }
 
 // Record new block and if the blocks for a new epoch is all ready, output the new epoch
-func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) (missingBlockHash *[32]byte) {
+func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) {
 	watcher.heightToFinalizedBlock[blk.Height] = blk
 	watcher.latestFinalizedHeight++
 
@@ -235,7 +235,6 @@ func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) (missingBlockHash
 	//if watcher.latestFinalizedHeight-watcher.lastCCEpochEndHeight == watcher.numBlocksInCCEpoch {
 	//	watcher.generateNewCCEpoch()
 	//}
-	return nil
 }
 
 // Generate a new block's information
@@ -275,6 +274,10 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 	}
 	sortEpochNominations(epoch)
 	return epoch
+}
+
+func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
+	return watcher.buildNewEpoch()
 }
 
 //func (watcher *Watcher) generateNewCCEpoch() {

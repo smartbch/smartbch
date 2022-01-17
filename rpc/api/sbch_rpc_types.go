@@ -27,14 +27,17 @@ type Nomination struct {
 func castStakingEpochs(epochs []*stakingtypes.Epoch) []*StakingEpoch {
 	rpcEpochs := make([]*StakingEpoch, len(epochs))
 	for i, epoch := range epochs {
-		rpcEpochs[i] = &StakingEpoch{
-			Number:      hexutil.Uint64(epoch.Number),
-			StartHeight: hexutil.Uint64(epoch.StartHeight),
-			EndTime:     epoch.EndTime,
-			Nominations: castNominations(epoch.Nominations),
-		}
+		rpcEpochs[i] = castStakingEpoch(epoch)
 	}
 	return rpcEpochs
+}
+func castStakingEpoch(epoch *stakingtypes.Epoch) *StakingEpoch {
+	return &StakingEpoch{
+		Number:      hexutil.Uint64(epoch.Number),
+		StartHeight: hexutil.Uint64(epoch.StartHeight),
+		EndTime:     epoch.EndTime,
+		Nominations: castNominations(epoch.Nominations),
+	}
 }
 func castNominations(nominations []*stakingtypes.Nomination) []*Nomination {
 	rpcNominations := make([]*Nomination, len(nominations))

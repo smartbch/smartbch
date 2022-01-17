@@ -876,6 +876,10 @@ func (app *App) IsArchiveMode() bool {
 	return app.config.AppConfig.ArchiveMode
 }
 
+func (app *App) GetCurrEpoch() *stakingtypes.Epoch {
+	return app.watcher.GetCurrEpoch()
+}
+
 //nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal function, only used in test
