@@ -29,8 +29,8 @@ type Server struct {
 	corsDomain   string
 	certFile     string
 	keyFile      string
-	httpAPI      []string
-	wsAPI        []string
+	httpAPIs     []string
+	wsAPIs       []string
 	serverConfig *tmrpcserver.Config
 
 	logger  tmlog.Logger
@@ -64,10 +64,20 @@ func NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certFil
 		unlockedKeys: unlockedKeys,
 		rpcHttpsAddr: rpcAddrSecure, //"tcp://:9545",
 		wssAddr:      wsAddrSecure,  //"tcp://:9546",
-		httpAPI:      strings.Split(httpAPI, ","),
-		wsAPI:        strings.Split(wsAPI, ","),
+		httpAPIs:     splitAndTrim(httpAPI),
+		wsAPIs:       splitAndTrim(wsAPI),
 	}
 	return tmservice.NewBaseService(logger, "", impl)
+}
+
+func splitAndTrim(input string) (ret []string) {
+	l := strings.Split(input, ",")
+	for _, r := range l {
+		if r = strings.TrimSpace(r); r != "" {
+			ret = append(ret, r)
+		}
+	}
+	return ret
 }
 
 func (server *Server) OnStart() error {
@@ -80,7 +90,7 @@ func (server *Server) OnStart() error {
 
 func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 	server.httpServer = gethrpc.NewServer()
-	if err = registerApis(server.httpServer, server.httpAPI, apis); err != nil {
+	if err = registerApis(server.httpServer, server.httpAPIs, apis); err != nil {
 		return err
 	}
 
@@ -120,7 +130,7 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 
 func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
 	server.wsServer = gethrpc.NewServer()
-	if err = registerApis(server.wsServer, server.wsAPI, apis); err != nil {
+	if err = registerApis(server.wsServer, server.wsAPIs, apis); err != nil {
 		return err
 	}
 
