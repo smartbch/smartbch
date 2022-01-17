@@ -205,6 +205,7 @@ func (sbch sbchAPI) GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, erro
 }
 func (sbch sbchAPI) GetCurrEpoch() (*StakingEpoch, error) {
 	epoch := sbch.backend.GetCurrEpoch()
+	epoch.Number = sbch.backend.ValidatorsInfo().CurrEpochNum
 	return castStakingEpoch(epoch), nil
 }
 
