@@ -457,3 +457,10 @@ func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 func (backend *apiBackend) IsArchiveMode() bool {
 	return backend.app.IsArchiveMode()
 }
+
+func (backend *apiBackend) GetSeq(address common.Address) uint64 {
+	ctx := backend.app.GetRpcContextAtHeight(-1)
+	defer ctx.Close(false)
+	accInfo := ctx.GetAccount(address)
+	return accInfo.Sequence()
+}

@@ -120,6 +120,7 @@ type BackendService interface {
 	GetEpochs(start, end uint64) ([]*types.Epoch, error)
 	GetCurrEpoch() *types.Epoch
 	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
+	GetSeq(address common.Address) uint64
 
 	//tendermint info
 	NodeInfo() Info

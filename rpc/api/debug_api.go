@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	gethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mackerelio/go-osstat/memory"
 )
 
@@ -31,6 +33,7 @@ type Stats struct {
 
 type DebugAPI interface {
 	GetStats() Stats
+	GetSeq(addr gethcmn.Address) hexutil.Uint64
 }
 
 func newDebugAPI(ethAPI *ethAPI) DebugAPI {
@@ -41,6 +44,10 @@ type debugAPI struct {
 	ethAPI         *ethAPI
 	lastUpdateTime int64
 	stats          Stats
+}
+
+func (api *debugAPI) GetSeq(addr gethcmn.Address) hexutil.Uint64 {
+	return hexutil.Uint64(api.ethAPI.backend.GetSeq(addr))
 }
 
 func (api *debugAPI) GetStats() Stats {
