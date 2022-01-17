@@ -462,5 +462,8 @@ func (backend *apiBackend) GetSeq(address common.Address) uint64 {
 	ctx := backend.app.GetRpcContextAtHeight(-1)
 	defer ctx.Close(false)
 	accInfo := ctx.GetAccount(address)
+	if accInfo == nil {
+		return 0
+	}
 	return accInfo.Sequence()
 }
