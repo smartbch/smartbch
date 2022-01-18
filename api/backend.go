@@ -37,6 +37,8 @@ const (
 	protocolVersion = 63
 )
 
+var SEP206ContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x11}
+
 type apiBackend struct {
 	//extRPCEnabled bool
 	node *node.Node
@@ -67,6 +69,10 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string, heig
 	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 
+	if address == common.Address(SEP206ContractAddress) {
+	        return ctx.GetStorageAt(2000, key)
+	}
+	
 	acc := ctx.GetAccount(address)
 	if acc == nil {
 		return nil

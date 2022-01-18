@@ -685,7 +685,9 @@ func (app *App) refresh() {
 
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	app.trunk.Close(true)                  //write cached KVs back to app.root
-	if prevBlkInfo != nil && prevBlkInfo.Number%app.config.AppConfig.PruneEveryN == 0 && prevBlkInfo.Number > app.config.AppConfig.NumKeptBlocks {
+	if !app.config.AppConfig.ArchiveMode && prevBlkInfo != nil &&
+		prevBlkInfo.Number%app.config.AppConfig.PruneEveryN == 0 &&
+		prevBlkInfo.Number > app.config.AppConfig.NumKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.config.AppConfig.NumKeptBlocks)
 	}
 
