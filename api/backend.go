@@ -70,9 +70,9 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string, heig
 	defer ctx.Close(false)
 
 	if address == common.Address(SEP206ContractAddress) {
-	        return ctx.GetStorageAt(2000, key)
+		return ctx.GetStorageAt(2000, key)
 	}
-	
+
 	acc := ctx.GetAccount(address)
 	if acc == nil {
 		return nil

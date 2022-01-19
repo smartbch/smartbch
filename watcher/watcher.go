@@ -102,7 +102,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 		return
 	}
 	latestFinalizedHeight := watcher.latestFinalizedHeight
-	latestMainnetHeight := watcher.rpcClient.GetLatestHeight()
+	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
 	latestFinalizedHeight = watcher.epochSpeedup(latestFinalizedHeight, latestMainnetHeight)
 	watcher.fetchBlocks(catchupChan, latestFinalizedHeight, latestMainnetHeight)
 }
@@ -111,7 +111,7 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 	catchup := false
 	for {
 		if !catchup && latestMainnetHeight <= latestFinalizedHeight+9 {
-			latestMainnetHeight = watcher.rpcClient.GetLatestHeight()
+			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
 			if latestMainnetHeight <= latestFinalizedHeight+9 {
 				watcher.logger.Debug("Catchup")
 				catchup = true
@@ -120,7 +120,7 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 			}
 		}
 		latestFinalizedHeight++
-		latestMainnetHeight = watcher.rpcClient.GetLatestHeight()
+		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
 		//10 confirms
 		if latestMainnetHeight < latestFinalizedHeight+9 {
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
@@ -133,7 +133,7 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 				watcher.parallelFetchBlocks(latestFinalizedHeight)
 				latestFinalizedHeight += int64(watcher.parallelNum)
 			} else {
-				blk := watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight)
+				blk := watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight, true)
 				if blk == nil {
 					//todo: panic it
 					fmt.Printf("get block:%d failed\n", latestFinalizedHeight)
@@ -155,7 +155,7 @@ func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
 	w.Add(watcher.parallelNum)
 	for i := 0; i < watcher.parallelNum; i++ {
 		go func(index int) {
-			blockSet[index] = watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight + int64(index))
+			blockSet[index] = watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight+int64(index), true)
 			w.Done()
 		}(i)
 	}
@@ -309,13 +309,13 @@ func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
 //	return epoch
 //}
 
-func (watcher *Watcher) CheckSanity(forTest bool) {
-	if !forTest {
-		latestHeight := watcher.rpcClient.GetLatestHeight()
+func (watcher *Watcher) CheckSanity(skipCheck bool) {
+	if !skipCheck {
+		latestHeight := watcher.rpcClient.GetLatestHeight(false)
 		if latestHeight <= 0 {
 			panic("Watcher GetLatestHeight failed in Sanity Check")
 		}
-		blk := watcher.rpcClient.GetBlockByHeight(latestHeight)
+		blk := watcher.rpcClient.GetBlockByHeight(latestHeight, false)
 		if blk == nil {
 			panic("Watcher GetBlockByHeight failed in Sanity Check")
 		}

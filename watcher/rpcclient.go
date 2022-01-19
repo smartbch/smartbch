@@ -51,10 +51,13 @@ func NewRpcClient(url, user, password, contentType string, logger log.Logger) *R
 	}
 }
 
-func (client *RpcClient) GetLatestHeight() (height int64) {
+func (client *RpcClient) GetLatestHeight(retry bool) (height int64) {
 	height = -1
 	for height == -1 {
 		height = client.getCurrHeight()
+		if !retry {
+			return height
+		}
 		if client.err != nil {
 			client.logger.Debug("GetLatestHeight failed", client.err.Error())
 			time.Sleep(10 * time.Second)
@@ -63,13 +66,16 @@ func (client *RpcClient) GetLatestHeight() (height int64) {
 	return
 }
 
-func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
+func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
 	var hash string
 	var err error
 	var blk *types.BCHBlock
 	for hash == "" {
 		hash, err = client.getBlockHashOfHeight(height)
 		if err != nil {
+			if !retry {
+				return nil
+			}
 			client.logger.Debug(fmt.Sprintf("getBlockHashOfHeight %d failed", height), err.Error())
 			time.Sleep(10 * time.Second)
 			continue
@@ -78,6 +84,9 @@ func (client *RpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
 	}
 	for blk == nil {
 		blk, err = client.getBCHBlock(hash)
+		if !retry {
+			return blk
+		}
 		if err != nil {
 			client.logger.Debug(fmt.Sprintf("getBCHBlock %d failed", height), err.Error())
 			time.Sleep(10 * time.Second)

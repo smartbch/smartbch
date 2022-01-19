@@ -51,6 +51,7 @@ const (
 	flagWatcherSpeedup         = "watcher-speedup"
 	flagRpcOnly                = "rpc-only"
 	flagArchiveMode            = "archive-mode"
+	flagSkipSanityCheck        = "skip-sanity-check"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -96,6 +97,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().String(flagRpcAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the HTTP-RPC interface")
 	cmd.Flags().String(flagWsAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the WS-RPC interface")
 	cmd.Flags().Bool(flagArchiveMode, false, "enable archive-mode")
+	cmd.Flags().Bool(flagSkipSanityCheck, false, "skip sanity check when node start")
 
 	return cmd
 }

@@ -84,9 +84,9 @@ func (m MockRpcClient) Dial() {}
 
 func (m MockRpcClient) Close() {}
 
-func (m MockRpcClient) GetLatestHeight() int64 { return m.node.height }
+func (m MockRpcClient) GetLatestHeight(retry bool) int64 { return m.node.height }
 
-func (m MockRpcClient) GetBlockByHeight(height int64) *types.BCHBlock {
+func (m MockRpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
 	if height > m.node.height {
 		return nil
 	}

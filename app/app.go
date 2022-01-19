@@ -120,7 +120,7 @@ type SenderAndHeight struct {
 	Height int64
 }
 
-func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight, genesisCCHeight int64, logger log.Logger, forTest bool) *App {
+func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight, genesisCCHeight int64, logger log.Logger, skipSanityCheck bool) *App {
 	app := &App{}
 
 	/*------set config------*/
@@ -195,7 +195,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, 0, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
-	app.watcher.CheckSanity(forTest)
+	app.watcher.CheckSanity(skipSanityCheck)
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)
 	<-catchupChan

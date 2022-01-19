@@ -3,7 +3,7 @@ version: '3.8'
 services:
   smartbch:
     build: .
-    command: start
+    command: start --skip-sanity-check=true
     ports:
       - "8545:8545"
     restart: always
