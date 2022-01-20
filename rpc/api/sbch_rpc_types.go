@@ -228,3 +228,26 @@ func castBlockHashOps(ops []motypes.BlockHashOp) []BlockHashOp {
 	}
 	return rpcOps
 }
+
+func TxToRpcCallDetail(tx *motypes.Transaction) *CallDetail {
+	return &CallDetail{
+		Status:                 int(tx.Status),
+		GasUsed:                hexutil.Uint64(tx.GasUsed),
+		OutData:                tx.OutData,
+		Logs:                   toRpcLogs(toEvmLogs(tx.Logs)),
+		CreatedContractAddress: tx.ContractAddress,
+		InternalTxs:            buildInternalCallList(tx.InternalTxCalls, tx.InternalTxReturns),
+		RwLists:                toRpcRWLists(tx.RwLists),
+	}
+}
+func toEvmLogs(moLogs []motypes.Log) []motypes.EvmLog {
+	evmLogs := make([]motypes.EvmLog, len(moLogs))
+	for i, moLog := range moLogs {
+		evmLogs[i] = motypes.EvmLog{
+			Address: moLog.Address,
+			Topics:  motypes.ToGethHashes(moLog.Topics),
+			Data:    moLog.Data,
+		}
+	}
+	return evmLogs
+}
