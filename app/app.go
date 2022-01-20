@@ -817,7 +817,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 
 func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool, height int64) (*ebp.TxRunner, int64) {
 	txToRun := &types.TxToRun{}
-	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
+	txToRun.FromGethTx(gethTx, sender, uint64(height))
 	ctx := app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	runner := ebp.NewTxRunner(ctx, txToRun)
