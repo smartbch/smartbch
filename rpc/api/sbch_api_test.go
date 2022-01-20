@@ -1,6 +1,7 @@
 package api
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -435,6 +436,32 @@ func TestQueryLogs_OneTx(t *testing.T) {
 
 	//logsJson, _ := json.Marshal(logs)
 	//require.Equal(t, "?", string(logsJson))
+}
+
+func TestCall(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(key1, key2)
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	tx, h := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	require.Equal(t, int64(1), h)
+	require.Len(t, _app.GetBlock(h).Transactions, 1)
+
+	rpcCallDetail, err := _api.Call(rpctypes.CallArgs{
+		From:  &addr1,
+		To:    &addr2,
+		Value: (*hexutil.Big)(big.NewInt(1000)),
+	}, gethrpc.BlockNumber(h))
+	require.NoError(t, err)
+
+	txCallDetail := TxToRpcCallDetail(_app.GetTx(tx.Hash()))
+	println("txCallDetail:", testutils.ToPrettyJSON(txCallDetail))
+	println("rpcCallDetail:", testutils.ToPrettyJSON(rpcCallDetail))
+	//require.Equal(t, testutils.ToPrettyJSON(txCallDetail), testutils.ToPrettyJSON(rpcCallDetail))
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {

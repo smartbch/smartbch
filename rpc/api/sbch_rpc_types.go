@@ -4,6 +4,7 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
+	"github.com/smartbch/moeingevm/ebp"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
@@ -139,8 +140,8 @@ type BlockHashOp struct {
 }
 
 func toRpcCallDetail(detail *sbchapi.CallDetail) *CallDetail {
-	return &CallDetail{
-		Status:                 detail.Status,
+	callDetail := &CallDetail{
+		Status:                 1, // success
 		GasUsed:                hexutil.Uint64(detail.GasUsed),
 		OutData:                detail.OutData,
 		Logs:                   toRpcLogs(detail.Logs),
@@ -148,6 +149,10 @@ func toRpcCallDetail(detail *sbchapi.CallDetail) *CallDetail {
 		InternalTxs:            buildInternalCallList(detail.InternalTxCalls, detail.InternalTxReturns),
 		RwLists:                toRpcRWLists(detail.RwLists),
 	}
+	if ebp.StatusIsFailure(detail.Status) {
+		callDetail.Status = 0 // failure
+	}
+	return callDetail
 }
 
 func toRpcLogs(evmLogs []motypes.EvmLog) []*CallLog {
