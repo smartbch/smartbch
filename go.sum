@@ -647,6 +647,8 @@ github.com/smartbch/moeingdb v0.3.5-0.20220105145349-f4305c5643bb h1:jWDkUjRdXiy
 github.com/smartbch/moeingdb v0.3.5-0.20220105145349-f4305c5643bb/go.mod h1:r23LK/bZwDMypQiPbfQXYnBPQJOLxXe2mjGBf4H6wXs=
 github.com/smartbch/moeingevm v0.3.2-0.20220118091839-99a0745e6766 h1:UtvzFGX9yxlKpPLmyvJc3U4jkPjSdalcXYgfkk1ikpc=
 github.com/smartbch/moeingevm v0.3.2-0.20220118091839-99a0745e6766/go.mod h1:fm1ZGaShR7/JIECw4pCinDxQ4O7IfLN8gLzPqNxcyNs=
+github.com/smartbch/moeingevm v0.3.2-0.20220120003053-06effe89a08b h1:0bDloAjPIA32miTL4cPFMCVWlxorMeHHip6O1W3IBxI=
+github.com/smartbch/moeingevm v0.3.2-0.20220120003053-06effe89a08b/go.mod h1:fm1ZGaShR7/JIECw4pCinDxQ4O7IfLN8gLzPqNxcyNs=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d h1:zE9ykElWQ6/NYmHa3jpm/yHnI4xSofP+UP6SpjHcSeM=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
 github.com/smartystreets/goconvey v1.6.4 h1:fv0U8FUIMPNf1L9lnHLvLhgicrIVChEkdzIKYqbNC9s=
