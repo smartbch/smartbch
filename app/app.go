@@ -839,6 +839,32 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	return runner, estimateResult
 }
 
+func (app *App) RunTxForRpc2(gethTx *gethtypes.Transaction, sender gethcmn.Address, height int64) (*ebp.TxRunner, int64) {
+	if height < 1 {
+		panic("height must greater than 0")
+	}
+
+	txToRun := &types.TxToRun{}
+	txToRun.FromGethTx(gethTx, sender, uint64(height-1))
+	ctx := app.GetRpcContextAtHeight(height - 1)
+	defer ctx.Close(false)
+	runner := ebp.NewTxRunner(ctx, txToRun)
+	bi := app.blockInfo.Load().(*types.BlockInfo)
+	blk, err := ctx.GetBlockByHeight(uint64(height))
+	if err != nil {
+		return nil, 0
+	}
+	bi = &types.BlockInfo{
+		Coinbase:  blk.Miner,
+		Number:    blk.Number,
+		Timestamp: blk.Timestamp,
+		ChainId:   app.chainId.Bytes32(),
+		Hash:      blk.Hash,
+	}
+	estimateResult := ebp.RunTxForRpc(bi, false, runner)
+	return runner, estimateResult
+}
+
 // SubscribeChainEvent registers a subscription of ChainEvent.
 func (app *App) SubscribeChainEvent(ch chan<- types.ChainEvent) event.Subscription {
 	return app.scope.Track(app.chainFeed.Subscribe(ch))

@@ -184,7 +184,7 @@ func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
 }
 
 func (backend *apiBackend) Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail {
-	runner, _ := backend.app.RunTxForRpc(tx, sender, false, height)
+	runner, _ := backend.app.RunTxForRpc2(tx, sender, height)
 	return &CallDetail{
 		Status:                 runner.Status,
 		GasUsed:                runner.GasUsed,
