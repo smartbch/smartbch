@@ -168,6 +168,9 @@ func toRpcLogs(evmLogs []motypes.EvmLog) []*CallLog {
 }
 
 func toRpcRWLists(rwLists *motypes.ReadWriteLists) *RWLists {
+	if rwLists == nil {
+		return &RWLists{}
+	}
 	return &RWLists{
 		CreationCounterRList: castCreationCounterOps(rwLists.CreationCounterRList),
 		CreationCounterWList: castCreationCounterOps(rwLists.CreationCounterWList),
