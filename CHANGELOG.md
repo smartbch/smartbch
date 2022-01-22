@@ -26,6 +26,7 @@ Rpcclient will retry after failure for better robustness.
 
 
 * JSON-RPC
+  * Support eth_subscribe (newHeads and logs)
   * Add sbch_getTransactionReceipt
   * Add sbch_getCCEpochs
   * Add sbch_getCurrEpoch

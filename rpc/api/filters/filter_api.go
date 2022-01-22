@@ -30,6 +30,7 @@ type PublicFilterAPI interface {
 	NewBlockFilter() rpc.ID
 	NewFilter(crit gethfilters.FilterCriteria) (rpc.ID, error)
 	UninstallFilter(id rpc.ID) bool
+	NewHeads(ctx context.Context) (*rpc.Subscription, error)
 }
 
 type filterAPI struct {
@@ -290,6 +291,73 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 	//fmt.Printf("Why? begin %d end %d logs %#v\n", begin, end, logs)
 
 	return motypes.ToGethLogs(logs), nil
+}
+
+// NewHeads send a notification each time a new (header) block is appended to the chain.
+func (api *filterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+
+	rpcSub := notifier.CreateSubscription()
+
+	go func() {
+		headers := make(chan *motypes.Header)
+		headersSub := api.events.SubscribeNewHeads(headers)
+
+		for {
+			select {
+			case h := <-headers:
+				_ = notifier.Notify(rpcSub.ID, h)
+			case <-rpcSub.Err():
+				headersSub.Unsubscribe()
+				return
+			case <-notifier.Closed():
+				headersSub.Unsubscribe()
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
+}
+
+// Logs creates a subscription that fires for all new log that match the given filter criteria.
+func (api *filterAPI) Logs(ctx context.Context, crit gethfilters.FilterCriteria) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+
+	var (
+		rpcSub      = notifier.CreateSubscription()
+		matchedLogs = make(chan []*gethtypes.Log)
+	)
+
+	logsSub, err := api.events.SubscribeLogs(ethereum.FilterQuery(crit), matchedLogs)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		for {
+			select {
+			case logs := <-matchedLogs:
+				for _, _log := range logs {
+					_ = notifier.Notify(rpcSub.ID, &_log)
+				}
+			case <-rpcSub.Err(): // client send an unsubscribe request
+				logsSub.Unsubscribe()
+				return
+			case <-notifier.Closed(): // connection dropped
+				logsSub.Unsubscribe()
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
 }
 
 // returnHashes is a helper that will return an empty hash array case the given hash array is nil,

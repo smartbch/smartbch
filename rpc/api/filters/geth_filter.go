@@ -125,7 +125,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	}
 	end := uint64(f.end)
 	if f.end == -1 {
-		end = head
+		end = uint64(head)
 	}
 	// Gather all indexed logs, and finish with non indexed ones
 	var (
@@ -242,7 +242,7 @@ func (f *Filter) checkMatches(ctx context.Context, header *motypes.Header) (logs
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
 		if logs[0].TxHash == (common.Hash{}) {
-			receipts, err := f.backend.GetReceipts(ctx, header.Number)
+			receipts, err := f.backend.GetReceipts(ctx, uint64(header.Number))
 			if err != nil {
 				return nil, err
 			}
