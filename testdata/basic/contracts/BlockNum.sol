@@ -17,4 +17,8 @@ contract BlockNum {
         return size;
     }
 
+    function getBlockHash(uint256 blockNumber) public view returns (bytes32) {
+        return blockhash(blockNumber);
+    }
+
 }

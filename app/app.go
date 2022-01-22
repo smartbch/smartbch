@@ -817,7 +817,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 
 func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool, height int64) (*ebp.TxRunner, int64) {
 	txToRun := &types.TxToRun{}
-	txToRun.FromGethTx(gethTx, sender, uint64(height))
+	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
 	ctx := app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	runner := ebp.NewTxRunner(ctx, txToRun)
@@ -841,20 +841,19 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 
 func (app *App) RunTxForRpc2(gethTx *gethtypes.Transaction, sender gethcmn.Address, height int64) (*ebp.TxRunner, int64) {
 	if height < 1 {
-		panic("height must greater than 0")
+		return app.RunTxForRpc(gethTx, sender, false, height)
 	}
 
 	txToRun := &types.TxToRun{}
-	txToRun.FromGethTx(gethTx, sender, uint64(height-1))
+	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
 	ctx := app.GetRpcContextAtHeight(height - 1)
 	defer ctx.Close(false)
 	runner := ebp.NewTxRunner(ctx, txToRun)
-	bi := app.blockInfo.Load().(*types.BlockInfo)
 	blk, err := ctx.GetBlockByHeight(uint64(height))
 	if err != nil {
 		return nil, 0
 	}
-	bi = &types.BlockInfo{
+	bi := &types.BlockInfo{
 		Coinbase:  blk.Miner,
 		Number:    blk.Number,
 		Timestamp: blk.Timestamp,
