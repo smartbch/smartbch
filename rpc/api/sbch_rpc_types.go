@@ -196,12 +196,13 @@ func castCreationCounterOps(ops []motypes.CreationCounterRWOp) []CreationCounter
 func castAccountOps(ops []motypes.AccountRWOp) []AccountRWOp {
 	rpcOps := make([]AccountRWOp, len(ops))
 	for i, op := range ops {
-		accInfo := motypes.NewAccountInfo(op.Account)
-		rpcOps[i] = AccountRWOp{
-			Addr:    op.Addr,
-			Nonce:   hexutil.Uint64(accInfo.Nonce()),
-			Balance: accInfo.Balance(),
+		rpcOp := AccountRWOp{Addr: op.Addr}
+		if len(op.Account) > 0 {
+			accInfo := motypes.NewAccountInfo(op.Account)
+			rpcOp.Nonce = hexutil.Uint64(accInfo.Nonce())
+			rpcOp.Balance = accInfo.Balance()
 		}
+		rpcOps[i] = rpcOp
 	}
 	return rpcOps
 }
