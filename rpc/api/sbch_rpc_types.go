@@ -163,6 +163,9 @@ func castMoEvmLogs(evmLogs []motypes.EvmLog) []*CallLog {
 			Topics:  evmLog.Topics,
 			Data:    evmLog.Data,
 		}
+		if evmLog.Topics == nil {
+			callLogs[i].Topics = make([]gethcmn.Hash, 0)
+		}
 	}
 	return callLogs
 }
