@@ -144,10 +144,10 @@ func toRpcCallDetail(detail *sbchapi.CallDetail) *CallDetail {
 		Status:                 1, // success
 		GasUsed:                hexutil.Uint64(detail.GasUsed),
 		OutData:                detail.OutData,
-		Logs:                   toRpcLogs(detail.Logs),
+		Logs:                   castMoEvmLogs(detail.Logs),
 		CreatedContractAddress: detail.CreatedContractAddress,
 		InternalTxs:            buildInternalCallList(detail.InternalTxCalls, detail.InternalTxReturns),
-		RwLists:                toRpcRWLists(detail.RwLists),
+		RwLists:                castRWLists(detail.RwLists),
 	}
 	if ebp.StatusIsFailure(detail.Status) {
 		callDetail.Status = 0 // failure
@@ -155,7 +155,7 @@ func toRpcCallDetail(detail *sbchapi.CallDetail) *CallDetail {
 	return callDetail
 }
 
-func toRpcLogs(evmLogs []motypes.EvmLog) []*CallLog {
+func castMoEvmLogs(evmLogs []motypes.EvmLog) []*CallLog {
 	callLogs := make([]*CallLog, len(evmLogs))
 	for i, evmLog := range evmLogs {
 		callLogs[i] = &CallLog{
@@ -167,7 +167,7 @@ func toRpcLogs(evmLogs []motypes.EvmLog) []*CallLog {
 	return callLogs
 }
 
-func toRpcRWLists(rwLists *motypes.ReadWriteLists) *RWLists {
+func castRWLists(rwLists *motypes.ReadWriteLists) *RWLists {
 	if rwLists == nil {
 		return &RWLists{}
 	}
@@ -243,20 +243,20 @@ func TxToRpcCallDetail(tx *motypes.Transaction) *CallDetail {
 		Status:                 int(tx.Status),
 		GasUsed:                hexutil.Uint64(tx.GasUsed),
 		OutData:                tx.OutData,
-		Logs:                   toRpcLogs(toEvmLogs(tx.Logs)),
+		Logs:                   castMoLogs(tx.Logs),
 		CreatedContractAddress: tx.ContractAddress,
 		InternalTxs:            buildInternalCallList(tx.InternalTxCalls, tx.InternalTxReturns),
-		RwLists:                toRpcRWLists(tx.RwLists),
+		RwLists:                castRWLists(tx.RwLists),
 	}
 }
-func toEvmLogs(moLogs []motypes.Log) []motypes.EvmLog {
-	evmLogs := make([]motypes.EvmLog, len(moLogs))
+func castMoLogs(moLogs []motypes.Log) []*CallLog {
+	callLogs := make([]*CallLog, len(moLogs))
 	for i, moLog := range moLogs {
-		evmLogs[i] = motypes.EvmLog{
+		callLogs[i] = &CallLog{
 			Address: moLog.Address,
 			Topics:  motypes.ToGethHashes(moLog.Topics),
 			Data:    moLog.Data,
 		}
 	}
-	return evmLogs
+	return callLogs
 }
