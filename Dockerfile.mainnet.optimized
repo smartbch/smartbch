@@ -5,6 +5,7 @@ MAINTAINER Josh Ellithorpe <quest@mac.com>
 ARG SMARTBCH_VERSION="v0.3.5"
 ARG MOEINGEVM_VERSION="v0.3.3"
 ARG CONFIG_VERSION="v0.0.3"
+ARG CHAIN_ID="0x2710"
 
 ARG GOLANG_VERSION="1.16.5"
 ARG PATCH_CGO_VERSION="v0.1.1"
@@ -63,7 +64,7 @@ RUN set -ex && \
     rm -rf /build/smartbch/ && \
     # Init chain
     cd /root && \
-    /build/smartbchd init mynode --chain-id 0x2710 && \
+    /build/smartbchd init mynode --chain-id ${CHAIN_ID} && \
     wget https://github.com/smartbch/artifacts/releases/download/${CONFIG_VERSION}/dot.smartbchd.tgz && \
     tar zxvf dot.smartbchd.tgz -C .smartbchd/ --strip-components=1 && \
     rm dot.smartbchd.tgz && \
