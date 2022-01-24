@@ -2,8 +2,8 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
-ARG SMARTBCH_VERSION="0.3.5"
-ARG MOEINGEVM_VERSION="0.3.3"
+ARG SMARTBCH_VERSION="v0.3.5"
+ARG MOEINGEVM_VERSION="v0.3.3"
 
 # Update file limit
 RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.conf
@@ -53,13 +53,13 @@ RUN mkdir /smart_bch
 WORKDIR /smart_bch
 
 # Build libevmwrap.so
-RUN git clone -b v${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm
+RUN git clone -b ${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm
 RUN cd moeingevm/evmwrap && make
 
 ENV EVMWRAP=/smart_bch/moeingevm/evmwrap/host_bridge/libevmwrap.so
 
 # Build smartbchd
-RUN git clone -b v${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch
+RUN git clone -b ${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch
 RUN cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
 
 # Setup smartbchd
