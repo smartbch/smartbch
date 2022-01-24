@@ -66,7 +66,7 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastK
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*stakingtypes.Epoch, 0, 10),
 
-		EpochChan: make(chan *stakingtypes.Epoch, 10000),
+		EpochChan: make(chan *stakingtypes.Epoch, 100000),
 
 		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
 		numBlocksToClearMemory: NumBlocksToClearMemory,
@@ -186,7 +186,9 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 			}
 			watcher.epochList = append(watcher.epochList, epochs...)
 			for _, e := range epochs {
-				watcher.EpochChan <- e
+				if e.EndTime != 0 {
+					watcher.EpochChan <- e
+				}
 			}
 			latestFinalizedHeight += int64(len(epochs)) * watcher.numBlocksInEpoch
 			start = start + uint64(len(epochs))

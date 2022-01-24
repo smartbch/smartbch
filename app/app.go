@@ -585,13 +585,25 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, blockReward)
 	app.slashValidators = app.slashValidators[:0]
 
-	select {
-	case epoch := <-app.watcher.EpochChan:
-		app.epochList = append(app.epochList, epoch)
-		app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
-			epoch.Number, epoch.StartHeight, len(app.epochList)))
-	default:
+	if !ctx.IsXHedgeFork() {
+		select {
+		case epoch := <-app.watcher.EpochChan:
+			app.epochList = append(app.epochList, epoch)
+			app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
+				epoch.Number, epoch.StartHeight, len(app.epochList)))
+		default:
+		}
+	} else if (app.currHeight%4000 == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 5000)) {
+		e := &stakingtypes.Epoch{}
+		app.epochList = append(app.epochList, e)
+		app.logger.Debug(fmt.Sprintf("Get new fake epoch"))
+		select {
+		case <-app.watcher.EpochChan:
+			app.logger.Debug("ignore epoch from watcher after xHedgeFork")
+		default:
+		}
 	}
+
 	if len(app.epochList) != 0 {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
 		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {

@@ -98,9 +98,9 @@ func DefaultConfig() *ChainConfig {
 	c := &ChainConfig{
 		NodeConfig:            config.DefaultConfig(),
 		AppConfig:             DefaultAppConfig(),
-		XHedgeForkBlock:       10000000,
-		XHedgeContractAddress: "0x1234",
-		ShaGateForkBlock:      20000000,
+		XHedgeForkBlock:       2790000,
+		XHedgeContractAddress: "0x3508d5227DF886CF96397b2eA094540C311Bd2ab",
+		ShaGateForkBlock:      27900000,
 		ShaGateSwitch:         false,
 	}
 	c.NodeConfig.TxIndex.Indexer = "null"

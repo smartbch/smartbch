@@ -1038,10 +1038,12 @@ CurrentEpochNum:%d
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
-		logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
-		return nil
+	if !ctx.IsXHedgeFork() {
+		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
+			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
+			updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
+			return nil
+		}
 	}
 	if len(pubkey2power) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
