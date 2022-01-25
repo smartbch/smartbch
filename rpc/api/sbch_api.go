@@ -35,7 +35,7 @@ type SbchAPI interface {
 	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
-	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error)
+	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 }
 
 type sbchAPI struct {
@@ -267,7 +267,7 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 	return ret, nil
 }
 
-func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error) {
+func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error) {
 	sbch.logger.Debug("sbch_call")
 
 	tx, from := createGethTxFromCallArgs(args)

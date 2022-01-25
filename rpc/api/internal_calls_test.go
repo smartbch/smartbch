@@ -370,7 +370,7 @@ func TestSbchCall(t *testing.T) {
 		From: &addr,
 		To:   &contract1Addr,
 		Data: (*hexutil.Bytes)(&callData),
-	}, -1)
+	}, latestBlockNumber())
 	require.NoError(t, err)
 	println(testutils.ToPrettyJSON(callDetail))
 }

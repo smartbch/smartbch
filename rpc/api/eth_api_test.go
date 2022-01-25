@@ -235,11 +235,11 @@ func TestGetBalance(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	b, err := _api.GetBalance(addr, -1)
+	b, err := _api.GetBalance(addr, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, "0x989680", b.String())
 
-	b2, err := _api.GetBalance(addr2, -1)
+	b2, err := _api.GetBalance(addr2, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, "0x0", b2.String())
 }
@@ -253,10 +253,10 @@ func TestGetTxCount(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	nonce, err := _api.GetTransactionCount(addr1, -1)
+	nonce, err := _api.GetTransactionCount(addr1, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
-	nonce, err = _api.GetTransactionCount(addr2, -1)
+	nonce, err = _api.GetTransactionCount(addr2, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 
@@ -264,16 +264,16 @@ func TestGetTxCount(t *testing.T) {
 		tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 100, nil)
 		_app.EnsureTxSuccess(tx.Hash())
 
-		nonce, err = _api.GetTransactionCount(addr1, -1)
+		nonce, err = _api.GetTransactionCount(addr1, latestBlockNumber())
 		require.NoError(t, err)
 		require.Equal(t, hexutil.Uint64(i+1), *nonce)
 	}
 
-	nonce, err = _api.GetTransactionCount(addr2, -1)
+	nonce, err = _api.GetTransactionCount(addr2, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 
-	nonce, err = _api.GetTransactionCount(addr3, -1)
+	nonce, err = _api.GetTransactionCount(addr3, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, hexutil.Uint64(0), *nonce)
 }
@@ -294,11 +294,11 @@ func TestGetCode(t *testing.T) {
 	_app.CloseTxEngineContext()
 	_app.CloseTrunk()
 
-	c, err := _api.GetCode(addr, -1)
+	c, err := _api.GetCode(addr, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, "0x1234", c.String())
 
-	c, err = _api.GetCode(addr2, -1)
+	c, err = _api.GetCode(addr2, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, "0x", c.String())
 }
@@ -674,7 +674,7 @@ func TestCall_NoFromAddr(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	_, err := _api.Call(ethapi.CallArgs{}, -1)
+	_, err := _api.Call(ethapi.CallArgs{}, latestBlockNumber())
 	require.NoError(t, err)
 }
 
@@ -691,7 +691,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(10),
-	}, -1)
+	}, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 
@@ -699,7 +699,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),
-	}, -1)
+	}, latestBlockNumber())
 	require.Error(t, err)
 	//require.Equal(t, []byte{}, []byte(ret))
 }
@@ -715,7 +715,7 @@ func TestCall_DeployContract(t *testing.T) {
 	ret, err := _api.Call(ethapi.CallArgs{
 		From: &fromAddr,
 		Data: testutils.ToHexutilBytes(counterContractCreationBytecode),
-	}, -1)
+	}, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 }
@@ -734,7 +734,7 @@ func TestCall_RunGetter(t *testing.T) {
 	tx = testutils.MustSignTx(tx, _app.ChainID().ToBig(), fromKey)
 	_app.ExecTxInBlock(tx)
 	contractAddr := gethcrypto.CreateAddress(fromAddr, tx.Nonce())
-	rtCode, err := _api.GetCode(contractAddr, -1)
+	rtCode, err := _api.GetCode(contractAddr, latestBlockNumber())
 	require.NoError(t, err)
 	require.True(t, len(rtCode) > 0)
 
@@ -744,7 +744,7 @@ func TestCall_RunGetter(t *testing.T) {
 		//From: &fromAddr,
 		To:   &contractAddr,
 		Data: testutils.ToHexutilBytes(data),
-	}, -1)
+	}, latestBlockNumber())
 	require.NoError(t, err)
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000",
 		hex.EncodeToString(results))
@@ -790,7 +790,7 @@ func testRandomTransfer() {
 				From:  &fromAddr,
 				To:    &toAddr,
 				Value: testutils.ToHexutilBig(10),
-			}, -1)
+			}, latestBlockNumber())
 			w.Done()
 		}()
 	}
@@ -826,7 +826,7 @@ func TestArchiveQuery_futureBlock(t *testing.T) {
 	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
 	_app.EnsureTxSuccess(tx.Hash())
 
-	blockNum := gethrpc.BlockNumber(10)
+	blockNum := wrapBlockNumber(10)
 	errMsg := "block has not been mined"
 
 	_, err := _api.GetTransactionCount(addr1, blockNum)
@@ -853,7 +853,7 @@ func TestArchiveQuery_pendingBlock(t *testing.T) {
 	tx, _ := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
 	_app.EnsureTxSuccess(tx.Hash())
 
-	blockNum := gethrpc.PendingBlockNumber
+	blockNum := wrapBlockNumber(gethrpc.PendingBlockNumber)
 	errMsg := "pending block is not supported"
 
 	_, err := _api.GetTransactionCount(addr1, blockNum)
@@ -1049,28 +1049,28 @@ func getBlockNum(_api *ethAPI) uint64 {
 	return uint64(n)
 }
 func getTxCount(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
-	txCount, err := _api.GetTransactionCount(addr, h)
+	txCount, err := _api.GetTransactionCount(addr, wrapBlockNumber(h))
 	if err != nil {
 		panic(err)
 	}
 	return uint64(*txCount)
 }
 func getBalance(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) uint64 {
-	b, err := _api.GetBalance(addr, h)
+	b, err := _api.GetBalance(addr, wrapBlockNumber(h))
 	if err != nil {
 		panic(err)
 	}
 	return (*b).ToInt().Uint64()
 }
 func getCode(_api *ethAPI, addr gethcmn.Address, h gethrpc.BlockNumber) []byte {
-	c, err := _api.GetCode(addr, h)
+	c, err := _api.GetCode(addr, wrapBlockNumber(h))
 	if err != nil {
 		panic(err)
 	}
 	return c
 }
 func getStorageAt(_api *ethAPI, addr gethcmn.Address, key string, h gethrpc.BlockNumber) []byte {
-	c, err := _api.GetStorageAt(addr, key, h)
+	c, err := _api.GetStorageAt(addr, key, wrapBlockNumber(h))
 	if err != nil {
 		panic(err)
 	}
@@ -1081,9 +1081,16 @@ func call(_api *ethAPI, from, to gethcmn.Address, data []byte, h gethrpc.BlockNu
 		From: &from,
 		To:   &to,
 		Data: (*hexutil.Bytes)(&data),
-	}, h)
+	}, wrapBlockNumber(h))
 	if err != nil {
 		panic(err)
 	}
 	return results
+}
+
+func latestBlockNumber() gethrpc.BlockNumberOrHash {
+	return wrapBlockNumber(gethrpc.LatestBlockNumber)
+}
+func wrapBlockNumber(blockNr gethrpc.BlockNumber) gethrpc.BlockNumberOrHash {
+	return gethrpc.BlockNumberOrHashWithNumber(blockNr)
 }

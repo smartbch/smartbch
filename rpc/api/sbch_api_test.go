@@ -465,7 +465,7 @@ func TestCall(t *testing.T) {
 		To:    &addr2,
 		Gas:   (*hexutil.Uint64)(&gas),
 		Value: (*hexutil.Big)(big.NewInt(1000)),
-	}, gethrpc.BlockNumber(h))
+	}, wrapBlockNumber(gethrpc.BlockNumber(h)))
 	require.NoError(t, err)
 
 	txCallDetail := TxToRpcCallDetail(_app.GetTx(tx.Hash()))
