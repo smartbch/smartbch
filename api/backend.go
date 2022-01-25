@@ -15,6 +15,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethcore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -300,7 +301,7 @@ func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.Block
 		return nil, nil
 	}
 	return &types.Header{
-		Number:    uint64(block.Number),
+		Number:    hexutil.Uint64(block.Number),
 		BlockHash: block.Hash,
 		Bloom:     block.LogsBloom,
 	}, nil
@@ -313,7 +314,7 @@ func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Ha
 		return nil, err
 	}
 	return &types.Header{
-		Number:    uint64(block.Number),
+		Number:    hexutil.Uint64(block.Number),
 		BlockHash: block.Hash,
 	}, nil
 }
