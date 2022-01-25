@@ -253,6 +253,10 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 	return epoch
 }
 
+func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
+	return watcher.buildNewEpoch()
+}
+
 func (watcher *Watcher) CheckSanity(forTest bool) {
 	if !forTest {
 		latestHeight := watcher.rpcClient.GetLatestHeight()

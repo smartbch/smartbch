@@ -29,7 +29,10 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) // result is more human-readable
+	GetCurrEpoch() (*StakingEpoch, error)
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
+	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 }
 
 type sbchAPI struct {
@@ -69,7 +72,7 @@ func (sbch sbchAPI) GetTxListByHeightWithRange(height gethrpc.BlockNumber, start
 	if err != nil {
 		return nil, err
 	}
-	return txsToReceiptRpcResp(txs), nil
+	return txsToReceiptsWithInternalTxs(txs), nil
 }
 
 func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
@@ -193,6 +196,18 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	}
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }
+func (sbch sbchAPI) GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) {
+	epochs, err := sbch.GetEpochs(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return castStakingEpochs(epochs), nil
+}
+func (sbch sbchAPI) GetCurrEpoch() (*StakingEpoch, error) {
+	epoch := sbch.backend.GetCurrEpoch()
+	epoch.Number = sbch.backend.ValidatorsInfo().CurrEpochNum
+	return castStakingEpoch(epoch), nil
+}
 
 func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{} {
 	sbch.logger.Debug("sbch_healthCheck")
@@ -225,4 +240,15 @@ func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]
 		"ok":                   ok,
 		"error":                msg,
 	}
+}
+
+func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error) {
+	sbch.logger.Debug("sbch_getTransactionReceipt")
+	tx, _, err := sbch.backend.GetTransaction(hash)
+	if err != nil {
+		// the transaction is not yet available
+		return nil, nil
+	}
+	ret := txToReceiptWithInternalTxs(tx)
+	return ret, nil
 }

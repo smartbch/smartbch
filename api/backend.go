@@ -270,6 +270,10 @@ func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, add
 	return ctx.GetSep20FromAddressCount(contract, addr)
 }
 
+func (backend *apiBackend) GetCurrEpoch() *stakingtypes.Epoch {
+	return backend.app.GetCurrEpoch()
+}
+
 //[start, end)
 func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
 	if start >= end {

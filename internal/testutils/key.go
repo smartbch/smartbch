@@ -14,6 +14,11 @@ import (
 	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
+func HexPrivKeyToAddr(keyHex string) common.Address {
+	key, _, _ := ethutils.HexToPrivKey(keyHex)
+	return crypto.PubkeyToAddress(key.PublicKey)
+}
+
 func GenKeyAndAddr() (string, common.Address) {
 	key, _ := crypto.GenerateKey()
 	keyHex := hex.EncodeToString(crypto.FromECDSA(key))
