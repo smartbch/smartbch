@@ -426,8 +426,7 @@ func (api *ethAPI) SendTransaction(args rpctypes.SendTxArgs) (common.Hash, error
 	}
 
 	if args.Nonce == nil {
-		h := api.backend.LatestHeight()
-		if nonce, err := api.backend.GetNonce(args.From, h); err == nil {
+		if nonce, err := api.backend.GetNonce(args.From, -1); err == nil {
 			args.Nonce = (*hexutil.Uint64)(&nonce)
 		}
 	}
