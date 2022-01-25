@@ -31,6 +31,7 @@ type PublicFilterAPI interface {
 	NewFilter(crit gethfilters.FilterCriteria) (rpc.ID, error)
 	UninstallFilter(id rpc.ID) bool
 	NewHeads(ctx context.Context) (*rpc.Subscription, error)
+	Logs(ctx context.Context, crit gethfilters.FilterCriteria) (*rpc.Subscription, error)
 }
 
 type filterAPI struct {
