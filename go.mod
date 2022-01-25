@@ -15,6 +15,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/holiman/uint256 v1.2.0
 	github.com/kr/text v0.2.0 // indirect
+	github.com/mackerelio/go-osstat v0.2.1
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect

@@ -431,3 +431,13 @@ func (backend *apiBackend) NodeInfo() Info {
 func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }
+
+func (backend *apiBackend) GetSeq(address common.Address) uint64 {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+	accInfo := ctx.GetAccount(address)
+	if accInfo == nil {
+		return 0
+	}
+	return accInfo.Sequence()
+}

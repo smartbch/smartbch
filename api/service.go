@@ -106,6 +106,7 @@ type BackendService interface {
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
 	GetEpochs(start, end uint64) ([]*types.Epoch, error)
+	GetSeq(address common.Address) uint64
 
 	//tendermint info
 	NodeInfo() Info
