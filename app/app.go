@@ -593,7 +593,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 				epoch.Number, epoch.StartHeight, len(app.epochList)))
 		default:
 		}
-	} else if (app.currHeight%4000 == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 5000)) {
+	} else if (app.currHeight%100 == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 100)) {
 		e := &stakingtypes.Epoch{}
 		app.epochList = append(app.epochList, e)
 		app.logger.Debug(fmt.Sprintf("Get new fake epoch"))

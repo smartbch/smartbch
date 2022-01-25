@@ -98,8 +98,8 @@ func DefaultConfig() *ChainConfig {
 	c := &ChainConfig{
 		NodeConfig:            config.DefaultConfig(),
 		AppConfig:             DefaultAppConfig(),
-		XHedgeForkBlock:       2790000,
-		XHedgeContractAddress: "0x3508d5227DF886CF96397b2eA094540C311Bd2ab",
+		XHedgeForkBlock:       2766853,
+		XHedgeContractAddress: "0xbE52Fa565f320BFd5AbD106B4CcA239B0FF0cab6",
 		ShaGateForkBlock:      27900000,
 		ShaGateSwitch:         false,
 	}
