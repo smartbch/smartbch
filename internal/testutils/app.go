@@ -65,10 +65,14 @@ type TestAppInitArgs struct {
 	ValPubKey   *crypto.PubKey
 	InitAmt     *uint256.Int
 	PrivKeys    []string
+	ArchiveMode bool
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys...)
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys, false)
+}
+func CreateTestAppInArchiveMode(keys ...string) *TestApp {
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys, true)
 }
 
 func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
@@ -92,10 +96,12 @@ func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
 		initAmt = args.InitAmt
 	}
 
-	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys...)
+	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys, args.ArchiveMode)
 }
 
-func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys ...string) *TestApp {
+func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys []string,
+	archiveMode bool) *TestApp {
+
 	err := os.RemoveAll(testAdsDir)
 	if err != nil {
 		panic("remove test ads failed " + err.Error())
@@ -107,7 +113,8 @@ func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
-	_app := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
+	params.AppConfig.ArchiveMode = archiveMode
+	_app := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{
@@ -164,7 +171,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
-	newApp := app.NewApp(params, bigutils.NewU256(1), 0, nopLogger, true)
+	newApp := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
 	allBalance := uint256.NewInt(0)
 	if checkAllBalance {
 		allBalance = _app.SumAllBalance()
@@ -264,6 +271,14 @@ func (_app *TestApp) GetStorageAt(addr gethcmn.Address, key []byte) []byte {
 	return nil
 }
 
+func (_app *TestApp) GetDynamicArray(addr gethcmn.Address, arrSlot string) [][]byte {
+	seq := _app.GetSeq(addr)
+
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+	return ctx.GetDynamicArray(seq, arrSlot)
+}
+
 func (_app *TestApp) GetCode(addr gethcmn.Address) []byte {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -292,7 +307,7 @@ func (_app *TestApp) GetTx(h gethcmn.Hash) (tx *motypes.Transaction) {
 
 	var err error
 	for i := 0; i < 10; i++ { // retry ten times
-		tx, err = ctx.GetTxByHash(h)
+		tx, _, err = ctx.GetTxByHash(h)
 		if err == nil {
 			return
 		}
@@ -307,7 +322,7 @@ func (_app *TestApp) GetTx(h gethcmn.Hash) (tx *motypes.Transaction) {
 func (_app *TestApp) GetTxsByAddr(addr gethcmn.Address) []*motypes.Transaction {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
-	txs, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.BlockNum())+1, 0)
+	txs, _, err := ctx.QueryTxByAddr(addr, 1, uint32(_app.BlockNum())+1, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -414,12 +429,15 @@ func (_app *TestApp) CallWithABI(sender, contractAddr gethcmn.Address,
 }
 
 func (_app *TestApp) Call(sender, contractAddr gethcmn.Address, data []byte) (int, string, []byte) {
+	return _app.CallAtHeight(sender, contractAddr, data, -1)
+}
+func (_app *TestApp) CallAtHeight(sender, contractAddr gethcmn.Address, data []byte, height int64) (int, string, []byte) {
 	tx := ethutils.NewTx(0, &contractAddr, big.NewInt(0), DefaultGasLimit, big.NewInt(0), data)
-	runner, _ := _app.RunTxForRpc(tx, sender, false)
+	runner, _ := _app.RunTxForRpc(tx, sender, false, height)
 	return runner.Status, ebp.StatusToStr(runner.Status), runner.OutData
 }
 func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transaction) (int, string, int64) {
-	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true)
+	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true, -1)
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
 }
 
@@ -459,7 +477,7 @@ func (_app *TestApp) ExecTxsInBlock(txs ...*gethtypes.Transaction) int64 {
 
 func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) int64 {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Hash: uint256.NewInt(uint64(height)).PaddedBytes(32),
+		Hash: UintToBytes32(uint64(height)),
 		Header: tmproto.Header{
 			Height:          height,
 			Time:            _app.StartTime.Add(BlockInterval * time.Duration(height)),
@@ -481,7 +499,7 @@ func (_app *TestApp) AddTxsInBlock(height int64, txs ...*gethtypes.Transaction) 
 }
 func (_app *TestApp) WaitNextBlock(currHeight int64) {
 	_app.BeginBlock(abci.RequestBeginBlock{
-		Hash: uint256.NewInt(uint64(currHeight + 1)).PaddedBytes(32),
+		Hash: UintToBytes32(uint64(currHeight + 1)),
 		Header: tmproto.Header{
 			Height: currHeight + 1,
 			Time:   _app.StartTime.Add(BlockInterval * time.Duration(currHeight+1)),

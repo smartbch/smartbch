@@ -13,8 +13,20 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
 )
+
+type CallDetail struct {
+	Status                 int
+	GasUsed                uint64
+	OutData                []byte
+	Logs                   []motypes.EvmLog
+	CreatedContractAddress common.Address
+	InternalTxCalls        []motypes.InternalTxCall
+	InternalTxReturns      []motypes.InternalTxReturn
+	RwLists                *motypes.ReadWriteLists
+}
 
 type FilterService interface {
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*motypes.Header, error)
@@ -87,29 +99,32 @@ type BackendService interface {
 	//Engine() consensus.Engine
 
 	//Below is added in moeing chain only
-	GetNonce(address common.Address) (uint64, error)
-	GetBalance(address common.Address) (*big.Int, error)
-	GetCode(contract common.Address) (bytecode []byte, codeHash []byte)
-	GetStorageAt(address common.Address, key string) []byte
-	Call(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte)
-	EstimateGas(tx *gethtypes.Transaction, from common.Address) (statusCode int, retData []byte, gas int64)
+	GetNonce(address common.Address, height int64) (uint64, error)
+	GetBalance(address common.Address, height int64) (*big.Int, error)
+	GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte)
+	GetStorageAt(address common.Address, key string, height int64) []byte
+	Call(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte)
+	Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail
+	EstimateGas(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter motypes.FilterFunc) ([]motypes.Log, error)
-	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
-	QueryTxByDst(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
-	QueryTxByAddr(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, err error)
+	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
+	QueryTxByDst(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
+	QueryTxByAddr(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
 	SbchQueryLogs(addr common.Address, topics []common.Hash, startHeight, endHeight, limit uint32) ([]motypes.Log, error)
-	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, err error)
-	GetTxListByHeightWithRange(height uint32, start, end int) (tx []*motypes.Transaction, err error)
-	GetSigs(txs []*motypes.Transaction) [][65]byte
+	GetTxListByHeight(height uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)
+	GetTxListByHeightWithRange(height uint32, start, end int) (tx []*motypes.Transaction, sigs [][65]byte, err error)
 	GetFromAddressCount(addr common.Address) int64
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
 	GetEpochs(start, end uint64) ([]*types.Epoch, error)
 	GetCurrEpoch() *types.Epoch
+	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64
 
 	//tendermint info
 	NodeInfo() Info
 	ValidatorsInfo() app.ValidatorsInfo
+
+	IsArchiveMode() bool
 }

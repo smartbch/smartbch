@@ -28,27 +28,30 @@ import (
 )
 
 const (
-	flagRpcAddr              = "http.addr"
-	flagRpcAddrSecure        = "https.addr"
-	flagRpcAPI               = "http.api"
-	flagCorsDomain           = "http.corsdomain"
-	flagWsAddr               = "ws.addr"
-	flagWsAddrSecure         = "wss.addr"
-	flagWsAPI                = "ws.api"
-	flagMaxOpenConnections   = "rpc.max-open-connections"
-	flagReadTimeout          = "rpc.read-timeout"
-	flagWriteTimeout         = "rpc.write-timeout"
-	flagMaxBodyBytes         = "rpc.max-body-bytes"
-	flagMaxHeaderBytes       = "rpc.max-header-bytes"
-	flagRetainBlocks         = "retain-blocks"
-	flagUnlock               = "unlock"
-	flagGenesisMainnetHeight = "mainnet-genesis-height"
-	flagMainnetUrl           = "mainnet-rpc-url"
-	flagMainnetRpcUser       = "mainnet-rpc-username"
-	flagMainnetRpcPassword   = "mainnet-rpc-password"
-	flagSmartBchUrl          = "smartbch-url"
-	flagWatcherSpeedup       = "watcher-speedup"
-	flagRpcOnly              = "rpc-only"
+	flagRpcAddr                = "http.addr"
+	flagRpcAddrSecure          = "https.addr"
+	flagRpcAPI                 = "http.api"
+	flagCorsDomain             = "http.corsdomain"
+	flagWsAddr                 = "ws.addr"
+	flagWsAddrSecure           = "wss.addr"
+	flagWsAPI                  = "ws.api"
+	flagMaxOpenConnections     = "rpc.max-open-connections"
+	flagReadTimeout            = "rpc.read-timeout"
+	flagWriteTimeout           = "rpc.write-timeout"
+	flagMaxBodyBytes           = "rpc.max-body-bytes"
+	flagMaxHeaderBytes         = "rpc.max-header-bytes"
+	flagRetainBlocks           = "retain-blocks"
+	flagUnlock                 = "unlock"
+	flagGenesisMainnetHeight   = "mainnet-genesis-height"
+	flagCCGenesisMainnetHeight = "crosschain-genesis-height"
+	flagMainnetUrl             = "mainnet-rpc-url"
+	flagMainnetRpcUser         = "mainnet-rpc-username"
+	flagMainnetRpcPassword     = "mainnet-rpc-password"
+	flagSmartBchUrl            = "smartbch-url"
+	flagWatcherSpeedup         = "watcher-speedup"
+	flagRpcOnly                = "rpc-only"
+	flagArchiveMode            = "archive-mode"
+	flagSkipSanityCheck        = "skip-sanity-check"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -73,6 +76,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.PersistentFlags().String("log_level", ctx.Config.NodeConfig.LogLevel, "Log level")
 	cmd.Flags().Int64(flagRetainBlocks, -1, "Latest blocks this node retain, default retain all blocks")
 	cmd.Flags().Int64(flagGenesisMainnetHeight, 0, "genesis bch mainnet height for validator voting watched")
+	cmd.Flags().Int64(flagCCGenesisMainnetHeight, 0, "genesis bch mainnet height for crosschain tx watched")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
 	cmd.Flags().String(flagRpcAddrSecure, "tcp://:9545", "HTTPS-RPC server listening address, use special value \"off\" to disable HTTPS")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
@@ -92,6 +96,8 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
 	cmd.Flags().String(flagRpcAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the HTTP-RPC interface")
 	cmd.Flags().String(flagWsAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the WS-RPC interface")
+	cmd.Flags().Bool(flagArchiveMode, false, "enable archive-mode")
+	cmd.Flags().Bool(flagSkipSanityCheck, false, "skip sanity check when node start")
 
 	return cmd
 }

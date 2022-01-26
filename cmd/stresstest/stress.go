@@ -354,7 +354,7 @@ func CreateTestApp(testInitAmt *uint256.Int, keys []string) *testutils.TestApp {
 	params.AppConfig.UseLiteDB = true
 	params.AppConfig.NumKeptBlocks = 5
 	testValidatorPubKey := ed25519.GenPrivKeyFromSecret([]byte("stress")).PubKey()
-	_app := app.NewApp(params, chainId, 0, log.NewNopLogger(), true)
+	_app := app.NewApp(params, chainId, 0, 0, log.NewNopLogger(), true)
 	if _app.GetLatestBlockNum() == 0 {
 		genesisData := app.GenesisData{
 			Alloc: testutils.KeysToGenesisAlloc(testInitAmt, keys),

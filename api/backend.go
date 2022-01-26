@@ -24,6 +24,8 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
@@ -35,6 +37,8 @@ const (
 	// https://github.com/ethereum/devp2p/blob/master/caps/eth.md
 	protocolVersion = 63
 )
+
+var SEP206ContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x11}
 
 type apiBackend struct {
 	//extRPCEnabled bool
@@ -62,9 +66,13 @@ func (backend *apiBackend) ChainId() *big.Int {
 	return backend.app.ChainID().ToBig()
 }
 
-func (backend *apiBackend) GetStorageAt(address common.Address, key string) []byte {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetStorageAt(address common.Address, key string, height int64) []byte {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
+
+	if address == common.Address(SEP206ContractAddress) {
+		return ctx.GetStorageAt(2000, key)
+	}
 
 	acc := ctx.GetAccount(address)
 	if acc == nil {
@@ -73,8 +81,8 @@ func (backend *apiBackend) GetStorageAt(address common.Address, key string) []by
 	return ctx.GetStorageAt(acc.Sequence(), key)
 }
 
-func (backend *apiBackend) GetCode(contract common.Address) (bytecode []byte, codeHash []byte) {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte) {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 
 	info := ctx.GetCode(contract)
@@ -85,8 +93,8 @@ func (backend *apiBackend) GetCode(contract common.Address) (bytecode []byte, co
 	return
 }
 
-func (backend *apiBackend) GetBalance(owner common.Address) (*big.Int, error) {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetBalance(owner common.Address, height int64) (*big.Int, error) {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	b, err := ctx.GetBalance(owner)
 	if err != nil {
@@ -95,8 +103,8 @@ func (backend *apiBackend) GetBalance(owner common.Address) (*big.Int, error) {
 	return b.ToBig(), nil
 }
 
-func (backend *apiBackend) GetNonce(address common.Address) (uint64, error) {
-	ctx := backend.app.GetRpcContext()
+func (backend *apiBackend) GetNonce(address common.Address, height int64) (uint64, error) {
+	ctx := backend.app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	if acc := ctx.GetAccount(address); acc != nil {
 		return acc.Nonce(), nil
@@ -109,15 +117,10 @@ func (backend *apiBackend) GetTransaction(txHash common.Hash) (tx *types.Transac
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
-	if tx, err = ctx.GetTxByHash(txHash); err != nil {
+	if tx, sig, err = ctx.GetTxByHash(txHash); err != nil {
 		return
 	}
-	if tx != nil {
-		//blockHash = tx.BlockHash
-		//blockNumber = uint64(tx.BlockNumber)
-		//blockIndex = uint64(tx.TransactionIndex)
-		sig = ctx.GetTxSigByHash(txHash)
-	} else {
+	if tx == nil {
 		err = errors.New("tx with specific hash not exist")
 	}
 	return
@@ -181,13 +184,27 @@ func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
 	return common.BytesToHash(tx.Hash()), nil
 }
 
-func (backend *apiBackend) Call(tx *gethtypes.Transaction, sender common.Address) (statusCode int, retData []byte) {
-	runner, _ := backend.app.RunTxForRpc(tx, sender, false)
+func (backend *apiBackend) Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail {
+	runner, _ := backend.app.RunTxForRpc2(tx, sender, height)
+	return &CallDetail{
+		Status:                 runner.Status,
+		GasUsed:                runner.GasUsed,
+		OutData:                runner.OutData,
+		Logs:                   runner.Logs,
+		CreatedContractAddress: runner.CreatedContractAddress,
+		InternalTxCalls:        runner.InternalTxCalls,
+		InternalTxReturns:      runner.InternalTxReturns,
+		RwLists:                runner.RwLists,
+	}
+}
+
+func (backend *apiBackend) Call(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte) {
+	runner, _ := backend.app.RunTxForRpc(tx, sender, false, height)
 	return runner.Status, runner.OutData
 }
 
-func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address) (statusCode int, retData []byte, gas int64) {
-	runner, gas := backend.app.RunTxForRpc(tx, sender, true)
+func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte, gas int64) {
+	runner, gas := backend.app.RunTxForRpc(tx, sender, true, height)
 	return runner.Status, runner.OutData, gas
 }
 
@@ -198,19 +215,19 @@ func (backend *apiBackend) QueryLogs(addresses []common.Address, topics [][]comm
 	return ctx.QueryLogs(addresses, topics, startHeight, endHeight, filter)
 }
 
-func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxBySrc(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxBySrc(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxByDst(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxByDst(addr, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) QueryTxByAddr(addr common.Address, startHeight, endHeight, limit uint32) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 	return ctx.QueryTxByAddr(addr, startHeight, endHeight, limit)
@@ -223,26 +240,14 @@ func (backend *apiBackend) SbchQueryLogs(addr common.Address, topics []common.Ha
 	return ctx.BasicQueryLogs(addr, topics, startHeight, endHeight, limit)
 }
 
-func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, err error) {
+func (backend *apiBackend) GetTxListByHeight(height uint32) (txs []*types.Transaction, sigs [][65]byte, err error) {
 	return backend.GetTxListByHeightWithRange(height, 0, math.MaxInt32)
 }
-func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, err error) {
+func (backend *apiBackend) GetTxListByHeightWithRange(height uint32, start, end int) (tx []*types.Transaction, sigs [][65]byte, err error) {
 	ctx := backend.app.GetHistoryOnlyContext()
 	defer ctx.Close(false)
 
 	return ctx.GetTxListByHeightWithRange(height, start, end)
-}
-
-func (backend *apiBackend) GetSigs(txs []*types.Transaction) [][65]byte {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	sigs := make([][65]byte, len(txs))
-	for i, tx := range txs {
-		sigs[i] = ctx.GetTxSigByHash(tx.Hash)
-	}
-
-	return sigs
 }
 
 func (backend *apiBackend) GetToAddressCount(addr common.Address) int64 {
@@ -293,6 +298,25 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	return result, nil
 }
 
+//[start, end)
+func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
+	if start >= end {
+		return nil, errors.New("invalid start or empty cc epochs")
+	}
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	result := make([]*cctypes.CCEpoch, 0, end-start)
+	info := crosschain.LoadCCInfo(ctx)
+	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
+		epoch, ok := crosschain.LoadCCEpoch(ctx, epochNum)
+		if ok {
+			result = append(result, &epoch)
+		}
+	}
+	return result, nil
+}
+
 func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	if blockNr == rpc.LatestBlockNumber {
 		blockNr = rpc.BlockNumber(backend.app.GetLatestBlockNum())
@@ -328,7 +352,7 @@ func (backend *apiBackend) GetReceipts(ctx context.Context, blockNum uint64) (ge
 
 	receipts := make([]*gethtypes.Receipt, 0, 8)
 
-	txs, err := appCtx.GetTxListByHeight(uint32(blockNum))
+	txs, _, err := appCtx.GetTxListByHeight(uint32(blockNum))
 	if err == nil {
 		for _, tx := range txs {
 			receipts = append(receipts, toGethReceipt(tx))
@@ -362,7 +386,7 @@ func (backend *apiBackend) GetLogs(ctx context.Context, blockHash common.Hash) (
 	block, err := appCtx.GetBlockByHash(blockHash)
 	if err == nil && block != nil {
 		for _, txHash := range block.Transactions {
-			tx, err := appCtx.GetTxByHash(txHash)
+			tx, _, err := appCtx.GetTxByHash(txHash)
 			if err == nil && tx != nil {
 				txLogs := types.ToGethLogs(tx.Logs)
 				// fix log.TxHash
@@ -437,8 +461,12 @@ func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }
 
+func (backend *apiBackend) IsArchiveMode() bool {
+	return backend.app.IsArchiveMode()
+}
+
 func (backend *apiBackend) GetSeq(address common.Address) uint64 {
-	ctx := backend.app.GetRpcContext()
+	ctx := backend.app.GetRpcContextAtHeight(-1)
 	defer ctx.Close(false)
 	accInfo := ctx.GetAccount(address)
 	if accInfo == nil {

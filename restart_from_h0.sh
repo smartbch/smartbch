@@ -19,7 +19,7 @@ TEST_KEYS="\
 rm -rf $NODE_HOME
 echo 'initializing node ...'
 ./smartbchd init m1 --home=$NODE_HOME --chain-id 0x2711 \
-  --init-balance=100000000000000000000 \
+  --init-balance=10000000000000000000000 \
   --test-keys=$TEST_KEYS # --test-keys-file='keys10K.txt,keys1M.txt'
 sed -i '.bak' 's/timeout_commit = "5s"/timeout_commit = "1s"/g' $NODE_HOME/config/config.toml
 
@@ -44,4 +44,4 @@ echo 'adding genesis validator ...'
 #export NOINSTLOG=1
 echo 'starting node ...'
 ./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
-  --log_level='json-rpc:debug,*:info'
+  --log_level='json-rpc:debug,*:info' --skip-sanity-check=true

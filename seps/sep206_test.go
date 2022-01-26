@@ -10,7 +10,6 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/seps"
 )
@@ -131,6 +130,58 @@ func TestTransferFrom(t *testing.T) {
 	require.Equal(t, uint64(12000), a2.(*big.Int).Uint64())
 }
 
+func TestTransferFrom_drainBCH(t *testing.T) {
+	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
+	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
+	_, receiptAddr := testutils.GenKeyAndAddr()
+
+	initAmt := testutils.HexToU256("0xde0b6b3a7640000") // 1 BCH
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		InitAmt:  initAmt,
+		PrivKeys: []string{ownerKey, spenderKey},
+	})
+	defer _app.Destroy()
+
+	data1 := sep206ABI.MustPack("approve", spenderAddr, initAmt.ToBig())
+	tx1, _ := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	_app.EnsureTxSuccess(tx1.Hash())
+
+	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.ToBig())
+	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+	_app.EnsureTxSuccess(tx2.Hash())
+	require.Equal(t, uint64(0), _app.GetBalance(ownerAddr).Uint64())
+}
+
+func TestTransferFrom_mustLeaveMargin(t *testing.T) {
+	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
+	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
+	_, receiptAddr := testutils.GenKeyAndAddr()
+
+	startHeight := int64(28012340)
+	initAmt := testutils.HexToU256("0xde0b6b3a7640000") // 1 BCH
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+		StartHeight: &startHeight,
+		InitAmt:     initAmt,
+		PrivKeys:    []string{ownerKey, spenderKey},
+	})
+	defer _app.Destroy()
+
+	data1 := sep206ABI.MustPack("approve", spenderAddr, initAmt.ToBig())
+	tx1, _ := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	_app.EnsureTxSuccess(tx1.Hash())
+
+	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.ToBig())
+	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+	_app.EnsureTxFailed(tx2.Hash(), "insufficient-balance")
+	require.Equal(t, initAmt.ToBig(), _app.GetBalance(ownerAddr))
+
+	minMargin := testutils.HexToU256("0x38d7ea4c68000") // 0.001BCH
+	data3 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.Sub(initAmt, minMargin).ToBig())
+	tx3, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data3)
+	_app.EnsureTxSuccess(tx3.Hash())
+	require.Equal(t, minMargin.ToBig(), _app.GetBalance(ownerAddr))
+}
+
 func TestTransferEvent(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
@@ -187,9 +238,50 @@ func TestApproveEvent(t *testing.T) {
 	require.Equal(t, []interface{}{big.NewInt(123)}, sep206ABI.MustUnpack("Transfer", log0.Data))
 }
 
+func TestSEP206_archiveMode(t *testing.T) {
+	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
+	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
+	_, receiptAddr := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppInArchiveMode(ownerKey, spenderKey)
+	defer _app.Destroy()
+	require.Equal(t, int64(1), _app.ExecTxsInBlock())
+
+	// addr1 => addr2
+	data1 := sep206ABI.MustPack("approve", spenderAddr, big.NewInt(12345))
+	tx1, h1 := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	_app.EnsureTxSuccess(tx1.Hash())
+	require.Equal(t, int64(3), h1)
+
+	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, big.NewInt(345))
+	tx2, h2 := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+	_app.EnsureTxSuccess(tx2.Hash())
+	require.Equal(t, int64(5), h2)
+	require.Equal(t, int64(7), _app.ExecTxsInBlock())
+
+	require.Equal(t, big.NewInt(345), callViewMethodAtHeight(t, _app, -1, sep206Addr, "balanceOf", receiptAddr))
+	require.Equal(t, big.NewInt(345), callViewMethodAtHeight(t, _app, 7, sep206Addr, "balanceOf", receiptAddr))
+	require.Equal(t, big.NewInt(345), callViewMethodAtHeight(t, _app, 6, sep206Addr, "balanceOf", receiptAddr))
+	require.Equal(t, big.NewInt(345), callViewMethodAtHeight(t, _app, 5, sep206Addr, "balanceOf", receiptAddr))
+	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 4, sep206Addr, "balanceOf", receiptAddr).(*big.Int).Uint64())
+	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 3, sep206Addr, "balanceOf", receiptAddr).(*big.Int).Uint64())
+	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 2, sep206Addr, "balanceOf", receiptAddr).(*big.Int).Uint64())
+	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 1, sep206Addr, "balanceOf", receiptAddr).(*big.Int).Uint64())
+	require.Equal(t, big.NewInt(12000), callViewMethodAtHeight(t, _app, -1, sep206Addr, "allowance", ownerAddr, spenderAddr))
+	require.Equal(t, big.NewInt(12000), callViewMethodAtHeight(t, _app, 7, sep206Addr, "allowance", ownerAddr, spenderAddr))
+	require.Equal(t, big.NewInt(12000), callViewMethodAtHeight(t, _app, 6, sep206Addr, "allowance", ownerAddr, spenderAddr))
+	require.Equal(t, big.NewInt(12000), callViewMethodAtHeight(t, _app, 5, sep206Addr, "allowance", ownerAddr, spenderAddr))
+	require.Equal(t, big.NewInt(12345), callViewMethodAtHeight(t, _app, 4, sep206Addr, "allowance", ownerAddr, spenderAddr))
+	require.Equal(t, big.NewInt(12345), callViewMethodAtHeight(t, _app, 3, sep206Addr, "allowance", ownerAddr, spenderAddr))
+	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 2, sep206Addr, "allowance", ownerAddr, spenderAddr).(*big.Int).Uint64())
+	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 1, sep206Addr, "allowance", ownerAddr, spenderAddr).(*big.Int).Uint64())
+}
+
 func callViewMethod(t *testing.T, _app *testutils.TestApp, selector string, args ...interface{}) interface{} {
+	return callViewMethodAtHeight(t, _app, -1, sep206Addr, selector, args...)
+}
+func callViewMethodAtHeight(t *testing.T, _app *testutils.TestApp, height int64, addr gethcmn.Address, selector string, args ...interface{}) interface{} {
 	data := sep206ABI.MustPack(selector, args...)
-	statusCode, statusStr, output := _app.Call(gethcmn.Address{}, sep206Addr, data)
+	statusCode, statusStr, output := _app.CallAtHeight(gethcmn.Address{}, addr, data, height)
 	require.Equal(t, 0, statusCode, selector)
 	require.Equal(t, "success", statusStr, selector)
 	result := sep206ABI.MustUnpack(selector, output)

@@ -1,32 +1,38 @@
 package types
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"strings"
 
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 const (
 	Identifier = "73424348" // ascii code for 'sBCH'
 	Version    = "00"
+
+	ShaGateAddress = "14f8c7e99fd4e867c34cbd5968e35575fd5919a4"
 )
 
 // These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
 type RpcClient interface {
-	GetLatestHeight() int64
-	GetBlockByHeight(height int64) *BCHBlock
-	GetBlockByHash(hash [32]byte) *BCHBlock
+	GetLatestHeight(retry bool) int64
+	GetBlockByHeight(height int64, retry bool) *BCHBlock
 	GetEpochs(start, end uint64) []*stakingtypes.Epoch
+	GetCCEpochs(start, end uint64) []*cctypes.CCEpoch
 }
 
 // This struct contains the useful information of a BCH block
 type BCHBlock struct {
-	Height      int64
-	Timestamp   int64
-	HashId      [32]byte
-	ParentBlk   [32]byte
-	Nominations []stakingtypes.Nomination
+	Height          int64
+	Timestamp       int64
+	HashId          [32]byte
+	ParentBlk       [32]byte
+	Nominations     []stakingtypes.Nomination
+	CCTransferInfos []*cctypes.CCTransferInfo
 }
 
 //not check Nominations
@@ -35,6 +41,7 @@ func (b *BCHBlock) Equal(o *BCHBlock) bool {
 		b.HashId == o.HashId && b.ParentBlk == o.ParentBlk
 }
 
+/***mainnet data structure*/
 type JsonRpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -60,7 +67,7 @@ type BlockInfo struct {
 	Version           int      `json:"version"`
 	VersionHex        string   `json:"versionHex"`
 	Merkleroot        string   `json:"merkleroot"`
-	Tx                []string `json:"tx"`
+	Tx                []TxInfo `json:"tx"`
 	Time              int64    `json:"time"`
 	MedianTime        int64    `json:"mediantime"`
 	Nonce             int      `json:"nonce"`
@@ -128,6 +135,54 @@ func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, success bool) {
 		copy(pubKey[:], bz)
 		success = true
 		break
+	}
+	return
+}
+
+func (ti TxInfo) GetCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
+	for n, vOut := range ti.VoutList {
+		asm, ok := vOut.ScriptPubKey["asm"]
+		if !ok || asm == nil {
+			continue
+		}
+		script, ok := asm.(string)
+		if !ok {
+			continue
+		}
+		target := "OP_HASH160 " + ShaGateAddress + " OP_EQUAL"
+		if script != target {
+			continue
+		}
+		var info cctypes.CCTransferInfo
+		info.Amount = uint64(vOut.Value * (10e8))
+		copy(info.UTXO[:32], ti.Hash)
+		var vOutIndex [4]byte
+		binary.BigEndian.PutUint32(vOutIndex[:], uint32(n))
+		copy(info.UTXO[32:], vOutIndex[:])
+		infos = append(infos, &info)
+	}
+	if len(infos) != 0 {
+		vIn := ti.VinList[0]
+		//todo: modify this to match real rules, for test now
+		value, exist := vIn["test"]
+		if !exist || value == nil {
+			return nil
+		}
+		pubkeyString, ok := value.(string)
+		if !ok {
+			return nil
+		}
+		pubkeyBytes, err := hex.DecodeString(pubkeyString)
+		if err != nil {
+			return nil
+		}
+		var pubkey [33]byte
+		copy(pubkey[:], pubkeyBytes)
+		fmt.Printf("get cc infos:\n")
+		for _, info := range infos {
+			info.SenderPubkey = pubkey
+			fmt.Printf("info.pubkey:%v, info.amount:%d, info.utxo:%v\n", info.SenderPubkey, info.Amount, info.UTXO)
+		}
 	}
 	return
 }

@@ -12,6 +12,7 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -30,9 +31,11 @@ type SbchAPI interface {
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) // result is more human-readable
-	GetCurrEpoch() (*StakingEpoch, error)
+	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
+	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
+	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 }
 
 type sbchAPI struct {
@@ -68,7 +71,7 @@ func (sbch sbchAPI) GetTxListByHeightWithRange(height gethrpc.BlockNumber, start
 	if iEnd == 0 {
 		iEnd = -1
 	}
-	txs, err := sbch.backend.GetTxListByHeightWithRange(uint32(height), iStart, iEnd)
+	txs, _, err := sbch.backend.GetTxListByHeightWithRange(uint32(height), iStart, iEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +83,11 @@ func (sbch sbchAPI) QueryTxBySrc(addr gethcmn.Address,
 
 	sbch.logger.Debug("sbch_queryTxBySrc")
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxBySrc(addr, _start, _end, uint32(limit))
+	txs, sigs, err := sbch.backend.QueryTxBySrc(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
 
-	sigs := sbch.backend.GetSigs(txs)
 	return txsToRpcResp(txs, sigs), nil
 }
 
@@ -94,12 +96,11 @@ func (sbch sbchAPI) QueryTxByDst(addr gethcmn.Address,
 
 	sbch.logger.Debug("sbch_queryTxByDst")
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxByDst(addr, _start, _end, uint32(limit))
+	txs, sigs, err := sbch.backend.QueryTxByDst(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
 
-	sigs := sbch.backend.GetSigs(txs)
 	return txsToRpcResp(txs, sigs), nil
 }
 
@@ -108,12 +109,11 @@ func (sbch sbchAPI) QueryTxByAddr(addr gethcmn.Address,
 
 	sbch.logger.Debug("sbch_queryTxByAddr")
 	_start, _end := sbch.prepareHeightRange(startHeight, endHeight)
-	txs, err := sbch.backend.QueryTxByAddr(addr, _start, _end, uint32(limit))
+	txs, sigs, err := sbch.backend.QueryTxByAddr(addr, _start, _end, uint32(limit))
 	if err != nil {
 		return nil, err
 	}
 
-	sigs := sbch.backend.GetSigs(txs)
 	return txsToRpcResp(txs, sigs), nil
 }
 
@@ -209,6 +209,20 @@ func (sbch sbchAPI) GetCurrEpoch() (*StakingEpoch, error) {
 	return castStakingEpoch(epoch), nil
 }
 
+func (sbch sbchAPI) GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error) {
+	if end == 0 {
+		end = start + 10
+	}
+	return sbch.backend.GetCCEpochs(uint64(start), uint64(end))
+}
+func (sbch sbchAPI) GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) {
+	ccEpochs, err := sbch.GetCCEpochs(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return castCCEpochs(ccEpochs), nil
+}
+
 func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{} {
 	sbch.logger.Debug("sbch_healthCheck")
 	if latestBlockTooOldAge == 0 {
@@ -251,4 +265,17 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 	}
 	ret := txToReceiptWithInternalTxs(tx)
 	return ret, nil
+}
+
+func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error) {
+	sbch.logger.Debug("sbch_call")
+
+	tx, from := createGethTxFromCallArgs(args)
+	height, err := getHeightArg(sbch.backend, blockNr)
+	if err != nil {
+		return nil, err
+	}
+
+	callDetail := sbch.backend.Call2(tx, from, height)
+	return toRpcCallDetail(callDetail), nil
 }

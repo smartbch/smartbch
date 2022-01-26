@@ -29,4 +29,8 @@ const (
 	StakingNumBlocksInEpoch                int64 = 2016
 	StakingEpochSwitchDelay                int64 = 600 * 2016 / 20 // 5% time of an epoch
 	StakingMaxValidatorCount               int   = 50
+
+	// ccEpoch params
+	BlocksInCCEpoch    int64 = 7
+	CCEpochSwitchDelay int64 = 3 * 20 / 20
 )

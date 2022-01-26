@@ -13,6 +13,7 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/testutils"
+	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 )
 
 var (
@@ -332,4 +333,44 @@ func TestGetTransactionReceipt(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, retTxs, 1)
 	require.Equal(t, ret, retTxs[0])
+}
+
+func TestSbchCall(t *testing.T) {
+	key := "8d0eb0baad6ea91b33c148698372bc2e220ea6cb841112577f93c8194c0c8f11"
+	addr := testutils.HexPrivKeyToAddr(key)
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	tx1, _, contract3Addr := _app.DeployContractInBlock(key, contract3CreationBytecode)
+	_app.EnsureTxSuccess(tx1.Hash())
+	println("contract3Addr:", contract3Addr.String())
+
+	tx2, _, contract2Addr := _app.DeployContractInBlock(key,
+		testutils.JoinBytes(contract2CreationBytecode, make([]byte, 12), contract3Addr[:]))
+	_app.EnsureTxSuccess(tx2.Hash())
+	println("contract2Addr:", contract2Addr.String())
+
+	tx3, _, contract1Addr := _app.DeployContractInBlock(key,
+		testutils.JoinBytes(contract1CreationBytecode, make([]byte, 12), contract2Addr[:], make([]byte, 12), contract3Addr[:]))
+	_app.EnsureTxSuccess(tx3.Hash())
+	println("contract1Addr:", contract1Addr.String())
+
+	/*
+		contract1.call2()
+			=> contract2.call3()
+				=> contract3.callMe()
+				=> contract3.callMe()
+			=> contract2.call3()
+				=> contract3.callMe()
+				=> contract3.callMe()
+	*/
+	callData := testutils.JoinBytes(testutils.HexToBytes(methodIdCall2), testutils.UintToBytes32(0x100))
+	callDetail, err := _api.Call(rpctypes.CallArgs{
+		From: &addr,
+		To:   &contract1Addr,
+		Data: (*hexutil.Bytes)(&callData),
+	}, latestBlockNumber())
+	require.NoError(t, err)
+	println(testutils.ToPrettyJSON(callDetail))
 }
