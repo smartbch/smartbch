@@ -2,8 +2,9 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
-ARG SMARTBCH_VERSION="v0.3.5"
-ARG MOEINGEVM_VERSION="v0.3.3"
+ARG GOLANG_VERSION="1.17.2"
+ARG SMARTBCH_VERSION="v0.4.0"
+ARG MOEINGEVM_VERSION="v0.4.0"
 
 # Update file limit
 RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.conf
@@ -18,8 +19,8 @@ RUN mkdir /build
 WORKDIR /build
 
 # Install Go
-RUN wget https://dl.google.com/go/go1.16.5.linux-amd64.tar.gz
-RUN tar zxvf go1.16.5.linux-amd64.tar.gz
+RUN wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+RUN tar zxvf go${GOLANG_VERSION}.linux-amd64.tar.gz
 RUN mv go /usr/local
 RUN mkdir -p /go/bin
 
