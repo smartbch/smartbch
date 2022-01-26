@@ -2,9 +2,14 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
-ARG GOLANG_VERSION="1.17.2"
 ARG SMARTBCH_VERSION="v0.4.0"
 ARG MOEINGEVM_VERSION="v0.4.0"
+ARG CONFIG_VERSION="v0.0.3"
+
+ARG GOLANG_VERSION="1.17.2"
+ARG PATCH_CGO_VERSION="0.1.2"
+ARG ROCKSDB_VERSION="5.18.4"
+ARG SNAPPY_VERSION="1.1.8"
 
 # Update file limit
 RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.conf
@@ -29,22 +34,22 @@ ENV GOPATH=/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 
 # Patch Go for larger cgo stack size
-RUN wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v0.1.1.tar.gz
-RUN tar zxvf v0.1.1.tar.gz
-RUN rm v0.1.1.tar.gz
-RUN cd patch-cgo-for-golang-0.1.1 && cp *.c $GOROOT/src/runtime/cgo/
+RUN wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v${PATCH_CGO_VERSION}.tar.gz
+RUN tar zxvf v${PATCH_CGO_VERSION}.tar.gz
+RUN rm v${PATCH_CGO_VERSION}.tar.gz
+RUN cd patch-cgo-for-golang-${PATCH_CGO_VERSION} && cp *.c $GOROOT/src/runtime/cgo/
 
 # Build libsnappy
-RUN wget https://github.com/google/snappy/archive/refs/tags/1.1.8.tar.gz
-RUN tar zxvf 1.1.8.tar.gz
-RUN cd snappy-1.1.8 && mkdir build && cd build && cmake -DBUILD_SHARED_LIBS=On ../ && make && make install
+RUN wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
+RUN tar zxvf ${SNAPPY_VERSION}.tar.gz
+RUN cd snappy-${SNAPPY_VERSION} && mkdir build && cd build && cmake -DBUILD_SHARED_LIBS=On ../ && make && make install
 
 # Build rocksdb
-RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v5.18.4.tar.gz
-RUN tar zxvf v5.18.4.tar.gz
-RUN cd rocksdb-5.18.4 && make CC=gcc-8 CXX=g++-8 shared_lib
+RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
+RUN tar zxvf v${ROCKSDB_VERSION}.tar.gz
+RUN cd rocksdb-${ROCKSDB_VERSION} && make CC=gcc-8 CXX=g++-8 shared_lib
 
-ENV ROCKSDB_PATH="/build/rocksdb-5.18.4"
+ENV ROCKSDB_PATH="/build/rocksdb-${ROCKSDB_VERSION}"
 ENV CGO_CFLAGS="-I/$ROCKSDB_PATH/include"
 ENV CGO_LDFLAGS="-L/$ROCKSDB_PATH -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
 ENV LD_LIBRARY_PATH=$ROCKSDB_PATH:/usr/local/lib
@@ -67,7 +72,7 @@ RUN cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smar
 RUN cp /smart_bch/smartbch/smartbchd /build/smartbchd
 WORKDIR /root
 RUN /build/smartbchd init mynode --chain-id 0x2710
-RUN wget https://github.com/smartbch/artifacts/releases/download/v0.0.3/dot.smartbchd.tgz
+RUN wget https://github.com/smartbch/artifacts/releases/download/${CONFIG_VERSION}/dot.smartbchd.tgz
 RUN tar zxvf dot.smartbchd.tgz
 RUN cp -rf dot.smartbchd/* .smartbchd/
 

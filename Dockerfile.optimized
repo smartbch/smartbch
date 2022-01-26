@@ -5,12 +5,12 @@ MAINTAINER Josh Ellithorpe <quest@mac.com>
 ARG SMARTBCH_VERSION="v0.4.0"
 ARG MOEINGEVM_VERSION="v0.4.0"
 ARG CONFIG_VERSION="v0.0.3"
-ARG CHAIN_ID="0x2710"
 
 ARG GOLANG_VERSION="1.17.2"
-ARG PATCH_CGO_VERSION="v0.1.1"
-ARG ROCKSDB_VERSION="v5.18.4"
+ARG PATCH_CGO_VERSION="0.1.2"
+ARG ROCKSDB_VERSION="5.18.4"
 ARG SNAPPY_VERSION="1.1.8"
+ARG CHAIN_ID="0x2710"
 
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV GOROOT=/usr/local/go
@@ -36,7 +36,7 @@ RUN set -ex && \
     tar zxvf go${GOLANG_VERSION}.linux-amd64.tar.gz -C /usr/local && \
     mkdir -p $GOPATH/bin && \
     # Patch Go for larger cgo stack size
-    wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/${PATCH_CGO_VERSION}.tar.gz && \
+    wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v${PATCH_CGO_VERSION}.tar.gz && \
     tar zxvf v${PATCH_CGO_VERSION}.tar.gz -C $GOROOT/src/runtime/cgo/ --strip-components=1 --wildcards "*.c" && \
     # Build libsnappy
     cd /build && \
@@ -45,14 +45,14 @@ RUN set -ex && \
     cd snappy/build && cmake -DBUILD_SHARED_LIBS=On -DSNAPPY_BUILD_TESTS=0 -DCMAKE_BUILD_TYPE=Release ../ && make -j4 install && \
     # Build rocksdb
     cd /build && \
-    wget https://github.com/facebook/rocksdb/archive/refs/tags/${ROCKSDB_VERSION}.tar.gz && \
-    mkdir rocksdb && tar zxvf ${ROCKSDB_VERSION}.tar.gz -C rocksdb --strip-components=1 && \
+    wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz && \
+    mkdir rocksdb && tar zxvf v${ROCKSDB_VERSION}.tar.gz -C rocksdb --strip-components=1 && \
     cd rocksdb && PORTABLE=1 DEBUG_LEVEL=0 make -j4 CC=gcc-8 CXX=g++-8 EXTRA_CXXFLAGS=-s shared_lib install-shared && \
     # Remove build artifacts
     rm -rf /build/* && \
     # Build libevmwrap.so
     cd /build && \
-    git clone -b v${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm && \
+    git clone -b ${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm && \
     cd moeingevm/evmwrap && make -j4 && \
     cp host_bridge/libevmwrap.so /build && \
     rm -rf /build/moeingevm/ && \
