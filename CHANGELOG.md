@@ -27,21 +27,34 @@ Rpcclient will retry after failure for better robustness.
 
 * JSON-RPC
   * Support eth_subscribe (newHeads and logs)
-  * Add sbch_getTransactionReceipt
-  * Add sbch_getCCEpochs
-  * Add sbch_getCurrEpoch
-  * The following methods return internal transactions
-    * sbch_getTxListByHeight
-    * sbch_getTxListByHeightWithRange
-  * The following methods support extra block parameter now
+  * The following methods support extra block parameter (compatible with EIP-1898) now
     * eth_getBalance
     * eth_getCode
     * eth_getTransactionCount
     * eth_getStorageAt
     * eth_call
     * eth_estimateGas
+  * Add several methods in sbch namespace
+    * sbch_getTransactionReceipt
+    * sbch_getCCEpochs
+    * sbch_getCurrEpoch
+    * sbch_call
+  * The following methods return internal transactions
+    * sbch_getTxListByHeight
+    * sbch_getTxListByHeightWithRange
+  * Add several methods in debug namespace
 * Command
-  * Add `--http.api`, `--ws.api` and `--archive-mode` options to `smartbchd start` command
+  * Add options to `smartbchd start` command
+    * `--http.api`, `--ws.api`
+    * `--archive-mode`
+    * `--skip-sanity-check`
+* Library
+  * Upgrade moeingads to v0.4.0
+  * Upgrade moeingdb to v0.4.0
+  * Upgrade moeingevm to v0.4.0
+* Others
+  * Upgrade Golang to 1.7
+
 
 ## v0.3.5
 

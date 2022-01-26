@@ -31,6 +31,7 @@ type SbchAPI interface {
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) // result is more human-readable
+	GetCurrEpoch() (*StakingEpoch, error)
 	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
