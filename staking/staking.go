@@ -1223,8 +1223,8 @@ func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, pubkey2po
 	sort.Slice(pubkeys, func(i, j int) bool {
 		return bytes.Compare(pubkeys[i][:], pubkeys[j][:]) < 0
 	})
-	oneBz := uint256.NewInt(0).PaddedBytes(32) // zeroBz?
-	for _, key := range pubkeys {              // each has a minimum voting power
+	oneBz := uint256.NewInt(1).PaddedBytes(32)
+	for _, key := range pubkeys { // each has a minimum voting power
 		ctx.SetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(key), oneBz)
 	}
 	ctx.CreateDynamicArray(xhedgeContractSeq, SlotValatorsArray, pubkeys)

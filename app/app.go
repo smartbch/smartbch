@@ -139,7 +139,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.historyStore = createHistoryStore(config, app.logger.With("module", "modb"))
 	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
-
 	/*------set engine------*/
 	app.txEngine = ebp.NewEbpTxExec(
 		param.EbpExeRoundCount,
@@ -152,7 +151,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
-
 	ebp.RegisterPredefinedContract(ctx, staking.StakingContractAddress, staking.NewStakingContractExecutor(app.logger.With("module", "staking")))
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
@@ -610,15 +608,8 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
 			var posVotes map[[32]byte]int64
-			var xHedgeSequence uint64
+			xHedgeSequence := app.config.XHedgeContractSequence
 			if ctx.IsXHedgeFork() {
-				xHedgeContractAddress := gethcmn.Address{}
-				xHedgeContractAddress.SetBytes(gethcmn.FromHex(app.config.XHedgeContractAddress))
-				acc := ctx.GetAccount(xHedgeContractAddress)
-				if acc == nil {
-					return
-				}
-				xHedgeSequence = acc.Sequence()
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
