@@ -311,7 +311,7 @@ func TestCallStakingMethodsFromContract(t *testing.T) {
 	_app := testutils.CreateTestApp(key1, key1)
 	defer _app.Destroy()
 
-	// see testdata/staking/contracts/StakingTest2
+	// see testdata/sol/contracts/staking/StakingTest2
 	proxyCreationBytecode := testutils.HexToBytes(`
 6080604052348015600f57600080fd5b50606980601d6000396000f3fe608060
 405260006127109050604051366000823760008036836000865af13d80600084
@@ -388,7 +388,7 @@ func TestSumVotingPower(t *testing.T) {
 	require.Equal(t, int64(1), vals.Validators[2].VotingPower)
 	require.Equal(t, int64(1), vals.Validators[3].VotingPower)
 
-	// see testdata/staking/contracts/StakingTest2
+	// see testdata/sol/contracts/staking/StakingTest2
 	proxyCreationBytecode := testutils.HexToBytes(`
 6080604052348015600f57600080fd5b50606980601d6000396000f3fe608060
 405260006127109050604051366000823760008036836000865af13d80600084

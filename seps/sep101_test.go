@@ -55,7 +55,7 @@ var _sep101ABI = ethutils.MustParseABI(`
 ]
 `)
 
-// see testdata/seps/contracts/SEP101Proxy_DELEGATECALL.sol
+// see testdata/sol/contracts/seps/SEP101Proxy_DELEGATECALL.sol
 var _sep101ProxyCreationBytecode = testutils.HexToBytes(`
 6080604052348015600f57600080fd5b50606780601d6000396000f3fe608060
 40526000612712905060405136600082376000803683855af43d806000843e81

@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "@openzeppelin/contracts": "^4.0.0-beta.1",
+    "@openzeppelin/contracts": "^4.0.0",
     "@truffle/contract": "^4.3.9",
-    "@truffle/hdwallet-provider": "^1.2.6",
+    "@truffle/hdwallet-provider": "1.2.6",
     "@uniswap/lib": "^4.0.1-alpha",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0"

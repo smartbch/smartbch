@@ -3,6 +3,12 @@ const TestSEP109 = artifacts.require("TestSEP109");
 contract("TestSEP109", async (accounts) => {
 
     it('verify', async () => {
+        let blockNum = await web3.eth.getBlockNumber();
+        if (blockNum < 28012340) {
+            console.log('VRF not enabled!');
+            return;
+        }
+
         const testSEP109 = await TestSEP109.new();
         await testSEP109.verify(
             "0x000000000000000000000000000000000000000000000000000073616d706c65",
@@ -49,6 +55,12 @@ contract("TestSEP109", async (accounts) => {
 contract("SEP109", async (accounts) => {
 
     it('verify', async () => {
+        let blockNum = await web3.eth.getBlockNumber();
+        if (blockNum < 28012340) {
+            console.log('VRF not enabled!');
+            return;
+        }
+
         await web3.eth.sendTransaction({
             from    : accounts[0],
             to      : "0x0000000000000000000000000000000000002713", 

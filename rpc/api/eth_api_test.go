@@ -27,7 +27,7 @@ import (
 	"github.com/smartbch/smartbch/staking"
 )
 
-// ../../testdata/counter/contracts/Counter.sol
+// testdata/sol/contracts/basic/Counter.sol
 var counterContractCreationBytecode = testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060b28061001f6000396000f3fe60
 80604052348015600f57600080fd5b506004361060325760003560e01c806361
@@ -69,7 +69,7 @@ var counterContractABI = ethutils.MustParseABI(`
 ]
 `)
 
-// ../../testdata/basic/contracts/BlockNum.sol
+// testdata/sol/contracts/basic/BlockNum.sol
 var blockNumContractCreationBytecode = testutils.HexToBytes(`
 608060405234801561001057600080fd5b506102bd806100206000396000f3fe
 608060405234801561001057600080fd5b506004361061004c5760003560e01c

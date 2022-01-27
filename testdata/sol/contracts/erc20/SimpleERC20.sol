@@ -9,7 +9,7 @@ Implements EIP20 token standard: https://github.com/ethereum/EIPs/blob/master/EI
 
 pragma solidity ^0.8.0;
 
-import "./IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 contract SimpleERC20 is IERC20 {

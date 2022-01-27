@@ -12,7 +12,7 @@ import (
 	"github.com/smartbch/smartbch/staking"
 )
 
-// testdata/staking/contracts/XHedgeStorage.sol
+// testdata/sol/contracts/staking/XHedgeStorage.sol
 var xhedgeStorageCreationBytecode = testutils.HexToBytes(`
 0x608060405234801561001057600080fd5b5061023e806100206000396000f3
 fe608060405234801561001057600080fd5b50600436106100415760003560e0
