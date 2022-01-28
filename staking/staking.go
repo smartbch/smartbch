@@ -38,7 +38,6 @@ const (
 )
 
 var (
-	XHedgeContractSequence uint64 = 0 //TODO
 	//contract address, 10000
 	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
@@ -106,7 +105,7 @@ var (
 	GasOfMinGasPriceOp uint64 = 50_000
 
 	//minGasPrice
-	DefaultMinGasPrice          uint64 = 10_000_000_000 //10gwei
+	DefaultMinGasPrice          uint64 = param.DefaultMinGasPrice //10gwei
 	MinGasPriceDeltaRateInBlock uint64 = 16
 	MinGasPriceDeltaRate        uint64 = 5               //gas delta rate every proposal can change
 	MinGasPriceUpperBound       uint64 = 500_000_000_000 //500gwei
@@ -1038,10 +1037,12 @@ CurrentEpochNum:%d
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
-	if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
-		logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
-		return nil
+	if !(param.IsAmber && ctx.IsXHedgeFork()) {
+		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
+			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
+			updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
+			return nil
+		}
 	}
 	if len(pubkey2power) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
@@ -1221,8 +1222,8 @@ func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, pubkey2po
 	sort.Slice(pubkeys, func(i, j int) bool {
 		return bytes.Compare(pubkeys[i][:], pubkeys[j][:]) < 0
 	})
-	oneBz := uint256.NewInt(0).PaddedBytes(32) // zeroBz?
-	for _, key := range pubkeys {              // each has a minimum voting power
+	oneBz := uint256.NewInt(1).PaddedBytes(32)
+	for _, key := range pubkeys { // each has a minimum voting power
 		ctx.SetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(key), oneBz)
 	}
 	ctx.CreateDynamicArray(xhedgeContractSeq, SlotValatorsArray, pubkeys)

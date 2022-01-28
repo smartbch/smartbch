@@ -585,13 +585,27 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, blockReward)
 	app.slashValidators = app.slashValidators[:0]
 
-	select {
-	case epoch := <-app.watcher.EpochChan:
-		app.epochList = append(app.epochList, epoch)
-		app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
-			epoch.Number, epoch.StartHeight, len(app.epochList)))
-	default:
+	if param.IsAmber && ctx.IsXHedgeFork() {
+		if (app.currHeight%201600 /*2016 * 10 * 60 / 6 */ == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 201600 / 2)) {
+			e := &stakingtypes.Epoch{}
+			app.epochList = append(app.epochList, e)
+			app.logger.Debug(fmt.Sprintf("Get new fake epoch"))
+			select {
+			case <-app.watcher.EpochChan:
+				app.logger.Debug("ignore epoch from watcher after xHedgeFork")
+			default:
+			}
+		}
+	} else {
+			select {
+			case epoch := <-app.watcher.EpochChan:
+				app.epochList = append(app.epochList, epoch)
+				app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
+					epoch.Number, epoch.StartHeight, len(app.epochList)))
+			default:
+			}
 	}
+
 	if len(app.epochList) != 0 {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
 		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {
@@ -600,13 +614,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 			var posVotes map[[32]byte]int64
 			var xHedgeSequence uint64
 			if ctx.IsXHedgeFork() {
-				xHedgeContractAddress := gethcmn.Address{}
-				xHedgeContractAddress.SetBytes(gethcmn.FromHex(app.config.XHedgeContractAddress))
-				acc := ctx.GetAccount(xHedgeContractAddress)
-				if acc == nil {
-					return
-				}
-				xHedgeSequence = acc.Sequence()
+				xHedgeSequence = app.config.XHedgeContractSequence
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,

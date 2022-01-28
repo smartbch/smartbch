@@ -186,7 +186,9 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 			}
 			watcher.epochList = append(watcher.epochList, epochs...)
 			for _, e := range epochs {
-				watcher.EpochChan <- e
+				if e.EndTime != 0 {
+					watcher.EpochChan <- e
+				}
 			}
 			latestFinalizedHeight += int64(len(epochs)) * watcher.numBlocksInEpoch
 			start = start + uint64(len(epochs))
