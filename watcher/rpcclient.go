@@ -232,6 +232,17 @@ func (client *RpcClient) getBlock(hash string) (*types.BlockInfo, error) {
 		return &blockInfoResp.Result, fmt.Errorf("getBlock error, code:%d, msg:%s\n",
 			blockInfoResp.Error.Code, blockInfoResp.Error.Message)
 	}
+
+	// try to adapt BCHD
+	if len(blockInfoResp.Result.Tx) == 0 &&
+		len(blockInfoResp.Result.RawTx) > 0 {
+
+		blockInfoResp.Result.Tx = blockInfoResp.Result.RawTx
+		for i := 0; i < len(blockInfoResp.Result.Tx); i++ {
+			blockInfoResp.Result.Tx[i].Hash = blockInfoResp.Result.Tx[i].TxID
+		}
+	}
+
 	return &blockInfoResp.Result, nil
 }
 

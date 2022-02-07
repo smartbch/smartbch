@@ -68,6 +68,7 @@ type BlockInfo struct {
 	VersionHex        string   `json:"versionHex"`
 	Merkleroot        string   `json:"merkleroot"`
 	Tx                []TxInfo `json:"tx"`
+	RawTx             []TxInfo `json:"rawtx"` // BCHD
 	Time              int64    `json:"time"`
 	MedianTime        int64    `json:"mediantime"`
 	Nonce             int      `json:"nonce"`

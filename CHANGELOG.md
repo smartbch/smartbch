@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.4.0 (not released yet)
+## v0.4.1 (not released yet)
+
+* BCHWatcher
+  * Support BCHD JSON-RPC
+
+
+## v0.4.0
 
 BCH holders can elect validators through the XHedge smart contract.
 
