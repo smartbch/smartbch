@@ -586,10 +586,10 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	app.slashValidators = app.slashValidators[:0]
 
 	if param.IsAmber && ctx.IsXHedgeFork() {
-		if (app.currHeight%201600 /*2016 * 10 * 60 / 6 */ == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 201600 / 2)) {
+		if (app.currHeight%201600 /*2016 * 10 * 60 / 6 */ == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 201600/2)) {
 			e := &stakingtypes.Epoch{}
 			app.epochList = append(app.epochList, e)
-			app.logger.Debug(fmt.Sprintf("Get new fake epoch"))
+			app.logger.Debug("Get new fake epoch")
 			select {
 			case <-app.watcher.EpochChan:
 				app.logger.Debug("ignore epoch from watcher after xHedgeFork")
@@ -597,13 +597,13 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 			}
 		}
 	} else {
-			select {
-			case epoch := <-app.watcher.EpochChan:
-				app.epochList = append(app.epochList, epoch)
-				app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
-					epoch.Number, epoch.StartHeight, len(app.epochList)))
-			default:
-			}
+		select {
+		case epoch := <-app.watcher.EpochChan:
+			app.epochList = append(app.epochList, epoch)
+			app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
+				epoch.Number, epoch.StartHeight, len(app.epochList)))
+		default:
+		}
 	}
 
 	if len(app.epochList) != 0 {
