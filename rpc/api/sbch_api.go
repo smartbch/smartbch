@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -37,6 +38,7 @@ type SbchAPI interface {
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
+	ValidatorsInfo() json.RawMessage
 }
 
 type sbchAPI struct {
@@ -279,4 +281,11 @@ func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHa
 
 	callDetail := sbch.backend.Call2(tx, from, height)
 	return toRpcCallDetail(callDetail), nil
+}
+
+func (sbch sbchAPI) ValidatorsInfo() json.RawMessage {
+	sbch.logger.Debug("sbch_validatorsInfo")
+	info := sbch.backend.ValidatorsInfo()
+	bytes, _ := json.Marshal(info)
+	return bytes
 }

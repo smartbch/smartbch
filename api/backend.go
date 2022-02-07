@@ -432,7 +432,7 @@ type Info struct {
 	Height          int64           `json:"height"`
 	Seed            string          `json:"seed"`
 	ConsensusPubKey crypto.PubKey   `json:"consensus_pub_key"`
-	AppState        json.RawMessage `json:"app_state"`
+	AppState        json.RawMessage `json:"genesis_state"`
 }
 
 func (backend *apiBackend) NodeInfo() Info {

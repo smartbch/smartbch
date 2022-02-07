@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -8,6 +9,7 @@ import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mackerelio/go-osstat/memory"
+	"github.com/tendermint/tendermint/libs/log"
 )
 
 const (
@@ -34,23 +36,38 @@ type Stats struct {
 type DebugAPI interface {
 	GetStats() Stats
 	GetSeq(addr gethcmn.Address) hexutil.Uint64
-}
-
-func newDebugAPI(ethAPI *ethAPI) DebugAPI {
-	return &debugAPI{ethAPI: ethAPI}
+	NodeInfo() json.RawMessage
 }
 
 type debugAPI struct {
+	logger         log.Logger
 	ethAPI         *ethAPI
 	lastUpdateTime int64
 	stats          Stats
 }
 
+func newDebugAPI(ethAPI *ethAPI, logger log.Logger) DebugAPI {
+	return &debugAPI{
+		logger: logger,
+		ethAPI: ethAPI,
+	}
+}
+
 func (api *debugAPI) GetSeq(addr gethcmn.Address) hexutil.Uint64 {
+	api.logger.Debug("debug_getSeq")
 	return hexutil.Uint64(api.ethAPI.backend.GetSeq(addr))
 }
 
+func (api *debugAPI) NodeInfo() json.RawMessage {
+	api.logger.Debug("debug_nodeInfo")
+	nodeInfo := api.ethAPI.backend.NodeInfo()
+	bytes, _ := json.Marshal(nodeInfo)
+	return bytes
+}
+
 func (api *debugAPI) GetStats() Stats {
+	api.logger.Debug("debug_getStats")
+
 	now := time.Now().Unix()
 	lastUpdateTime := atomic.LoadInt64(&api.lastUpdateTime)
 	if now > lastUpdateTime+StatusUpdateInterval {

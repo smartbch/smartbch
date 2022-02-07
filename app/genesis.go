@@ -3,6 +3,8 @@ package app
 import (
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethcore "github.com/ethereum/go-ethereum/core"
+	"github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
@@ -15,6 +17,7 @@ type Validator struct {
 	Introduction string          `json:"introduction"`
 	StakedCoins  gethcmn.Hash    `json:"staked_coins"`
 	IsRetiring   bool            `json:"is_retiring"`
+	MinerAddress crypto.Address  `json:"miner_address"`
 }
 
 type GenesisData struct {
@@ -55,5 +58,6 @@ func FromStakingValidator(v *stakingtypes.Validator) *Validator {
 		Introduction: v.Introduction,
 		StakedCoins:  v.StakedCoins,
 		IsRetiring:   v.IsRetiring,
+		MinerAddress: ed25519.PubKey(v.Pubkey[:]).Address(),
 	}
 }

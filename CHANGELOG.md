@@ -2,8 +2,11 @@
 
 ## v0.4.1 (not released yet)
 
-* BCHWatcher
+* BCH Watcher
   * Support BCHD JSON-RPC
+* JSON-RPC
+  * Rename tm_nodeInfo to debug_nodeInfo
+  * Rename tm_validatorsInfo to sbch_validatorsInfo
 
 
 ## v0.4.0

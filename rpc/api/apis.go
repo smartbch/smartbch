@@ -14,10 +14,7 @@ const (
 	namespaceWeb3   = "web3"
 	namespaceTxPool = "txpool"
 	namespaceSBCH   = "sbch"
-	namespaceTM     = "tm"
 	namespaceDebug  = "debug"
-	//namespaceEVM    = "evm"
-	//namespacePersonal = "personal"
 
 	apiVersion = "1.0"
 )
@@ -33,8 +30,7 @@ func GetAPIs(backend sbchapi.BackendService,
 	_web3API := newWeb3API(logger)
 	_txPoolAPI := newTxPoolAPI(logger)
 	_sbchAPI := newSbchAPI(backend, logger)
-	_tmAPI := newTendermintAPI(backend, logger)
-	_debugAPI := newDebugAPI(_ethAPI)
+	_debugAPI := newDebugAPI(_ethAPI, logger)
 	//_evmAPI := newEvmAPI(backend)
 
 	return []rpc.API{
@@ -72,12 +68,6 @@ func GetAPIs(backend sbchapi.BackendService,
 			Namespace: namespaceSBCH,
 			Version:   apiVersion,
 			Service:   _sbchAPI,
-			Public:    true,
-		},
-		{
-			Namespace: namespaceTM,
-			Version:   apiVersion,
-			Service:   _tmAPI,
 			Public:    true,
 		},
 		{
