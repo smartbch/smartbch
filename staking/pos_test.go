@@ -123,13 +123,13 @@ func TestCreateInitVotes(t *testing.T) {
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(2))
 	require.Equal(t, []interface{}{big.NewInt(0xABCD)}, result)
 
-	zero := big.NewInt(1).SetInt64(0)
+	one := big.NewInt(1)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", big.NewInt(0x1234))
-	require.Equal(t, []interface{}{zero}, result)
+	require.Equal(t, []interface{}{one}, result)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", big.NewInt(0x5678))
-	require.Equal(t, []interface{}{zero}, result)
+	require.Equal(t, []interface{}{one}, result)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", big.NewInt(0xABCD))
-	require.Equal(t, []interface{}{zero}, result)
+	require.Equal(t, []interface{}{one}, result)
 }
 
 func TestGetAndClearPosVotes(t *testing.T) {
