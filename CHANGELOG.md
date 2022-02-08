@@ -11,31 +11,18 @@
 
 ## v0.4.0
 
-BCH holders can elect validators through the XHedge smart contract.
-
-An optimized scheme to decide the minimum gas price.
-
-Refine SEP206:
-
-  An EOA can only call SEP206's contract address once in a block
-
-  When using "transferFrom", the source account must be left 0.001 BCH.
-
-Add SEP109 to support VRF (verifiable random function)
-
-Allows EOA to send transactions into mempool continuously, across several successive blocks
-
-Add debug API (debug_* RPC endpoints)
-
-Add internal transactions' information in transaction receipt
-
-Support querying main chain blocks in parallel.
-
-Rpcclient will retry after failure for better robustness.
-
-
+* Consensus Change (need to be activated after a hard fork)
+  * BCH holders can elect validators through the XHedge smart contract.
+  * An optimized scheme to decide the minimum gas price.
+  * Refine SEP206:
+    * An EOA can only call SEP206's contract address once in a block
+    * When using "transferFrom", the source account must be left 0.001 BCH.
+  * Implement SEP109 to support VRF (verifiable random function)
+* Mempool
+  * Allows EOA to send transactions into mempool continuously, across several successive blocks
 * JSON-RPC
   * Support eth_subscribe (newHeads and logs)
+  * Add debug API (debug_* RPC endpoints)
   * The following methods support extra block parameter (compatible with EIP-1898) now
     * eth_getBalance
     * eth_getCode
@@ -44,7 +31,7 @@ Rpcclient will retry after failure for better robustness.
     * eth_call
     * eth_estimateGas
   * Add several methods in sbch namespace
-    * sbch_getTransactionReceipt
+    * sbch_getTransactionReceipt (Add internal transactions' information in transaction receipt)
     * sbch_getCCEpochs
     * sbch_getCurrEpoch
     * sbch_call
@@ -63,6 +50,9 @@ Rpcclient will retry after failure for better robustness.
   * Upgrade moeingevm to v0.4.0
 * Others
   * Upgrade Golang to 1.7
+  * Support querying main chain blocks in parallel.
+  * Rpcclient will retry after failure for better robustness.
+
 
 
 ## v0.3.5
