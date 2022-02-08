@@ -1,12 +1,15 @@
 # Changelog
 
-## v0.4.1 (not released yet)
+## v0.4.1
 
 * BCH Watcher
   * Support BCHD JSON-RPC
 * JSON-RPC
   * Rename tm_nodeInfo to debug_nodeInfo
   * Rename tm_validatorsInfo to sbch_validatorsInfo
+* Others
+  * Merge amber branch into main and use build tags to select main/testnet params
+
 
 
 ## v0.4.0

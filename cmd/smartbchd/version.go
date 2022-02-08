@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/param"
 )
 
 func VersionCmd() *cobra.Command {
@@ -17,6 +18,7 @@ func VersionCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println(app.ClientID)
 			fmt.Println("Version:", app.GitTag)
+			fmt.Println("IsAmber:", param.IsAmber)
 			if app.GitCommit != "" {
 				fmt.Println("Git Commit:", app.GitCommit)
 			}

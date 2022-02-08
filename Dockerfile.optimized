@@ -2,7 +2,8 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
-ARG SMARTBCH_VERSION="v0.4.0"
+ARG SMARTBCH_VERSION="v0.4.1"
+ARG SMARTBCH_BUILD_TAGS="cppbtree"
 ARG MOEINGEVM_VERSION="v0.4.0"
 ARG CONFIG_VERSION="v0.0.3"
 
@@ -59,7 +60,7 @@ RUN set -ex && \
     # Build smartbchd
     cd /build && \
     git clone -b ${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch && \
-    cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd && \
+    cd smartbch && go build -tags ${SMARTBCH_BUILD_TAGS} github.com/smartbch/smartbch/cmd/smartbchd && \
     cp smartbchd /build && \
     rm -rf /build/smartbch/ && \
     # Init chain
