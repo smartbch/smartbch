@@ -7,6 +7,7 @@ ARG SMARTBCH_BUILD_TAGS="cppbtree"
 ARG MOEINGEVM_VERSION="v0.4.0"
 ARG CONFIG_VERSION="v0.0.3"
 
+ARG TARGETPLATFORM
 ARG GOLANG_VERSION="1.17.2"
 ARG PATCH_CGO_VERSION="0.1.2"
 ARG ROCKSDB_VERSION="5.18.4"
@@ -33,12 +34,14 @@ RUN set -ex && \
     mkdir /build && \
     # Install Go
     cd /build && \
-    wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
-    tar zxvf go${GOLANG_VERSION}.linux-amd64.tar.gz -C /usr/local && \
+    export GOPLATFORM=$(echo ${TARGETPLATFORM} | tr "/" "-") && echo ${GOPLATFORM} && \
+    wget https://dl.google.com/go/go${GOLANG_VERSION}.${GOPLATFORM}.tar.gz && \
+    tar zxvf go${GOLANG_VERSION}.${GOPLATFORM}.tar.gz -C /usr/local && \
     mkdir -p $GOPATH/bin && \
     # Patch Go for larger cgo stack size
     wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v${PATCH_CGO_VERSION}.tar.gz && \
     tar zxvf v${PATCH_CGO_VERSION}.tar.gz -C $GOROOT/src/runtime/cgo/ --strip-components=1 --wildcards "*.c" && \
+    go version && \
     # Build libsnappy
     cd /build && \
     wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz && \
