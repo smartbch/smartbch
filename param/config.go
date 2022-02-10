@@ -57,14 +57,8 @@ type AppConfig struct {
 }
 
 type ChainConfig struct {
-	NodeConfig             *config.Config `mapstructure:"node_config"`
-	AppConfig              *AppConfig     `mapstructure:"app_config"`
-	XHedgeForkBlock        int64          `mapstructure:"xhedge_fork_block"`
-	XHedgeContractAddress  string         `mapstructure:"xhedge_contract_address"`
-	XHedgeContractSequence uint64         `mapstructure:"xhedge_contract_sequence"`
-	// open the ShaGateSwitch before ShaGateForkHeight reached
-	ShaGateSwitch    bool  `mapstructure:"shagate_switch"`
-	ShaGateForkBlock int64 `mapstructure:"shagate_fork_block"`
+	NodeConfig *config.Config `mapstructure:"node_config"`
+	AppConfig  *AppConfig     `mapstructure:"app_config"`
 }
 
 var (
@@ -97,13 +91,8 @@ func DefaultAppConfigWithHome(home string) *AppConfig {
 
 func DefaultConfig() *ChainConfig {
 	c := &ChainConfig{
-		NodeConfig:             config.DefaultConfig(),
-		AppConfig:              DefaultAppConfig(),
-		XHedgeForkBlock:        10000000,
-		XHedgeContractAddress:  "0x1234",
-		XHedgeContractSequence: 3774,
-		ShaGateForkBlock:       20000000,
-		ShaGateSwitch:          false,
+		NodeConfig: config.DefaultConfig(),
+		AppConfig:  DefaultAppConfig(),
 	}
 	c.NodeConfig.TxIndex.Indexer = "null"
 	return c

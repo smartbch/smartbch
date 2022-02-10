@@ -36,5 +36,12 @@ const (
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
 	// network params
-	IsAmber bool = false
+	IsAmber                           bool  = false
+	AmberBlocksInEpochAfterXHedgeFork int64 = 2016 * 10 * 60 / 6
+
+	// fork params
+	XHedgeContractSequence uint64 = 3774
+	XHedgeForkBlock        int64  = 2766853
+	ShaGateForkBlock       int64  = 80000000
+	ShaGateSwitch          bool   = false
 )

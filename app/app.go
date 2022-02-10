@@ -586,7 +586,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 	app.slashValidators = app.slashValidators[:0]
 
 	if param.IsAmber && ctx.IsXHedgeFork() {
-		if (app.currHeight%201600 /*2016 * 10 * 60 / 6 */ == 0) && (app.currHeight > (ctx.XHedgeForkBlock + 201600/2)) {
+		if (app.currHeight%param.AmberBlocksInEpochAfterXHedgeFork == 0) && (app.currHeight > (ctx.XHedgeForkBlock + param.AmberBlocksInEpochAfterXHedgeFork/2)) {
 			e := &stakingtypes.Epoch{}
 			app.epochList = append(app.epochList, e)
 			app.logger.Debug("Get new fake epoch")
@@ -614,7 +614,7 @@ func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *
 			var posVotes map[[32]byte]int64
 			var xHedgeSequence uint64
 			if ctx.IsXHedgeFork() {
-				xHedgeSequence = app.config.XHedgeContractSequence
+				xHedgeSequence = param.XHedgeContractSequence
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
@@ -776,8 +776,8 @@ func (app *App) GetRpcContext() *types.Context {
 	r := rabbit.NewReadOnlyRabbitStore(app.root)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
-	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
-	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -790,8 +790,8 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	r := rabbit.NewReadOnlyRabbitStoreAtHeight(app.root, uint64(height))
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
-	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
-	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(height)
 	return c
 }
@@ -800,16 +800,16 @@ func (app *App) GetRunTxContext() *types.Context {
 	r := rabbit.NewRabbitStore(app.trunk)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
-	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
-	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {
 	c := types.NewContext(nil, nil)
 	c = c.WithDb(app.historyStore)
-	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
-	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -817,8 +817,8 @@ func (app *App) GetCheckTxContext() *types.Context {
 	c := types.NewContext(nil, nil)
 	r := rabbit.NewRabbitStore(app.checkTrunk)
 	c = c.WithRbt(&r)
-	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
-	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }

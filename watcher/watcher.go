@@ -201,7 +201,7 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 }
 
 func (watcher *Watcher) ccEpochSpeedup() {
-	if !watcher.chainConfig.ShaGateSwitch {
+	if !param.ShaGateSwitch {
 		return
 	}
 	start := uint64(watcher.lastKnownCCEpochNum) + 1
