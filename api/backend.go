@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/node"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -431,7 +430,7 @@ type Info struct {
 	ValidatorIndex  int64           `json:"validator_index"`
 	Height          int64           `json:"height"`
 	Seed            string          `json:"seed"`
-	ConsensusPubKey crypto.PubKey   `json:"consensus_pub_key"`
+	ConsensusPubKey hexutil.Bytes   `json:"consensus_pub_key"`
 	AppState        json.RawMessage `json:"genesis_state"`
 }
 
@@ -442,13 +441,14 @@ func (backend *apiBackend) NodeInfo() Info {
 	if address != nil {
 		i.Seed = address.String()
 	}
-	i.ConsensusPubKey, _ = backend.node.PrivValidator().GetPubKey()
+	pubKey, _ := backend.node.PrivValidator().GetPubKey()
+	i.ConsensusPubKey = pubKey.Bytes()
 	i.AppState = backend.node.GenesisDoc().AppState
 	genesisData := app.GenesisData{}
 	err := json.Unmarshal(i.AppState, &genesisData)
 	if err == nil {
 		for k, v := range genesisData.Validators {
-			if bytes.Equal(v.Pubkey[:], i.ConsensusPubKey.Bytes()) {
+			if bytes.Equal(v.Pubkey[:], i.ConsensusPubKey) {
 				i.IsValidator = true
 				i.ValidatorIndex = int64(k)
 			}
