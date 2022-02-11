@@ -37,11 +37,11 @@ const (
 
 	// network params
 	IsAmber                           bool  = true
-	AmberBlocksInEpochAfterXHedgeFork int64 = 1000
+	AmberBlocksInEpochAfterXHedgeFork int64 = 2016 * 10 * 60 / 6
 
 	// fork params
-	XHedgeContractSequence uint64 = 3774
-	XHedgeForkBlock        int64  = 2766853
+	XHedgeContractSequence uint64 = 0xc94 //0x943F4002b68365fCC8F62eC65c3003aEcd391c0e
+	XHedgeForkBlock        int64  = 3088100
 	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
 )
