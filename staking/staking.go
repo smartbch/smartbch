@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 
@@ -1209,6 +1210,21 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 		posVotes[pubkey] = int64(coindays.Uint64())
 	}
 	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValatorsArray)
+	return posVotes
+}
+
+func GetPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[32]byte]*big.Int {
+	posVotes := make(map[[32]byte]*big.Int)
+	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValatorsArray)
+	var pubkey [32]byte
+	coindays := uint256.NewInt(0)
+	for _, val := range validators {
+		copy(pubkey[:], val)
+		coindaysBz := ctx.GetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(val))
+		coindays.SetBytes(coindaysBz)
+		//coindays.Div(coindays, CoindayUnit)
+		posVotes[pubkey] = coindays.ToBig()
+	}
 	return posVotes
 }
 

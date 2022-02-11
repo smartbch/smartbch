@@ -19,10 +19,16 @@ type StakingEpoch struct {
 	StartHeight hexutil.Uint64 `json:"startHeight"`
 	EndTime     int64          `json:"endTime"`
 	Nominations []*Nomination  `json:"nominations"`
+	PosVotes    []*PosVote     `json:"posVotes"`
 }
 type Nomination struct {
 	Pubkey         gethcmn.Hash `json:"pubkey"`
 	NominatedCount int64        `json:"nominatedCount"`
+}
+type PosVote struct {
+	Pubkey       gethcmn.Hash `json:"pubkey"`
+	CoinDaysSlot *hexutil.Big `json:"coinDaysSlot"`
+	CoinDays     float64      `json:"coinDays"`
 }
 
 func castStakingEpochs(epochs []*stakingtypes.Epoch) []*StakingEpoch {

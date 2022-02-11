@@ -121,6 +121,7 @@ type BackendService interface {
 	GetCurrEpoch() *types.Epoch
 	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64
+	GetPosVotes() map[[32]byte]*big.Int
 
 	//tendermint info
 	NodeInfo() Info

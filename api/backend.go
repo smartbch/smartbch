@@ -25,6 +25,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
@@ -473,4 +474,11 @@ func (backend *apiBackend) GetSeq(address common.Address) uint64 {
 		return 0
 	}
 	return accInfo.Sequence()
+}
+
+func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
+	ctx := backend.app.GetRunTxContext()
+	defer ctx.Close(false)
+
+	return staking.GetPosVotes(ctx, param.XHedgeContractSequence)
 }

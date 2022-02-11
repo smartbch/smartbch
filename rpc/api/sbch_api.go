@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"time"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
@@ -15,6 +16,7 @@ import (
 	sbchapi "github.com/smartbch/smartbch/api"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -32,7 +34,7 @@ type SbchAPI interface {
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) // result is more human-readable
-	GetCurrEpoch() (*StakingEpoch, error)
+	GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error)
 	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
@@ -206,10 +208,31 @@ func (sbch sbchAPI) GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, erro
 	}
 	return castStakingEpochs(epochs), nil
 }
-func (sbch sbchAPI) GetCurrEpoch() (*StakingEpoch, error) {
+func (sbch sbchAPI) GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error) {
 	epoch := sbch.backend.GetCurrEpoch()
 	epoch.Number = sbch.backend.ValidatorsInfo().CurrEpochNum
-	return castStakingEpoch(epoch), nil
+	posVotes := sbch.backend.GetPosVotes()
+
+	ret := castStakingEpoch(epoch)
+	if includesPosVotes != nil && *includesPosVotes {
+		for pubKey, coinDays := range posVotes {
+			ret.PosVotes = append(ret.PosVotes, &PosVote{
+				Pubkey:       pubKey,
+				CoinDaysSlot: (*hexutil.Big)(coinDays),
+				CoinDays:     coinDaysSlotToFloat(coinDays),
+			})
+		}
+	}
+
+	return ret, nil
+}
+
+func coinDaysSlotToFloat(coindaysSlot *big.Int) float64 {
+	fCoinDays, _ := big.NewFloat(0).Quo(
+		big.NewFloat(0).SetInt(coindaysSlot),
+		big.NewFloat(0).SetInt(staking.CoindayUnit.ToBig()),
+	).Float64()
+	return fCoinDays
 }
 
 func (sbch sbchAPI) GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error) {
