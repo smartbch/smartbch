@@ -211,10 +211,10 @@ func (sbch sbchAPI) GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, erro
 func (sbch sbchAPI) GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error) {
 	epoch := sbch.backend.GetCurrEpoch()
 	epoch.Number = sbch.backend.ValidatorsInfo().CurrEpochNum
-	posVotes := sbch.backend.GetPosVotes()
-
 	ret := castStakingEpoch(epoch)
+
 	if includesPosVotes != nil && *includesPosVotes {
+		posVotes := sbch.backend.GetPosVotes()
 		for pubKey, coinDays := range posVotes {
 			ret.PosVotes = append(ret.PosVotes, &PosVote{
 				Pubkey:       pubKey,
