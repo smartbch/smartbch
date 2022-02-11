@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.2
+
+* Some small changes & improvements to prepare for Amber testnet XHedge fork
+
+
+
 ## v0.4.1
 
 * BCH Watcher
