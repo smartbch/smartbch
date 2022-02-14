@@ -4,7 +4,7 @@ contract("TestSEP109", async (accounts) => {
 
     it('verify', async () => {
         let blockNum = await web3.eth.getBlockNumber();
-        if (blockNum < 28012340) {
+        if (blockNum < 3088100) {
             console.log('VRF not enabled!');
             return;
         }
@@ -56,7 +56,7 @@ contract("SEP109", async (accounts) => {
 
     it('verify', async () => {
         let blockNum = await web3.eth.getBlockNumber();
-        if (blockNum < 28012340) {
+        if (blockNum < 3088100) {
             console.log('VRF not enabled!');
             return;
         }
