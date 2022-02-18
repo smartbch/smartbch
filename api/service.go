@@ -104,7 +104,7 @@ type BackendService interface {
 	GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte)
 	GetStorageAt(address common.Address, key string, height int64) []byte
 	Call(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte)
-	Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail
+	CallForSbch(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail
 	EstimateGas(tx *gethtypes.Transaction, from common.Address, height int64) (statusCode int, retData []byte, gas int64)
 	QueryLogs(addresses []common.Address, topics [][]common.Hash, startHeight, endHeight uint32, filter motypes.FilterFunc) ([]motypes.Log, error)
 	QueryTxBySrc(address common.Address, startHeight, endHeight, limit uint32) (tx []*motypes.Transaction, sigs [][65]byte, err error)

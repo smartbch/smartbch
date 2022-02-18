@@ -847,7 +847,10 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	return runner, estimateResult
 }
 
-func (app *App) RunTxForRpc2(gethTx *gethtypes.Transaction, sender gethcmn.Address, height int64) (*ebp.TxRunner, int64) {
+// RunTxForSbchRpc is like RunTxForRpc, with two differences:
+// 1. estimateGas is always false
+// 2. use block#height-1 as 'current block'
+func (app *App) RunTxForSbchRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, height int64) (*ebp.TxRunner, int64) {
 	if height < 1 {
 		return app.RunTxForRpc(gethTx, sender, false, height)
 	}

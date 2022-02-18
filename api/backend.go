@@ -184,8 +184,9 @@ func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
 	return common.BytesToHash(tx.Hash()), nil
 }
 
-func (backend *apiBackend) Call2(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail {
-	runner, _ := backend.app.RunTxForRpc2(tx, sender, height)
+// CallForSbch use app.RunTxForSbchRpc and returns more detailed result info
+func (backend *apiBackend) CallForSbch(tx *gethtypes.Transaction, sender common.Address, height int64) *CallDetail {
+	runner, _ := backend.app.RunTxForSbchRpc(tx, sender, height)
 	return &CallDetail{
 		Status:                 runner.Status,
 		GasUsed:                runner.GasUsed,

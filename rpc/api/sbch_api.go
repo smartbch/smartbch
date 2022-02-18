@@ -302,7 +302,7 @@ func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHa
 		return nil, err
 	}
 
-	callDetail := sbch.backend.Call2(tx, from, height)
+	callDetail := sbch.backend.CallForSbch(tx, from, height)
 	return toRpcCallDetail(callDetail), nil
 }
 
