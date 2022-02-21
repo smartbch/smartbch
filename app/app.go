@@ -659,6 +659,10 @@ func (app *App) syncBlockInfo() *types.BlockInfo {
 	return bi
 }
 
+func (app *App) LoadBlockInfo() *types.BlockInfo {
+	return app.blockInfo.Load().(*types.BlockInfo)
+}
+
 func (app *App) postCommit(bi *types.BlockInfo) {
 	defer app.mtx.Unlock()
 	if bi != nil {

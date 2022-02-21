@@ -427,6 +427,13 @@ func (backend *apiBackend) ServiceFilter(ctx context.Context, session *bloombits
 }
 
 /*-----------------------tendermint info----------------------------*/
+
+type NextBlock struct {
+	Number    int64    `json:"number"`
+	Timestamp int64    `json:"timestamp"`
+	Hash      [32]byte `json:"hash"`
+}
+
 type Info struct {
 	IsValidator     bool            `json:"is_validator"`
 	ValidatorIndex  int64           `json:"validator_index"`
@@ -434,6 +441,7 @@ type Info struct {
 	Seed            string          `json:"seed"`
 	ConsensusPubKey hexutil.Bytes   `json:"consensus_pub_key"`
 	AppState        json.RawMessage `json:"genesis_state"`
+	NextBlock       NextBlock       `json:"next_block"`
 }
 
 func (backend *apiBackend) NodeInfo() Info {
@@ -456,6 +464,10 @@ func (backend *apiBackend) NodeInfo() Info {
 			}
 		}
 	}
+	bi := backend.app.LoadBlockInfo()
+	i.NextBlock.Number = bi.Number
+	i.NextBlock.Timestamp = bi.Timestamp
+	i.NextBlock.Hash = bi.Hash
 	return i
 }
 
