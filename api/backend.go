@@ -429,9 +429,9 @@ func (backend *apiBackend) ServiceFilter(ctx context.Context, session *bloombits
 /*-----------------------tendermint info----------------------------*/
 
 type NextBlock struct {
-	Number    int64    `json:"number"`
-	Timestamp int64    `json:"timestamp"`
-	Hash      [32]byte `json:"hash"`
+	Number    int64       `json:"number"`
+	Timestamp int64       `json:"timestamp"`
+	Hash      common.Hash `json:"hash"`
 }
 
 type Info struct {
