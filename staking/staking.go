@@ -90,6 +90,7 @@ var (
 	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
 
 	votingSlotHashPrefix [4]byte = [4]byte{'v', 'o', 't', 'e'}
+	minerInfoSlotPrefix  [9]byte = [9]byte{'m', 'i', 'n', 'e', 'r', 'i', 'n', 'f', 'o'}
 )
 
 var (
@@ -798,6 +799,44 @@ func DeleteVoters(ctx *mevmtypes.Context) {
 // =========================================================================================
 // Following staking functions cannot be invoked through smart contract calls
 
+func loadMinerInfo(ctx *mevmtypes.Context, miner [32]byte) (count uint32) {
+	key := sha256.Sum256(append(minerInfoSlotPrefix[:], miner[:]...))
+	bz := ctx.GetStorageAt(StakingContractSequence, string(key[:]))
+	if len(bz) == 0 {
+		return 0
+	}
+	return binary.BigEndian.Uint32(bz)
+}
+
+func saveMinerInfo(ctx *mevmtypes.Context, miner [32]byte, count uint32) {
+	key := sha256.Sum256(append(minerInfoSlotPrefix[:], miner[:]...))
+	var b [4]byte
+	binary.BigEndian.PutUint32(b[:], count)
+	ctx.SetStorageAt(StakingContractSequence, string(key[:]), b[:])
+}
+
+func deleteMinerInfo(ctx *mevmtypes.Context, miner [32]byte) {
+	key := sha256.Sum256(append(minerInfoSlotPrefix[:], miner[:]...))
+	ctx.DeleteStorageAt(StakingContractSequence, string(key[:]))
+}
+
+func deleteMinerInfos(ctx *mevmtypes.Context, currentValidators []*types.Validator) {
+	for _, v := range currentValidators {
+		deleteMinerInfo(ctx, v.Pubkey)
+	}
+}
+
+func incMinerCount(ctx *mevmtypes.Context, miner [32]byte) {
+	count := loadMinerInfo(ctx, miner)
+	count++
+	saveMinerInfo(ctx, miner, count)
+}
+
+func isValidatorNotOnline(ctx *mevmtypes.Context, val [32]byte) bool {
+	count := loadMinerInfo(ctx, val)
+	return count == 0
+}
+
 func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, currProposer, lastProposer [20]byte, lastVoters [][]byte, blockReward *uint256.Int) []*types.Validator {
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 
@@ -807,6 +846,8 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, currProp
 		copy(consAddr[:], ed25519.PubKey(v.Pubkey[:]).Address().Bytes())
 		pubkeyMapByConsAddr[consAddr] = v.Pubkey
 	}
+	incMinerCount(ctx, pubkeyMapByConsAddr[currProposer])
+
 	//slash first
 	for _, v := range slashValidators {
 		pubkey, ok := pubkeyMapByConsAddr[v]
@@ -1038,6 +1079,7 @@ CurrentEpochNum:%d
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
 	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	deleteMinerInfos(ctx, activeValidators)
 	if !(param.IsAmber && ctx.IsXHedgeFork()) {
 		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
 			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
@@ -1206,10 +1248,19 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 		copy(pubkey[:], val)
 		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(val))
 		coindays.SetBytes(coindaysBz)
+		if (param.IsAmber && ctx.Height >= 3444444) || !param.IsAmber {
+			// check if the validator is inactive which vote only has one
+			if coindays.Eq(uint256.NewInt(1)) {
+				if isValidatorNotOnline(ctx, pubkey) {
+					continue
+				}
+			}
+		}
 		coindays.Div(coindays, CoindayUnit)
 		posVotes[pubkey] = int64(coindays.Uint64())
 	}
 	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValatorsArray)
+
 	return posVotes
 }
 
