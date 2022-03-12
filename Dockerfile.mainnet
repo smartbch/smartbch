@@ -42,17 +42,16 @@ RUN cd patch-cgo-for-golang-${PATCH_CGO_VERSION} && cp *.c $GOROOT/src/runtime/c
 # Build libsnappy
 RUN wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
 RUN tar zxvf ${SNAPPY_VERSION}.tar.gz
-RUN cd snappy-${SNAPPY_VERSION} && mkdir build && cd build && cmake -DBUILD_SHARED_LIBS=On ../ && make && make install
+RUN cd snappy-${SNAPPY_VERSION} && mkdir build && cd build && cmake ../ && make && make install
 
 # Build rocksdb
 RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
 RUN tar zxvf v${ROCKSDB_VERSION}.tar.gz
-RUN cd rocksdb-${ROCKSDB_VERSION} && make CC=gcc-8 CXX=g++-8 shared_lib
+RUN cd rocksdb-${ROCKSDB_VERSION} && make CC=gcc-8 CXX=g++-8 static_lib
 
 ENV ROCKSDB_PATH="/build/rocksdb-${ROCKSDB_VERSION}"
-ENV CGO_CFLAGS="-I/$ROCKSDB_PATH/include"
-ENV CGO_LDFLAGS="-L/$ROCKSDB_PATH -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
-ENV LD_LIBRARY_PATH=$ROCKSDB_PATH:/usr/local/lib
+ENV CGO_CFLAGS="-I$ROCKSDB_PATH/include"
+ENV CGO_LDFLAGS="-L$ROCKSDB_PATH -L/build/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
 
 # Create smartbch directory
 RUN mkdir /smart_bch
@@ -61,8 +60,6 @@ WORKDIR /smart_bch
 # Build libevmwrap.so
 RUN git clone -b ${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm
 RUN cd moeingevm/evmwrap && make
-
-ENV EVMWRAP=/smart_bch/moeingevm/evmwrap/host_bridge/libevmwrap.so
 
 # Build smartbchd
 RUN git clone -b ${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch
