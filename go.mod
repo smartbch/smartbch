@@ -11,8 +11,6 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/ethereum/go-ethereum v1.10.7
 	github.com/google/btree v1.0.1 // indirect
-	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/rpc v1.2.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/holiman/uint256 v1.2.0
 	github.com/kr/text v0.2.0 // indirect
@@ -27,7 +25,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.4.0
 	github.com/smartbch/moeingdb v0.4.0
-	github.com/smartbch/moeingevm v0.4.0
+	github.com/smartbch/moeingevm v0.4.1-0.20220310113757-b447d903382b
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
