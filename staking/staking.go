@@ -1207,7 +1207,13 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(val))
 		coindays.SetBytes(coindaysBz)
 		coindays.Div(coindays, CoindayUnit)
-		posVotes[pubkey] = int64(coindays.Uint64())
+		if ctx.IsXHedgeFork() && ((param.IsAmber && ctx.Height >= 3600000) || !param.IsAmber) {
+			if !coindays.IsZero() {
+				posVotes[pubkey] = int64(coindays.Uint64())
+			}
+		} else {
+			posVotes[pubkey] = int64(coindays.Uint64())
+		}
 	}
 	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValatorsArray)
 	return posVotes
