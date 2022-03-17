@@ -40,7 +40,7 @@ const (
 	AmberBlocksInEpochAfterXHedgeFork int64 = 2016 * 10 * 60 / 6
 
 	// fork params
-	XHedgeContractSequence uint64 = 0xc94
+	XHedgeContractSequence uint64 = 0x10651
 	XHedgeForkBlock        int64  = 3088100
 	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
