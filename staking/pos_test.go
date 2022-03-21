@@ -115,7 +115,7 @@ func TestCreateInitVotes(t *testing.T) {
 	ctx.Close(true)
 	_app.ExecTxsInBlock()
 
-	require.Len(t, _app.GetDynamicArray(xhedgeAddr, staking.SlotValatorsArray), 3)
+	require.Len(t, _app.GetDynamicArray(xhedgeAddr, staking.SlotValidatorsArray), 3)
 	result := _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(0))
 	require.Equal(t, []interface{}{big.NewInt(0x1234)}, result)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "validators", big.NewInt(1))
@@ -175,7 +175,7 @@ func TestGetAndClearPosVotes(t *testing.T) {
 	}, posVotes)
 
 	_app.ExecTxsInBlock()
-	require.Len(t, _app.GetDynamicArray(xhedgeAddr, staking.SlotValatorsArray), 0)
+	require.Len(t, _app.GetDynamicArray(xhedgeAddr, staking.SlotValidatorsArray), 0)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val1Key)
 	require.Equal(t, []interface{}{big.NewInt(1).SetInt64(0)}, result)
 	result = _app.CallWithABI(addr, xhedgeAddr, xhedgeStorageABI, "valToVotes", val2Key)

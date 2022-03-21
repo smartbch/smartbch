@@ -83,8 +83,8 @@ var (
 	SlotMinGasPriceProposalTarget string = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
 	SlotVoters                    string = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
 
-	SlotValatorsMap   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
-	SlotValatorsArray string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
+	SlotValidatorsMap   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
+	SlotValidatorsArray string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
 
 	// slot in hex
 	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
@@ -1200,12 +1200,12 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) 
 
 func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[32]byte]int64 {
 	posVotes := make(map[[32]byte]int64)
-	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValatorsArray)
+	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValidatorsArray)
 	var pubkey [32]byte
 	coindays := uint256.NewInt(0)
 	for _, val := range validators {
 		copy(pubkey[:], val)
-		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(val))
+		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xhedgeContractSeq, SlotValidatorsMap, string(val))
 		coindays.SetBytes(coindaysBz)
 		coindays.Div(coindays, CoindayUnit)
 		if ctx.IsXHedgeFork() && ((param.IsAmber && ctx.Height >= 3600000) || !param.IsAmber) {
@@ -1216,18 +1216,18 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 			posVotes[pubkey] = int64(coindays.Uint64())
 		}
 	}
-	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValatorsArray)
+	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValidatorsArray)
 	return posVotes
 }
 
 func GetPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[32]byte]*big.Int {
 	posVotes := make(map[[32]byte]*big.Int)
-	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValatorsArray)
+	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValidatorsArray)
 	var pubkey [32]byte
 	coindays := uint256.NewInt(0)
 	for _, val := range validators {
 		copy(pubkey[:], val)
-		coindaysBz := ctx.GetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(val))
+		coindaysBz := ctx.GetValueAtMapKey(xhedgeContractSeq, SlotValidatorsMap, string(val))
 		coindays.SetBytes(coindaysBz)
 		//coindays.Div(coindays, CoindayUnit)
 		posVotes[pubkey] = coindays.ToBig()
@@ -1247,7 +1247,7 @@ func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, pubkey2po
 	})
 	oneBz := uint256.NewInt(1).PaddedBytes(32)
 	for _, key := range pubkeys { // each has a minimum voting power
-		ctx.SetValueAtMapKey(xhedgeContractSeq, SlotValatorsMap, string(key), oneBz)
+		ctx.SetValueAtMapKey(xhedgeContractSeq, SlotValidatorsMap, string(key), oneBz)
 	}
-	ctx.CreateDynamicArray(xhedgeContractSeq, SlotValatorsArray, pubkeys)
+	ctx.CreateDynamicArray(xhedgeContractSeq, SlotValidatorsArray, pubkeys)
 }
