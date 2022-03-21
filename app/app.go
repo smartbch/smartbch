@@ -531,9 +531,14 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectedTxsCount())
 	app.mtx.Lock()
+	app.updateValidatorsAndStakingInfo()
+	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
+	app.refresh()
+	go app.postCommit(app.syncBlockInfo())
+	return app.buildCommitResponse()
+}
 
-	ctx := app.GetRunTxContext()
-
+func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
 	//distribute previous block gas fee
 	var blockReward = app.lastGasFee
 	if !app.lastGasRefund.IsZero() {
@@ -547,6 +552,9 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	if sysB.Cmp(&app.lastGasFee) < 0 {
 		panic("system balance not enough!")
 	}
+	//if there has tx in standbyQ, it means there has some gasFee prepay to system account in app.prepare should not distribute in this block.
+	//if standbyQ is empty, we distribute all system account balance as reward in that block,
+	//which have all bch sent to system account through external transfer in blocks standbyQ not empty, this is not fair but simple, and this is rarely the case now.
 	if app.txEngine.StandbyQLen() == 0 {
 		// distribute extra balance to validators
 		blockReward = *sysB
@@ -558,19 +566,10 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 			panic(err)
 		}
 	}
+	return &blockReward
+}
 
-	app.updateValidatorsAndStakingInfo(ctx, &blockReward)
-	ctx.Close(true)
-
-	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
-	app.refresh()
-	bi := app.syncBlockInfo()
-	if bi == nil {
-		app.logger.Debug("nil blockInfo after sync")
-	} else {
-		app.logger.Debug(fmt.Sprintf("blockInfo: hash:%s, height:%d", gethcmn.Hash(bi.Hash).Hex(), bi.Number))
-	}
-	go app.postCommit(bi)
+func (app *App) buildCommitResponse() abcitypes.ResponseCommit {
 	res := abcitypes.ResponseCommit{
 		Data: append([]byte{}, app.block.StateRoot[:]...),
 	}
@@ -581,8 +580,11 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	return res
 }
 
-func (app *App) updateValidatorsAndStakingInfo(ctx *types.Context, blockReward *uint256.Int) {
-	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, blockReward)
+func (app *App) updateValidatorsAndStakingInfo() {
+	ctx := app.GetRunTxContext()
+	defer ctx.Close(true)
+
+	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, app.getBlockRewardAndUpdateSysAcc(ctx))
 	app.slashValidators = app.slashValidators[:0]
 
 	if param.IsAmber && ctx.IsXHedgeFork() {
@@ -656,6 +658,7 @@ func (app *App) syncBlockInfo() *types.BlockInfo {
 		Hash:      app.block.Hash,
 	}
 	app.blockInfo.Store(bi)
+	app.logger.Debug(fmt.Sprintf("blockInfo: [height:%d, hash:%s]", bi.Number, gethcmn.Hash(bi.Hash).Hex()))
 	return bi
 }
 
