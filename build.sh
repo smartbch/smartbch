@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
+set -ex
+
 pushd ../moeingevm/evmwrap || return; make
 popd || return
 
-cp ../moeingevm/evmwrap/host_bridge/libevmwrap.so .
-export EVMWRAP=$PWD/libevmwrap.so
+#cp ../moeingevm/evmwrap/host_bridge/libevmwrap.a .
+export CGO_LDFLAGS="-L../moeingevm/evmwrap/host_bridge"
 
 golangci-lint run
 

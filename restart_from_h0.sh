@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-export EVMWRAP=libevmwrap.so
+set -ex
+
+#export EVMWRAP=libevmwrap.so
+export CGO_LDFLAGS="-L../moeingevm/evmwrap/host_bridge"
 go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
 
 NODE_HOME=~/.smartbchd/
