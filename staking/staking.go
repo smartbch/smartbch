@@ -595,7 +595,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 		lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
 		info := LoadStakingInfo(ctx)
 		isValidatorOrRewardTo := false
-		activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+		activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
 		for _, v := range activeValidators {
 			if v.Address == sender || v.RewardTo == sender {
 				isValidatorOrRewardTo = true
@@ -826,13 +826,13 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte, currProp
 	}
 	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[currProposer],
 		pubkeyMapByConsAddr[lastProposer], voters)
-	newValidators := info.GetActiveValidators(MinimumStakingAmount)
+	newValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
 	SaveStakingInfo(ctx, info)
 	readonlyStakingInfo = &info
 	return newValidators
 }
 
-// Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt.
+// Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt and booked on BlackHole acc.
 func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
@@ -869,9 +869,9 @@ func incrAllBurnt(ctx *mevmtypes.Context, amount *uint256.Int) {
 	ctx.SetStorageAt(StakingContractSequence, SlotAllBurnt, bz32[:])
 }
 
-// distribute the collected gas fee to validators who voted for current block
+// distribute the collected gas fee to validators who voted for current block, half fee burnt to blackHole Acc.
 func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo,
-	collectedFee *uint256.Int, collector, proposer [32]byte /*pubKey*/, voters [][32]byte) {
+	collectedFee *uint256.Int, collector, proposer [32]byte /*operator pubKey*/, voters [][32]byte) {
 	if collectedFee == nil {
 		return
 	}
@@ -888,7 +888,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
 
 	totalVotingPower, votedPower := int64(0), int64(0)
-	for _, val := range info.GetActiveValidators(MinimumStakingAmount) {
+	for _, val := range types.GetActiveValidators(info.Validators, MinimumStakingAmount) {
 		totalVotingPower += val.VotingPower
 	}
 	valMapByPubkey := info.GetValMapByPubkey()
@@ -898,18 +898,18 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	}
 
 	proposerBaseFee := uint256.NewInt(0)
-	proposerExtraFee := uint256.NewInt(0)
+	collectorFee := uint256.NewInt(0)
 	if proposer != [32]byte{} {
-		// proposerBaseFee and proposerExtraFee both go to the proposer
-		proposerBaseFee = uint256.NewInt(0).Mul(collectedFee,
-			uint256.NewInt(param.StakingBaseProposerPercentage))
+		// proposerBaseFee and collectorFee both go to the proposer
+		proposerBaseFee.Mul(collectedFee,
+			uint256.NewInt(param.ProposerBaseMintFeePercentage))
 		proposerBaseFee.Div(proposerBaseFee, uint256.NewInt(100))
 		collectedFee.Sub(collectedFee, proposerBaseFee)
-		proposerExtraFee = uint256.NewInt(0).Mul(collectedFee,
-			uint256.NewInt(param.StakingExtraProposerPercentage))
-		proposerExtraFee.Mul(proposerExtraFee, uint256.NewInt(uint64(votedPower)))
-		proposerExtraFee.Div(proposerExtraFee, uint256.NewInt(uint64(100*totalVotingPower)))
-		collectedFee.Sub(collectedFee, proposerExtraFee)
+		collectorFee.Mul(collectedFee,
+			uint256.NewInt(param.CollectorMintFeePercentage))
+		collectorFee.Mul(collectorFee, uint256.NewInt(uint64(votedPower)))
+		collectorFee.Div(collectorFee, uint256.NewInt(uint64(100*totalVotingPower)))
+		collectedFee.Sub(collectedFee, collectorFee)
 	}
 	rwdMapByAddr := info.GetCurrRewardMapByAddr()
 	remainedFee := collectedFee.Clone()
@@ -935,9 +935,9 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	}
 
 	if collector != [32]byte{} {
-		distributeToValidator(info, rwdMapByAddr, proposerExtraFee, valMapByPubkey[collector])
-	} else if !proposerExtraFee.IsZero() {
-		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, proposerExtraFee)
+		distributeToValidator(info, rwdMapByAddr, collectorFee, valMapByPubkey[collector])
+	} else if !collectorFee.IsZero() {
+		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, collectorFee)
 	}
 }
 
@@ -1001,11 +1001,11 @@ func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[3
 		validNominations = append(validNominations, n)
 	}
 
-	// select at most StakingMaxValidatorCount validators
+	// select at most MaxActiveValidatorCount validators
 	nominationHeap := types.NominationHeap(validNominations)
 	heap.Init(&nominationHeap)
 	pubkey2power = make(map[[32]byte]int64, len(validNominations))
-	for i := 0; i < param.StakingMaxValidatorCount && len(nominationHeap) > 0; i++ {
+	for i := 0; i < param.MaxActiveValidatorCount && len(nominationHeap) > 0; i++ {
 		n := heap.Pop(&nominationHeap).(*types.Nomination)
 		pubkey2power[n.Pubkey] = 1
 	}
@@ -1038,7 +1038,7 @@ CurrentEpochNum:%d
 	// distribute mature pending reward to rewardTo
 	endEpoch(ctx, stakingAcc, &info)
 	//check epoch validity
-	activeValidators := info.GetActiveValidators(MinimumStakingAmount)
+	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
 	if !(param.IsAmber && ctx.IsXHedgeFork()) {
 		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
 			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
@@ -1057,7 +1057,7 @@ CurrentEpochNum:%d
 	// payback staking coins to rewardTo of useless validators and delete these validators
 	clearUp(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
-	activeValidators = info.GetActiveValidators(MinimumStakingAmount)
+	activeValidators = types.GetActiveValidators(info.Validators, MinimumStakingAmount)
 	updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
 	return activeValidators
 }
@@ -1083,7 +1083,7 @@ func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *t
 	rewardMap := make(map[[20]byte]*uint256.Int)
 	// summarize all the mature rewards
 	for _, pr := range info.PendingRewards {
-		if pr.EpochNum >= info.CurrEpochNum-param.StakingEpochCountBeforeRewardMature {
+		if pr.EpochNum >= info.CurrEpochNum-param.EpochCountBeforeRewardMature {
 			newPRList = append(newPRList, pr) //not mature yet
 			continue
 		}

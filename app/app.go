@@ -179,7 +179,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set stakingInfo------*/
 	stakingInfo := staking.LoadStakingInfo(ctx)
-	app.currValidators = stakingInfo.GetActiveValidators(staking.MinimumStakingAmount)
+	app.currValidators = stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range app.currValidators {
 		app.logger.Debug(fmt.Sprintf("Load validator in NewApp: address(%s), pubkey(%s), votingPower(%d)",
@@ -560,6 +560,7 @@ func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
 		blockReward = *sysB
 	}
 	if !blockReward.IsZero() {
+		//block reward subtract from systemAcc here, and added to stakingAcc later.
 		err := ebp.SubSystemAccBalance(ctx, &blockReward)
 		if err != nil {
 			//todo: be careful
@@ -588,6 +589,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	app.slashValidators = app.slashValidators[:0]
 
 	if param.IsAmber && ctx.IsXHedgeFork() {
+		//make fake epoch after xHedgeFork, change amber to pure pos
 		if (app.currHeight%param.AmberBlocksInEpochAfterXHedgeFork == 0) && (app.currHeight > (ctx.XHedgeForkBlock + param.AmberBlocksInEpochAfterXHedgeFork/2)) {
 			e := &stakingtypes.Epoch{}
 			app.epochList = append(app.epochList, e)
@@ -614,15 +616,15 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
 			var posVotes map[[32]byte]int64
-			var xHedgeSequence uint64
+			var xHedgeSequence = param.XHedgeContractSequence
 			if ctx.IsXHedgeFork() {
-				xHedgeSequence = param.XHedgeContractSequence
+				//deploy xHedge contract before fork
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
 				param.StakingMinVotingPercentPerEpoch, param.StakingMinVotingPubKeysPercentPerEpoch)
 			app.epochList = app.epochList[1:]
-			if ctx.IsXHedgeFork() && xHedgeSequence != 0 {
+			if ctx.IsXHedgeFork() {
 				var pubkey2Power = make(map[[32]byte]int64)
 				for _, v := range newValidators {
 					pubkey2Power[v.Pubkey] = v.VotingPower

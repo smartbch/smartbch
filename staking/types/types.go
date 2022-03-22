@@ -3,14 +3,12 @@ package types
 import (
 	"bytes"
 	"errors"
-	"sort"
-
 	"github.com/holiman/uint256"
+	"github.com/smartbch/smartbch/param"
+	"sort"
 )
 
 //go:generate msgp
-
-const MaxActiveValidatorNum = 30
 
 var (
 	ValidatorAddressAlreadyExists = errors.New("Validator's address already exists")
@@ -205,19 +203,6 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 
 // Returns current validators on duty, who must have enough coins staked and be not in a retiring process
 // only update validator voting power on switchEpoch
-func (si *StakingInfo) GetActiveValidators(minStakedCoins *uint256.Int) []*Validator {
-	res := GetActiveValidators(si.Validators, minStakedCoins)
-
-	//sort: 1.voting power; 2.create validator time (so stable sort is required)
-	sort.SliceStable(res, func(i, j int) bool {
-		return res[i].VotingPower > res[j].VotingPower
-	})
-	if len(res) > MaxActiveValidatorNum {
-		res = res[:MaxActiveValidatorNum]
-	}
-	return res
-}
-
 func GetActiveValidators(vals []*Validator, minStakedCoins *uint256.Int) []*Validator {
 	res := make([]*Validator, 0, len(vals))
 	for _, val := range vals {
@@ -225,6 +210,13 @@ func GetActiveValidators(vals []*Validator, minStakedCoins *uint256.Int) []*Vali
 		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
 			res = append(res, val)
 		}
+	}
+	//sort: 1.voting power; 2.create validator time (so stable sort is required)
+	sort.SliceStable(res, func(i, j int) bool {
+		return res[i].VotingPower > res[j].VotingPower
+	})
+	if len(res) > param.MaxActiveValidatorCount {
+		res = res[:param.MaxActiveValidatorCount]
 	}
 	return res
 }

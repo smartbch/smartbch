@@ -20,16 +20,16 @@ const (
 
 	/**staking consensus params**/
 	// reward params
-	StakingEpochCountBeforeRewardMature int64  = 1
-	StakingBaseProposerPercentage       uint64 = 15
-	StakingExtraProposerPercentage      uint64 = 15
+	EpochCountBeforeRewardMature  int64  = 1
+	ProposerBaseMintFeePercentage uint64 = 15
+	CollectorMintFeePercentage    uint64 = 15
 
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201
 	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,
 	StakingNumBlocksInEpoch                int64 = 30
 	StakingEpochSwitchDelay                int64 = 3*10 + 10
-	StakingMaxValidatorCount               int   = 50
+	MaxActiveValidatorCount                int   = 50
 
 	// ccEpoch param
 	BlocksInCCEpoch    int64 = 3
