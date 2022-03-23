@@ -621,19 +621,14 @@ func (app *App) updateValidatorsAndStakingInfo() {
 				//deploy xHedge contract before fork
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger,
-				param.StakingMinVotingPercentPerEpoch, param.StakingMinVotingPubKeysPercentPerEpoch)
+			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger)
 			app.epochList = app.epochList[1:]
 			if ctx.IsXHedgeFork() {
-				var pubkey2Power = make(map[[32]byte]int64)
-				for _, v := range newValidators {
-					pubkey2Power[v.Pubkey] = v.VotingPower
-				}
-				staking.CreateInitVotes(ctx, xHedgeSequence, pubkey2Power)
+				staking.CreateInitVotes(ctx, xHedgeSequence, newValidators)
 			}
 		}
 	}
-
+	app.currValidators = newValidators
 	app.validatorUpdate = staking.GetUpdateValidatorSet(app.currValidators, newValidators)
 	for _, v := range app.validatorUpdate {
 		app.logger.Debug(fmt.Sprintf("Updated validator in commit: address(%s), pubkey(%s), voting power: %d",
@@ -642,7 +637,6 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, newInfo)
-	app.currValidators = newValidators
 	//log all validators info when validator set update
 	if len(app.validatorUpdate) != 0 {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)

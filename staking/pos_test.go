@@ -10,6 +10,7 @@ import (
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
+	"github.com/smartbch/smartbch/staking/types"
 )
 
 // testdata/sol/contracts/staking/XHedgeStorage.sol
@@ -107,10 +108,10 @@ func TestCreateInitVotes(t *testing.T) {
 	require.True(t, xhedgeSeq > 0)
 
 	ctx := _app.GetRunTxContext()
-	staking.CreateInitVotes(ctx, xhedgeSeq, map[[32]byte]int64{
-		uint256.NewInt(0x1234).Bytes32(): 0x4321,
-		uint256.NewInt(0x5678).Bytes32(): 0x8765,
-		uint256.NewInt(0xABCD).Bytes32(): 0xDCBA,
+	staking.CreateInitVotes(ctx, xhedgeSeq, []*types.Validator{
+		{Pubkey: uint256.NewInt(0x1234).Bytes32()},
+		{Pubkey: uint256.NewInt(0x5678).Bytes32()},
+		{Pubkey: uint256.NewInt(0xABCD).Bytes32()},
 	})
 	ctx.Close(true)
 	_app.ExecTxsInBlock()

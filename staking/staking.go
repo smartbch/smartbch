@@ -681,12 +681,12 @@ func SaveStakingInfo(ctx *mevmtypes.Context, info types.StakingInfo) {
 	ctx.SetStorageAt(StakingContractSequence, SlotStakingInfo, bz)
 }
 
-func SaveEpoch(ctx *mevmtypes.Context, epochNum int64, epoch *types.Epoch) {
+func SaveEpoch(ctx *mevmtypes.Context, epoch *types.Epoch) {
 	bz, err := epoch.MarshalMsg(nil)
 	if err != nil {
 		panic(err)
 	}
-	ctx.SetStorageAt(StakingContractSequence, getSlotForEpoch(epochNum), bz)
+	ctx.SetStorageAt(StakingContractSequence, getSlotForEpoch(epoch.Number), bz)
 }
 
 func LoadEpoch(ctx *mevmtypes.Context, epochNum int64) (epoch types.Epoch, ok bool) {
@@ -957,9 +957,13 @@ func distributeToValidator(info *types.StakingInfo, rwdMapByAddr map[[20]byte]*t
 	rwd.Amount = coins.Bytes32()
 }
 
-func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger,
-	validatorSet map[[32]byte]bool) (powTotalNomination int64, pubkey2power map[[32]byte]int64) {
-
+func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (powTotalNomination int64, pubkey2power map[[32]byte]int64) {
+	validatorSet := make(map[[32]byte]bool)
+	for _, val := range info.Validators {
+		if !val.IsRetiring {
+			validatorSet[val.Pubkey] = true
+		}
+	}
 	for _, n := range epoch.Nominations {
 		logger.Debug(fmt.Sprintf("Nomination: pubkey(%s), NominatedCount(%d)", ed25519.PubKey(n.Pubkey[:]).String(), n.NominatedCount))
 	}
@@ -1013,56 +1017,55 @@ func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[3
 }
 
 // switch to a new epoch
-func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger,
-	minVotingPercentPerEpoch, minVotingPubKeysPercentPerEpoch int) []*types.Validator {
+func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) []*types.Validator {
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	//increase currEpochNum no matter if epoch is valid
 	info.CurrEpochNum++
-	logger.Debug(fmt.Sprintf(`
-Epoch in switchEpoch:
-newPpochNumber:%d
-startHeight:%d
-EndTime:%d
-CurrentEpochNum:%d
-`, epoch.Number, epoch.StartHeight, epoch.EndTime, info.CurrEpochNum))
-
-	validatorSet := make(map[[32]byte]bool)
-	for _, val := range info.Validators {
-		if !val.IsRetiring {
-			validatorSet[val.Pubkey] = true
-		}
-	}
-	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger, validatorSet)
 	epoch.Number = info.CurrEpochNum
-	SaveEpoch(ctx, info.CurrEpochNum, epoch)
+	SaveEpoch(ctx, epoch)
+	logger.Debug(fmt.Sprintf("Epoch info in switchEpoch [newPpochNumber:%d,startHeight:%d,EndTime:%d]", epoch.Number, epoch.StartHeight, epoch.EndTime))
+
 	// distribute mature pending reward to rewardTo
-	endEpoch(ctx, stakingAcc, &info)
-	//check epoch validity
-	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
-	if !(param.IsAmber && ctx.IsXHedgeFork()) {
-		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(minVotingPercentPerEpoch)/100 {
-			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
-			updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
-			return nil
-		}
-	}
-	if len(pubkey2power) < len(activeValidators)*minVotingPubKeysPercentPerEpoch/100 {
-		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
-		updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
+	deliverMintRewardInEpoch(ctx, stakingAcc, &info)
+
+	isValid, pubkey2power := checkEpoch(ctx, info, epoch, posVotes, logger)
+	if !isValid {
+		SaveStakingInfo(ctx, info)
+		readonlyStakingInfo = &info
 		return nil
 	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
 	// someone who call retire() before switchEpoch cannot get elected in this update
 	updateVotingPower(&info, pubkey2power)
 	// payback staking coins to rewardTo of useless validators and delete these validators
-	clearUp(ctx, stakingAcc, &info)
+	clearUselessValidators(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
-	activeValidators = types.GetActiveValidators(info.Validators, MinimumStakingAmount)
-	updatePendingRewardsInNewEpoch(ctx, activeValidators, info, logger)
+	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+	updatePendingRewardsInNewEpoch(activeValidators, &info, logger)
+	SaveStakingInfo(ctx, info)
+	readonlyStakingInfo = &info
 	return activeValidators
 }
 
-func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*types.Validator, info types.StakingInfo, logger log.Logger) {
+func checkEpoch(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (bool, map[[32]byte]int64) {
+	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger)
+	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+	if !(param.IsAmber && ctx.IsXHedgeFork()) {
+		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
+			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
+			updatePendingRewardsInNewEpoch(activeValidators, &info, logger)
+			return false, pubkey2power
+		}
+	}
+	if len(pubkey2power) < len(activeValidators)*param.StakingMinVotingPubKeysPercentPerEpoch/100 {
+		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
+		updatePendingRewardsInNewEpoch(activeValidators, &info, logger)
+		return false, pubkey2power
+	}
+	return true, pubkey2power
+}
+
+func updatePendingRewardsInNewEpoch(activeValidators []*types.Validator, info *types.StakingInfo, logger log.Logger) {
 	for _, val := range activeValidators {
 		pr := &types.PendingReward{
 			Address:  val.Address,
@@ -1071,12 +1074,10 @@ func updatePendingRewardsInNewEpoch(ctx *mevmtypes.Context, activeValidators []*
 		info.PendingRewards = append(info.PendingRewards, pr)
 		logger.Debug(fmt.Sprintf("Active validator after switch epoch, address:%s, voting power:%d", common.Address(val.Address).String(), val.VotingPower))
 	}
-	SaveStakingInfo(ctx, info)
-	readonlyStakingInfo = &info
 }
 
 // deliver pending rewards which are mature now to rewardTo
-func endEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo) {
+func deliverMintRewardInEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo) {
 	stakingAccBalance := stakingAcc.Balance()
 	newPRList := make([]*types.PendingReward, 0, len(info.PendingRewards))
 	valMapByAddr := info.GetValMapByAddr()
@@ -1128,7 +1129,7 @@ func updateVotingPower(info *types.StakingInfo, pubkey2power map[[32]byte]int64)
 }
 
 // Remove the useless validators from info and return StakedCoins to them
-func clearUp(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo) {
+func clearUselessValidators(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, info *types.StakingInfo) {
 	uselessValMap := info.GetUselessValidators()
 	valMapByAddr := info.GetValMapByAddr()
 	stakingAccBalance := stakingAcc.Balance()
@@ -1194,18 +1195,15 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*types.Validator) 
 	return updatedList
 }
 
-//func GetAndClearPosVotes(ctx *mevmtypes.Context) map[[32]byte]int64 {
-//	return getAndClearPosVotes(ctx, XHedgeContractSequence)
-//}
-
-func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[32]byte]int64 {
+func GetAndClearPosVotes(ctx *mevmtypes.Context, xHedgeContractSeq uint64) map[[32]byte]int64 {
 	posVotes := make(map[[32]byte]int64)
-	validators := ctx.GetDynamicArray(xhedgeContractSeq, SlotValidatorsArray)
+	//return validator operator pubkeys in xHedge contract
+	validators := ctx.GetDynamicArray(xHedgeContractSeq, SlotValidatorsArray)
 	var pubkey [32]byte
 	coindays := uint256.NewInt(0)
 	for _, val := range validators {
 		copy(pubkey[:], val)
-		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xhedgeContractSeq, SlotValidatorsMap, string(val))
+		coindaysBz := ctx.GetAndDeleteValueAtMapKey(xHedgeContractSeq, SlotValidatorsMap, string(val))
 		coindays.SetBytes(coindaysBz)
 		coindays.Div(coindays, CoindayUnit)
 		if ctx.IsXHedgeFork() && ((param.IsAmber && ctx.Height >= 3600000) || !param.IsAmber) {
@@ -1216,7 +1214,7 @@ func GetAndClearPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[
 			posVotes[pubkey] = int64(coindays.Uint64())
 		}
 	}
-	ctx.DeleteDynamicArray(xhedgeContractSeq, SlotValidatorsArray)
+	ctx.DeleteDynamicArray(xHedgeContractSeq, SlotValidatorsArray)
 	return posVotes
 }
 
@@ -1235,12 +1233,12 @@ func GetPosVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64) map[[32]byte]
 	return posVotes
 }
 
-func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, pubkey2power map[[32]byte]int64) {
-	pubkeys := make([][]byte, 0, len(pubkey2power))
-	for key := range pubkey2power {
-		key2 := make([]byte, 32)
-		copy(key2, key[:])
-		pubkeys = append(pubkeys, key2)
+func CreateInitVotes(ctx *mevmtypes.Context, xhedgeContractSeq uint64, activeValidators []*types.Validator) {
+	pubkeys := make([][]byte, 0, len(activeValidators))
+	for _, v := range activeValidators {
+		key := make([]byte, 32)
+		copy(key, v.Pubkey[:])
+		pubkeys = append(pubkeys, key)
 	}
 	sort.Slice(pubkeys, func(i, j int) bool {
 		return bytes.Compare(pubkeys[i][:], pubkeys[j][:]) < 0

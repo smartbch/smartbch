@@ -14,7 +14,6 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/internal/testutils"
-	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	types2 "github.com/smartbch/smartbch/staking/types"
 )
@@ -239,7 +238,7 @@ func TestSwitchEpoch(t *testing.T) {
 	copy(pubkey[:], _app.GetTestPubkey().Bytes())
 	e.Nominations = append(e.Nominations, &types2.Nomination{
 		Pubkey:         pubkey,
-		NominatedCount: 1,
+		NominatedCount: 1000,
 	})
 	staking.MinimumStakingAmount = uint256.NewInt(0)
 	//add another validator
@@ -278,11 +277,11 @@ func TestSwitchEpoch(t *testing.T) {
 	require.Equal(t, uint64((10000-1500-8500*15/100)/2/2), uint256.NewInt(0).SetBytes32(voterReward.Amount[:]).Uint64())
 	require.Equal(t, uint64(10000/2-(10000-1500-8500*15/100)/2/2), uint256.NewInt(0).SetBytes32(proposerReward.Amount[:]).Uint64())
 	require.Equal(t, uint64(10100), stakingAcc.Balance().Uint64())
-	//clear validator pendingReward for testing clearUp
+	//clear validator pendingReward for testing clearUselessValidators
 	info.PendingRewards = []*types2.PendingReward{proposerReward}
 	staking.SaveStakingInfo(ctx, info)
 	rewardTo := info.Validators[0].RewardTo
-	staking.SwitchEpoch(ctx, e, nil, log.NewNopLogger(), 0, param.StakingMinVotingPubKeysPercentPerEpoch)
+	staking.SwitchEpoch(ctx, e, nil, log.NewNopLogger())
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64(10000/2 /*pending reward not transfer to validator as of EpochCountBeforeRewardMature*/), stakingAcc.Balance().Uint64())
 	acc = ctx.GetAccount(sender)
@@ -293,7 +292,7 @@ func TestSwitchEpoch(t *testing.T) {
 	rewardAcc := ctx.GetAccount(rewardTo)
 	require.Equal(t, uint64(100), rewardAcc.Balance().Uint64())
 
-	staking.SwitchEpoch(ctx, e, nil, log.NewNopLogger(), 0, param.StakingMinVotingPubKeysPercentPerEpoch)
+	staking.SwitchEpoch(ctx, e, nil, log.NewNopLogger())
 	stakingAcc, info = staking.LoadStakingAccAndInfo(ctx)
 	require.Equal(t, uint64((10000-1500-8500*15/100)/2/2), stakingAcc.Balance().Uint64())
 }
@@ -331,8 +330,8 @@ func TestLoadEpoch(t *testing.T) {
 	require.Equal(t, int64(0), epoch.StartHeight)
 	require.Equal(t, false, ok)
 
-	epoch = types2.Epoch{StartHeight: 10}
-	staking.SaveEpoch(ctx, 1, &epoch)
+	epoch = types2.Epoch{Number: 1, StartHeight: 10}
+	staking.SaveEpoch(ctx, &epoch)
 	epoch, ok = staking.LoadEpoch(ctx, 1)
 	require.Equal(t, int64(10), epoch.StartHeight)
 	require.Equal(t, true, ok)
