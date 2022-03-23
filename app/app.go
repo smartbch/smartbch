@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/big"
 	"os"
 	"path"
 	"strconv"
@@ -69,20 +68,25 @@ type App struct {
 	root         *store.RootStore
 	historyStore modbtypes.DB
 
-	//refresh with block
 	currHeight      int64
 	trunk           *store.TrunkStore
 	checkTrunk      *store.TrunkStore
+	// 'block' contains some meta information of a block. It is collected during BeginBlock&DeliverTx,
+	// and save to world state in Commit.
 	block           *types.Block
+	// Some fields of 'block' are copied to 'blockInfo' in Commit. It will be later used by RpcContext
+	// Thus, eth_call can view the new block's height a little earlier than eth_blockNumber
 	blockInfo       atomic.Value // to store *types.BlockInfo
-	slashValidators [][20]byte   // recorded in BeginBlock, used in Commit
-	lastVoters      [][]byte     // recorded in BeginBlock, used in Commit
-	lastProposer    [20]byte     // recorded in app.block in BeginBlock, copied here in refresh
-	lastGasUsed     uint64       // recorded in last block's postCommit, used in current block's refresh
-	lastGasRefund   uint256.Int  // recorded in last block's postCommit, used in current block's refresh
-	lastGasFee      uint256.Int  // recorded in last block's postCommit, used in current block's refresh
-	lastMinGasPrice uint64       // recorded in refresh, used in next block's CheckTx and Commit
-	txid2sigMap     map[[32]byte][65]byte
+	slashValidators [][20]byte   // updated in BeginBlock, used in Commit
+	lastVoters      [][]byte     // updated in BeginBlock, used in Commit
+	lastProposer    [20]byte     // updated in refresh of last block, used in updateValidatorsAndStakingInfo 
+	                             // of current block. It needs to be reloaded in NewApp
+	lastGasUsed     uint64       // updated in last block's postCommit, used in current block's refresh
+	lastGasRefund   uint256.Int  // updated in last block's postCommit, used in current block's refresh
+	lastGasFee      uint256.Int  // updated in last block's postCommit, used in current block's refresh
+	lastMinGasPrice uint64       // updated in refresh, used in next block's CheckTx and Commit. It needs
+	                             // to be reloaded in NewApp
+	txid2sigMap     map[[32]byte][65]byte //updated in DeliverTx, flushed in refresh
 
 	// feeds
 	chainFeed event.Feed // For pub&sub new blocks
@@ -92,7 +96,7 @@ type App struct {
 	//engine
 	txEngine    ebp.TxExecutor
 	reorderSeed int64        // recorded in BeginBlock, used in Commit
-	frontier    ebp.Frontier // recorded in Commint, used in next block's CheckTx
+	frontier    ebp.Frontier // recorded in Commit, used in next block's CheckTx
 
 	//watcher
 	watcher   *watcher.Watcher
@@ -103,9 +107,9 @@ type App struct {
 	signer gethtypes.Signer
 	logger log.Logger
 
-	//genesis data
-	currValidators  []*stakingtypes.Validator // it is needed to compute validatorUpdate
-	validatorUpdate []*stakingtypes.Validator // tendermint wants to know validators whose voting power change
+	// tendermint wants to know validators whose voting power change
+	// it is loaded from ctx in Commit and used in EndBlock
+	validatorUpdate []*stakingtypes.Validator 
 
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache map[gethcmn.Hash]SenderAndHeight
@@ -163,7 +167,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	/*------set refresh field------*/
 	prevBlk := ctx.GetCurrBlockBasicInfo()
 	if prevBlk != nil {
-		app.block = prevBlk
+		app.block = prevBlk //will be overwritten in BeginBlock soon
 		app.currHeight = app.block.Number
 		app.lastProposer = app.block.Miner
 	} else {
@@ -171,17 +175,17 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	app.root.SetHeight(app.currHeight)
-	if app.currHeight != 0 {
-		app.restartPostCommit()
-	} else {
-		app.txEngine.SetContext(app.GetRunTxContext())
+	app.txEngine.SetContext(app.GetRunTxContext())
+	if app.currHeight != 0 { // restart postCommit
+		app.mtx.Lock()
+		app.postCommit(app.syncBlockInfo())
 	}
 
 	/*------set stakingInfo------*/
 	stakingInfo := staking.LoadStakingInfo(ctx)
-	app.currValidators = stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
+	currValidators := stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
-	for _, val := range app.currValidators {
+	for _, val := range currValidators {
 		app.logger.Debug(fmt.Sprintf("Load validator in NewApp: address(%s), pubkey(%s), votingPower(%d)",
 			gethcmn.Address(val.Address).String(), ed25519.PubKey(val.Pubkey[:]).String(), val.VotingPower))
 	}
@@ -235,12 +239,6 @@ func createHistoryStore(config *param.ChainConfig, logger log.Logger) (historySt
 		historyStore.SetMaxEntryCount(config.AppConfig.RpcEthGetLogsMaxResults)
 	}
 	return
-}
-
-func (app *App) restartPostCommit() {
-	app.txEngine.SetContext(app.GetRunTxContext())
-	app.mtx.Lock()
-	app.postCommit(app.syncBlockInfo())
 }
 
 func (app *App) Info(req abcitypes.RequestInfo) abcitypes.ResponseInfo {
@@ -402,9 +400,9 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	staking.AddGenesisValidatorsInStakingInfo(ctx, genesisValidators)
 	ctx.Close(true)
 
-	app.currValidators = stakingtypes.GetActiveValidators(genesisValidators, staking.MinimumStakingAmount)
-	valSet := make([]abcitypes.ValidatorUpdate, len(app.currValidators))
-	for i, v := range app.currValidators {
+	currValidators := stakingtypes.GetActiveValidators(genesisValidators, staking.MinimumStakingAmount)
+	valSet := make([]abcitypes.ValidatorUpdate, len(currValidators))
+	for i, v := range currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
 		valSet[i] = abcitypes.ValidatorUpdate{
 			PubKey: p,
@@ -471,10 +469,10 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash)
 	app.currHeight = req.Header.Height
-	// collect slash info, only double sign
+	// collect slash info, currently only double signing is slashed
 	var addr [20]byte
 	for _, val := range req.ByzantineValidators {
-		//not check time, always slash
+		//we always slash, without checking the time of bad behavior
 		if val.Type == abcitypes.EvidenceType_DUPLICATE_VOTE {
 			copy(addr[:], val.Validator.Address)
 			app.slashValidators = append(app.slashValidators, addr)
@@ -488,31 +486,12 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 	tx, err := ethutils.DecodeTx(req.Tx)
 	if err == nil {
 		app.txEngine.CollectTx(tx)
-		app.txid2sigMap[tx.Hash()] = encodeVRS(tx)
+		app.txid2sigMap[tx.Hash()] = ethutils.EncodeVRS(tx)
 	}
 	return abcitypes.ResponseDeliverTx{Code: abcitypes.CodeTypeOK}
 }
 
-func encodeVRS(tx *gethtypes.Transaction) [65]byte {
-	v, r, s := tx.RawSignatureValues()
-	r256, _ := uint256.FromBig(r)
-	s256, _ := uint256.FromBig(s)
-
-	bs := [65]byte{}
-	bs[0] = byte(v.Uint64())
-	copy(bs[1:33], r256.PaddedBytes(32))
-	copy(bs[33:65], s256.PaddedBytes(32))
-	return bs
-}
-func DecodeVRS(bs [65]byte) (v, r, s *big.Int) {
-	v = big.NewInt(int64(bs[0]))
-	r = big.NewInt(0).SetBytes(bs[1:33])
-	s = big.NewInt(0).SetBytes(bs[33:65])
-	return
-}
-
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
-	// app.validatorUpdate is recorded in Commit and used in the next block's EndBlock
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
 	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -533,14 +512,12 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 	app.updateValidatorsAndStakingInfo()
 	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
-	app.refresh()
+	appHash := app.refresh()
 	go app.postCommit(app.syncBlockInfo())
-	return app.buildCommitResponse()
+	return app.buildCommitResponse(appHash)
 }
 
 func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
-	//distribute previous block gas fee
-	var blockReward = app.lastGasFee
 	if !app.lastGasRefund.IsZero() {
 		err := ebp.SubSystemAccBalance(ctx, &app.lastGasRefund)
 		if err != nil {
@@ -555,6 +532,7 @@ func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
 	//if there has tx in standbyQ, it means there has some gasFee prepay to system account in app.prepare should not distribute in this block.
 	//if standbyQ is empty, we distribute all system account balance as reward in that block,
 	//which have all bch sent to system account through external transfer in blocks standbyQ not empty, this is not fair but simple, and this is rarely the case now.
+	var blockReward = app.lastGasFee //distribute previous block gas fee
 	if app.txEngine.StandbyQLen() == 0 {
 		// distribute extra balance to validators
 		blockReward = *sysB
@@ -570,9 +548,9 @@ func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
 	return &blockReward
 }
 
-func (app *App) buildCommitResponse() abcitypes.ResponseCommit {
+func (app *App) buildCommitResponse(appHash []byte) abcitypes.ResponseCommit {
 	res := abcitypes.ResponseCommit{
-		Data: append([]byte{}, app.block.StateRoot[:]...),
+		Data: appHash,
 	}
 	// prune tendermint history block and state every ChangeRetainEveryN blocks
 	if app.config.AppConfig.RetainBlocks > 0 && app.currHeight >= app.config.AppConfig.RetainBlocks && (app.currHeight%app.config.AppConfig.ChangeRetainEveryN == 0) {
@@ -583,9 +561,10 @@ func (app *App) buildCommitResponse() abcitypes.ResponseCommit {
 
 func (app *App) updateValidatorsAndStakingInfo() {
 	ctx := app.GetRunTxContext()
-	defer ctx.Close(true)
+	defer ctx.Close(true) // context must be written back such that txEngine can read it in 'Prepare'
 
-	newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner, app.lastProposer, app.lastVoters, app.getBlockRewardAndUpdateSysAcc(ctx))
+	currValidators, newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner,
+		app.lastProposer, app.lastVoters, app.getBlockRewardAndUpdateSysAcc(ctx))
 	app.slashValidators = app.slashValidators[:0]
 
 	if param.IsAmber && ctx.IsXHedgeFork() {
@@ -628,8 +607,8 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			}
 		}
 	}
-	app.currValidators = newValidators
-	app.validatorUpdate = staking.GetUpdateValidatorSet(app.currValidators, newValidators)
+
+	app.validatorUpdate = staking.GetUpdateValidatorSet(currValidators, newValidators)
 	for _, v := range app.validatorUpdate {
 		app.logger.Debug(fmt.Sprintf("Updated validator in commit: address(%s), pubkey(%s), voting power: %d",
 			gethcmn.Address(v.Address).String(), ed25519.PubKey(v.Pubkey[:]), v.VotingPower))
@@ -676,11 +655,12 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
 }
 
-func (app *App) refresh() {
+func (app *App) refresh() (appHash []byte) {
 	//close old
 	app.checkTrunk.Close(false)
 
 	ctx := app.GetRunTxContext()
+
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	if prevBlkInfo == nil {
 		app.logger.Debug(fmt.Sprintf("prevBlkInfo is nil in height:%d", app.block.Number))
@@ -702,14 +682,13 @@ func (app *App) refresh() {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.config.AppConfig.NumKeptBlocks)
 	}
 
-	appHash := app.root.GetRootHash()
-	copy(app.block.StateRoot[:], appHash)
+	appHash = append([]byte{}, app.root.GetRootHash()...)
 
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
 		var wg sync.WaitGroup
 		//use current block commit app hash as prev history block stateRoot
-		prevBlkInfo.StateRoot = app.block.StateRoot
+		copy(prevBlkInfo.StateRoot[:], appHash)
 		prevBlkInfo.GasUsed = app.lastGasUsed
 		prevBlk4MoDB := modbtypes.Block{
 			Height: prevBlkInfo.Number,
@@ -739,6 +718,7 @@ func (app *App) refresh() {
 	app.trunk = app.root.GetTrunkStore(lastCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.txEngine.SetContext(app.GetRunTxContext())
+	return
 }
 
 func (app *App) publishNewBlock(mdbBlock *modbtypes.Block) {
@@ -908,9 +888,10 @@ func (app *App) GetValidatorsInfo() ValidatorsInfo {
 
 func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	stakingInfo := staking.LoadStakingInfo(ctx)
+	currValidators := stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
 	minGasPrice := staking.LoadMinGasPrice(ctx, false)
 	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
-	return newValidatorsInfo(app.currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
+	return newValidatorsInfo(currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
 }
 
 func (app *App) IsArchiveMode() bool {

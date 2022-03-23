@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 )
 
 func NewTx(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *types.Transaction {
@@ -46,4 +47,23 @@ func SignTx(tx *types.Transaction,
 		return nil, err
 	}
 	return tx.WithSignature(signer, sig)
+}
+
+func EncodeVRS(tx *types.Transaction) [65]byte {
+	v, r, s := tx.RawSignatureValues()
+	r256, _ := uint256.FromBig(r)
+	s256, _ := uint256.FromBig(s)
+
+	bs := [65]byte{}
+	bs[0] = byte(v.Uint64())
+	copy(bs[1:33], r256.PaddedBytes(32))
+	copy(bs[33:65], s256.PaddedBytes(32))
+	return bs
+}
+
+func DecodeVRS(bs [65]byte) (v, r, s *big.Int) {
+	v = big.NewInt(int64(bs[0]))
+	r = big.NewInt(0).SetBytes(bs[1:33])
+	s = big.NewInt(0).SetBytes(bs[33:65])
+	return
 }

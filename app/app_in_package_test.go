@@ -48,7 +48,12 @@ func TestAppReload(t *testing.T) {
 		Timestamp:        666,
 		Transactions:     nil,
 	}
-	_app.restartPostCommit()
+
+	//restart postCommit
+	_app.txEngine.SetContext(_app.GetRunTxContext())
+	_app.mtx.Lock()
+	_app.postCommit(_app.syncBlockInfo())
+
 	_app.mtx.Lock()
 	_app.mtx.Unlock() //nolint
 	bi := _app.blockInfo.Load().(*types.BlockInfo)

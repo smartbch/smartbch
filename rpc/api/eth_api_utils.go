@@ -13,7 +13,6 @@ import (
 
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
@@ -114,7 +113,7 @@ func txsToRpcResp(txs []*types.Transaction, sigs [][65]byte) []*rpctypes.Transac
 }
 
 func txToRpcResp(tx *types.Transaction, rawSig [65]byte) *rpctypes.Transaction {
-	v, r, s := app.DecodeVRS(rawSig)
+	v, r, s := ethutils.DecodeVRS(rawSig)
 	idx := hexutil.Uint64(tx.TransactionIndex)
 	resp := &rpctypes.Transaction{
 		BlockHash:        &gethcmn.Hash{},

@@ -3,9 +3,10 @@ package types
 import (
 	"bytes"
 	"errors"
+	"sort"
+
 	"github.com/holiman/uint256"
 	"github.com/smartbch/smartbch/param"
-	"sort"
 )
 
 //go:generate msgp
