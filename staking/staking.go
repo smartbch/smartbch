@@ -661,7 +661,7 @@ func LoadStakingInfo(ctx *mevmtypes.Context) (info types.StakingInfo) {
 	return
 }
 
-func AddGenesisValidatorsInStakingInfo(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
+func AddGenesisValidatorsIntoStakingInfo(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
 	info := LoadStakingInfo(ctx)
 	info.Validators = genesisValidators
 	info.PendingRewards = make([]*types.PendingReward, len(genesisValidators))

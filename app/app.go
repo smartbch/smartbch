@@ -338,7 +338,7 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
 	}
 	totalGasLimit, _ := app.frontier.GetLatestTotalGas(sender)
-	if exist { // first fresh tx is not counted in
+	if exist { // We do not count in the gas of the first tx found during CheckTx
 		totalGasLimit += tx.Gas()
 	}
 	if totalGasLimit > app.config.AppConfig.FrontierGasLimit {
@@ -397,7 +397,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 
 	//store all genesis validators even if it is inactive
 	ctx := app.GetRunTxContext()
-	staking.AddGenesisValidatorsInStakingInfo(ctx, genesisValidators)
+	staking.AddGenesisValidatorsIntoStakingInfo(ctx, genesisValidators)
 	ctx.Close(true)
 
 	currValidators := stakingtypes.GetActiveValidators(genesisValidators, staking.MinimumStakingAmount)
