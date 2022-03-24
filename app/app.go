@@ -538,7 +538,7 @@ func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
 		blockReward = *sysB
 	}
 	if !blockReward.IsZero() {
-		//block reward subtract from systemAcc here, and added to stakingAcc later.
+		//block reward is subtracted from systemAcc here, and will be added to stakingAcc in SlashAndReward.
 		err := ebp.SubSystemAccBalance(ctx, &blockReward)
 		if err != nil {
 			//todo: be careful
@@ -601,7 +601,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
 			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger)
-			app.epochList = app.epochList[1:]
+			app.epochList = app.epochList[1:] // possible memory leak here, but the length would not be very large
 			if ctx.IsXHedgeFork() {
 				staking.CreateInitVotes(ctx, xHedgeSequence, newValidators)
 			}
@@ -686,7 +686,6 @@ func (app *App) refresh() (appHash []byte) {
 
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
-		var wg sync.WaitGroup
 		//use current block commit app hash as prev history block stateRoot
 		copy(prevBlkInfo.StateRoot[:], appHash)
 		prevBlkInfo.GasUsed = app.lastGasUsed
@@ -706,9 +705,8 @@ func (app *App) refresh() (appHash []byte) {
 		} else {
 			app.historyStore.AddBlock(&prevBlk4MoDB, -1, app.txid2sigMap) // do not prune moeingdb
 		}
-		app.txid2sigMap = make(map[[32]byte][65]byte)
+		app.txid2sigMap = make(map[[32]byte][65]byte) // clear its content after flushing into historyStore
 		app.publishNewBlock(&prevBlk4MoDB)
-		wg.Wait() // wait for getSep206SenderSet to finish its job
 	}
 	//make new
 	app.recheckCounter = 0 // reset counter before counting the remained TXs which need rechecking

@@ -44,14 +44,15 @@ func (h NominationHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-func (h *NominationHeap) Push(x interface{}) {
+func (h *NominationHeap) Push(x any) {
 	*h = append(*h, x.(*Nomination))
 }
 
-func (h *NominationHeap) Pop() interface{} {
+func (h *NominationHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]
+	old[n-1] = nil //avoid memory leak
 	*h = old[0 : n-1]
 	return x
 }
