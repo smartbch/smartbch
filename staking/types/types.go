@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sort"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/smartbch/param"
 )
@@ -221,4 +222,36 @@ func GetActiveValidators(vals []*Validator, minStakedCoins *uint256.Int) []*Vali
 		res = res[:param.MaxActiveValidatorCount]
 	}
 	return res
+}
+
+func GetUpdateValidatorSet(currentValidators, newValidators []*Validator) []*Validator {
+	if newValidators == nil {
+		return nil
+	}
+	var newValMap = make(map[common.Address]*Validator, len(newValidators))
+	var updatedList = make([]*Validator, 0, len(currentValidators))
+	for _, v := range newValidators {
+		newValMap[v.Address] = v
+	}
+	for _, v := range currentValidators {
+		if newValMap[v.Address] == nil {
+			removedV := *v
+			removedV.VotingPower = 0
+			updatedList = append(updatedList, &removedV)
+		} else if v.VotingPower != newValMap[v.Address].VotingPower {
+			updatedV := *newValMap[v.Address]
+			updatedList = append(updatedList, &updatedV)
+			delete(newValMap, v.Address)
+		} else { //Same voting power, no need for update
+			delete(newValMap, v.Address)
+		}
+	}
+	for _, v := range newValMap { // in new set but not in current set
+		addedV := *v
+		updatedList = append(updatedList, &addedV)
+	}
+	sort.Slice(updatedList, func(i, j int) bool {
+		return bytes.Compare(updatedList[i].Address[:], updatedList[j].Address[:]) < 0
+	})
+	return updatedList
 }

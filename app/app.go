@@ -68,25 +68,25 @@ type App struct {
 	root         *store.RootStore
 	historyStore modbtypes.DB
 
-	currHeight      int64
-	trunk           *store.TrunkStore
-	checkTrunk      *store.TrunkStore
+	currHeight int64
+	trunk      *store.TrunkStore
+	checkTrunk *store.TrunkStore
 	// 'block' contains some meta information of a block. It is collected during BeginBlock&DeliverTx,
 	// and save to world state in Commit.
-	block           *types.Block
+	block *types.Block
 	// Some fields of 'block' are copied to 'blockInfo' in Commit. It will be later used by RpcContext
 	// Thus, eth_call can view the new block's height a little earlier than eth_blockNumber
 	blockInfo       atomic.Value // to store *types.BlockInfo
 	slashValidators [][20]byte   // updated in BeginBlock, used in Commit
 	lastVoters      [][]byte     // updated in BeginBlock, used in Commit
-	lastProposer    [20]byte     // updated in refresh of last block, used in updateValidatorsAndStakingInfo 
-	                             // of current block. It needs to be reloaded in NewApp
-	lastGasUsed     uint64       // updated in last block's postCommit, used in current block's refresh
-	lastGasRefund   uint256.Int  // updated in last block's postCommit, used in current block's refresh
-	lastGasFee      uint256.Int  // updated in last block's postCommit, used in current block's refresh
-	lastMinGasPrice uint64       // updated in refresh, used in next block's CheckTx and Commit. It needs
-	                             // to be reloaded in NewApp
-	txid2sigMap     map[[32]byte][65]byte //updated in DeliverTx, flushed in refresh
+	lastProposer    [20]byte     // updated in refresh of last block, used in updateValidatorsAndStakingInfo
+	// of current block. It needs to be reloaded in NewApp
+	lastGasUsed     uint64      // updated in last block's postCommit, used in current block's refresh
+	lastGasRefund   uint256.Int // updated in last block's postCommit, used in current block's refresh
+	lastGasFee      uint256.Int // updated in last block's postCommit, used in current block's refresh
+	lastMinGasPrice uint64      // updated in refresh, used in next block's CheckTx and Commit. It needs
+	// to be reloaded in NewApp
+	txid2sigMap map[[32]byte][65]byte //updated in DeliverTx, flushed in refresh
 
 	// feeds
 	chainFeed event.Feed // For pub&sub new blocks
@@ -109,7 +109,7 @@ type App struct {
 
 	// tendermint wants to know validators whose voting power change
 	// it is loaded from ctx in Commit and used in EndBlock
-	validatorUpdate []*stakingtypes.Validator 
+	validatorUpdate []*stakingtypes.Validator
 
 	//signature cache, cache ecrecovery's resulting sender addresses, to speed up checktx
 	sigCache map[gethcmn.Hash]SenderAndHeight
@@ -608,7 +608,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		}
 	}
 
-	app.validatorUpdate = staking.GetUpdateValidatorSet(currValidators, newValidators)
+	app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(currValidators, newValidators)
 	for _, v := range app.validatorUpdate {
 		app.logger.Debug(fmt.Sprintf("Updated validator in commit: address(%s), pubkey(%s), voting power: %d",
 			gethcmn.Address(v.Address).String(), ed25519.PubKey(v.Pubkey[:]), v.VotingPower))
