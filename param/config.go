@@ -20,12 +20,14 @@ const (
 
 	AppDataPath  = "app"
 	ModbDataPath = "modb"
+	SyncdbDataPath = "syncdb"
 )
 
 type AppConfig struct {
 	//app config:
-	AppDataPath  string `mapstructure:"app_data_path"`
-	ModbDataPath string `mapstructure:"modb_data_path"`
+	AppDataPath    string `mapstructure:"app_data_path"`
+	ModbDataPath   string `mapstructure:"modb_data_path"`
+	SyncdbDataPath string `mapstructure:"syncdb_data_path"`
 	// rpc config
 	RpcEthGetLogsMaxResults int `mapstructure:"get_logs_max_results"`
 	// tm db config
@@ -54,6 +56,8 @@ type AppConfig struct {
 	FrontierGasLimit uint64 `mapstructure:"frontier-gaslimit"`
 
 	ArchiveMode bool `mapstructure:"archive-mode"`
+
+	WithSyncDB bool `mapstructure:"with-syncdb"`
 }
 
 type ChainConfig struct {
@@ -75,6 +79,7 @@ func DefaultAppConfigWithHome(home string) *AppConfig {
 	return &AppConfig{
 		AppDataPath:             filepath.Join(home, "data", AppDataPath),
 		ModbDataPath:            filepath.Join(home, "data", ModbDataPath),
+		SyncdbDataPath:          filepath.Join(home, "data", SyncdbDataPath),
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
 		RetainBlocks:            DefaultRetainBlocks,
 		NumKeptBlocks:           DefaultNumKeptBlocks,

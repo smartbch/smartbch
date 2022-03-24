@@ -30,6 +30,7 @@ import (
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	"github.com/smartbch/moeingdb/modb"
+	"github.com/smartbch/moeingdb/syncdb"
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
@@ -67,6 +68,7 @@ type App struct {
 	mads         *moeingads.MoeingADS
 	root         *store.RootStore
 	historyStore modbtypes.DB
+	syncDB       *syncdb.SyncDB
 
 	currHeight int64
 	trunk      *store.TrunkStore
@@ -141,6 +143,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	/*------set store------*/
 	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config, app.logger.With("module", "modb"))
+	if config.AppConfig.WithSyncDB {
+		app.syncDB = syncdb.NewSyncDB(config.AppConfig.SyncdbDataPath)
+	}
 	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 
@@ -675,6 +680,7 @@ func (app *App) refresh() (appHash []byte) {
 	ctx.Close(true)
 
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
+	updateOfADS := app.trunk.GetCacheContent()
 	app.trunk.Close(true)                  //write cached KVs back to app.root
 	if !app.config.AppConfig.ArchiveMode && prevBlkInfo != nil &&
 		prevBlkInfo.Number%app.config.AppConfig.PruneEveryN == 0 &&
@@ -705,6 +711,10 @@ func (app *App) refresh() (appHash []byte) {
 		} else {
 			app.historyStore.AddBlock(&prevBlk4MoDB, -1, app.txid2sigMap) // do not prune moeingdb
 		}
+		if app.syncDB != nil {
+			app.syncDB.AddBlock(prevBlk4MoDB.Height, &prevBlk4MoDB, app.txid2sigMap, updateOfADS)
+		}
+
 		app.txid2sigMap = make(map[[32]byte][65]byte) // clear its content after flushing into historyStore
 		app.publishNewBlock(&prevBlk4MoDB)
 	}
