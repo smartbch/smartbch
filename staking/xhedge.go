@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	SlotValidatorsMap   string = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
-	SlotValidatorsArray string = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
+	SlotValidatorsMap   = strings.Repeat(string([]byte{0}), 31) + string([]byte{134})
+	SlotValidatorsArray = strings.Repeat(string([]byte{0}), 31) + string([]byte{135})
 
-	CoindayUnit *uint256.Int = uint256.NewInt(0).Mul(uint256.NewInt(24*60*60), uint256.NewInt(Uint64_1e18))
+	CoindayUnit = uint256.NewInt(0).Mul(uint256.NewInt(24*60*60), uint256.NewInt(Uint64_1e18))
 )
 
 func GetAndClearPosVotes(ctx *mevmtypes.Context, xHedgeContractSeq uint64) map[[32]byte]int64 {

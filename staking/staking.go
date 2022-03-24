@@ -37,7 +37,7 @@ const (
 
 var (
 	//contract address, 10000
-	StakingContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
+	StakingContractAddress = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x10}
 	/*------selector------*/
 	/*interface Staking {
 		// following methods can only be called by EOA
@@ -64,38 +64,37 @@ var (
 		//9ce06909
 		function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
 	}*/
-	SelectorCreateValidator     [4]byte = [4]byte{0x24, 0xd1, 0xed, 0x5d}
-	SelectorEditValidator       [4]byte = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
-	SelectorRetire              [4]byte = [4]byte{0xa4, 0x87, 0x4d, 0x77}
-	SelectorIncreaseMinGasPrice [4]byte = [4]byte{0xf2, 0x01, 0x6e, 0x8e}
-	SelectorDecreaseMinGasPrice [4]byte = [4]byte{0x69, 0x6e, 0x6a, 0xd2}
-	SelectorProposal            [4]byte = [4]byte{0x30, 0x32, 0x6c, 0x17}
-	SelectorVote                [4]byte = [4]byte{0x01, 0x21, 0xb9, 0x3f}
-	SelectorExecuteProposal     [4]byte = [4]byte{0x37, 0x30, 0x58, 0xb8}
-	SelectorGetVote             [4]byte = [4]byte{0x8d, 0x33, 0x7b, 0x81}
-	SelectorSumVotingPower      [4]byte = [4]byte{0x9c, 0xe0, 0x69, 0x09}
+	SelectorCreateValidator     = [4]byte{0x24, 0xd1, 0xed, 0x5d}
+	SelectorEditValidator       = [4]byte{0x9d, 0xc1, 0x59, 0xb6}
+	SelectorRetire              = [4]byte{0xa4, 0x87, 0x4d, 0x77}
+	SelectorIncreaseMinGasPrice = [4]byte{0xf2, 0x01, 0x6e, 0x8e}
+	SelectorDecreaseMinGasPrice = [4]byte{0x69, 0x6e, 0x6a, 0xd2}
+	SelectorProposal            = [4]byte{0x30, 0x32, 0x6c, 0x17}
+	SelectorVote                = [4]byte{0x01, 0x21, 0xb9, 0x3f}
+	SelectorExecuteProposal     = [4]byte{0x37, 0x30, 0x58, 0xb8}
+	SelectorGetVote             = [4]byte{0x8d, 0x33, 0x7b, 0x81}
+	SelectorSumVotingPower      = [4]byte{0x9c, 0xe0, 0x69, 0x09}
 
 	//slot
-	SlotStakingInfo               string = strings.Repeat(string([]byte{0}), 32)
-	SlotAllBurnt                  string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
-	SlotMinGasPrice               string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
-	SlotLastMinGasPrice           string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
-	SlotMinGasPriceProposalTarget string = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
-	SlotVoters                    string = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
+	SlotStakingInfo               = strings.Repeat(string([]byte{0}), 32)
+	SlotAllBurnt                  = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
+	SlotMinGasPrice               = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
+	SlotLastMinGasPrice           = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+	SlotMinGasPriceProposalTarget = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
+	SlotVoters                    = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
 
 	// slot in hex
 	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
 
-	votingSlotHashPrefix [4]byte = [4]byte{'v', 'o', 't', 'e'}
+	votingSlotHashPrefix = [4]byte{'v', 'o', 't', 'e'}
 )
 
 var (
 	/*------param------*/
 	//staking
-	InitialStakingAmount *uint256.Int = uint256.NewInt(0)
-
-	MinimumStakingAmount *uint256.Int = uint256.NewInt(0)
-	SlashedStakingAmount *uint256.Int = uint256.NewInt(0)
+	InitialStakingAmount = uint256.NewInt(0)
+	MinimumStakingAmount = uint256.NewInt(0)
+	SlashedStakingAmount = uint256.NewInt(0)
 
 	GasOfValidatorOp   uint64 = 400_000
 	GasOfMinGasPriceOp uint64 = 50_000
