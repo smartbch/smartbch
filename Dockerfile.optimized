@@ -6,13 +6,11 @@ ARG SMARTBCH_VERSION="v0.4.2"
 ARG MOEINGEVM_VERSION="v0.4.0"
 ARG CONFIG_VERSION="v0.0.6"
 
-ARG GOLANG_VERSION="1.17.2"
+ARG GOLANG_VERSION="1.18"
 ARG PATCH_CGO_VERSION="0.1.2"
 ARG ROCKSDB_VERSION="5.18.4"
 ARG SNAPPY_VERSION="1.1.8"
 
-ARG TARGETOS
-ENV TARGETOS=${TTARGETOS:-linux}
 ARG TARGETARCH
 ENV TARGETARCH=${TARGETARCH:-amd64}
 ARG SMARTBCH_BUILD_TAGS="cppbtree"
@@ -28,12 +26,11 @@ RUN mkdir /build
 WORKDIR /build
 
 # Install Go
-ENV GOPLATFORM=${TARGETOS}-${TARGETARCH}
 ENV GOROOT=/usr/local/go
 ENV GOPATH=/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-RUN wget https://dl.google.com/go/go${GOLANG_VERSION}.${GOPLATFORM}.tar.gz
-RUN tar zxvf go${GOLANG_VERSION}.${GOPLATFORM}.tar.gz -C /usr/local
+RUN wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz
+RUN tar zxvf go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz -C /usr/local
 RUN mkdir -p $GOPATH/bin
 
 # Patch Go for larger cgo stack size
