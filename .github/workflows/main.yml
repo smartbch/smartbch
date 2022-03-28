@@ -23,7 +23,7 @@ jobs:
   build:
     strategy:
       matrix:
-        go-version: [ 1.18.x ]
+        go: [ 1.18.x ]
         os: [ ubuntu-latest ]
 
     # The type of runner that the job will run on
@@ -51,6 +51,11 @@ jobs:
           tar zxvf v5.18.4.tar.gz
           cd rocksdb-5.18.4
           make CC=gcc-8 CXX=g++-8 static_lib
+
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout smartBCH
@@ -82,9 +87,10 @@ jobs:
           export CGO_CFLAGS="-I$ROCKSDB_PATH/include"
           export CGO_LDFLAGS="-L$ROCKSDB_PATH -L$PWD/moeingevm/evmwrap/host_bridge/ -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
           cd smartbch
+          go version
           go build ./...
           go test -tags params_testnet -coverprofile=coverage.out -covermode=atomic -p 1 ./...
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.44.2
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.45.2
           /home/runner/go/bin/golangci-lint run
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)
