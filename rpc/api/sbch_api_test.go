@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
+	mdbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/ebp"
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/api"
@@ -472,6 +473,31 @@ func TestCall(t *testing.T) {
 	println("txCallDetail:", testutils.ToPrettyJSON(txCallDetail))
 	println("rpcCallDetail:", testutils.ToPrettyJSON(rpcCallDetail))
 	require.Equal(t, testutils.ToPrettyJSON(txCallDetail), testutils.ToPrettyJSON(rpcCallDetail))
+}
+
+func TestGetSyncBlock(t *testing.T) {
+	key1, addr1 := testutils.GenKeyAndAddr()
+	key2, addr2 := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestAppWithSyncDB(key1, key2)
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+
+	tx1, h := _app.MakeAndExecTxInBlock(key1, addr2, 1000, nil)
+	_app.EnsureTxSuccess(tx1.Hash())
+	require.Equal(t, int64(1), h)
+
+	tx2, h := _app.MakeAndExecTxInBlock(key2, addr1, 1000, nil)
+	_app.EnsureTxSuccess(tx2.Hash())
+	require.Equal(t, int64(3), h)
+
+	syncData1, err := _api.GetSyncBlock(1)
+	require.NoError(t, err)
+
+	syncBlock1 := mdbtypes.ExtendedBlock{}
+	dataLeft, err := syncBlock1.UnmarshalMsg(syncData1)
+	require.NoError(t, err)
+	require.Len(t, dataLeft, 0)
+	require.Equal(t, tx1.Hash(), gethcmn.Hash(syncBlock1.TxList[0].HashId))
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {

@@ -33,6 +33,7 @@ import (
 const (
 	testAdsDir  = "./testdbdata"
 	testMoDbDir = "./modbdata"
+	testSyncDir = "./syscdb"
 )
 
 const (
@@ -66,13 +67,20 @@ type TestAppInitArgs struct {
 	InitAmt     *uint256.Int
 	PrivKeys    []string
 	ArchiveMode bool
+	WithSyncDB  bool
 }
 
 func CreateTestApp(keys ...string) *TestApp {
-	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys, false)
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance),
+		keys, false, false)
 }
 func CreateTestAppInArchiveMode(keys ...string) *TestApp {
-	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance), keys, true)
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance),
+		keys, true, false)
+}
+func CreateTestAppWithSyncDB(keys ...string) *TestApp {
+	return createTestApp0(0, time.Now(), ed25519.GenPrivKey().PubKey(), bigutils.NewU256(DefaultInitBalance),
+		keys, true, true)
 }
 
 func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
@@ -96,11 +104,12 @@ func CreateTestAppWithArgs(args TestAppInitArgs) *TestApp {
 		initAmt = args.InitAmt
 	}
 
-	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys, args.ArchiveMode)
+	return createTestApp0(startHeight, startTime, pubKey, initAmt, args.PrivKeys,
+		args.ArchiveMode, args.WithSyncDB)
 }
 
 func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.PubKey, initAmt *uint256.Int, keys []string,
-	archiveMode bool) *TestApp {
+	archiveMode bool, withSyncDB bool) *TestApp {
 
 	err := os.RemoveAll(testAdsDir)
 	if err != nil {
@@ -113,7 +122,9 @@ func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	params := param.DefaultConfig()
 	params.AppConfig.AppDataPath = testAdsDir
 	params.AppConfig.ModbDataPath = testMoDbDir
+	params.AppConfig.SyncdbDataPath = testSyncDir
 	params.AppConfig.ArchiveMode = archiveMode
+	params.AppConfig.WithSyncDB = withSyncDB
 	_app := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
@@ -184,8 +195,7 @@ func (_app *TestApp) ReloadApp() *TestApp {
 
 func (_app *TestApp) DestroyWithoutCheck() {
 	_app.Stop()
-	_ = os.RemoveAll(testAdsDir)
-	_ = os.RemoveAll(testMoDbDir)
+	cleanUpTestData()
 }
 
 func (_app *TestApp) Destroy() {
@@ -209,8 +219,13 @@ func (_app *TestApp) Destroy() {
 		}
 		newApp.Stop()
 	}
+	cleanUpTestData()
+}
+
+func cleanUpTestData() {
 	_ = os.RemoveAll(testAdsDir)
 	_ = os.RemoveAll(testMoDbDir)
+	_ = os.RemoveAll(testSyncDir)
 }
 
 func (_app *TestApp) WaitMS(n int64) {

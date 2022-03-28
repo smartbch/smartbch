@@ -18,8 +18,8 @@ const (
 	DefaultChangeRetainEveryN      = 100
 	DefaultPruneEveryN             = 10
 
-	AppDataPath  = "app"
-	ModbDataPath = "modb"
+	AppDataPath    = "app"
+	ModbDataPath   = "modb"
 	SyncdbDataPath = "syncdb"
 )
 

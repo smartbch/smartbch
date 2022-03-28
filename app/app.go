@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -55,6 +56,11 @@ const (
 	HasPendingTx         uint32 = 108
 	MempoolBusy          uint32 = 109
 	GasLimitTooSmall     uint32 = 110
+)
+
+var (
+	errNoSyncDB    = errors.New("syncdb is not open")
+	errNoSyncBlock = errors.New("syncdb block is not ready")
 )
 
 type App struct {
@@ -681,7 +687,7 @@ func (app *App) refresh() (appHash []byte) {
 
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	updateOfADS := app.trunk.GetCacheContent()
-	app.trunk.Close(true)                  //write cached KVs back to app.root
+	app.trunk.Close(true) //write cached KVs back to app.root
 	if !app.config.AppConfig.ArchiveMode && prevBlkInfo != nil &&
 		prevBlkInfo.Number%app.config.AppConfig.PruneEveryN == 0 &&
 		prevBlkInfo.Number > app.config.AppConfig.NumKeptBlocks {
@@ -908,6 +914,18 @@ func (app *App) IsArchiveMode() bool {
 
 func (app *App) GetCurrEpoch() *stakingtypes.Epoch {
 	return app.watcher.GetCurrEpoch()
+}
+
+func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
+	if app.syncDB == nil {
+		return nil, errNoSyncDB
+	}
+
+	blk = app.syncDB.Get(height)
+	if blk == nil {
+		err = errNoSyncBlock
+	}
+	return
 }
 
 //nolint

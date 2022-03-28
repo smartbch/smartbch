@@ -41,6 +41,7 @@ type SbchAPI interface {
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
+	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
 }
 
 type sbchAPI struct {
@@ -311,4 +312,9 @@ func (sbch sbchAPI) ValidatorsInfo() json.RawMessage {
 	info := sbch.backend.ValidatorsInfo()
 	bytes, _ := json.Marshal(info)
 	return bytes
+}
+
+func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
+	sbch.logger.Debug("sbch_getSyncBlock")
+	return sbch.backend.GetSyncBlock(int64(height))
 }

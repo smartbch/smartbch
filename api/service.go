@@ -122,6 +122,7 @@ type BackendService interface {
 	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64
 	GetPosVotes() map[[32]byte]*big.Int
+	GetSyncBlock(height int64) (blk []byte, err error)
 
 	//tendermint info
 	NodeInfo() Info

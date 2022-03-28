@@ -495,3 +495,7 @@ func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
 
 	return staking.GetPosVotes(ctx, param.XHedgeContractSequence)
 }
+
+func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
+	return backend.app.GetBlockForSync(height)
+}

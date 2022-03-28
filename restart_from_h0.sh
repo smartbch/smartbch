@@ -48,4 +48,6 @@ echo 'adding genesis validator ...'
 echo 'starting node ...'
 ./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
   --http.api='eth,web3,net,txpool,sbch,debug' \
-  --log_level='json-rpc:debug,*:info' --skip-sanity-check=true
+  --log_level='json-rpc:debug,*:info' \
+  --skip-sanity-check=true \
+  --with-syncdb=true
