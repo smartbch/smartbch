@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 MAINTAINER Josh Ellithorpe <quest@mac.com>
 
-ARG GOLANG_VERSION="1.17.2"
+ARG GOLANG_VERSION="1.18"
 
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get -y update && apt-get -y upgrade

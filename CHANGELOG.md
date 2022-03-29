@@ -2,7 +2,7 @@
 
 
 
-## v0.4.3 (Not released yet)
+## v0.4.3
 
 * Library
   * Upgrade moeingads to v0.4.1
@@ -12,6 +12,7 @@
   * Switch to Go 1.18
   * Switch to static link
   * Prepare to support SyncDB
+  * Refine debug RPC endpoints
 
 
 ## v0.4.2
