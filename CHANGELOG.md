@@ -1,5 +1,19 @@
 # Changelog
 
+
+
+## v0.4.3 (Not released yet)
+
+* Library
+  * Upgrade moeingads to v0.4.1
+  * Upgrade moeingdb to v0.4.1
+  * Upgrade moeingevm to v0.4.1
+* Others
+  * Switch to Go 1.18
+  * Switch to static link
+  * Prepare to support SyncDB
+
+
 ## v0.4.2
 
 * Some small changes & improvements to prepare for Amber testnet XHedge fork
