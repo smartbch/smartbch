@@ -41,7 +41,7 @@ const (
 
 	// fork params
 	XHedgeContractSequence uint64 = 0x10651
-	XHedgeForkBlock        int64  = 70000000
+	XHedgeForkBlock        int64  = 3812000
 	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
 )
