@@ -43,7 +43,7 @@ var SEP206ContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 type apiBackend struct {
 	//extRPCEnabled bool
 	node *node.Node
-	app  *app.App
+	app  app.IApp
 	//gpo *gasprice.Oracle
 
 	//chainSideFeed event.Feed
@@ -55,7 +55,7 @@ type apiBackend struct {
 	//pendingLogsFeed event.Feed
 }
 
-func NewBackend(node *node.Node, app *app.App) BackendService {
+func NewBackend(node *node.Node, app app.IApp) BackendService {
 	return &apiBackend{
 		node: node,
 		app:  app,

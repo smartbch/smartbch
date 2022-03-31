@@ -43,7 +43,10 @@ import (
 	"github.com/smartbch/smartbch/watcher"
 )
 
-var _ abcitypes.Application = (*App)(nil)
+var (
+	_ abcitypes.Application = (*App)(nil)
+	_ IApp                  = (*App)(nil)
+)
 
 const (
 	CannotDecodeTx       uint32 = 101
@@ -62,6 +65,24 @@ var (
 	errNoSyncDB    = errors.New("syncdb is not open")
 	errNoSyncBlock = errors.New("syncdb block is not ready")
 )
+
+type IApp interface {
+	ChainID() *uint256.Int
+	GetRunTxContext() *types.Context
+	GetRpcContext() *types.Context
+	GetRpcContextAtHeight(height int64) *types.Context
+	GetHistoryOnlyContext() *types.Context
+	RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool, height int64) (*ebp.TxRunner, int64)
+	RunTxForSbchRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, height int64) (*ebp.TxRunner, int64)
+	GetCurrEpoch() *stakingtypes.Epoch
+	GetLatestBlockNum() int64
+	SubscribeChainEvent(ch chan<- types.ChainEvent) event.Subscription
+	SubscribeLogsEvent(ch chan<- []*gethtypes.Log) event.Subscription
+	LoadBlockInfo() *types.BlockInfo
+	GetValidatorsInfo() ValidatorsInfo
+	IsArchiveMode() bool
+	GetBlockForSync(height int64) (blk []byte, err error)
+}
 
 type App struct {
 	mtx sync.Mutex
