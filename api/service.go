@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/smartbch/smartbch/app"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,9 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	motypes "github.com/smartbch/moeingevm/types"
-	"github.com/smartbch/smartbch/app"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
-	"github.com/smartbch/smartbch/staking/types"
 )
 
 type CallDetail struct {
@@ -46,59 +44,14 @@ type FilterService interface {
 
 type BackendService interface {
 	FilterService
-
-	// General Ethereum API
-	//Downloader() *downloader.Downloader
 	ProtocolVersion() int
-	//SuggestPrice(ctx context.Context) (*big.Int, error)
-	//ChainDb() Database
-	//AccountManager() *accounts.Manager
-	//ExtRPCEnabled() bool
-	//RPCGasCap() uint64    // global gas cap for eth_call over rpc: DoS protection
-	//RPCTxFeeCap() float64 // global tx fee cap for all transaction related APIs
-
-	// Blockchain API
 	ChainId() *big.Int
-	//SetHead(number uint64)
-	//HeaderByNumber(ctx context.Context, number int64) (*types.Header, error)
-	//HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	//HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
-	//CurrentHeader() *types.Header
 	LatestHeight() int64
 	CurrentBlock() (*motypes.Block, error)
 	BlockByNumber(number int64) (*motypes.Block, error)
 	BlockByHash(hash common.Hash) (*motypes.Block, error)
-	//BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
-	//StateAndHeaderByNumber(ctx context.Context, number int64) (*state.StateDB, error)
-	//StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
-	//GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) /*All receipt fields is in types.Transaction, use getTransaction() instead*/
-	//GetTd(ctx context.Context, hash common.Hash) *big.Int
-	//GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header) (*vm.EVM, func() error, error)
-
-	// Transaction pool API
 	SendRawTx(signedTx []byte) (common.Hash, error)
 	GetTransaction(txHash common.Hash) (tx *motypes.Transaction, sig [65]byte, err error)
-	//GetPoolTransactions() (types.Transactions, error)
-	//GetPoolTransaction(txHash common.Hash) *types.Transaction
-	//GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
-	//Stats() (pending int, queued int)
-	//TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
-
-	// Filter API
-	//BloomStatus() (uint64, uint64)
-	//GetLogs(blockHash common.Hash) ([][]types.Log, error)
-	//ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
-	//SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
-	//SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription
-	//SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
-	//SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	//SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
-	//SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
-	//SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
-
-	//Engine() consensus.Engine
-
-	//Below is added in moeing chain only
 	GetNonce(address common.Address, height int64) (uint64, error)
 	GetBalance(address common.Address, height int64) (*big.Int, error)
 	GetCode(contract common.Address, height int64) (bytecode []byte, codeHash []byte)
@@ -117,15 +70,7 @@ type BackendService interface {
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
-	GetEpochs(start, end uint64) ([]*types.Epoch, error)
-	GetCurrEpoch() *types.Epoch
-	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64
-	GetPosVotes() map[[32]byte]*big.Int
-	GetSyncBlock(height int64) (blk []byte, err error)
-
-	//tendermint info
-	NodeInfo() Info
 	ValidatorsInfo() app.ValidatorsInfo
 
 	IsArchiveMode() bool

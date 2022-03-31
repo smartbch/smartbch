@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -36,7 +35,6 @@ type Stats struct {
 type DebugAPI interface {
 	GetStats() Stats
 	GetSeq(addr gethcmn.Address) hexutil.Uint64
-	NodeInfo() json.RawMessage
 }
 
 type debugAPI struct {
@@ -56,13 +54,6 @@ func newDebugAPI(ethAPI *ethAPI, logger log.Logger) DebugAPI {
 func (api *debugAPI) GetSeq(addr gethcmn.Address) hexutil.Uint64 {
 	api.logger.Debug("debug_getSeq")
 	return hexutil.Uint64(api.ethAPI.backend.GetSeq(addr))
-}
-
-func (api *debugAPI) NodeInfo() json.RawMessage {
-	api.logger.Debug("debug_nodeInfo")
-	nodeInfo := api.ethAPI.backend.NodeInfo()
-	bytes, _ := json.Marshal(nodeInfo)
-	return bytes
 }
 
 func (api *debugAPI) GetStats() Stats {

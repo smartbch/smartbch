@@ -1,10 +1,7 @@
 package main
 
 import (
-	"github.com/holiman/uint256"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -12,7 +9,7 @@ import (
 	"github.com/smartbch/smartbch/param"
 )
 
-type AppCreator func(logger log.Logger, chainId *uint256.Int, config *param.ChainConfig) abci.Application
+type AppCreator func(logger log.Logger, config *param.ChainConfig) *app.App
 
 func main() {
 	rootCmd := createSmartbchdCmd()
@@ -34,22 +31,15 @@ func createSmartbchdCmd() *cobra.Command {
 	}
 	addInitCommands(ctx, rootCmd)
 	rootCmd.AddCommand(StartCmd(ctx, newApp))
-	rootCmd.AddCommand(ConfigCmd(DefaultNodeHome))
-	rootCmd.AddCommand(GenerateConsensusKeyInfoCmd(ctx))
-	rootCmd.AddCommand(GenerateGenesisValidatorCmd(ctx))
-	rootCmd.AddCommand(AddGenesisValidatorCmd(ctx))
-	rootCmd.AddCommand(StakingCmd(ctx))
 	rootCmd.AddCommand(VersionCmd())
 	return rootCmd
 }
 
 func addInitCommands(ctx *Context, rootCmd *cobra.Command) {
 	initCmd := InitCmd(ctx, DefaultNodeHome)
-	genTestKeysCmd := GenTestKeysCmd(ctx)
-	rootCmd.AddCommand(initCmd, genTestKeysCmd)
+	rootCmd.AddCommand(initCmd)
 }
 
-func newApp(logger log.Logger, chainId *uint256.Int, config *param.ChainConfig) abci.Application {
-	cetChainApp := app.NewApp(config, chainId, viper.GetInt64(flagGenesisMainnetHeight), viper.GetInt64(flagCCGenesisMainnetHeight), logger, viper.GetBool(flagSkipSanityCheck))
-	return cetChainApp
+func newApp(logger log.Logger, config *param.ChainConfig) *app.App {
+	return app.NewApp(config, logger)
 }

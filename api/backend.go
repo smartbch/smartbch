@@ -1,16 +1,12 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/mempool"
-	"github.com/tendermint/tendermint/node"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,11 +19,6 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/crosschain"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
-	"github.com/smartbch/smartbch/param"
-	"github.com/smartbch/smartbch/staking"
-	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 var _ BackendService = &apiBackend{}
@@ -42,8 +33,8 @@ var SEP206ContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 type apiBackend struct {
 	//extRPCEnabled bool
-	node *node.Node
-	app  *app.App
+	//node *node.Node
+	app *app.App
 	//gpo *gasprice.Oracle
 
 	//chainSideFeed event.Feed
@@ -55,10 +46,9 @@ type apiBackend struct {
 	//pendingLogsFeed event.Feed
 }
 
-func NewBackend(node *node.Node, app *app.App) BackendService {
+func NewBackend(app *app.App) BackendService {
 	return &apiBackend{
-		node: node,
-		app:  app,
+		app: app,
 	}
 }
 
@@ -169,18 +159,19 @@ func (backend *apiBackend) SendRawTx(signedTx []byte) (common.Hash, error) {
 }
 
 func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
-	resCh := make(chan *abci.Response, 1)
-	err := backend.node.Mempool().CheckTx(tx, func(res *abci.Response) {
-		resCh <- res
-	}, mempool.TxInfo{})
-	if err != nil {
-		return common.Hash{}, err
-	}
-	res := <-resCh
-	r := res.GetCheckTx()
-	if r.Code != abci.CodeTypeOK {
-		return common.Hash{}, errors.New(r.String())
-	}
+	//todo: send to leader or make mempool local
+	//resCh := make(chan *abci.Response, 1)
+	//err := backend.node.Mempool().CheckTx(tx, func(res *abci.Response) {
+	//	resCh <- res
+	//}, mempool.TxInfo{})
+	//if err != nil {
+	//	return common.Hash{}, err
+	//}
+	//res := <-resCh
+	//r := res.GetCheckTx()
+	//if r.Code != abci.CodeTypeOK {
+	//	return common.Hash{}, errors.New(r.String())
+	//}
 	return common.BytesToHash(tx.Hash()), nil
 }
 
@@ -276,48 +267,6 @@ func (backend *apiBackend) GetSep20FromAddressCount(contract common.Address, add
 	return ctx.GetSep20FromAddressCount(contract, addr)
 }
 
-func (backend *apiBackend) GetCurrEpoch() *stakingtypes.Epoch {
-	return backend.app.GetCurrEpoch()
-}
-
-//[start, end)
-func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
-	if start >= end {
-		return nil, errors.New("invalid start or empty epochs")
-	}
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	result := make([]*stakingtypes.Epoch, 0, end-start)
-	info := staking.LoadStakingInfo(ctx)
-	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
-		epoch, ok := staking.LoadEpoch(ctx, epochNum)
-		if ok {
-			result = append(result, &epoch)
-		}
-	}
-	return result, nil
-}
-
-//[start, end)
-func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
-	if start >= end {
-		return nil, errors.New("invalid start or empty cc epochs")
-	}
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	result := make([]*cctypes.CCEpoch, 0, end-start)
-	info := crosschain.LoadCCInfo(ctx)
-	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
-		epoch, ok := crosschain.LoadCCEpoch(ctx, epochNum)
-		if ok {
-			result = append(result, &epoch)
-		}
-	}
-	return result, nil
-}
-
 func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	if blockNr == rpc.LatestBlockNumber {
 		blockNr = rpc.BlockNumber(backend.app.GetLatestBlockNum())
@@ -335,6 +284,7 @@ func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.Block
 		Bloom:     block.LogsBloom,
 	}, nil
 }
+
 func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Hash) (*types.Header, error) {
 	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
@@ -347,6 +297,7 @@ func (backend *apiBackend) HeaderByHash(ctx context.Context, blockHash common.Ha
 		BlockHash: block.Hash,
 	}, nil
 }
+
 func (backend *apiBackend) GetReceipts(ctx context.Context, blockNum uint64) (gethtypes.Receipts, error) {
 	appCtx := backend.app.GetHistoryOnlyContext()
 	defer appCtx.Close(false)
@@ -403,10 +354,12 @@ func (backend *apiBackend) GetLogs(ctx context.Context, blockHash common.Hash) (
 }
 
 func (backend *apiBackend) SubscribeChainEvent(ch chan<- types.ChainEvent) event.Subscription {
-	return backend.app.SubscribeChainEvent(ch)
+	//return backend.app.SubscribeChainEvent(ch)
+	return nil
 }
 func (backend *apiBackend) SubscribeLogsEvent(ch chan<- []*gethtypes.Log) event.Subscription {
-	return backend.app.SubscribeLogsEvent(ch)
+	//return backend.app.SubscribeLogsEvent(ch)
+	return nil
 }
 func (backend *apiBackend) SubscribeNewTxsEvent(ch chan<- gethcore.NewTxsEvent) event.Subscription {
 	return backend.txFeed.Subscribe(ch)
@@ -444,33 +397,6 @@ type Info struct {
 	NextBlock       NextBlock       `json:"next_block"`
 }
 
-func (backend *apiBackend) NodeInfo() Info {
-	i := Info{}
-	i.Height = backend.node.BlockStore().Height()
-	address, _ := backend.node.NodeInfo().NetAddress()
-	if address != nil {
-		i.Seed = address.String()
-	}
-	pubKey, _ := backend.node.PrivValidator().GetPubKey()
-	i.ConsensusPubKey = pubKey.Bytes()
-	i.AppState = backend.node.GenesisDoc().AppState
-	genesisData := app.GenesisData{}
-	err := json.Unmarshal(i.AppState, &genesisData)
-	if err == nil {
-		for k, v := range genesisData.Validators {
-			if bytes.Equal(v.Pubkey[:], i.ConsensusPubKey) {
-				i.IsValidator = true
-				i.ValidatorIndex = int64(k)
-			}
-		}
-	}
-	bi := backend.app.LoadBlockInfo()
-	i.NextBlock.Number = bi.Number
-	i.NextBlock.Timestamp = bi.Timestamp
-	i.NextBlock.Hash = bi.Hash
-	return i
-}
-
 func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }
@@ -487,15 +413,4 @@ func (backend *apiBackend) GetSeq(address common.Address) uint64 {
 		return 0
 	}
 	return accInfo.Sequence()
-}
-
-func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
-	ctx := backend.app.GetRunTxContext()
-	defer ctx.Close(false)
-
-	return staking.GetPosVotes(ctx, param.XHedgeContractSequence)
-}
-
-func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
-	return backend.app.GetBlockForSync(height)
 }

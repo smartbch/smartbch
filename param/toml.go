@@ -29,33 +29,14 @@ blocks_kept_ads = {{ .NumKeptBlocks }}
 # How many recent blocks can be kept in moeingdb (to prune the blocks which are older than them)
 blocks_kept_modb = {{ .NumKeptBlocksInMoDB }}
 
-# The entry count limit of the signature cache, which caches the recent signatures' check results
-sig_cache_size = {{ .SigCacheSize }}
-
 # The initial entry count in the trunk cache, which buffers the write operations of the last block
 trunk_cache_size = {{ .TrunkCacheSize }}
 
 # We try to prune the old blocks of moeingads every n blocks
 prune_every_n = {{ .PruneEveryN }}
 
-# If the number of the mempool transactions which need recheck is larger than this threshold, stop
-# adding new transactions into mempool
-recheck_threshold = {{ .RecheckThreshold }}
-
-# BCH mainnet rpc url
-mainnet-rpc-url = "{{ .MainnetRPCUrl }}"
-
-# BCH mainnet rpc username
-mainnet-rpc-username = "{{ .MainnetRPCUsername }}"
-
-# BCH mainnet rpc password
-mainnet-rpc-password = "{{ .MainnetRPCPassword }}"
-
 # smartBCH rpc url for epoch get
 smartbch-rpc-url = "{{ .SmartBchRPCUrl }}"
-
-# open epoch get to speedup mainnet block catch, work with "smartbch_rpc_url"
-watcher-speedup = {{ .Speedup }}
 `
 
 var configTemplate *template.Template
