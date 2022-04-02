@@ -37,8 +37,6 @@ type App struct {
 	historyStore modbtypes.DB
 
 	currHeight int64
-	trunk      *store.TrunkStore
-	checkTrunk *store.TrunkStore
 	// 'block' contains some meta information of a block. It is collected during BeginBlock&DeliverTx,
 	// and save to world state in Commit.
 	block *types.Block
@@ -46,10 +44,8 @@ type App struct {
 	// Thus, eth_call can view the new block's height a little earlier than eth_blockNumber
 	blockInfo atomic.Value // to store *types.BlockInfo
 	// of current block. It needs to be reloaded in NewApp
-	lastGasUsed uint64 // updated in last block's postCommit, used in current block's refresh
 	// to be reloaded in NewApp
-	txid2sigMap map[[32]byte][65]byte //updated in DeliverTx, flushed in refresh
-
+	rpcClient *RpcClient
 	//util
 	logger log.Logger
 }
@@ -73,28 +69,9 @@ func NewApp(config *param.ChainConfig, logger log.Logger) *App {
 	/*------set store------*/
 	app.root, app.mads = createRootStore(config)
 	app.historyStore = createHistoryStore(config, app.logger.With("module", "modb"))
-	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
-	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 
-	// We assign empty maps to them just to avoid accessing nil-maps.
-	// Commit will assign meaningful contents to them
-	app.txid2sigMap = make(map[[32]byte][65]byte)
-
-	ctx := app.GetRunTxContext()
-
-	prevBlk := ctx.GetCurrBlockBasicInfo()
-	if prevBlk != nil {
-		app.block = prevBlk //will be overwritten in BeginBlock soon
-		app.currHeight = app.block.Number
-	} else {
-		app.block = &types.Block{}
-	}
-	//app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
-	app.root.SetHeight(app.currHeight)
-
-	ctx.Close(true)
-
-	go app.run()
+	app.rpcClient = NewRpcClient(config.AppConfig.SmartBchRPCUrl, "", "", "application/json", app.logger.With("module", "client"))
+	go app.run(0)
 	return app
 }
 
@@ -130,16 +107,47 @@ func createHistoryStore(config *param.ChainConfig, logger log.Logger) (historySt
 	return
 }
 
-func (app *App) run() {
+func (app *App) run(storeHeight int64) {
 	//1. fetch blocks until catch up leader.
+	latestHeight := app.catchupLeader(storeHeight)
+	// run 2 times to catch blocks mint amount 1st catchupLeader running.
+	latestHeight = app.catchupLeader(latestHeight)
 	//2. keep sync with leader.
 	for {
-		//1. get modb and sds info from leader
-		//2. save data to local db
-		//3. init root, trunk, and history db
-		//4. refresh app fields
-		//5. sleep and continue
+		app.updateState(latestHeight + 1)
+		//3. sleep and continue
+		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func (app *App) updateState(height int64) {
+	blk := app.rpcClient.getSyncBlock(uint64(height))
+	if blk == nil {
+		time.Sleep(100 * time.Millisecond)
+		return
+	}
+	//2. save data to local db
+	store.SyncUpdateTo(blk.UpdateOfADS, app.root)
+	app.historyStore.AddBlock(&blk.Block, -1, blk.Txid2sigMap)
+	//3. refresh app fields
+	app.currHeight = blk.Height
+	_, err := app.block.UnmarshalMsg(blk.BlockInfo)
+	if err != nil {
+		panic(err)
+	}
+	app.syncBlockInfo()
+	return
+}
+
+func (app *App) catchupLeader(storeHeight int64) int64 {
+	latestHeight := app.GetLatestBlockNum()
+	if latestHeight == -1 {
+		panic(app.rpcClient.err.Error())
+	}
+	for h := storeHeight + 1; h <= latestHeight; h++ {
+		app.updateState(h)
+	}
+	return latestHeight
 }
 
 func (app *App) syncBlockInfo() *types.BlockInfo {
@@ -199,17 +207,6 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	return c
 }
 
-func (app *App) GetRunTxContext() *types.Context {
-	c := types.NewContext(nil, nil)
-	r := rabbit.NewRabbitStore(app.trunk)
-	c = c.WithRbt(&r)
-	c = c.WithDb(app.historyStore)
-	c.SetShaGateForkBlock(param.ShaGateForkBlock)
-	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
-	c.SetCurrentHeight(app.currHeight)
-	return c
-}
-
 func (app *App) GetHistoryOnlyContext() *types.Context {
 	c := types.NewContext(nil, nil)
 	c = c.WithDb(app.historyStore)
@@ -225,7 +222,7 @@ func (app *App) RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Addres
 	ctx := app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	runner := ebp.NewTxRunner(ctx, txToRun)
-	bi := app.blockInfo.Load().(*types.BlockInfo)
+	bi := app.LoadBlockInfo()
 	if height > 0 {
 		blk, err := ctx.GetBlockByHeight(uint64(height))
 		if err != nil {
@@ -269,10 +266,6 @@ func (app *App) RunTxForSbchRpc(gethTx *gethtypes.Transaction, sender gethcmn.Ad
 	}
 	estimateResult := ebp.RunTxForRpc(bi, false, runner)
 	return runner, estimateResult
-}
-
-func (app *App) GetLastGasUsed() uint64 {
-	return app.lastGasUsed
 }
 
 func (app *App) GetLatestBlockNum() int64 {
