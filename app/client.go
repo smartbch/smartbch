@@ -17,6 +17,11 @@ const (
 	ReqStrBlockNum  = `{"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id":1}`
 )
 
+type IStateProducer interface {
+	GeLatestBlock() int64
+	GetSyncBlock(height uint64) *modbtypes.ExtendedBlock
+}
+
 type RpcClient struct {
 	url         string
 	user        string
@@ -74,7 +79,7 @@ type jsonrpcMessage struct {
 	Result  json.RawMessage `json:"result,omitempty"`
 }
 
-func (client *RpcClient) getSyncBlock(height uint64) *modbtypes.ExtendedBlock {
+func (client *RpcClient) GetSyncBlock(height uint64) *modbtypes.ExtendedBlock {
 	var respData []byte
 	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrSyncBlock, hexutil.Uint64(height).String()))
 	if client.err != nil {
@@ -93,7 +98,7 @@ func (client *RpcClient) getSyncBlock(height uint64) *modbtypes.ExtendedBlock {
 	return &eBlock
 }
 
-func (client *RpcClient) geLatestBlock() int64 {
+func (client *RpcClient) GeLatestBlock() int64 {
 	var respData []byte
 	respData, client.err = client.sendRequest(ReqStrBlockNum)
 	if client.err != nil {

@@ -16,7 +16,6 @@ import (
 
 const (
 	StakingContractSequence uint64 = math.MaxUint64 - 2 /*uint64(-3)*/
-	Uint64_1e18             uint64 = 1000_000_000_000_000_000
 )
 
 var (
@@ -61,15 +60,6 @@ func (_ *StakingContractExecutor) Init(ctx *mevmtypes.Context) {
 	readonlyStakingInfo = &info
 }
 
-func LoadStakingAccAndInfo(ctx *mevmtypes.Context) (stakingAcc *mevmtypes.AccountInfo, info types.StakingInfo) {
-	stakingAcc = ctx.GetAccount(StakingContractAddress)
-	if stakingAcc == nil {
-		panic("Cannot find staking contract")
-	}
-	info = LoadStakingInfo(ctx)
-	return
-}
-
 func LoadStakingInfo(ctx *mevmtypes.Context) (info types.StakingInfo) {
 	bz := ctx.GetStorageAt(StakingContractSequence, SlotStakingInfo)
 	if bz == nil {
@@ -82,6 +72,18 @@ func LoadStakingInfo(ctx *mevmtypes.Context) (info types.StakingInfo) {
 	return
 }
 
+func AddGenesisValidatorsIntoStakingInfo(ctx *mevmtypes.Context, genesisValidators []*types.Validator) {
+	info := LoadStakingInfo(ctx)
+	info.Validators = genesisValidators
+	info.PendingRewards = make([]*types.PendingReward, len(genesisValidators))
+	for i := range info.PendingRewards {
+		info.PendingRewards[i] = &types.PendingReward{
+			Address: genesisValidators[i].Address,
+		}
+	}
+	SaveStakingInfo(ctx, info)
+}
+
 func SaveStakingInfo(ctx *mevmtypes.Context, info types.StakingInfo) {
 	bz, err := info.MarshalMsg(nil)
 	if err != nil {
@@ -89,14 +91,6 @@ func SaveStakingInfo(ctx *mevmtypes.Context, info types.StakingInfo) {
 	}
 	ctx.SetStorageAt(StakingContractSequence, SlotStakingInfo, bz)
 	readonlyStakingInfo = &info
-}
-
-// get a slot number to store an epoch's validators, starting from (1<<64)
-func getSlotForEpoch(epochNum int64) string {
-	var buf [32]byte
-	buf[23] = 1
-	binary.BigEndian.PutUint64(buf[24:], uint64(epochNum))
-	return string(buf[:])
 }
 
 func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
@@ -110,14 +104,4 @@ func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
 		return DefaultMinGasPrice
 	}
 	return binary.BigEndian.Uint64(bz)
-}
-
-func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
-	var b [8]byte
-	binary.BigEndian.PutUint64(b[:], minGP)
-	if isLast {
-		ctx.SetStorageAt(StakingContractSequence, SlotLastMinGasPrice, b[:])
-	} else {
-		ctx.SetStorageAt(StakingContractSequence, SlotMinGasPrice, b[:])
-	}
 }
