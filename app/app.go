@@ -13,8 +13,6 @@ import (
 	gethcore "github.com/ethereum/go-ethereum/core"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
-	"github.com/spf13/viper"
-	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -72,7 +70,7 @@ func NewApp(config *param.ChainConfig, logger log.Logger) *App {
 	//todo: change isInit from cmd flag or modb state
 	isInit := true
 	if isInit {
-		app.initGenesisState(config)
+		app.InitGenesisState()
 	}
 	app.StateProducer = NewRpcClient(config.AppConfig.SmartBchRPCUrl, "", "", "application/json", app.Logger.With("module", "client"))
 	go app.Run(0)
@@ -111,10 +109,10 @@ func CreateHistoryStore(config *param.ChainConfig, logger log.Logger) (historySt
 	return
 }
 
-func (app *App) initGenesisState(config *param.ChainConfig) {
-	config.NodeConfig.SetRoot(viper.GetString(cli.HomeFlag))
-	genFile := config.NodeConfig.GenesisFile()
+func (app *App) InitGenesisState() {
+	genFile := app.Config.NodeConfig.GenesisFile()
 	genDoc := &tmtypes.GenesisDoc{}
+	fmt.Println(genFile)
 	if _, err := os.Stat(genFile); err != nil {
 		if !os.IsNotExist(err) {
 			panic(err)
@@ -125,12 +123,20 @@ func (app *App) initGenesisState(config *param.ChainConfig) {
 			panic(err)
 		}
 	}
+	fmt.Println(genDoc)
 	genesisData := GenesisData{}
 	err := json.Unmarshal(genDoc.AppState, &genesisData)
 	if err != nil {
 		panic(err)
 	}
-	app.Trunk = app.Root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
+	out, err := json.Marshal(genesisData)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("genesis data:")
+	fmt.Println(string(out))
+	app.Trunk = app.Root.GetTrunkStore(app.Config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
+	app.Root.SetHeight(0)
 	app.createGenesisAccounts(genesisData.Alloc)
 	genesisValidators := genesisData.stakingValidators()
 	if len(genesisValidators) == 0 {
