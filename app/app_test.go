@@ -23,7 +23,7 @@ func TestNewApp(t *testing.T) {
 	config := param.DefaultConfig()
 	config.AppConfig.AppDataPath = os.ExpandEnv("$PWD/app")
 	config.AppConfig.ModbDataPath = os.ExpandEnv("$PWD/modb")
-	config.NodeConfig.RootDir = os.ExpandEnv("$PWD")
+	config.RootPath = os.ExpandEnv("$PWD")
 	err := os.MkdirAll(os.ExpandEnv("$PWD/config"), os.ModePerm)
 	if err != nil {
 		panic(err)
@@ -89,7 +89,7 @@ type mockRpcClient struct {
 
 var _ app.IStateProducer = &mockRpcClient{}
 
-func (m *mockRpcClient) GeLatestBlock() int64 {
+func (m *mockRpcClient) GeLatestBlockHeight() int64 {
 	m.height++
 	if m.height > m.maxHeight {
 		return m.maxHeight

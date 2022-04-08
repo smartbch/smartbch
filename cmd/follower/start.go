@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -81,6 +82,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	_app := appCreator(ctx.Logger, ctx.Config)
 	rpcServer, err := startRPCServer(_app, ctx)
 	if err != nil {
+		fmt.Printf("start rpc server error:%s\n", err.Error())
 		return nil, err
 	}
 	TrapSignal(func() {

@@ -18,7 +18,7 @@ const (
 )
 
 type IStateProducer interface {
-	GeLatestBlock() int64
+	GeLatestBlockHeight() int64
 	GetSyncBlock(height uint64) *modbtypes.ExtendedBlock
 }
 
@@ -98,10 +98,11 @@ func (client *RpcClient) GetSyncBlock(height uint64) *modbtypes.ExtendedBlock {
 	return &eBlock
 }
 
-func (client *RpcClient) GeLatestBlock() int64 {
+func (client *RpcClient) GeLatestBlockHeight() int64 {
 	var respData []byte
 	respData, client.err = client.sendRequest(ReqStrBlockNum)
 	if client.err != nil {
+		fmt.Printf("GeLatestBlockHeight err:%s\n", client.err)
 		return -1
 	}
 	var m jsonrpcMessage

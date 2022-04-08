@@ -73,7 +73,9 @@ func NewApp(config *param.ChainConfig, logger log.Logger) *App {
 		app.InitGenesisState()
 	}
 	app.StateProducer = NewRpcClient(config.AppConfig.SmartBchRPCUrl, "", "", "application/json", app.Logger.With("module", "client"))
-	go app.Run(0)
+	app.currHeight = app.HistoryStore.GetLatestHeight()
+	fmt.Printf("storeHeight:%d\n", app.currHeight)
+	go app.Run(app.currHeight)
 	return app
 }
 
@@ -210,8 +212,10 @@ func (app *App) updateState(height int64) int64 {
 }
 
 func (app *App) catchupLeader(storeHeight int64) int64 {
-	latestHeight := app.StateProducer.GeLatestBlock()
+	latestHeight := app.StateProducer.GeLatestBlockHeight()
+	fmt.Printf("catchupLeader latestHeight:%d\n", latestHeight)
 	if latestHeight == -1 {
+		fmt.Println("catchupLeader panic")
 		panic("cannot get latest height")
 	}
 	for h := storeHeight + 1; h <= latestHeight; h++ {
