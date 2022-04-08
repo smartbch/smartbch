@@ -404,56 +404,13 @@ func (api *ethAPI) ProtocolVersion() hexutil.Uint {
 // https://eth.wiki/json-rpc/API#eth_sendRawTransaction
 func (api *ethAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 	api.logger.Debug("eth_sendRawTransaction")
-	tx, err := ethutils.DecodeTx(data)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	tmTxHash, err := api.backend.SendRawTx(data)
-	if err != nil {
-		return tmTxHash, err
-	}
-
-	return tx.Hash(), nil
+	return common.Hash{}, errors.New("follower mode not support mempool related api")
 }
 
 // https://eth.wiki/json-rpc/API#eth_sendTransaction
 func (api *ethAPI) SendTransaction(args rpctypes.SendTxArgs) (common.Hash, error) {
 	api.logger.Debug("eth_sendTransaction")
-	privKey, found := api.accounts[args.From]
-	if !found {
-		return common.Hash{}, errors.New("unknown account: " + args.From.Hex())
-	}
-
-	if args.Nonce == nil {
-		if nonce, err := api.backend.GetNonce(args.From, -1); err == nil {
-			args.Nonce = (*hexutil.Uint64)(&nonce)
-		}
-	}
-
-	tx, err := createGethTxFromSendTxArgs(args)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	chainID := api.backend.ChainId()
-	tx, err = ethutils.SignTx(tx, chainID, privKey)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	txBytes, err := ethutils.EncodeTx(tx)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	tmTxHash, err := api.backend.SendRawTx(txBytes)
-	if err != nil {
-		return tmTxHash, err
-	}
-
-	txHash := tx.Hash()
-	return txHash, err
+	return common.Hash{}, errors.New("follower mode not support mempool related api")
 }
 
 // https://eth.wiki/json-rpc/API#eth_syncing

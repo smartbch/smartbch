@@ -9,11 +9,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/rpc"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
+	tmservice "github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/node"
 	tmrpcserver "github.com/tendermint/tendermint/rpc/jsonrpc/server"
+
+	"github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/rpc"
 )
 
 const (
@@ -32,7 +35,6 @@ const (
 	flagUnlock             = "unlock"
 
 	flagSmartBchUrl = "smartbch-url"
-	flagRpcOnly     = "rpc-only"
 	flagArchiveMode = "archive-mode"
 )
 
@@ -55,7 +57,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	_ = cmd.Flags().MarkHidden("proxy_app")
 
 	defaultRpcCfg := tmrpcserver.DefaultConfig()
-	cmd.PersistentFlags().String("log_level", ctx.Config.NodeConfig.LogLevel, "Log level")
+	cmd.PersistentFlags().String("log_level", ctx.Config.LogLevel, "Log level")
 	cmd.Flags().String(flagRpcAddr, "tcp://:8545", "HTTP-RPC server listening address")
 	cmd.Flags().String(flagRpcAddrSecure, "tcp://:9545", "HTTPS-RPC server listening address, use special value \"off\" to disable HTTPS")
 	cmd.Flags().String(flagWsAddr, "tcp://:8546", "WS-RPC server listening address")
@@ -68,7 +70,6 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().Uint(flagMaxBodyBytes, uint(defaultRpcCfg.MaxBodyBytes), "max body bytes of RPC server")
 	cmd.Flags().String(flagUnlock, "", "Comma separated list of private keys to unlock (only for testing)")
 	cmd.Flags().String(flagSmartBchUrl, "tcp://:8545", "SmartBch RPC URL")
-	cmd.Flags().Bool(flagRpcOnly, false, "Start RPC server even tmnode is not started correctly, only useful for debug purpose")
 	cmd.Flags().String(flagRpcAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the HTTP-RPC interface")
 	cmd.Flags().String(flagWsAPI, "eth,web3,net,txpool,sbch,tm", "API's offered over the WS-RPC interface")
 	cmd.Flags().Bool(flagArchiveMode, false, "enable archive-mode")
@@ -77,8 +78,20 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 }
 
 func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
-	app := appCreator(ctx.Logger, ctx.Config)
+	_app := appCreator(ctx.Logger, ctx.Config)
+	rpcServer, err := startRPCServer(_app, ctx)
+	if err != nil {
+		return nil, err
+	}
+	TrapSignal(func() {
+		_ = rpcServer.Stop()
+		ctx.Logger.Info("exiting...")
+	})
+	// run forever (the node will not be returned)
+	select {}
+}
 
+func startRPCServer(app *app.App, ctx *Context) (tmservice.Service, error) {
 	serverCfg := tmrpcserver.DefaultConfig()
 	if n := viper.GetUint(flagMaxOpenConnections); n > 0 {
 		serverCfg.MaxOpenConnections = int(n)
@@ -100,27 +113,15 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	ctx.Logger.Info("rpc server nodeCfg: " + string(rpcServerCfgJSON))
 
 	rpcBackend := api.NewBackend(app)
-	rpcAddr := viper.GetString(flagRpcAddr)
-	wsAddr := viper.GetString(flagWsAddr)
-	rpcAddrSecure := viper.GetString(flagRpcAddrSecure)
-	wsAddrSecure := viper.GetString(flagWsAddrSecure)
-	corsDomain := viper.GetString(flagCorsDomain)
-	unlockedKeys := viper.GetString(flagUnlock)
-	certfileDir := filepath.Join(ctx.Config.NodeConfig.RootDir, "nodeCfg/cert.pem")
-	keyfileDir := filepath.Join(ctx.Config.NodeConfig.RootDir, "nodeCfg/key.pem")
-	httpAPI := viper.GetString(flagRpcAPI)
-	wsAPI := viper.GetString(flagWsAPI)
-	rpcServer := rpc.NewServer(rpcAddr, wsAddr, rpcAddrSecure, wsAddrSecure, corsDomain, certfileDir, keyfileDir,
-		serverCfg, rpcBackend, ctx.Logger, strings.Split(unlockedKeys, ","), httpAPI, wsAPI)
+	certFileDir := filepath.Join(ctx.Config.RootPath, "nodeCfg/cert.pem")
+	keyFileDir := filepath.Join(ctx.Config.RootPath, "nodeCfg/key.pem")
+	rpcServer := rpc.NewServer(viper.GetString(flagRpcAddr), viper.GetString(flagWsAddr),
+		viper.GetString(flagRpcAddrSecure), viper.GetString(flagWsAddrSecure), viper.GetString(flagCorsDomain), certFileDir, keyFileDir,
+		serverCfg, rpcBackend, ctx.Logger, strings.Split(viper.GetString(flagUnlock), ","),
+		viper.GetString(flagRpcAPI), viper.GetString(flagWsAPI))
 
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
 	}
-	TrapSignal(func() {
-		_ = rpcServer.Stop()
-		ctx.Logger.Info("exiting...")
-	})
-
-	// run forever (the node will not be returned)
-	select {}
+	return rpcServer, nil
 }

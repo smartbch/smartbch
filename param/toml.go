@@ -2,6 +2,7 @@ package param
 
 import (
 	"bytes"
+	"path/filepath"
 	"text/template"
 
 	"github.com/spf13/viper"
@@ -13,12 +14,6 @@ const defaultConfigTemplate = `# This is a TOML config file.
 
 # eth_getLogs max return items
 get_logs_max_results = {{ .RpcEthGetLogsMaxResults }}
-
-# retain blocks in TM
-retain-blocks = {{ .RetainBlocks }}
-
-# every retain_interval_blocks blocks execute TM blocks prune
-retain_interval_blocks = {{ .ChangeRetainEveryN }}
 
 # use liteDB
 use_litedb = {{ .UseLiteDB }}
@@ -35,8 +30,11 @@ trunk_cache_size = {{ .TrunkCacheSize }}
 # We try to prune the old blocks of moeingads every n blocks
 prune_every_n = {{ .PruneEveryN }}
 
-# smartBCH rpc url for epoch get
+# SmartBCH leader rpc url
 smartbch-rpc-url = "{{ .SmartBchRPCUrl }}"
+
+# Output level for logging
+log_level = "{{ .LogLevel }}"
 `
 
 var configTemplate *template.Template
@@ -52,7 +50,21 @@ func init() {
 func ParseConfig(home string) (*AppConfig, error) {
 	conf := DefaultAppConfigWithHome(home)
 	err := viper.Unmarshal(conf)
+	EnsureRoot(home)
 	return conf, err
+}
+
+func EnsureRoot(home string) {
+	const DefaultDirPerm = 0700
+	if err := tmos.EnsureDir(home, DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+	if err := tmos.EnsureDir(filepath.Join(home, "config"), DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+	if err := tmos.EnsureDir(filepath.Join(home, "data"), DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
 }
 
 func WriteConfigFile(configFilePath string, config *AppConfig) {

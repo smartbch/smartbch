@@ -6,7 +6,8 @@
 *.dylib
 *.o
 *.a
-smartbchd
+cmd/follower
+follower
 
 # Test binary, built with `go test -c`
 *.test
@@ -28,11 +29,9 @@ rpc/api/testdbdata
 node_modules/
 staking/showopreturn/showopreturn
 staking/mocknode/mocknode
-cmd/smartbchd/smartbchd
+cmd/follower/follower
 
 private/
-app/stresstest/stresstest
 *.bak
 testdbdata/
 keys*.txt
-cmd/stresstest/stresstest

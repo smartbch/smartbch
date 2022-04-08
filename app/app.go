@@ -110,7 +110,7 @@ func CreateHistoryStore(config *param.ChainConfig, logger log.Logger) (historySt
 }
 
 func (app *App) InitGenesisState() {
-	genFile := app.Config.NodeConfig.GenesisFile()
+	genFile := app.Config.AppConfig.GenesisFilePath
 	genDoc := &tmtypes.GenesisDoc{}
 	fmt.Println(genFile)
 	if _, err := os.Stat(genFile); err != nil {

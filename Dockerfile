@@ -40,7 +40,7 @@ RUN make
 ENV EVMWRAP=/smart_bch/moeingevm/evmwrap/host_bridge/libevmwrap.so
 
 WORKDIR /smart_bch/smartbch
-RUN go install -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
+RUN go install -tags cppbtree github.com/smartbch/smartbch/cmd/follower
 
 VOLUME ["/root/.smartbchd"]
 

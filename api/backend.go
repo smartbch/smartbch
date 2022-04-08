@@ -7,8 +7,6 @@ import (
 	"math"
 	"math/big"
 
-	tmtypes "github.com/tendermint/tendermint/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethcore "github.com/ethereum/go-ethereum/core"
@@ -155,24 +153,7 @@ func (backend *apiBackend) CurrentBlock() (*types.Block, error) {
 }
 
 func (backend *apiBackend) SendRawTx(signedTx []byte) (common.Hash, error) {
-	return backend.broadcastTxSync(signedTx)
-}
-
-func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
-	//todo: send to leader or make mempool local
-	//resCh := make(chan *abci.Response, 1)
-	//err := backend.node.Mempool().CheckTx(tx, func(res *abci.Response) {
-	//	resCh <- res
-	//}, mempool.TxInfo{})
-	//if err != nil {
-	//	return common.Hash{}, err
-	//}
-	//res := <-resCh
-	//r := res.GetCheckTx()
-	//if r.Code != abci.CodeTypeOK {
-	//	return common.Hash{}, errors.New(r.String())
-	//}
-	return common.BytesToHash(tx.Hash()), nil
+	return common.Hash{}, errors.New("follower mode not support mempool related api")
 }
 
 // CallForSbch use app.RunTxForSbchRpc and returns more detailed result info

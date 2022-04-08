@@ -33,7 +33,7 @@ type RpcClient struct {
 
 func NewRpcClient(url, user, password, contentType string, logger log.Logger) *RpcClient {
 	if url == "" {
-		return nil
+		url = "http://0.0.0.0:8545"
 	}
 	return &RpcClient{
 		url:         url,

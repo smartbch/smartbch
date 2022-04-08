@@ -3,8 +3,6 @@ package param
 import (
 	"os"
 	"path/filepath"
-
-	"github.com/tendermint/tendermint/config"
 )
 
 const (
@@ -19,6 +17,8 @@ const (
 )
 
 type AppConfig struct {
+	RootPath        string `mapstructure:"root_path"`
+	GenesisFilePath string `mapstructure:"genesis_file_path"`
 	//app config:
 	AppDataPath  string `mapstructure:"app_data_path"`
 	ModbDataPath string `mapstructure:"modb_data_path"`
@@ -36,15 +36,16 @@ type AppConfig struct {
 	SmartBchRPCUrl string `mapstructure:"smartbch-rpc-url"`
 
 	ArchiveMode bool `mapstructure:"archive-mode"`
+	// Output level for logging
+	LogLevel string `mapstructure:"log_level"`
 }
 
 type ChainConfig struct {
-	NodeConfig *config.Config `mapstructure:"node_config"`
-	AppConfig  *AppConfig     `mapstructure:"app_config"`
+	*AppConfig `mapstructure:"app_config"`
 }
 
 var (
-	defaultHome = os.ExpandEnv("$HOME/.smartbchd")
+	defaultHome = os.ExpandEnv("$HOME/.follower")
 )
 
 func DefaultAppConfig() *AppConfig {
@@ -55,6 +56,8 @@ func DefaultAppConfigWithHome(home string) *AppConfig {
 		home = defaultHome
 	}
 	return &AppConfig{
+		RootPath:                home,
+		GenesisFilePath:         filepath.Join(home, "config", "genesis.json"),
 		AppDataPath:             filepath.Join(home, "data", AppDataPath),
 		ModbDataPath:            filepath.Join(home, "data", ModbDataPath),
 		RpcEthGetLogsMaxResults: DefaultRpcEthGetLogsMaxResults,
@@ -62,14 +65,14 @@ func DefaultAppConfigWithHome(home string) *AppConfig {
 		NumKeptBlocksInMoDB:     DefaultNumKeptBlocksInMoDB,
 		TrunkCacheSize:          DefaultTrunkCacheSize,
 		PruneEveryN:             DefaultPruneEveryN,
+		SmartBchRPCUrl:          "http://0.0.0.0:8545",
+		LogLevel:                "debug",
 	}
 }
 
 func DefaultConfig() *ChainConfig {
 	c := &ChainConfig{
-		NodeConfig: config.DefaultConfig(),
-		AppConfig:  DefaultAppConfig(),
+		AppConfig: DefaultAppConfig(),
 	}
-	c.NodeConfig.TxIndex.Indexer = "null"
 	return c
 }

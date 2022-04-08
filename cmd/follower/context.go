@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DefaultNodeHome = os.ExpandEnv("$HOME/.smartbchd")
+	DefaultNodeHome = os.ExpandEnv("$HOME/.follower")
 )
 
 type Context struct {

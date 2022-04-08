@@ -12,7 +12,7 @@ import (
 type AppCreator func(logger log.Logger, config *param.ChainConfig) *app.App
 
 func main() {
-	rootCmd := createSmartbchdCmd()
+	rootCmd := createFollowerCmd()
 	executor := cli.PrepareBaseCmd(rootCmd, "GA", DefaultNodeHome)
 	err := executor.Execute()
 	if err != nil {
@@ -21,12 +21,12 @@ func main() {
 	}
 }
 
-func createSmartbchdCmd() *cobra.Command {
+func createFollowerCmd() *cobra.Command {
 	cobra.EnableCommandSorting = false
 	ctx := NewDefaultContext()
 	rootCmd := &cobra.Command{
-		Use:               "smartbchd",
-		Short:             "SmartBCH Chain Daemon (server)",
+		Use:               "follower",
+		Short:             "SmartBCH Chain Follower Daemon (server)",
 		PersistentPreRunE: PersistentPreRunEFn(ctx),
 	}
 	addInitCommands(ctx, rootCmd)
