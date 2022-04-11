@@ -3,7 +3,6 @@ package app
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
 	"sync/atomic"
@@ -30,7 +29,6 @@ import (
 )
 
 type App struct {
-	//Config
 	Config  *param.ChainConfig
 	ChainId *uint256.Int
 
@@ -40,41 +38,29 @@ type App struct {
 	Trunk        *store.TrunkStore
 	HistoryStore modbtypes.DB
 
-	currHeight int64
-	// 'block' contains some meta information of a block. It is collected during BeginBlock&DeliverTx,
-	// and save to world state in Commit.
-	block *types.Block
-	// Some fields of 'block' are copied to 'blockInfo' in Commit. It will be later used by RpcContext
-	// Thus, eth_call can view the new block's height a little earlier than eth_blockNumber
-	blockInfo atomic.Value // to store *types.BlockInfo
-	// of current block. It needs to be reloaded in NewApp
-	// to be reloaded in NewApp
+	currHeight    int64
+	block         *types.Block
+	blockInfo     atomic.Value // to store *types.BlockInfo
 	StateProducer IStateProducer
-	//util
+
 	Logger log.Logger
 }
 
 func NewApp(config *param.ChainConfig, logger log.Logger) *App {
 	app := &App{}
 
-	/*------set Config------*/
 	app.Config = config
 	app.ChainId = uint256.NewInt(param.ChainID)
-
-	/*------set util------*/
 	app.Logger = logger.With("module", "app")
 
-	/*------set store------*/
 	app.Root, app.Mads = CreateRootStore(config)
 	app.HistoryStore = CreateHistoryStore(config, app.Logger.With("module", "modb"))
-	//todo: change isInit from cmd flag or modb state
-	isInit := true
-	if isInit {
+	app.currHeight = app.HistoryStore.GetLatestHeight()
+	app.Logger.Debug("storeHeight", app.currHeight)
+	if app.currHeight == 0 {
 		app.InitGenesisState()
 	}
 	app.StateProducer = NewRpcClient(config.AppConfig.SmartBchRPCUrl, "", "", "application/json", app.Logger.With("module", "client"))
-	app.currHeight = app.HistoryStore.GetLatestHeight()
-	fmt.Printf("storeHeight:%d\n", app.currHeight)
 	go app.Run(app.currHeight)
 	return app
 }
@@ -114,7 +100,6 @@ func CreateHistoryStore(config *param.ChainConfig, logger log.Logger) (historySt
 func (app *App) InitGenesisState() {
 	genFile := app.Config.AppConfig.GenesisFilePath
 	genDoc := &tmtypes.GenesisDoc{}
-	fmt.Println(genFile)
 	if _, err := os.Stat(genFile); err != nil {
 		if !os.IsNotExist(err) {
 			panic(err)
@@ -125,18 +110,12 @@ func (app *App) InitGenesisState() {
 			panic(err)
 		}
 	}
-	fmt.Println(genDoc)
 	genesisData := GenesisData{}
 	err := json.Unmarshal(genDoc.AppState, &genesisData)
 	if err != nil {
 		panic(err)
 	}
-	out, err := json.Marshal(genesisData)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("genesis data:")
-	fmt.Println(string(out))
+	app.Logger.Debug("InitGenesisState", "genesis data", string(genDoc.AppState))
 	app.Trunk = app.Root.GetTrunkStore(app.Config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.Root.SetHeight(0)
 	app.createGenesisAccounts(genesisData.Alloc)
@@ -179,45 +158,41 @@ func (app *App) Run(storeHeight int64) {
 	latestHeight := app.catchupLeader(storeHeight)
 	// Run 2 times to catch blocks mint amount 1st catchupLeader running.
 	latestHeight = app.catchupLeader(latestHeight)
-	fmt.Printf("latestHeight:%d\n", latestHeight)
 	//2. keep sync with leader.
 	for {
 		latestHeight = app.updateState(latestHeight + 1)
-		fmt.Printf("sync height:%d done!\n", latestHeight)
-		//3. sleep and continue
 		time.Sleep(100 * time.Millisecond)
 	}
 }
 
 func (app *App) updateState(height int64) int64 {
-	blk := app.StateProducer.GetSyncBlock(uint64(height))
-	if blk == nil {
-		time.Sleep(100 * time.Millisecond)
+	blk, err := app.StateProducer.GetSyncBlock(uint64(height))
+	if err != nil {
+		app.Logger.Debug("updateState failed", "wantedHeight", height, "error", err)
 		return height - 1
 	}
-	//fmt.Println(blk.BlockInfo)
-	//2. save data to local db
 	app.Root.SetHeight(height)
 	store.SyncUpdateTo(blk.UpdateOfADS, app.Root)
 	app.HistoryStore.AddBlock(&blk.Block, -1, blk.Txid2sigMap)
-	//3. refresh app fields
 	app.currHeight = blk.Height
 	app.block = &types.Block{}
-	_, err := app.block.UnmarshalMsg(blk.BlockInfo)
+	_, err = app.block.UnmarshalMsg(blk.BlockInfo)
 	if err != nil {
 		panic(err)
 	}
 	app.syncBlockInfo()
+	app.Logger.Debug("updateState done", "latestHeight", height)
 	return height
 }
 
 func (app *App) catchupLeader(storeHeight int64) int64 {
-	latestHeight := app.StateProducer.GeLatestBlockHeight()
-	fmt.Printf("catchupLeader latestHeight:%d\n", latestHeight)
-	if latestHeight == -1 {
-		fmt.Println("catchupLeader panic")
-		panic("cannot get latest height")
+	latestHeight, err := app.StateProducer.GeLatestBlockHeight()
+	for err != nil {
+		app.Logger.Debug("catchupLeader failed", "error:", err)
+		time.Sleep(3 * time.Second)
+		latestHeight, err = app.StateProducer.GeLatestBlockHeight()
 	}
+	app.Logger.Debug("catchupLeader", "latestHeight", latestHeight)
 	for h := storeHeight + 1; h <= latestHeight; h++ {
 		h = app.updateState(h)
 	}
@@ -233,7 +208,7 @@ func (app *App) syncBlockInfo() *types.BlockInfo {
 		Hash:      app.block.Hash,
 	}
 	app.blockInfo.Store(bi)
-	app.Logger.Debug(fmt.Sprintf("blockInfo: [height:%d, hash:%s]", bi.Number, gethcmn.Hash(bi.Hash).Hex()))
+	app.Logger.Debug("blockInfo", "height", bi.Number, "hash", gethcmn.Hash(bi.Hash).Hex())
 	return bi
 }
 

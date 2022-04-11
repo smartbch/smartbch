@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -61,9 +60,7 @@ func interceptLoadConfig() (conf *param.ChainConfig, err error) {
 	var appConf *param.AppConfig
 	if _, err := os.Stat(appConfigFilePath); os.IsNotExist(err) {
 		appConf, _ = param.ParseConfig(rootDir)
-		fmt.Println("before write app.toml")
 		param.WriteConfigFile(appConfigFilePath, appConf)
-		fmt.Println("after write app.toml")
 	}
 	if appConf == nil {
 		viper.SetConfigName("app")

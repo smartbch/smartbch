@@ -1,8 +1,6 @@
 package app_test
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -44,22 +42,15 @@ func TestNewApp(t *testing.T) {
 	}()
 	bk := api.NewBackend(a)
 	vals := bk.ValidatorsInfo()
-	out, err := json.Marshal(vals)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(out))
-	//require.Equal(t, )
+	require.Equal(t, true, len(vals.Validators) > 0)
 	go a.Run(0)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	blk, _ := bk.BlockByNumber(1)
 	require.Equal(t, blk.Miner, [20]byte{1})
 	blk, _ = bk.BlockByNumber(5)
 	require.Equal(t, blk.Miner, [20]byte{5})
-	//key := sha256.Sum256(blk.Hash[:])
-	//value := bk.GetStorageAt(api.SEP206ContractAddress, string(key[:]), -1)
-	//require.Equal(t, value, hexutil.EncodeUint64(uint64(blk.Number)))
-	time.Sleep(1 * time.Second)
+	latestHeight := a.HistoryStore.GetLatestHeight()
+	require.Equal(t, true, latestHeight >= 5)
 }
 
 func createTestApp(config *param.ChainConfig, isInit bool, logger log.Logger) *app.App {
@@ -89,15 +80,15 @@ type mockRpcClient struct {
 
 var _ app.IStateProducer = &mockRpcClient{}
 
-func (m *mockRpcClient) GeLatestBlockHeight() int64 {
+func (m *mockRpcClient) GeLatestBlockHeight() (int64, error) {
 	m.height++
 	if m.height > m.maxHeight {
-		return m.maxHeight
+		return m.maxHeight, nil
 	}
-	return m.height
+	return m.height, nil
 }
 
-func (m *mockRpcClient) GetSyncBlock(height uint64) *modbtypes.ExtendedBlock {
+func (m *mockRpcClient) GetSyncBlock(height uint64) (*modbtypes.ExtendedBlock, error) {
 	b := types.Block{
 		Number:           int64(height),
 		Hash:             [32]byte{byte(height)},
@@ -124,9 +115,7 @@ func (m *mockRpcClient) GetSyncBlock(height uint64) *modbtypes.ExtendedBlock {
 	}
 	//key := sha256.Sum256(b.Hash[:])
 	//e.UpdateOfADS[string(types.GetValueKey(2000, string(key[:])))] = hexutil.EncodeUint64(height)
-	blk := &types.Block{}
-	_, _ = blk.UnmarshalMsg(e.BlockInfo)
-	return &e
+	return &e, nil
 }
 
 var genesisData = `{

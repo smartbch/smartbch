@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	rpcapi "github.com/smartbch/smartbch/rpc/api"
 	"net"
 	"net/http"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/smartbch/smartbch/api"
-	rpcapi "github.com/smartbch/smartbch/rpc/api"
 )
 
 var _ tmservice.Service = (*Server)(nil)
@@ -81,7 +81,7 @@ func splitAndTrim(input string) (ret []string) {
 }
 
 func (server *Server) OnStart() error {
-	apis := rpcapi.GetAPIs(server.backend, server.logger, server.unlockedKeys)
+	apis := rpcapi.GetAPIs(server.backend, server.logger)
 	if err := server.startHTTPAndHTTPS(apis); err != nil {
 		return err
 	}
@@ -96,7 +96,6 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 
 	allowedOrigins := strings.Split(server.corsDomain, ",")
 	handler := newCorsHandler(server.httpServer, allowedOrigins)
-
 	server.httpListener, err = tmrpcserver.Listen(
 		server.rpcAddr, server.serverConfig)
 	if err != nil {
@@ -109,7 +108,6 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 			server.logger.Error(err.Error())
 		}
 	}()
-
 	if server.rpcHttpsAddr != "off" {
 		server.httpsListener, err = tmrpcserver.Listen(
 			server.rpcHttpsAddr, server.serverConfig)

@@ -18,8 +18,8 @@ const (
 )
 
 type IStateProducer interface {
-	GeLatestBlockHeight() int64
-	GetSyncBlock(height uint64) *modbtypes.ExtendedBlock
+	GeLatestBlockHeight() (int64, error)
+	GetSyncBlock(height uint64) (*modbtypes.ExtendedBlock, error)
 }
 
 type RpcClient struct {
@@ -79,41 +79,50 @@ type jsonrpcMessage struct {
 	Result  json.RawMessage `json:"result,omitempty"`
 }
 
-func (client *RpcClient) GetSyncBlock(height uint64) *modbtypes.ExtendedBlock {
+func (client *RpcClient) GetSyncBlock(height uint64) (*modbtypes.ExtendedBlock, error) {
 	var respData []byte
 	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrSyncBlock, hexutil.Uint64(height).String()))
 	if client.err != nil {
-		return nil
+		return nil, client.err
 	}
 	var m jsonrpcMessage
 	client.err = json.Unmarshal(respData, &m)
 	if client.err != nil {
-		return nil
+		return nil, client.err
+	}
+	var eBlockString string
+	client.err = json.Unmarshal(m.Result, &eBlockString)
+	if client.err != nil {
+		return nil, client.err
+	}
+	var eBlockBytes []byte
+	eBlockBytes, client.err = hexutil.Decode(eBlockString)
+	if client.err != nil {
+		return nil, client.err
 	}
 	var eBlock modbtypes.ExtendedBlock
-	_, client.err = eBlock.UnmarshalMsg(m.Result)
+	_, client.err = eBlock.UnmarshalMsg(eBlockBytes)
 	if client.err != nil {
-		return nil
+		return nil, client.err
 	}
-	return &eBlock
+	return &eBlock, nil
 }
 
-func (client *RpcClient) GeLatestBlockHeight() int64 {
+func (client *RpcClient) GeLatestBlockHeight() (int64, error) {
 	var respData []byte
 	respData, client.err = client.sendRequest(ReqStrBlockNum)
 	if client.err != nil {
-		fmt.Printf("GeLatestBlockHeight err:%s\n", client.err)
-		return -1
+		return -1, client.err
 	}
 	var m jsonrpcMessage
 	client.err = json.Unmarshal(respData, &m)
 	if client.err != nil {
-		return -1
+		return -1, client.err
 	}
 	var latestBlockHeight hexutil.Uint64
 	client.err = json.Unmarshal(m.Result, &latestBlockHeight)
 	if client.err != nil {
-		return -1
+		return -1, client.err
 	}
-	return int64(latestBlockHeight)
+	return int64(latestBlockHeight), nil
 }

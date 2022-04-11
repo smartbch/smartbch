@@ -5,7 +5,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	sbchapi "github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/rpc/api/filters"
 )
 
 const (
@@ -21,12 +20,11 @@ const (
 
 // GetAPIs returns the list of all APIs from the Ethereum namespaces
 func GetAPIs(backend sbchapi.BackendService,
-	logger log.Logger, testKeys []string) []rpc.API {
-
+	logger log.Logger) []rpc.API {
 	logger = logger.With("module", "json-rpc")
-	_ethAPI := newEthAPI(backend, testKeys, logger)
+	_ethAPI := newEthAPI(backend, logger)
 	_netAPI := newNetAPI(backend.ChainId().Uint64(), logger)
-	_filterAPI := filters.NewAPI(backend, logger)
+	//_filterAPI := filters.NewAPI(backend, logger)
 	_web3API := newWeb3API(logger)
 	_txPoolAPI := newTxPoolAPI(logger)
 	_sbchAPI := newSbchAPI(backend, logger)
@@ -40,12 +38,12 @@ func GetAPIs(backend sbchapi.BackendService,
 			Service:   _ethAPI,
 			Public:    true,
 		},
-		{
-			Namespace: namespaceEth,
-			Version:   apiVersion,
-			Service:   _filterAPI,
-			Public:    true,
-		},
+		//{
+		//	Namespace: namespaceEth,
+		//	Version:   apiVersion,
+		//	Service:   _filterAPI,
+		//	Public:    true,
+		//},
 		{
 			Namespace: namespaceWeb3,
 			Version:   apiVersion,

@@ -27,8 +27,6 @@ rpc/api/testdbdata
 *.log
 
 node_modules/
-staking/showopreturn/showopreturn
-staking/mocknode/mocknode
 cmd/follower/follower
 
 private/

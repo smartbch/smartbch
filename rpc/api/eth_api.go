@@ -4,13 +4,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
-	"sort"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -84,45 +82,16 @@ type ethAPI struct {
 	numCall  uint64
 }
 
-func newEthAPI(backend sbchapi.BackendService, testKeys []string, logger log.Logger) *ethAPI {
+func newEthAPI(backend sbchapi.BackendService, logger log.Logger) *ethAPI {
 	return &ethAPI{
-		backend:  backend,
-		accounts: loadTestAccounts(testKeys, logger),
-		logger:   logger,
+		backend: backend,
+		logger:  logger,
 	}
-}
-
-func loadTestAccounts(testKeys []string, logger log.Logger) map[common.Address]*ecdsa.PrivateKey {
-	accs := make(map[common.Address]*ecdsa.PrivateKey, len(testKeys))
-	for _, testKey := range testKeys {
-		if key, _, err := ethutils.HexToPrivKey(testKey); err == nil {
-			addr := crypto.PubkeyToAddress(key.PublicKey)
-			accs[addr] = key
-		} else {
-			logger.Error("failed to load private key:", testKey, err.Error())
-		}
-	}
-	return accs
 }
 
 func (api *ethAPI) Accounts() ([]common.Address, error) {
 	api.logger.Debug("eth_accounts")
-	addrs := make([]common.Address, 0, len(api.accounts))
-	for addr := range api.accounts {
-		addrs = append(addrs, addr)
-	}
-
-	sort.Slice(addrs, func(i, j int) bool {
-		for k := 0; k < common.AddressLength; k++ {
-			if addrs[i][k] < addrs[j][k] {
-				return true
-			} else if addrs[i][k] > addrs[j][k] {
-				return false
-			}
-		}
-		return false
-	})
-	return addrs, nil
+	return nil, nil
 }
 
 // https://eth.wiki/json-rpc/API#eth_blockNumber

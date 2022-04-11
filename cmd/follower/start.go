@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -82,14 +80,14 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	_app := appCreator(ctx.Logger, ctx.Config)
 	rpcServer, err := startRPCServer(_app, ctx)
 	if err != nil {
-		fmt.Printf("start rpc server error:%s\n", err.Error())
+		ctx.Logger.Info("start rpc server failed", "error", err)
 		return nil, err
 	}
+	ctx.Logger.Info("start rpc server successful")
 	TrapSignal(func() {
 		_ = rpcServer.Stop()
 		ctx.Logger.Info("exiting...")
 	})
-	// run forever (the node will not be returned)
 	select {}
 }
 
@@ -110,10 +108,6 @@ func startRPCServer(app *app.App, ctx *Context) (tmservice.Service, error) {
 	if n := viper.GetUint(flagMaxBodyBytes); n > 0 {
 		serverCfg.MaxBodyBytes = int64(n)
 	}
-
-	rpcServerCfgJSON, _ := json.Marshal(serverCfg)
-	ctx.Logger.Info("rpc server nodeCfg: " + string(rpcServerCfgJSON))
-
 	rpcBackend := api.NewBackend(app)
 	certFileDir := filepath.Join(ctx.Config.RootPath, "nodeCfg/cert.pem")
 	keyFileDir := filepath.Join(ctx.Config.RootPath, "nodeCfg/key.pem")
@@ -121,7 +115,6 @@ func startRPCServer(app *app.App, ctx *Context) (tmservice.Service, error) {
 		viper.GetString(flagRpcAddrSecure), viper.GetString(flagWsAddrSecure), viper.GetString(flagCorsDomain), certFileDir, keyFileDir,
 		serverCfg, rpcBackend, ctx.Logger, strings.Split(viper.GetString(flagUnlock), ","),
 		viper.GetString(flagRpcAPI), viper.GetString(flagWsAPI))
-
 	if err := rpcServer.Start(); err != nil {
 		return nil, err
 	}
