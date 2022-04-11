@@ -1,6 +1,15 @@
 # Changelog
 
 
+## v0.4.4
+
+* Library
+  * Upgrade moeingads to v0.4.2
+  * Upgrade moeingdb to v0.4.2
+  * Upgrade moeingevm to v0.4.2
+* Others
+  * Update XHedgeContractSequence and XHedgeForkBlock
+
 
 ## v0.4.3
 
