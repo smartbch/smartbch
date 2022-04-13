@@ -29,7 +29,7 @@ type PendingReward struct {
 	Amount   string          `json:"amount"`
 }
 
-func newValidatorsInfo(currValidators []*stakingtypes.Validator,
+func NewValidatorsInfo(currValidators []*stakingtypes.Validator,
 	stakingInfo stakingtypes.StakingInfo,
 	minGasPrice, lastMinGasPrice uint64) ValidatorsInfo {
 

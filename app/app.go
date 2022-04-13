@@ -168,8 +168,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.logger = logger.With("module", "app")
 
 	/*------set store------*/
-	app.root, app.mads = createRootStore(config)
-	app.historyStore = createHistoryStore(config, app.logger.With("module", "modb"))
+	app.root, app.mads = CreateRootStore(config.AppConfig.AppDataPath, config.AppConfig.ArchiveMode)
+	app.historyStore = CreateHistoryStore(config.AppConfig.ModbDataPath, config.AppConfig.UseLiteDB, config.AppConfig.RpcEthGetLogsMaxResults,
+		app.logger.With("module", "modb"))
 	if config.AppConfig.WithSyncDB {
 		app.syncDB = syncdb.NewSyncDB(config.AppConfig.SyncdbDataPath)
 	}
@@ -241,10 +242,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	return app
 }
 
-func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.MoeingADS) {
+func CreateRootStore(dataPath string, isArchiveMode bool) (*store.RootStore, *moeingads.MoeingADS) {
 	first := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 	last := [8]byte{255, 255, 255, 255, 255, 255, 255, 255}
-	mads, err := moeingads.NewMoeingADS(config.AppConfig.AppDataPath, config.AppConfig.ArchiveMode,
+	mads, err := moeingads.NewMoeingADS(dataPath, isArchiveMode,
 		[][]byte{first[:], last[:]})
 	if err != nil {
 		panic(err)
@@ -255,9 +256,9 @@ func createRootStore(config *param.ChainConfig) (*store.RootStore, *moeingads.Mo
 	return root, mads
 }
 
-func createHistoryStore(config *param.ChainConfig, logger log.Logger) (historyStore modbtypes.DB) {
-	modbDir := config.AppConfig.ModbDataPath
-	if config.AppConfig.UseLiteDB {
+func CreateHistoryStore(dataPath string, useLiteDB bool, maxLogResults int, logger log.Logger) (historyStore modbtypes.DB) {
+	modbDir := dataPath
+	if useLiteDB {
 		historyStore = modb.NewLiteDB(modbDir)
 	} else {
 		if _, err := os.Stat(modbDir); os.IsNotExist(err) {
@@ -268,7 +269,7 @@ func createHistoryStore(config *param.ChainConfig, logger log.Logger) (historySt
 		} else {
 			historyStore = modb.NewMoDB(modbDir, logger)
 		}
-		historyStore.SetMaxEntryCount(config.AppConfig.RpcEthGetLogsMaxResults)
+		historyStore.SetMaxEntryCount(maxLogResults)
 	}
 	return
 }
@@ -421,7 +422,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	}
 
 	app.createGenesisAccounts(genesisData.Alloc)
-	genesisValidators := genesisData.stakingValidators()
+	genesisValidators := genesisData.StakingValidators()
 
 	if len(genesisValidators) == 0 {
 		panic("no genesis validator in genesis.json")
@@ -926,7 +927,7 @@ func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	currValidators := stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
 	minGasPrice := staking.LoadMinGasPrice(ctx, false)
 	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
-	return newValidatorsInfo(currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
+	return NewValidatorsInfo(currValidators, stakingInfo, minGasPrice, lastMinGasPrice)
 }
 
 func (app *App) IsArchiveMode() bool {

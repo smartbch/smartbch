@@ -25,7 +25,7 @@ type GenesisData struct {
 	Alloc      gethcore.GenesisAlloc `json:"alloc"`
 }
 
-func (g GenesisData) stakingValidators() []*stakingtypes.Validator {
+func (g GenesisData) StakingValidators() []*stakingtypes.Validator {
 	ret := make([]*stakingtypes.Validator, len(g.Validators))
 	for i, v := range g.Validators {
 		ret[i] = &stakingtypes.Validator{
