@@ -498,6 +498,14 @@ func TestGetSyncBlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, dataLeft, 0)
 	require.Equal(t, tx1.Hash(), gethcmn.Hash(syncBlock1.TxList[0].HashId))
+
+	syncData2, err := _api.GetSyncBlock(2)
+	require.NoError(t, err)
+	syncBlock2 := mdbtypes.ExtendedBlock{}
+	dataLeft, err = syncBlock2.UnmarshalMsg(syncData2)
+	require.NoError(t, err)
+	require.Len(t, dataLeft, 0)
+	require.Len(t, syncBlock2.Txid2sigMap, 1)
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {
