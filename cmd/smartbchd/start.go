@@ -152,7 +152,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	rpcServerCfgJSON, _ := json.Marshal(serverCfg)
 	ctx.Logger.Info("rpc server nodeCfg: " + string(rpcServerCfgJSON))
 
-	rpcBackend := api.NewBackend(tmNode, appImpl)
+	rpcBackend := api.NewBackend(api.NewTmNode(tmNode), appImpl)
 	rpcAddr := viper.GetString(flagRpcAddr)
 	wsAddr := viper.GetString(flagWsAddr)
 	rpcAddrSecure := viper.GetString(flagRpcAddrSecure)

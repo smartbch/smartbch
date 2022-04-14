@@ -1,17 +1,10 @@
 package api
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
-
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/mempool"
-	"github.com/tendermint/tendermint/node"
-	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -42,7 +35,7 @@ var SEP206ContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 type apiBackend struct {
 	//extRPCEnabled bool
-	node *node.Node
+	node ITmNode
 	app  app.IApp
 	//gpo *gasprice.Oracle
 
@@ -55,7 +48,7 @@ type apiBackend struct {
 	//pendingLogsFeed event.Feed
 }
 
-func NewBackend(node *node.Node, app app.IApp) BackendService {
+func NewBackend(node ITmNode, app app.IApp) BackendService {
 	return &apiBackend{
 		node: node,
 		app:  app,
@@ -165,23 +158,7 @@ func (backend *apiBackend) CurrentBlock() (*types.Block, error) {
 }
 
 func (backend *apiBackend) SendRawTx(signedTx []byte) (common.Hash, error) {
-	return backend.broadcastTxSync(signedTx)
-}
-
-func (backend *apiBackend) broadcastTxSync(tx tmtypes.Tx) (common.Hash, error) {
-	resCh := make(chan *abci.Response, 1)
-	err := backend.node.Mempool().CheckTx(tx, func(res *abci.Response) {
-		resCh <- res
-	}, mempool.TxInfo{})
-	if err != nil {
-		return common.Hash{}, err
-	}
-	res := <-resCh
-	r := res.GetCheckTx()
-	if r.Code != abci.CodeTypeOK {
-		return common.Hash{}, errors.New(r.String())
-	}
-	return common.BytesToHash(tx.Hash()), nil
+	return backend.node.BroadcastTxSync(signedTx)
 }
 
 // CallForSbch use app.RunTxForSbchRpc and returns more detailed result info
@@ -426,44 +403,8 @@ func (backend *apiBackend) ServiceFilter(ctx context.Context, session *bloombits
 	panic("implement me")
 }
 
-/*-----------------------tendermint info----------------------------*/
-
-type NextBlock struct {
-	Number    int64       `json:"number"`
-	Timestamp int64       `json:"timestamp"`
-	Hash      common.Hash `json:"hash"`
-}
-
-type Info struct {
-	IsValidator     bool            `json:"is_validator"`
-	ValidatorIndex  int64           `json:"validator_index"`
-	Height          int64           `json:"height"`
-	Seed            string          `json:"seed"`
-	ConsensusPubKey hexutil.Bytes   `json:"consensus_pub_key"`
-	AppState        json.RawMessage `json:"genesis_state"`
-	NextBlock       NextBlock       `json:"next_block"`
-}
-
 func (backend *apiBackend) NodeInfo() Info {
-	i := Info{}
-	i.Height = backend.node.BlockStore().Height()
-	address, _ := backend.node.NodeInfo().NetAddress()
-	if address != nil {
-		i.Seed = address.String()
-	}
-	pubKey, _ := backend.node.PrivValidator().GetPubKey()
-	i.ConsensusPubKey = pubKey.Bytes()
-	i.AppState = backend.node.GenesisDoc().AppState
-	genesisData := app.GenesisData{}
-	err := json.Unmarshal(i.AppState, &genesisData)
-	if err == nil {
-		for k, v := range genesisData.Validators {
-			if bytes.Equal(v.Pubkey[:], i.ConsensusPubKey) {
-				i.IsValidator = true
-				i.ValidatorIndex = int64(k)
-			}
-		}
-	}
+	i := backend.node.GetNodeInfo()
 	bi := backend.app.LoadBlockInfo()
 	i.NextBlock.Number = bi.Number
 	i.NextBlock.Timestamp = bi.Timestamp
