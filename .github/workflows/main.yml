@@ -42,7 +42,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: rocksdb-5.18.4
-          key: ${{ runner.os }}-rocksdb-5.18.4-static
+          key: ${{ runner.os }}-rocksdb-5.18.4-static2
 
       - name: Build rocksdb
         if: steps.cache-rocksdb.outputs.cache-hit != 'true'
@@ -50,7 +50,7 @@ jobs:
           wget https://github.com/facebook/rocksdb/archive/refs/tags/v5.18.4.tar.gz
           tar zxvf v5.18.4.tar.gz
           cd rocksdb-5.18.4
-          make CC=gcc-8 CXX=g++-8 static_lib
+          make EXTRA_CXXFLAGS="-march=x86-64" CC=gcc-8 CXX=g++-8 static_lib
 
       - name: Setup go
         uses: actions/setup-go@v2
