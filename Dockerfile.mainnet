@@ -17,7 +17,7 @@ RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.
 # Install apt based dependencies
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get -y install cmake gcc-8 g++-8 gcc g++ git libgflags-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev make vim wget
+RUN apt-get -y install cmake gcc-8 g++-8 gcc g++ git libgflags-dev make vim wget
 
 # Setup build directory
 RUN mkdir /build
@@ -60,7 +60,7 @@ RUN cd moeingevm/evmwrap && make
 # Build smartbchd
 ENV ROCKSDB_PATH="/build/rocksdb-${ROCKSDB_VERSION}"
 ENV CGO_CFLAGS="-I$ROCKSDB_PATH/include"
-ENV CGO_LDFLAGS="-L$ROCKSDB_PATH -L/smart_bch/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+ENV CGO_LDFLAGS="-L$ROCKSDB_PATH -L/smart_bch/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lsnappy"
 RUN cd /smart_bch
 RUN git clone -b ${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch
 RUN cd smartbch && go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd

@@ -18,8 +18,7 @@ ARG CHAIN_ID="0x2710"
 
 # Install apt based dependencies
 RUN apt-get -y update && apt-get -y upgrade
-RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install cmake gcc-8 g++-8 gcc g++ git make wget \
-    libgflags-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install cmake gcc-8 g++-8 gcc g++ git libgflags-dev make wget
 
 # Setup build directory
 RUN mkdir /build
@@ -55,7 +54,7 @@ RUN cd moeingevm/evmwrap && make -j4
 # Build smartbchd
 ENV ROCKSDB_PATH="/build/rocksdb"
 ENV CGO_CFLAGS="-I$ROCKSDB_PATH/include"
-ENV CGO_LDFLAGS="-L$ROCKSDB_PATH -L/build/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+ENV CGO_LDFLAGS="-L$ROCKSDB_PATH -L/build/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lsnappy"
 RUN git clone -b ${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch
 RUN cd smartbch && go build -tags ${SMARTBCH_BUILD_TAGS} github.com/smartbch/smartbch/cmd/smartbchd
 
