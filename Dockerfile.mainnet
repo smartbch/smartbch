@@ -17,7 +17,7 @@ RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.
 # Install apt based dependencies
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get -y install cmake gcc-8 g++-8 gcc g++ git libgflags-dev make vim wget
+RUN apt-get -y install cmake g++ gcc git libgflags-dev make vim wget
 
 # Setup build directory
 RUN mkdir /build
@@ -42,12 +42,15 @@ RUN cd patch-cgo-for-golang-${PATCH_CGO_VERSION} && cp *.c $GOROOT/src/runtime/c
 # Build libsnappy
 RUN wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
 RUN tar zxvf ${SNAPPY_VERSION}.tar.gz
-RUN cd snappy-${SNAPPY_VERSION} && mkdir build && cd build && cmake ../ && make && make install
+RUN cd snappy-${SNAPPY_VERSION} && mkdir build && cd build && \
+    CXX=g++ cmake ../ && make CC=gcc CXX=g++ && make install
 
 # Build rocksdb
 RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
 RUN tar zxvf v${ROCKSDB_VERSION}.tar.gz
-RUN cd rocksdb-${ROCKSDB_VERSION} && make CC=gcc-8 CXX=g++-8 static_lib
+RUN cd rocksdb-${ROCKSDB_VERSION} && \
+    wget -O - https://raw.githubusercontent.com/smartbch/artifacts/main/patches/rocksdb.gcc11.patch | git apply -v && \
+    CXXFLAGS=-Wno-range-loop-construct make -j4 CC=gcc CXX=g++ static_lib
 
 # Create smartbch directory
 RUN mkdir /smart_bch
