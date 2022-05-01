@@ -23,6 +23,9 @@ RUN apt-get -y update && apt-get -y upgrade
 RUN apt-get install -y software-properties-common && add-apt-repository -y ppa:ubuntu-toolchain-r/test
 RUN apt-get -y install cmake gcc-${GV} g++-${GV} gcc g++ git libgflags-dev make wget
 
+# Make wget produce less visual noise in output
+RUN echo "quiet=on\nshow-progress=on\nprogress=bar:force:noscroll" > ~/.wgetrc
+
 # Setup build directory
 RUN mkdir /build
 WORKDIR /build
@@ -31,28 +34,28 @@ WORKDIR /build
 ENV GOROOT=/usr/local/go
 ENV GOPATH=/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-RUN wget https://dl.google.com/go/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz
-RUN tar zxvf go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz -C /usr/local
+RUN wget -O go.tgz https://dl.google.com/go/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz
+RUN tar -zxf go.tgz -C /usr/local
 RUN mkdir -p $GOPATH/bin
 
 # Patch Go for larger cgo stack size
-RUN wget https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v${PATCH_CGO_VERSION}.tar.gz
-RUN tar zxvf v${PATCH_CGO_VERSION}.tar.gz -C $GOROOT/src/runtime/cgo/ --strip-components=1 --wildcards "*.c"
+RUN wget -O cgo.tgz https://github.com/smartbch/patch-cgo-for-golang/archive/refs/tags/v${PATCH_CGO_VERSION}.tar.gz
+RUN tar -zxf cgo.tgz -C $GOROOT/src/runtime/cgo/ --strip-components=1 --wildcards "*.c"
 RUN go version
 
 # Build libsnappy
-RUN wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
-RUN mkdir -p snappy/build && tar zxvf ${SNAPPY_VERSION}.tar.gz -C snappy --strip-components=1
+RUN wget -O snappy.tgz https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
+RUN mkdir -p snappy/build && tar -zxf snappy.tgz -C snappy --strip-components=1
 RUN cd snappy/build && \
     CXX=g++-${GV} cmake -DSNAPPY_BUILD_TESTS=0 -DCMAKE_BUILD_TYPE=Release ../ && \
     make -j4 CC=gcc-${GV} CXX=g++-${GV} install
 
 # Build rocksdb
-RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
-RUN mkdir rocksdb && tar zxvf v${ROCKSDB_VERSION}.tar.gz -C rocksdb --strip-components=1
+RUN wget -O rocksdb.tgz https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
+RUN mkdir rocksdb && tar -zxf rocksdb.tgz -C rocksdb --strip-components=1
 RUN cd rocksdb && \
     wget -O - https://raw.githubusercontent.com/smartbch/artifacts/main/patches/rocksdb.gcc11.patch | git apply -v && \
-    LDFLAGS="-static" CXXFLAGS=-Wno-range-loop-construct PORTABLE=1 make -j4 CC=gcc-${GV} CXX=g++-${GV} static_lib && \
+    CXXFLAGS=-Wno-range-loop-construct PORTABLE=1 make -j4 CC=gcc-${GV} CXX=g++-${GV} static_lib && \
     strip --strip-unneeded librocksdb.a
 
 # Ugly hack: force compiling libevmwrap and smartbchd with gcc-${GV} and g++-${GV}
@@ -74,23 +77,19 @@ RUN cd smartbch && go build -tags ${SMARTBCH_BUILD_TAGS} github.com/smartbch/sma
 WORKDIR /root/
 RUN /build/smartbch/smartbchd init mynode --chain-id ${CHAIN_ID}
 RUN wget https://github.com/smartbch/artifacts/releases/download/${CONFIG_VERSION}/dot.smartbchd.tgz
-RUN tar zxvf dot.smartbchd.tgz -C .smartbchd/ --strip-components=1
+RUN tar -zxf dot.smartbchd.tgz -C .smartbchd/ --strip-components=1
 
-FROM ubuntu:20.04
+FROM alpine:latest
 
-RUN apt-get -y update && apt-get -y upgrade && apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Update file limit
-RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.conf
+RUN apk add --no-cache ca-certificates
 
 # Copy smartbchd binary and config files from previous stage
-COPY --from=builder /build/smartbch/smartbchd /root/
+COPY --from=builder /build/smartbch/smartbchd /usr/local/bin/
 COPY --from=builder /root/.smartbchd /root/.smartbchd
 
 WORKDIR /root/
 
 VOLUME ["/root/.smartbchd"]
 
-ENTRYPOINT ["./smartbchd"]
+ENTRYPOINT ["smartbchd"]
 EXPOSE 8545 8546
