@@ -11,9 +11,6 @@ ARG PATCH_CGO_VERSION="0.1.2"
 ARG ROCKSDB_VERSION="5.18.4"
 ARG SNAPPY_VERSION="1.1.8"
 
-# Update file limit
-RUN sed -i -e '$a* soft nofile 65536\n* hard nofile 65536' /etc/security/limits.conf
-
 # Install apt based dependencies
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get -y update && apt-get -y upgrade
