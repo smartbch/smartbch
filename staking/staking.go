@@ -743,9 +743,9 @@ func DeleteProposal(ctx *mevmtypes.Context) {
 }
 
 func LoadVote(ctx *mevmtypes.Context, validator common.Address) (target, votingPower uint64) {
-	var b [16]byte
-	binary.BigEndian.PutUint64(b[:8], target)
-	binary.BigEndian.PutUint64(b[8:], votingPower)
+	//var b [16]byte
+	//binary.BigEndian.PutUint64(b[:8], target)
+	//binary.BigEndian.PutUint64(b[8:], votingPower)
 	key := sha256.Sum256(append(votingSlotHashPrefix[:], validator.Bytes()...))
 	bz := ctx.GetStorageAt(StakingContractSequence, string(key[:]))
 	if len(bz) == 0 {
