@@ -123,7 +123,7 @@ func TestGetLogsMaxResults(t *testing.T) {
 
 	_app.HistoryStore().SetMaxEntryCount(5)
 	logs, err = ctx.QueryLogs([]gethcmn.Address{addr}, nil, 1, 2, filterFunc)
-	require.Equal(t, "too many candidicate entries to be returned, please limit the difference between startHeight and endHeight", err.Error())
+	require.Equal(t, "too many potential results", err.Error())
 	require.Len(t, logs, 0)
 }
 

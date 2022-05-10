@@ -496,6 +496,27 @@ func TestGetLogs_OneTx(t *testing.T) {
 	require.Equal(t, []byte{0xDA, 0x03}, logs[2].Data)
 }
 
+func TestGetLogs_TooManyResults(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	_app.HistoryStore().SetMaxEntryCount(5)
+	defer _app.Destroy()
+	_api := createFiltersAPI(_app)
+
+	addr := gethcmn.Address{'a'}
+	for i := 1; i < 10; i++ {
+		block := testutils.NewMdbBlockBuilder().
+			Height(int64(i)).Hash(gethcmn.Hash{'b', byte(i)}).
+			Tx(gethcmn.Hash{'c', byte(i)}, types.Log{Address: addr}).
+			Build()
+		addBlock(_app, block)
+	}
+
+	f := testutils.NewFilterBuilder().BlockRange(1, 9).Addresses(addr).Build()
+	_, err := _api.GetLogs(f)
+	require.Error(t, err)
+	require.Equal(t, "too many potential results", err.Error())
+}
+
 func createFiltersAPI(_app *testutils.TestApp) PublicFilterAPI {
 	backend := api.NewBackend(nil, _app.App)
 	return NewAPI(backend, _app.Logger())
