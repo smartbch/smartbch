@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -50,6 +51,8 @@ type Watcher struct {
 	parallelNum            int
 
 	chainConfig *param.ChainConfig
+
+	currentMainnetBlockTimestamp int64
 }
 
 func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
@@ -79,6 +82,8 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastK
 
 		parallelNum: 10,
 		chainConfig: chainConfig,
+		// set big enough for single node startup when no BCH node connected. it will be updated when mainnet block finalize.
+		currentMainnetBlockTimestamp: math.MaxInt64 - 14*24*3600,
 	}
 }
 
@@ -123,6 +128,7 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
 		//10 confirms
 		if latestMainnetHeight < latestFinalizedHeight+9 {
+			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 			latestFinalizedHeight--
 			continue
@@ -230,6 +236,7 @@ func (watcher *Watcher) suspended(delayDuration time.Duration) {
 func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) {
 	watcher.heightToFinalizedBlock[blk.Height] = blk
 	watcher.latestFinalizedHeight++
+	watcher.currentMainnetBlockTimestamp = blk.Timestamp
 
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == watcher.numBlocksInEpoch {
 		watcher.generateNewEpoch()
@@ -280,6 +287,10 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 
 func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
 	return watcher.buildNewEpoch()
+}
+
+func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
+	return watcher.currentMainnetBlockTimestamp
 }
 
 //func (watcher *Watcher) generateNewCCEpoch() {

@@ -480,6 +480,10 @@ func (app *App) createGenesisAccounts(alloc gethcore.GenesisAlloc) {
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
 	//app.randomPanic(5000, 7919)
+	for app.block.Timestamp > app.watcher.GetCurrMainnetBlockTimestamp()+12*3600 {
+		app.logger.Debug("waiting BCH node catchup...", "smartBCH block timestamp", app.block.Timestamp, "BCH block timestamp", app.watcher.GetCurrMainnetBlockTimestamp())
+		time.Sleep(30 * time.Second)
+	}
 	app.block = &types.Block{
 		Number:    req.Header.Height,
 		Timestamp: req.Header.Time.Unix(),
