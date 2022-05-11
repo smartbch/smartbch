@@ -4,15 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/tendermint/tendermint/libs/log"
 
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
 )
@@ -21,13 +16,11 @@ const (
 	ReqStrBlockCount = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockcount", "params": [] }`
 	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
 	//verbose = 2, show all txs rawdata
-	ReqStrBlock    = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
-	ReqStrTx       = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
-	ReqStrEpochs   = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
-	ReqStrCCEpochs = `{"jsonrpc": "2.0", "method": "sbch_getCCEpochs", "params": ["%s","%s"], "id":1}`
+	ReqStrBlock = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
+	ReqStrTx    = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
 )
 
-type RpcClient struct {
+type BchRpcClient struct {
 	url         string
 	user        string
 	password    string
@@ -36,13 +29,13 @@ type RpcClient struct {
 	logger      log.Logger
 }
 
-var _ types.RpcClient = (*RpcClient)(nil)
+var _ types.BchRpcClient = (*BchRpcClient)(nil)
 
-func NewRpcClient(url, user, password, contentType string, logger log.Logger) *RpcClient {
+func NewRpcClient(url, user, password, contentType string, logger log.Logger) *BchRpcClient {
 	if url == "" {
 		return nil
 	}
-	return &RpcClient{
+	return &BchRpcClient{
 		url:         url,
 		user:        user,
 		password:    password,
@@ -51,7 +44,7 @@ func NewRpcClient(url, user, password, contentType string, logger log.Logger) *R
 	}
 }
 
-func (client *RpcClient) GetLatestHeight(retry bool) (height int64) {
+func (client *BchRpcClient) GetLatestHeight(retry bool) (height int64) {
 	height = -1
 	for height == -1 {
 		height = client.getCurrHeight()
@@ -66,7 +59,7 @@ func (client *RpcClient) GetLatestHeight(retry bool) (height int64) {
 	return
 }
 
-func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
+func (client *BchRpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
 	var hash string
 	var err error
 	var blk *types.BCHBlock
@@ -97,39 +90,11 @@ func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBl
 	return blk
 }
 
-func (client *RpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
-	var epochs []*stakingtypes.Epoch
-	for epochs == nil {
-		epochs = client.getEpochs(start, end)
-		if client.err != nil {
-			client.logger.Debug("GetEpochs failed", client.err.Error())
-			time.Sleep(10 * time.Second)
-		}
-	}
-	return epochs
+func (client *BchRpcClient) sendRequest(reqStr string) ([]byte, error) {
+	return sendRequest(client.url, client.user, client.password, client.contentType, reqStr)
 }
 
-func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
-	body := strings.NewReader(reqStr)
-	req, err := http.NewRequest("POST", client.url, body)
-	if err != nil {
-		return nil, err
-	}
-	req.SetBasicAuth(client.user, client.password)
-	req.Header.Set("Content-Type", client.contentType)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	respData, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body.Close()
-	return respData, nil
-}
-
-func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
+func (client *BchRpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 	var bi *types.BlockInfo
 	var err error
 	bi, err = client.getBlock(hash)
@@ -172,7 +137,7 @@ func getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
 	return nil
 }
 
-//func (client *RpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
+//func (client *BchRpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
 //	var ccInfos []*cctypes.CCTransferInfo
 //	for _, info := range bi.Tx {
 //		ccInfos = append(ccInfos, info.GetCCTransferInfos()...)
@@ -180,7 +145,7 @@ func getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
 //	return ccInfos
 //}
 
-func (client *RpcClient) getCurrHeight() int64 {
+func (client *BchRpcClient) getCurrHeight() int64 {
 	var respData []byte
 	respData, client.err = client.sendRequest(ReqStrBlockCount)
 	if client.err != nil {
@@ -198,7 +163,7 @@ func (client *RpcClient) getCurrHeight() int64 {
 	return blockCountResp.Result
 }
 
-func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
+func (client *BchRpcClient) getBlockHashOfHeight(height int64) (string, error) {
 	var respData []byte
 	var err error
 	respData, err = client.sendRequest(fmt.Sprintf(ReqStrBlockHash, height))
@@ -218,7 +183,7 @@ func (client *RpcClient) getBlockHashOfHeight(height int64) (string, error) {
 	return blockHashResp.Result, nil
 }
 
-func (client *RpcClient) getBlock(hash string) (*types.BlockInfo, error) {
+func (client *BchRpcClient) getBlock(hash string) (*types.BlockInfo, error) {
 	respData, err := client.sendRequest(fmt.Sprintf(ReqStrBlock, hash))
 	if err != nil {
 		return nil, err
@@ -246,7 +211,7 @@ func (client *RpcClient) getBlock(hash string) (*types.BlockInfo, error) {
 	return &blockInfoResp.Result, nil
 }
 
-func (client *RpcClient) getTx(hash string, blockhash string) (*types.TxInfo, error) {
+func (client *BchRpcClient) getTx(hash string, blockhash string) (*types.TxInfo, error) {
 	respData, err := client.sendRequest(fmt.Sprintf(ReqStrTx, hash, blockhash))
 	if err != nil {
 		return nil, err
@@ -263,66 +228,13 @@ func (client *RpcClient) getTx(hash string, blockhash string) (*types.TxInfo, er
 	return &txInfoResp.Result, nil
 }
 
-type smartBchJsonrpcError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-}
-
-type smartBchJsonrpcMessage struct {
-	Version string                `json:"jsonrpc,omitempty"`
-	ID      json.RawMessage       `json:"id,omitempty"`
-	Method  string                `json:"method,omitempty"`
-	Params  json.RawMessage       `json:"params,omitempty"`
-	Error   *smartBchJsonrpcError `json:"error,omitempty"`
-	Result  json.RawMessage       `json:"result,omitempty"`
-}
-
-func (client *RpcClient) getEpochs(start, end uint64) []*stakingtypes.Epoch {
-	var respData []byte
-	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
-	if client.err != nil {
-		return nil
-	}
-	var m smartBchJsonrpcMessage
-	client.err = json.Unmarshal(respData, &m)
-	if client.err != nil {
-		return nil
-	}
-	var epochsResp []*stakingtypes.Epoch
-	client.err = json.Unmarshal(m.Result, &epochsResp)
-	if client.err != nil {
-		return nil
-	}
-	return epochsResp
-}
-
-func (client *RpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
-	var respData []byte
-	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrCCEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
-	if client.err != nil {
-		return nil
-	}
-	var m smartBchJsonrpcMessage
-	client.err = json.Unmarshal(respData, &m)
-	if client.err != nil {
-		return nil
-	}
-	var epochsResp []*cctypes.CCEpoch
-	client.err = json.Unmarshal(m.Result, &epochsResp)
-	if client.err != nil {
-		return nil
-	}
-	return epochsResp
-}
-
 /***for tool*/
-func (client *RpcClient) GetBlockHash(height int64) (string, error) {
+func (client *BchRpcClient) GetBlockHash(height int64) (string, error) {
 	return client.getBlockHashOfHeight(height)
 }
-func (client *RpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
+func (client *BchRpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
 	return client.getBlock(hash)
 }
-func (client *RpcClient) GetTxInfo(hash string, blockhash string) (*types.TxInfo, error) {
+func (client *BchRpcClient) GetTxInfo(hash string, blockhash string) (*types.TxInfo, error) {
 	return client.getTx(hash, blockhash)
 }

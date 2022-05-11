@@ -27,8 +27,8 @@ const (
 type Watcher struct {
 	logger log.Logger
 
-	rpcClient         types.RpcClient
-	smartBchRpcClient types.RpcClient
+	rpcClient         types.BchRpcClient
+	smartBchRpcClient types.SbchRpcClient
 
 	latestFinalizedHeight int64
 
@@ -60,7 +60,7 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastK
 		logger: logger,
 
 		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", logger),
-		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", logger),
+		smartBchRpcClient: NewSbchRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", logger),
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
@@ -101,7 +101,7 @@ func (watcher *Watcher) SetWaitingBlockDelayTime(n int) {
 
 // The main function to do a watcher's job. It must be run as a goroutine
 func (watcher *Watcher) Run(catchupChan chan bool) {
-	if watcher.rpcClient == (*RpcClient)(nil) {
+	if watcher.rpcClient == (*BchRpcClient)(nil) {
 		//for ut
 		catchupChan <- true
 		return

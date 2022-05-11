@@ -111,7 +111,7 @@ func (m MockRpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
 	return nil
 }
 
-var _ types.RpcClient = MockRpcClient{}
+var _ types.BchRpcClient = MockRpcClient{}
 
 type MockEpochConsumer struct {
 	w         *Watcher

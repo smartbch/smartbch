@@ -18,9 +18,13 @@ const (
 )
 
 // These functions must be provided by a client connecting to a Bitcoin Cash's fullnode
-type RpcClient interface {
+type BchRpcClient interface {
 	GetLatestHeight(retry bool) int64
 	GetBlockByHeight(height int64, retry bool) *BCHBlock
+}
+
+// These functions must be provided by a client connecting to a smartBCH's fullnode
+type SbchRpcClient interface {
 	GetEpochs(start, end uint64) []*stakingtypes.Epoch
 	GetCCEpochs(start, end uint64) []*cctypes.CCEpoch
 }
