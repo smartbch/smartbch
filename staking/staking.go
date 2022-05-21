@@ -789,9 +789,10 @@ func GetVoters(ctx *mevmtypes.Context) (voters []common.Address) {
 // slashValidators and lastVoters are consensus addresses generated from validator consensus pubkey
 func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte,
 	currProposer, lastProposer [20]byte, lastVoters [][]byte,
-	blockReward *uint256.Int) (currValidators, newValidators []*types.Validator) {
+	blockReward *uint256.Int) (currValidators, newValidators []*types.Validator, currEpochNum int64) {
 
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
+	currEpochNum = info.CurrEpochNum
 	currValidators = types.GetActiveValidators(info.Validators, MinimumStakingAmount)
 
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte, len(info.Validators))
