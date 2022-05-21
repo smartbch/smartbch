@@ -960,8 +960,9 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, posVotes map[[32]by
 	// distribute mature pending reward to rewardTo
 	deliverMintRewardInEpoch(ctx, stakingAcc, &info)
 
-	isValid, pubkey2power := checkEpoch(ctx, &info, epoch, posVotes, logger)
+	isValid, pubkey2power, oldActiveValidators := checkEpoch(ctx, info, epoch, posVotes, logger)
 	if !isValid {
+		updatePendingRewardsInNewEpoch(oldActiveValidators, &info, logger)
 		SaveStakingInfo(ctx, info)
 		return nil
 	}
@@ -1012,22 +1013,20 @@ func deliverMintRewardInEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.Acco
 	stakingAcc.UpdateBalance(stakingAccBalance)
 }
 
-func checkEpoch(ctx *mevmtypes.Context, info *types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (bool, map[[32]byte]int64) {
-	powTotalNomination, pubkey2power := getPubkey2Power(*info, epoch, posVotes, logger)
+func checkEpoch(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (bool, map[[32]byte]int64, []*types.Validator) {
+	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger)
 	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
 	if !(param.IsAmber && ctx.IsXHedgeFork()) {
 		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
 			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
-			updatePendingRewardsInNewEpoch(activeValidators, info, logger)
-			return false, pubkey2power
+			return false, pubkey2power, activeValidators
 		}
 	}
 	if len(pubkey2power) < len(activeValidators)*param.StakingMinVotingPubKeysPercentPerEpoch/100 {
 		logger.Debug("Voting pubKeys smaller than MinVotingPubKeysPercentPerEpoch", "validator count", len(epoch.Nominations))
-		updatePendingRewardsInNewEpoch(activeValidators, info, logger)
-		return false, pubkey2power
+		return false, pubkey2power, activeValidators
 	}
-	return true, pubkey2power
+	return true, pubkey2power, activeValidators
 }
 
 func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (powTotalNomination int64, pubkey2power map[[32]byte]int64) {
