@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.4-p1
+
+* Extend epoch 20th 50 percent longer
+* Fix not update stakingInfo when checkEpoch failed
+
 
 ## v0.4.4
 
