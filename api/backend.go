@@ -28,6 +28,7 @@ import (
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher"
 )
 
 var _ BackendService = &apiBackend{}
@@ -498,4 +499,8 @@ func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
 
 func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
 	return backend.app.GetBlockForSync(height)
+}
+
+func (backend *apiBackend) WatcherInfo() *watcher.Info {
+	return backend.app.WatcherInfo()
 }

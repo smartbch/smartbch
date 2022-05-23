@@ -82,6 +82,7 @@ type IApp interface {
 	GetValidatorsInfo() ValidatorsInfo
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
+	WatcherInfo() *watcher.Info
 }
 
 type App struct {
@@ -953,6 +954,10 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 		err = errNoSyncBlock
 	}
 	return
+}
+
+func (app *App) WatcherInfo() *watcher.Info {
+	return app.watcher.GetInfo()
 }
 
 //nolint

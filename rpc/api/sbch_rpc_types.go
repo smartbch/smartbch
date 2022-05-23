@@ -10,7 +10,24 @@ import (
 	sbchapi "github.com/smartbch/smartbch/api"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher"
 )
+
+// WatcherInfo
+
+type WatcherInfo struct {
+	LatestFinalizedHeight int64           `json:"latestFinalizedHeight"`
+	EpochList             []*StakingEpoch `json:"EpochList"`
+	CurrEpoch             *StakingEpoch   `json:"CurrEpoch"`
+}
+
+func castWatcherInfo(info *watcher.Info) *WatcherInfo {
+	return &WatcherInfo{
+		LatestFinalizedHeight: info.LatestFinalizedHeight,
+		EpochList:             castStakingEpochs(info.EpochList),
+		CurrEpoch:             castStakingEpoch(info.CurrEpoch),
+	}
+}
 
 // StakingEpoch
 

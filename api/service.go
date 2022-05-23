@@ -15,6 +15,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
+	"github.com/smartbch/smartbch/watcher"
 )
 
 type CallDetail struct {
@@ -123,6 +124,7 @@ type BackendService interface {
 	GetSeq(address common.Address) uint64
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
+	WatcherInfo() *watcher.Info
 
 	//tendermint info
 	NodeInfo() Info

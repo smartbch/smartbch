@@ -21,6 +21,12 @@ const (
 	WaitingBlockDelayTime  = 2
 )
 
+type Info struct {
+	LatestFinalizedHeight int64
+	EpochList             []*stakingtypes.Epoch
+	CurrEpoch             *stakingtypes.Epoch
+}
+
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
 // outputs epoch information through a channel
 type Watcher struct {
@@ -280,6 +286,13 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 
 func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
 	return watcher.buildNewEpoch()
+}
+func (watcher *Watcher) GetInfo() *Info {
+	return &Info{
+		LatestFinalizedHeight: watcher.latestFinalizedHeight,
+		EpochList:             watcher.epochList,
+		CurrEpoch:             watcher.buildNewEpoch(),
+	}
 }
 
 //func (watcher *Watcher) generateNewCCEpoch() {
