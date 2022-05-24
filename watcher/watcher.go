@@ -288,6 +288,11 @@ func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
 func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
 	return watcher.buildNewEpoch()
 }
+func (watcher *Watcher) GetEpochList() []*stakingtypes.Epoch {
+	list := stakingtypes.CopyEpochs(watcher.epochList)
+	currEpoch := watcher.buildNewEpoch()
+	return append(list, currEpoch)
+}
 
 func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
 	return watcher.currentMainnetBlockTimestamp

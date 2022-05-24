@@ -33,7 +33,7 @@ type SbchAPI interface {
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
-	GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) // result is more human-readable
+	GetEpochList(from string) ([]*StakingEpoch, error)
 	GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error)
 	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
 	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
@@ -202,8 +202,8 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	}
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }
-func (sbch sbchAPI) GetEpochs2(start, end hexutil.Uint64) ([]*StakingEpoch, error) {
-	epochs, err := sbch.GetEpochs(start, end)
+func (sbch sbchAPI) GetEpochList(from string) ([]*StakingEpoch, error) {
+	epochs, err := sbch.backend.GetEpochList(from)
 	if err != nil {
 		return nil, err
 	}

@@ -276,6 +276,19 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	return result, nil
 }
 
+func (backend *apiBackend) GetEpochList(from string) ([]*stakingtypes.Epoch, error) {
+	switch from {
+	case "watcher":
+		return backend.app.GetWatcherEpochList(), nil
+	case "app":
+		return backend.app.GetAppEpochList(), nil
+	case "storage":
+		fallthrough
+	default:
+		return backend.GetEpochs(0, -1)
+	}
+}
+
 //[start, end)
 func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
 	if start >= end {
