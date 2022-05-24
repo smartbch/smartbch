@@ -276,6 +276,34 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	return result, nil
 }
 
+func (backend *apiBackend) GetEpochList(from string) []*stakingtypes.Epoch {
+	switch from {
+	case "watcher":
+		return backend.app.GetWatcherEpochList()
+	case "app":
+		return backend.app.GetAppEpochList()
+	case "storage":
+		fallthrough
+	default:
+		return backend.getEpochListFromCtx()
+	}
+}
+
+func (backend *apiBackend) getEpochListFromCtx() []*stakingtypes.Epoch {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	info := staking.LoadStakingInfo(ctx)
+	result := make([]*stakingtypes.Epoch, 0, info.CurrEpochNum+1)
+	for epochNum := int64(0); epochNum <= info.CurrEpochNum; epochNum++ {
+		epoch, ok := staking.LoadEpoch(ctx, epochNum)
+		if ok {
+			result = append(result, &epoch)
+		}
+	}
+	return result
+}
+
 //[start, end)
 func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
 	if start >= end {

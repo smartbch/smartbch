@@ -75,6 +75,8 @@ type IApp interface {
 	RunTxForRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, estimateGas bool, height int64) (*ebp.TxRunner, int64)
 	RunTxForSbchRpc(gethTx *gethtypes.Transaction, sender gethcmn.Address, height int64) (*ebp.TxRunner, int64)
 	GetCurrEpoch() *stakingtypes.Epoch
+	GetWatcherEpochList() []*stakingtypes.Epoch
+	GetAppEpochList() []*stakingtypes.Epoch
 	GetLatestBlockNum() int64
 	SubscribeChainEvent(ch chan<- types.ChainEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*gethtypes.Log) event.Subscription
@@ -940,6 +942,13 @@ func (app *App) IsArchiveMode() bool {
 
 func (app *App) GetCurrEpoch() *stakingtypes.Epoch {
 	return app.watcher.GetCurrEpoch()
+}
+
+func (app *App) GetAppEpochList() []*stakingtypes.Epoch {
+	return stakingtypes.CopyEpochs(app.epochList)
+}
+func (app *App) GetWatcherEpochList() []*stakingtypes.Epoch {
+	return app.watcher.GetEpochList()
 }
 
 func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {

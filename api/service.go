@@ -118,6 +118,7 @@ type BackendService interface {
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
 	GetEpochs(start, end uint64) ([]*types.Epoch, error)
+	GetEpochList(from string) []*types.Epoch
 	GetCurrEpoch() *types.Epoch
 	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64

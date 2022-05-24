@@ -66,6 +66,29 @@ type Epoch struct {
 	Nominations []*Nomination
 }
 
+func CopyEpochs(list []*Epoch) []*Epoch {
+	list2 := make([]*Epoch, len(list))
+	for i, epoch := range list {
+		list2[i] = &Epoch{
+			Number:      epoch.Number,
+			StartHeight: epoch.StartHeight,
+			EndTime:     epoch.EndTime,
+			Nominations: copyNominations(epoch.Nominations),
+		}
+	}
+	return list2
+}
+func copyNominations(list []*Nomination) []*Nomination {
+	list2 := make([]*Nomination, len(list))
+	for i, nomination := range list {
+		list2[i] = &Nomination{
+			Pubkey:         nomination.Pubkey,
+			NominatedCount: nomination.NominatedCount,
+		}
+	}
+	return list2
+}
+
 type Validator struct {
 	Address      [20]byte `msgp:"address"`   // Validator's address in smartbch chain
 	Pubkey       [32]byte `msgp:"pubkey"`    // Validator's pubkey for tendermint
