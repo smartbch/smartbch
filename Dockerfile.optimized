@@ -11,20 +11,17 @@ ARG PATCH_CGO_VERSION="0.1.2"
 ARG ROCKSDB_VERSION="5.18.4"
 ARG SNAPPY_VERSION="1.1.8"
 
-ARG GCC_VERSION="9"
-ENV GV=${GCC_VERSION}
-ARG TARGETARCH
-ENV TARGETARCH=${TARGETARCH:-amd64}
 ARG SMARTBCH_BUILD_TAGS="cppbtree"
 ARG CHAIN_ID="0x2710"
+ARG TARGETARCH
+ENV TARGETARCH=${TARGETARCH:-amd64}
 
 # Install apt based dependencies
 RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get install -y software-properties-common && add-apt-repository -y ppa:ubuntu-toolchain-r/test
-RUN apt-get -y install cmake gcc-${GV} g++-${GV} gcc g++ git libgflags-dev make wget
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install cmake gcc g++ git libgflags-dev make wget
 
 # Make wget produce less visual noise in output
-RUN echo "quiet=on\nshow-progress=on\nprogress=bar:force:noscroll" > ~/.wgetrc
+RUN printf "quiet=on\nshow-progress=on\nprogress=bar:force:noscroll" > ~/.wgetrc
 
 # Setup build directory
 RUN mkdir /build
@@ -47,20 +44,16 @@ RUN go version
 RUN wget -O snappy.tgz https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
 RUN mkdir -p snappy/build && tar -zxf snappy.tgz -C snappy --strip-components=1
 RUN cd snappy/build && \
-    CXX=g++-${GV} cmake -DSNAPPY_BUILD_TESTS=0 -DCMAKE_BUILD_TYPE=Release ../ && \
-    make -j4 CC=gcc-${GV} CXX=g++-${GV} install
+    cmake -DSNAPPY_BUILD_TESTS=0 -DCMAKE_BUILD_TYPE=Release ../ && \
+    make -j4 install
 
 # Build rocksdb
 RUN wget -O rocksdb.tgz https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
 RUN mkdir rocksdb && tar -zxf rocksdb.tgz -C rocksdb --strip-components=1
 RUN cd rocksdb && \
     wget -O - https://raw.githubusercontent.com/smartbch/artifacts/main/patches/rocksdb.gcc11.patch | git apply -v && \
-    CXXFLAGS=-Wno-range-loop-construct PORTABLE=1 make -j4 CC=gcc-${GV} CXX=g++-${GV} static_lib && \
+    CXXFLAGS=-Wno-range-loop-construct PORTABLE=1 make -j4 static_lib && \
     strip --strip-unneeded librocksdb.a
-
-# Ugly hack: force compiling libevmwrap and smartbchd with gcc-${GV} and g++-${GV}
-RUN ln -s /usr/bin/gcc-${GV} /usr/local/bin/gcc
-RUN ln -s /usr/bin/g++-${GV} /usr/local/bin/g++
 
 # Build libevmwrap
 RUN git clone -b ${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm
@@ -69,7 +62,7 @@ RUN cd moeingevm/evmwrap && make -j4
 # Build smartbchd
 ENV ROCKSDB_PATH="/build/rocksdb"
 ENV CGO_CFLAGS="-I$ROCKSDB_PATH/include"
-ENV CGO_LDFLAGS="-static -L$ROCKSDB_PATH -L/build/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lsnappy"
+ENV CGO_LDFLAGS="-L$ROCKSDB_PATH -L/build/moeingevm/evmwrap/host_bridge/ -l:librocksdb.a -lstdc++ -lm -lsnappy"
 RUN git clone -b ${SMARTBCH_VERSION} --depth 1 https://github.com/smartbch/smartbch
 RUN cd smartbch && go build -tags ${SMARTBCH_BUILD_TAGS} github.com/smartbch/smartbch/cmd/smartbchd
 
@@ -79,9 +72,10 @@ RUN /build/smartbch/smartbchd init mynode --chain-id ${CHAIN_ID}
 RUN wget https://github.com/smartbch/artifacts/releases/download/${CONFIG_VERSION}/dot.smartbchd.tgz
 RUN tar -zxf dot.smartbchd.tgz -C .smartbchd/ --strip-components=1
 
-FROM alpine:latest
+FROM ubuntu:20.04
 
-RUN apk add --no-cache ca-certificates
+RUN apt-get -y update && apt-get -y upgrade && apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy smartbchd binary and config files from previous stage
 COPY --from=builder /build/smartbch/smartbchd /usr/local/bin/

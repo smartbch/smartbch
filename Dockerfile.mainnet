@@ -11,10 +11,14 @@ ARG PATCH_CGO_VERSION="0.1.2"
 ARG ROCKSDB_VERSION="5.18.4"
 ARG SNAPPY_VERSION="1.1.8"
 
+ARG GCC_VERSION="9"
+ENV GV=${GCC_VERSION}
+
 # Install apt based dependencies
 ENV DEBIAN_FRONTEND="noninteractive"
 RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get -y install cmake g++ gcc git libgflags-dev make vim wget
+RUN apt-get -y install software-properties-common && add-apt-repository -y ppa:ubuntu-toolchain-r/test
+RUN apt-get -y install cmake gcc-${GV} g++-${GV} g++ gcc git libgflags-dev make vim wget
 
 # Setup build directory
 RUN mkdir /build
@@ -40,18 +44,22 @@ RUN cd patch-cgo-for-golang-${PATCH_CGO_VERSION} && cp *.c $GOROOT/src/runtime/c
 RUN wget https://github.com/google/snappy/archive/refs/tags/${SNAPPY_VERSION}.tar.gz
 RUN tar zxvf ${SNAPPY_VERSION}.tar.gz
 RUN cd snappy-${SNAPPY_VERSION} && mkdir build && cd build && \
-    CXX=g++ cmake ../ && make CC=gcc CXX=g++ && make install
+    CXX=g++-${GV} cmake ../ && make CC=gcc-${GV} CXX=g++-${GV} && make install
 
 # Build rocksdb
 RUN wget https://github.com/facebook/rocksdb/archive/refs/tags/v${ROCKSDB_VERSION}.tar.gz
 RUN tar zxvf v${ROCKSDB_VERSION}.tar.gz
 RUN cd rocksdb-${ROCKSDB_VERSION} && \
     wget -O - https://raw.githubusercontent.com/smartbch/artifacts/main/patches/rocksdb.gcc11.patch | git apply -v && \
-    CXXFLAGS=-Wno-range-loop-construct make -j4 CC=gcc CXX=g++ static_lib
+    CXXFLAGS=-Wno-range-loop-construct make -j4 CC=gcc-${GV} CXX=g++-${GV} static_lib
 
 # Create smartbch directory
 RUN mkdir /smart_bch
 WORKDIR /smart_bch
+
+# Ugly hack: force compiling libevmwrap and smartbchd with gcc-${GV} and g++-${GV}
+RUN ln -s /usr/bin/gcc-${GV} /usr/local/bin/gcc
+RUN ln -s /usr/bin/g++-${GV} /usr/local/bin/g++
 
 # Build libevmwrap
 RUN git clone -b ${MOEINGEVM_VERSION} --depth 1 https://github.com/smartbch/moeingevm
@@ -78,5 +86,5 @@ WORKDIR /build
 
 VOLUME ["/root/.smartbchd"]
 
-ENTRYPOINT ["./smartbchd"]
+ENTRYPOINT ["/build/smartbchd"]
 EXPOSE 8545 8546
