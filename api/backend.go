@@ -276,32 +276,17 @@ func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, 
 	return result, nil
 }
 
-func (backend *apiBackend) GetEpochList(from string) []*stakingtypes.Epoch {
+func (backend *apiBackend) GetEpochList(from string) ([]*stakingtypes.Epoch, error) {
 	switch from {
 	case "watcher":
-		return backend.app.GetWatcherEpochList()
+		return backend.app.GetWatcherEpochList(), nil
 	case "app":
-		return backend.app.GetAppEpochList()
+		return backend.app.GetAppEpochList(), nil
 	case "storage":
 		fallthrough
 	default:
-		return backend.getEpochListFromCtx()
+		return backend.GetEpochs(0, -1)
 	}
-}
-
-func (backend *apiBackend) getEpochListFromCtx() []*stakingtypes.Epoch {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	info := staking.LoadStakingInfo(ctx)
-	result := make([]*stakingtypes.Epoch, 0, info.CurrEpochNum+1)
-	for epochNum := int64(0); epochNum <= info.CurrEpochNum; epochNum++ {
-		epoch, ok := staking.LoadEpoch(ctx, epochNum)
-		if ok {
-			result = append(result, &epoch)
-		}
-	}
-	return result
 }
 
 //[start, end)

@@ -203,7 +203,10 @@ func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	return sbch.backend.GetEpochs(uint64(start), uint64(end))
 }
 func (sbch sbchAPI) GetEpochList(from string) ([]*StakingEpoch, error) {
-	epochs := sbch.backend.GetEpochList(from)
+	epochs, err := sbch.backend.GetEpochList(from)
+	if err != nil {
+		return nil, err
+	}
 	return castStakingEpochs(epochs), nil
 }
 func (sbch sbchAPI) GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error) {
