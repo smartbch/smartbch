@@ -600,7 +600,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	ctx := app.GetRunTxContext()
 	defer ctx.Close(true) // context must be written back such that txEngine can read it in 'Prepare'
 
-	currValidators, newValidators := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner,
+	currValidators, newValidators, currEpochNum := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner,
 		app.lastProposer, app.lastVoters, app.getBlockRewardAndUpdateSysAcc(ctx))
 	app.slashValidators = app.slashValidators[:0]
 
@@ -628,7 +628,13 @@ func (app *App) updateValidatorsAndStakingInfo() {
 
 	if len(app.epochList) != 0 {
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
-		if app.block.Timestamp > app.epochList[0].EndTime+param.StakingEpochSwitchDelay {
+		epochSwitchDelay := param.StakingEpochSwitchDelay
+		// this 20 is hardcode to fix the 20220520 bch node not upgrade error. don't modify it ever.
+		if currEpochNum == 20 {
+			// make epoch switch delay in epoch 20th 50% longer.
+			epochSwitchDelay = param.StakingEpochSwitchDelay * 10
+		}
+		if app.block.Timestamp > app.epochList[0].EndTime+epochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
 			var posVotes map[[32]byte]int64
