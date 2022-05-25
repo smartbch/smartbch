@@ -653,7 +653,11 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		}
 	}
 
-	app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(currValidators, newValidators)
+	if param.IsAmber && app.currHeight == 4435201 {
+		app.validatorUpdate = nil
+	} else {
+		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(currValidators, newValidators)
+	}
 	for _, v := range app.validatorUpdate {
 		app.logger.Debug(fmt.Sprintf("Updated validator in commit: address(%s), pubkey(%s), voting power: %d",
 			gethcmn.Address(v.Address).String(), ed25519.PubKey(v.Pubkey[:]), v.VotingPower))
