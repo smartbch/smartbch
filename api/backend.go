@@ -285,7 +285,7 @@ func (backend *apiBackend) GetEpochList(from string) ([]*stakingtypes.Epoch, err
 	case "storage":
 		fallthrough
 	default:
-		return backend.GetEpochs(0, -1)
+		return backend.GetEpochs(0, 999)
 	}
 }
 
