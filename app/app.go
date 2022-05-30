@@ -138,6 +138,9 @@ type App struct {
 	signer gethtypes.Signer
 	logger log.Logger
 
+	//for amber
+	currValidators []*stakingtypes.Validator
+
 	// tendermint wants to know validators whose voting power change
 	// it is loaded from ctx in Commit and used in EndBlock
 	validatorUpdate []*stakingtypes.Validator
@@ -653,8 +656,11 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		}
 	}
 
+	// hardcode for sync block meet appHash error on 4435201 in amber.
 	if param.IsAmber && app.currHeight == 4435201 {
 		app.validatorUpdate = nil
+	} else if param.IsAmber {
+		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(app.currValidators, newValidators)
 	} else {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(currValidators, newValidators)
 	}
@@ -665,6 +671,8 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	newInfo := staking.LoadStakingInfo(ctx)
 	newInfo.ValidatorsUpdate = app.validatorUpdate
 	staking.SaveStakingInfo(ctx, newInfo)
+	//only amber need this
+	app.currValidators = newValidators
 	//log all validators info when validator set update
 	if len(app.validatorUpdate) != 0 {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
