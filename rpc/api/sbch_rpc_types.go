@@ -85,13 +85,13 @@ func castCCEpochs(ccEpochs []*cctypes.CCEpoch) []*CCEpoch {
 }
 func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
 	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
-	for i, ccTransferInfo := range ccTransferInfos {
-		rpcTransferInfos[i] = &CCTransferInfo{
-			UTXO:         ccTransferInfo.UTXO[:],
-			Amount:       hexutil.Uint64(ccTransferInfo.Amount),
-			SenderPubkey: ccTransferInfo.SenderPubkey[:],
-		}
-	}
+	//for i, ccTransferInfo := range ccTransferInfos {
+	//	rpcTransferInfos[i] = &CCTransferInfo{
+	//		UTXO:         ccTransferInfo.UTXO[:],
+	//		Amount:       hexutil.Uint64(ccTransferInfo.Amount),
+	//		SenderPubkey: ccTransferInfo.SenderPubkey[:],
+	//	}
+	//}
 	return rpcTransferInfos
 }
 

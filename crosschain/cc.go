@@ -2,19 +2,21 @@ package crosschain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gcash/bchd/txscript"
+	"github.com/gcash/bchd/wire"
+	"github.com/gcash/bchutil"
 	"github.com/holiman/uint256"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/tendermint/tendermint/libs/log"
 
-	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
@@ -31,15 +33,7 @@ var (
 	//todo: transfer remain BCH to this address before working
 	CCContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x09}
 	/*------selector------*/
-	/*interface CC {
-	    function transferBCHToMainnet(bytes utxo) external;
-	    function burnBCH(bytes utxo) external;
-
-	    event TransferToMainnet(bytes32 indexed mainnetTxId, bytes4 indexed vOutIndex, address indexed from, uint256 value);
-	    event Burn(bytes32 indexed mainnetTxId, bytes4 indexed vOutIndex, uint256 value);
-	}*/
-	SelectorTransferBchToMainnet [4]byte = [4]byte{0xa0, 0x4f, 0x3b, 0x01}
-	SelectorBurnBCH              [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3}
+	SelectorRedeem [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 
 	HashOfEventTransferToBch [32]byte = common.HexToHash("0x4a9f09be1e2df144675144ec10cb5fe6c05504a84262275b62028189c1d410c1")
 	HashOfEventBurn          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
@@ -50,10 +44,13 @@ var (
 	InvalidSelector   = errors.New("invalid selector")
 	BchAmountNotMatch = errors.New("value not match bch amount in utxo")
 	BalanceNotEnough  = errors.New("balance is not enough")
-	BurnToMuch        = errors.New("burn more bch than reality")
+)
 
-	SlotCCInfo          string = strings.Repeat(string([]byte{0}), 32)
-	SlotBCHAlreadyBurnt string = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
+var (
+	SlotCCInfo             string = strings.Repeat(string([]byte{0}), 32)
+	SlotScriptInfo         string = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
+	SlotSwitchInfo         string = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
+	SlotUnsignedConvertTxs string = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
 )
 
 type CcContractExecutor struct {
@@ -90,10 +87,8 @@ func (s *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 	var selector [4]byte
 	copy(selector[:], tx.Data[:4])
 	switch selector {
-	case SelectorTransferBchToMainnet:
-		return transferBchToMainnet(ctx, tx)
-	case SelectorBurnBCH:
-		return burnBch(ctx, tx)
+	case SelectorRedeem:
+		return redeem(ctx, tx)
 	default:
 		status = StatusFailed
 		outData = []byte(InvalidSelector.Error())
@@ -101,7 +96,6 @@ func (s *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 	}
 }
 
-// this functions is called when other contract calls
 func (_ *CcContractExecutor) RequiredGas(_ []byte) uint64 {
 	return GasOfCCOp
 }
@@ -110,152 +104,80 @@ func (_ *CcContractExecutor) Run(_ []byte) ([]byte, error) {
 	return nil, nil
 }
 
-// function transferBCHToMainnet(bytes utxo) external;
-func transferBchToMainnet(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	status = StatusFailed //default status is failed
-	gasUsed = GasOfCCOp
-	callData := tx.Data[4:]
-	if len(callData) < 32+32+64 /*[36]byte abi encode length*/ {
-		outData = []byte(InvalidCallData.Error())
-		return
-	}
-	// First argument: utxo
-	var utxo [36]byte
-	copy(utxo[:], callData[64:64+36])
+//func buildTransferToMainnetEvmLog(utxo [36]byte, from common.Address, value *uint256.Int) mevmtypes.EvmLog {
+//	evmLog := mevmtypes.EvmLog{
+//		Address: CCContractAddress,
+//		Topics:  make([]common.Hash, 0, 4),
+//	}
+//
+//	evmLog.Topics = append(evmLog.Topics, HashOfEventTransferToBch)
+//	txId := common.Hash{}
+//	txId.SetBytes(utxo[:32])
+//	evmLog.Topics = append(evmLog.Topics, txId)
+//	vOutIndex := common.Hash{}
+//	vOutIndex.SetBytes(utxo[32:])
+//	evmLog.Topics = append(evmLog.Topics, vOutIndex)
+//	sender := common.Hash{}
+//	sender.SetBytes(from[:])
+//	evmLog.Topics = append(evmLog.Topics, sender)
+//
+//	data := value.Bytes32()
+//	evmLog.Data = append(evmLog.Data, data[:]...)
+//	return evmLog
+//}
 
-	value := uint256.NewInt(0).SetBytes32(tx.Value[:])
-	err := consumeUTXO(ctx, utxo, value)
-	if err != nil {
-		outData = []byte(err.Error())
-		return
-	}
-	status, outData = transferBchFromTx(ctx, tx)
-	if status == StatusSuccess {
-		// emit event, convert BCH from 18bit to 8bit
-		logs = append(logs, buildTransferToMainnetEvmLog(utxo, tx.From, value))
-	}
-	return
-}
-
-func buildTransferToMainnetEvmLog(utxo [36]byte, from common.Address, value *uint256.Int) mevmtypes.EvmLog {
-	evmLog := mevmtypes.EvmLog{
-		Address: CCContractAddress,
-		Topics:  make([]common.Hash, 0, 4),
-	}
-
-	evmLog.Topics = append(evmLog.Topics, HashOfEventTransferToBch)
-	txId := common.Hash{}
-	txId.SetBytes(utxo[:32])
-	evmLog.Topics = append(evmLog.Topics, txId)
-	vOutIndex := common.Hash{}
-	vOutIndex.SetBytes(utxo[32:])
-	evmLog.Topics = append(evmLog.Topics, vOutIndex)
-	sender := common.Hash{}
-	sender.SetBytes(from[:])
-	evmLog.Topics = append(evmLog.Topics, sender)
-
-	data := value.Bytes32()
-	evmLog.Data = append(evmLog.Data, data[:]...)
-	return evmLog
-}
-
-// function burnBCH(utxo bytes, amount uint256) external
-func burnBch(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+// function redeem(txid bytes32, index uint32, amount uint256) external
+func redeem(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	callData := tx.Data[4:]
-	if len(callData) < 32+32+64 /*[36]byte*/ {
+	if len(callData) < 32+32+32 {
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
-	var utxo [36]byte
-	copy(utxo[:], callData[64:64+36])
-
-	value := LoadUTXO(ctx, utxo)
-	err := UpdateBchBurnt(ctx, value)
+	var utxo types.UTXO
+	copy(utxo.TxID[:], callData[:32])
+	index := uint256.NewInt(0).SetBytes32(callData[32:64])
+	amount := uint256.NewInt(0).SetBytes32(callData[64:96])
+	utxo.Index = uint32(index.Uint64())
+	utxo.Amount = int64(amount.Uint64())
+	if !checkAndDeleteUtxo(ctx, utxo) {
+		status = StatusFailed
+		return
+	}
+	err := transferBch(ctx, tx.From, CCContractAddress, uint256.NewInt(0).SetBytes32(tx.Value[:]))
 	if err != nil {
 		outData = []byte(err.Error())
 		return
 	}
-	deleteUTXO(ctx, utxo)
-	logs = append(logs, buildBurnEvmLog(utxo, value))
+	serializedTx, _ := buildUnsignedTx(utxo, nil, [20]byte{})
+	//build log including serializedTx
+	fmt.Printf(serializedTx)
 	status = StatusSuccess
 	return
 }
 
-func buildBurnEvmLog(utxo [36]byte, value *uint256.Int) mevmtypes.EvmLog {
-	evmLog := mevmtypes.EvmLog{
-		Address: CCContractAddress,
-		Topics:  make([]common.Hash, 0, 4),
+func checkAndDeleteUtxo(ctx *mevmtypes.Context, utxo types.UTXO) bool {
+	info := LoaUTXOInfos(ctx, types.TransferType, types.AllUTXO)
+	index := -1
+	for i, u := range info.UtxoSet {
+		if utxo.TxID == u.TxID && utxo.Index == u.Index && utxo.Amount == u.Amount {
+			index = i
+			break
+		}
 	}
-
-	evmLog.Topics = append(evmLog.Topics, HashOfEventBurn)
-	txId := common.Hash{}
-	txId.SetBytes(utxo[:32])
-	evmLog.Topics = append(evmLog.Topics, txId)
-	vOutIndex := common.Hash{}
-	vOutIndex.SetBytes(utxo[32:])
-	evmLog.Topics = append(evmLog.Topics, vOutIndex)
-
-	data := value.Bytes32()
-	evmLog.Data = append(evmLog.Data, data[:]...)
-	return evmLog
-}
-
-func consumeUTXO(ctx *mevmtypes.Context, utxo [36]byte, value *uint256.Int) error {
-	originAmount := LoadUTXO(ctx, utxo)
-	if originAmount.Cmp(value) != 0 {
-		return BchAmountNotMatch
+	var newUTXOes []types.UTXO
+	if index == len(info.UtxoSet)-1 {
+		newUTXOes = info.UtxoSet[:len(info.UtxoSet)]
+	} else if index != -1 {
+		newUTXOes = append(info.UtxoSet[:index], info.UtxoSet[index+1:]...)
+	} else {
+		newUTXOes = info.UtxoSet
+		return false
 	}
-	deleteUTXO(ctx, utxo)
-	return nil
-}
-
-func LoadUTXO(ctx *mevmtypes.Context, utxo [36]byte) *uint256.Int {
-	var bz []byte
-	key := sha256.Sum256(utxo[:])
-	bz = ctx.GetStorageAt(ccContractSequence, string(key[:]))
-	return uint256.NewInt(0).SetBytes(bz)
-}
-
-func SaveUTXO(ctx *mevmtypes.Context, utxo [36]byte, amount *uint256.Int) {
-	key := sha256.Sum256(utxo[:])
-	ctx.SetStorageAt(ccContractSequence, string(key[:]), amount.Bytes())
-}
-
-func deleteUTXO(ctx *mevmtypes.Context, utxo [36]byte) {
-	key := sha256.Sum256(utxo[:])
-	ctx.DeleteStorageAt(ccContractSequence, string(key[:]))
-}
-
-func LoadBchMainnetBurnt(ctx *mevmtypes.Context) *uint256.Int {
-	var bz = ctx.GetStorageAt(ccContractSequence, SlotBCHAlreadyBurnt)
-	return uint256.NewInt(0).SetBytes(bz)
-}
-
-func SaveBchMainnetBurnt(ctx *mevmtypes.Context, amount *uint256.Int) {
-	ctx.SetStorageAt(ccContractSequence, SlotBCHAlreadyBurnt, amount.Bytes())
-}
-
-func UpdateBchBurnt(ctx *mevmtypes.Context, amount *uint256.Int) error {
-	mainnetBurnt := LoadBchMainnetBurnt(ctx)
-	burnt := ebp.GetBlackHoleBalance(ctx)
-	if burnt.Cmp(mainnetBurnt.Add(mainnetBurnt, amount)) < 0 {
-		return BurnToMuch
-	}
-	SaveBchMainnetBurnt(ctx, mainnetBurnt)
-	return nil
-}
-
-func transferBchFromTx(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, outData []byte) {
-	status = StatusFailed
-	err := transferBch(ctx, tx.From, CCContractAddress, uint256.NewInt(0).SetBytes(tx.Value[:]))
-	if err != nil {
-		outData = []byte(err.Error())
-		return
-	}
-	status = StatusSuccess
-	return
+	info.UtxoSet = newUTXOes
+	SaveUTXOInfos(ctx, types.TransferType, types.AllUTXO, info)
+	return true
 }
 
 func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value *uint256.Int) error {
@@ -279,36 +201,6 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 		ctx.SetAccount(receiver, receiverAcc)
 	}
 	return nil
-}
-
-func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
-	ccInfo := LoadCCInfo(ctx)
-	//when open epoch speedup, staking epoch is in strict accordance with the mainnet height,
-	//but cc epoch which already switched in recent staking epoch can be fetch repeat,
-	//so filter these cc epochs here
-	if epoch.StartHeight < ccInfo.GenesisMainnetBlockHeight+ccInfo.CurrEpochNum*param.BlocksInCCEpoch {
-		fmt.Printf("skip crosschain epoch, its start height:%d as of ccepoch speed up\n", epoch.StartHeight)
-		return
-	}
-	for _, info := range epoch.TransferInfos {
-		value := uint256.NewInt(0).SetUint64(info.Amount)
-		//convert BCH decimals from 8 to 18
-		value.Mul(value, uint256.NewInt(10e10))
-		fmt.Printf("switch epoch: info.pubkey:%v, info.amount:%d, info.utxo:%v\n",
-			info.SenderPubkey, info.Amount, info.UTXO)
-		SaveUTXO(ctx, info.UTXO, value)
-		var sender common.Address
-		sender.SetBytes(secp256k1.PubKey(info.SenderPubkey[:]).Address().Bytes())
-		err := transferBch(ctx, CCContractAddress, sender, value)
-		if err != nil {
-			//log it, never in here if mainnet is honest
-			fmt.Println(err.Error())
-		}
-	}
-	ccInfo.CurrEpochNum++
-	SaveCCInfo(ctx, ccInfo)
-	epoch.Number = ccInfo.CurrEpochNum
-	SaveCCEpoch(ctx, epoch.Number, epoch)
 }
 
 func LoadCCInfo(ctx *mevmtypes.Context) (info types.CCInfo) {
@@ -358,4 +250,182 @@ func LoadCCEpoch(ctx *mevmtypes.Context, epochNum int64) (epoch types.CCEpoch, o
 	}
 	ok = true
 	return
+}
+
+var fixedMainnetFee = int64(10)
+
+// build tx
+
+func buildUnsignedTx(utxo types.UTXO, redeemScript []byte, p2shHash [20]byte) (string, error) {
+	tx := wire.NewMsgTx(wire.TxVersion)
+	// 1. build tx output
+	pkScript, err := buildP2shPubkeyScript(p2shHash[:])
+	if err != nil {
+		panic(err)
+	}
+	tx.AddTxOut(wire.NewTxOut(utxo.Amount-fixedMainnetFee, pkScript))
+	// 2. build tx input
+	in := wire.TxIn{
+		PreviousOutPoint: wire.OutPoint{
+			Hash:  utxo.TxID,
+			Index: utxo.Index,
+		},
+		SignatureScript: redeemScript, //store redeem script here
+		Sequence:        0xffffffff,
+	}
+	tx.AddTxIn(&in)
+	return txSerialize2Hex(tx), nil
+}
+
+func buildP2shPubkeyScript(scriptHash []byte) ([]byte, error) {
+	return txscript.NewScriptBuilder().AddOp(txscript.OP_HASH160).AddData(scriptHash).AddOp(txscript.OP_EQUAL).Script()
+}
+
+func buildMultiSigRedeemScript(pubkeys []*bchutil.AddressPubKey, n int) ([]byte, error) {
+	return txscript.MultiSigScript(pubkeys, n)
+}
+
+func txSerialize2Hex(tx *wire.MsgTx) string {
+	buf := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
+	if err := tx.Serialize(buf); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(buf.Bytes())
+}
+
+// storage related
+func AddUTXOInfos(ctx *mevmtypes.Context, param types.UTXOParam, utxo types.UTXO) {
+	infos := LoaUTXOInfos(ctx, utxo.Type, param)
+	infos.UtxoSet = append(infos.UtxoSet, utxo)
+	SaveUTXOInfos(ctx, utxo.Type, param, infos)
+}
+
+func SubUTXOInfos(ctx *mevmtypes.Context, param types.UTXOParam, utxo types.UTXO) {
+	infos := LoaUTXOInfos(ctx, utxo.Type, param)
+	newSet := make([]types.UTXO, 0, len(infos.UtxoSet)-1)
+	m := make(map[[32]byte]*types.UTXO)
+	for _, info := range infos.UtxoSet {
+		m[info.TxID] = &info
+	}
+	if u := m[utxo.TxID]; u != nil {
+		if u.Index == utxo.Index {
+			delete(m, u.TxID)
+		}
+	}
+	for _, u := range m {
+		newSet = append(newSet, *u)
+	}
+	infos.UtxoSet = newSet
+	SaveUTXOInfos(ctx, utxo.Type, param, infos)
+}
+
+func LoaUTXOInfos(ctx *mevmtypes.Context, utxoType types.UTXOType, param types.UTXOParam) types.UTXOInfos {
+	return types.UTXOInfos{}
+}
+
+func SaveUTXOInfos(ctx *mevmtypes.Context, utxoType types.UTXOType, param types.UTXOParam, infos types.UTXOInfos) {
+}
+
+func LoaSwitchInfo(ctx *mevmtypes.Context) bool {
+	var sw bool
+	bz := ctx.GetStorageAt(ccContractSequence, SlotSwitchInfo)
+	if bz == nil {
+		return false
+	}
+	_ = json.Unmarshal(bz, &sw)
+	return sw
+}
+
+func SaveSwitchInfo(ctx *mevmtypes.Context, sw bool) {
+	bz, err := json.Marshal(sw)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(ccContractSequence, SlotSwitchInfo, bz)
+}
+
+func LoadScriptInfo(ctx *mevmtypes.Context) (info types.ScriptInfo) {
+	bz := ctx.GetStorageAt(ccContractSequence, SlotScriptInfo)
+	if bz == nil {
+		return types.ScriptInfo{}
+	}
+	_, err := info.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func SaveScriptInfo(ctx *mevmtypes.Context, info types.ScriptInfo) {
+	bz, err := info.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(ccContractSequence, SlotScriptInfo, bz)
+}
+
+func SwitchCCEpoch(ctx *mevmtypes.Context, epoch *types.CCEpoch) {
+	ccInfo := LoadCCInfo(ctx)
+	//when open epoch speedup, staking epoch is in strict accordance with the mainnet height,
+	//but cc epoch which already switched in recent staking epoch can be fetch repeat,
+	//so filter these cc epochs here
+	if epoch.StartHeight < ccInfo.GenesisMainnetBlockHeight+ccInfo.CurrEpochNum*param.BlocksInCCEpoch {
+		fmt.Printf("skip crosschain epoch, its start height:%d as of ccepoch speed up\n", epoch.StartHeight)
+		return
+	}
+	for _, info := range epoch.TransferInfos {
+		value := uint256.NewInt(0).SetUint64(uint64(info.UTXO.Amount))
+		fmt.Printf("switch epoch: info.receiver:%v, info.amount:%d, info.utxo:%v\n",
+			info.Receiver, info.UTXO.Amount, info.UTXO)
+		err := transferBch(ctx, CCContractAddress, info.Receiver, value)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+	UpdateUtxoSet(ctx, epoch.TransferInfos)
+	ccInfo.CurrEpochNum++
+	SaveCCInfo(ctx, ccInfo)
+	epoch.Number = ccInfo.CurrEpochNum
+	SaveCCEpoch(ctx, epoch.Number, epoch)
+}
+
+func UpdateUtxoSet(ctx *mevmtypes.Context, infos []*types.CCTransferInfo) {
+	for _, info := range infos {
+		switch info.UTXO.Type {
+		//
+		case types.TransferType:
+			AddUTXOInfos(ctx, types.AllUTXO, info.UTXO)
+		case types.ConvertType:
+			SubUTXOInfos(ctx, types.AllUTXO, info.PrevUTXO)
+			AddUTXOInfos(ctx, types.AllUTXO, info.UTXO)
+		case types.MonitorCancelRedeemType:
+		case types.MonitorCancelConvertType:
+		default:
+		}
+	}
+	if isOperatorChanged() {
+		BuildSaveUTXOConvertUnsignedTxs(ctx)
+	}
+}
+
+func isOperatorChanged() bool {
+	return false
+}
+
+func BuildSaveUTXOConvertUnsignedTxs(ctx *mevmtypes.Context) {
+	all := LoaUTXOInfos(ctx, types.TransferType, types.AllUTXO)
+	allTxs := make([]string, 0, len(all.UtxoSet))
+	for i, utxo := range all.UtxoSet {
+		s, _ := buildUnsignedTx(utxo, nil, [20]byte{})
+		allTxs[i] = s
+	}
+	SaveUTXOConvertUnsignedTxs(ctx, allTxs)
+}
+
+func SaveUTXOConvertUnsignedTxs(ctx *mevmtypes.Context, txs []string) {
+	bz, err := json.Marshal(txs)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(ccContractSequence, SlotUnsignedConvertTxs, bz)
 }

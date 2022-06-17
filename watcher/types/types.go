@@ -1,9 +1,9 @@
 package types
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"strings"
 
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
@@ -155,11 +155,9 @@ func (ti TxInfo) GetCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
 			continue
 		}
 		var info cctypes.CCTransferInfo
-		info.Amount = uint64(vOut.Value * (10e8))
-		copy(info.UTXO[:32], ti.Hash)
-		var vOutIndex [4]byte
-		binary.BigEndian.PutUint32(vOutIndex[:], uint32(n))
-		copy(info.UTXO[32:], vOutIndex[:])
+		info.UTXO.Amount = int64(vOut.Value * (10e8))
+		copy(info.UTXO.TxID[:], ti.Hash)
+		info.UTXO.Index = uint32(n)
 		infos = append(infos, &info)
 	}
 	if len(infos) != 0 {
@@ -181,11 +179,15 @@ func (ti TxInfo) GetCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
 		copy(pubkey[:], pubkeyBytes)
 		fmt.Printf("get cc infos:\n")
 		for _, info := range infos {
-			info.SenderPubkey = pubkey
-			fmt.Printf("info.pubkey:%v, info.amount:%d, info.utxo:%v\n", info.SenderPubkey, info.Amount, info.UTXO)
+			info.Receiver = convertBCHPubkey2EvmAddress(pubkey)
+			fmt.Printf("info.receiver:%v, info.amount:%d, info.utxo:%v\n", info.Receiver, info.UTXO.Amount, info.UTXO)
 		}
 	}
 	return
+}
+
+func convertBCHPubkey2EvmAddress(pubkey [33]byte) common.Address {
+	return common.Address{}
 }
 
 type TxInfoResp struct {
