@@ -1,9 +1,11 @@
 package app_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -484,4 +487,208 @@ bd0c4e850d868d2f7aa12664736f6c63430008000033
 		println(hex.EncodeToString(retData))
 		require.False(t, uint256.NewInt(0).SetBytes32(retData).IsZero())
 	}
+}
+
+/*
+//SPDX-License-Identifier: Unlicense
+pragma solidity ^0.8.0;
+
+contract CCVotingForTest {
+
+	struct OperatorInfo {
+		address owner;
+		uint    pubkeyPrefix; // 0x02 or 0x03 (TODO: change type to uint8)
+		bytes32 pubkeyX;      // x
+		bytes32 rpcUrl;       // ip:port
+		bytes32 intro;
+		uint    votes;
+		uint    inOfficeStartTime; // 0 means not in office
+	}
+
+	struct VoterInfo {
+		uint lastUpdatedTime;
+		uint coinDays;
+		uint stakedAmount;
+	}
+
+	uint currOperatorCount; // set from Go
+	OperatorInfo[] operators;
+	mapping(address => VoterInfo) voters;
+
+	function addOperator(uint pubkeyPrefix,
+		                 bytes32 pubkeyX,
+		                 bytes32 rpcUrl,
+		                 bytes32 intro) public {
+		operators.push(OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, 0, 0));
+	}
+
+	function getOperator(uint idx) public returns (address, uint, bytes32, bytes32, bytes32, uint, uint) {
+		OperatorInfo storage operator = operators[idx];
+		return (operator.owner, operator.pubkeyPrefix, operator.pubkeyX, operator.rpcUrl, operator.intro,
+			operator.votes, operator.inOfficeStartTime);
+	}
+
+}
+*/
+func TestCCVoting(t *testing.T) {
+	_abi := ethutils.MustParseABI(`
+[
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "pubkeyPrefix",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "pubkeyX",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "rpcUrl",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "intro",
+          "type": "bytes32"
+        }
+      ],
+      "name": "addOperator",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "idx",
+          "type": "uint256"
+        }
+      ],
+      "name": "getOperator",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+`)
+
+	// CCVotingForTest.sol
+	creationBytecode := testutils.HexToBytes(`0x608060405234801561001057600080fd5b5061043d806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806305f63c8a1461003b578063ee00319414610071575b600080fd5b6100556004803603810190610050919061026b565b61008d565b6040516100689796959493929190610324565b60405180910390f35b61008b60048036038101906100869190610294565b610140565b005b600080600080600080600080600189815481106100d3577f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b906000526020600020906007020190508060000160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16816001015482600201548360030154846004015485600501548660060154975097509750975097509750975050919395979092949650565b60016040518060e001604052803373ffffffffffffffffffffffffffffffffffffffff168152602001868152602001858152602001848152602001838152602001600081526020016000815250908060018154018082558091505060019003906000526020600020906007020160009091909190915060008201518160000160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506020820151816001015560408201518160020155606082015181600301556080820151816004015560a0820151816005015560c08201518160060155505050505050565b600081359050610250816103d9565b92915050565b600081359050610265816103f0565b92915050565b60006020828403121561027d57600080fd5b600061028b84828501610256565b91505092915050565b600080600080608085870312156102aa57600080fd5b60006102b887828801610256565b94505060206102c987828801610241565b93505060406102da87828801610241565b92505060606102eb87828801610241565b91505092959194509250565b61030081610393565b82525050565b61030f816103a5565b82525050565b61031e816103cf565b82525050565b600060e082019050610339600083018a6102f7565b6103466020830189610315565b6103536040830188610306565b6103606060830187610306565b61036d6080830186610306565b61037a60a0830185610315565b61038760c0830184610315565b98975050505050505050565b600061039e826103af565b9050919050565b6000819050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b6103e2816103a5565b81146103ed57600080fd5b50565b6103f9816103cf565b811461040457600080fd5b5056fea2646970667358221220680049b6bd5fa6da33ba4c0a4124e7ff9dfaeb0636082ed0e87e3676fbdec58c64736f6c63430008040033`)
+
+	key, addr := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+
+	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	addOpInput1 := _abi.MustPack("addOperator",
+		big.NewInt(02),
+		toBytes32("pubkeyX1"),
+		toBytes32("12.34.56.78:9000"),
+		toBytes32("intro1"),
+	)
+	tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, addOpInput1)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	addOpInput2 := _abi.MustPack("addOperator",
+		big.NewInt(03),
+		toBytes32("pubkeyX2"),
+		toBytes32("23.45.67.89:1000"),
+		toBytes32("intro2"),
+	)
+	tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, addOpInput2)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	// read data from Go
+	ctx := _app.GetRpcContext()
+	defer ctx.Close(false)
+
+	accInfo := ctx.GetAccount(contractAddr)
+	seq := accInfo.Sequence()
+	operatorsSlot := string(uint256.NewInt(1).PaddedBytes(32))
+	operatorsLen := ctx.GetStorageAt(seq, operatorsSlot)
+	require.Equal(t, int64(2), big.NewInt(0).SetBytes(operatorsLen).Int64())
+
+	operatorsLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256([]byte(operatorsSlot)))
+	// operator1
+	op1 := ctx.GetStorageAt(seq, string(operatorsLoc.PaddedBytes(32)))
+	require.Equal(t, addr.Bytes(), bytes.TrimLeft(op1, string([]byte{0})))
+	prefix1 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, int64(2), big.NewInt(0).SetBytes(prefix1).Int64())
+	x1 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, "pubkeyX1", strings.TrimRight(string(x1), string([]byte{0})))
+	url1 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, "12.34.56.78:9000", strings.TrimRight(string(url1), string([]byte{0})))
+	intro1 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, "intro1", strings.TrimRight(string(intro1), string([]byte{0})))
+	votes1 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, int64(0), big.NewInt(0).SetBytes(votes1).Int64())
+	// operator2
+	op2 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 2).PaddedBytes(32)))
+	require.Equal(t, addr.Bytes(), bytes.TrimLeft(op2, string([]byte{0})))
+	prefix2 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, int64(3), big.NewInt(0).SetBytes(prefix2).Int64())
+	x2 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, "pubkeyX2", strings.TrimRight(string(x2), string([]byte{0})))
+	url2 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, "23.45.67.89:1000", strings.TrimRight(string(url2), string([]byte{0})))
+	intro2 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, "intro2", strings.TrimRight(string(intro2), string([]byte{0})))
+	votes2 := ctx.GetStorageAt(seq, string(operatorsLoc.AddUint64(operatorsLoc, 1).PaddedBytes(32)))
+	require.Equal(t, int64(0), big.NewInt(0).SetBytes(votes2).Int64())
+
+	//operators[1].votes = 123
+	ctx2 := _app.GetRunTxContext()
+	ctx.SetStorageAt(seq, string(operatorsLoc.PaddedBytes(32)), uint256.NewInt(123).PaddedBytes(32))
+	ctx2.Close(true)
+	votes2 = ctx.GetStorageAt(seq, string(operatorsLoc.PaddedBytes(32)))
+	require.Equal(t, int64(123), big.NewInt(0).SetBytes(votes2).Int64())
+}
+
+func toBytes32(s string) [32]byte {
+	out := [32]byte{}
+	copy(out[:], s)
+	return out
 }
