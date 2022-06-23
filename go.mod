@@ -10,6 +10,7 @@ require (
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/ethereum/go-ethereum v1.10.7
+	github.com/gcash/bchd v0.19.0
 	github.com/google/btree v1.0.1 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/holiman/uint256 v1.2.0
@@ -41,10 +42,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-require (
-	github.com/gcash/bchd v0.19.0
-	github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000
-)
+require github.com/gcash/bchutil v0.0.0-20210113190856-6ea28dff4000
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
