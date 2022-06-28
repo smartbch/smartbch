@@ -1,9 +1,14 @@
 package ccutils
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/gcash/bchd/txscript"
+
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestGetMultiSigP2SHAddr(t *testing.T) {
@@ -29,4 +34,35 @@ func TestGetMultiSigP2SHAddr(t *testing.T) {
 	addr, err := GetMultiSigP2SHAddr(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks)
 	require.NoError(t, err)
 	require.Equal(t, "ppfuwr4yrfmjjkjvys6z80vx5mtvm8wqdylpy9m70n", addr)
+}
+
+func TestMultiSigUnsignedRedeemTx(t *testing.T) {
+	txid := "5c872829061491647b0be79a39fb053f78464c3d21d8ebdef3e6ade04340feaf"
+	vout := uint32(0)
+	toAddr := "bchtest:qzvu0c953gzu6cpykgkdfy8uacc255wcvgmp7ekj7y"
+	outAmt := int64(5000)
+
+	tx, err := MakeMultiSigUnsignedRedeemTx(txid, vout, toAddr, outAmt)
+	require.NoError(t, err)
+	println(testutils.ToJSON(tx))
+
+	inputIdx := 0
+	redeemScript := testutils.HexToBytes("21021d820f99bee3a94f26f3797af7d0589ebfc31999824cfbda935a508957ab72ac2102f51c5abd464c06c0669c39e88e72060e3eed983c6ccb1201cad6e25c642a0ef92103fdec69ef6ec640264045229ca7cf0f170927b87fc8d2047844f8a766ead467e421035c0a0cb8987290ea0a7a926e8aa8978ac042b4c0be8553eb4422461ce1a17cd82102d86b49e3424e557beebf67bd06842cdb88e314c44887f3f265b7f81107dd69945579009c6300567a577a52537a717c53afc3519dc4519d00cd0376a914557a7e0288ac7e87777777675579519c6300567a577a52537a717c53af00c600cc9d00cd02a914557a7e01877e8777777767557a529d00557a51557a567a52af00c600cc9d00cd02a914557a7e01877e885601189502b40095b26d6d516868")
+	hashType := txscript.SigHashAll | txscript.SigHashForkID
+	prevOutAmt := int64(10000)
+	sigHash, err := GetSigHash(tx, inputIdx, redeemScript, hashType, prevOutAmt)
+	require.NoError(t, err)
+	println(hex.EncodeToString(sigHash))
+
+	sig1, err := SignRedeemTxSigHashECDSA("L482yD31EhZopxRD3V19QEANQaYkcUZfgNKYY2TV4RTCXa6izAKo", sigHash, hashType)
+	require.NoError(t, err)
+	println(hex.EncodeToString(sig1))
+	sig2, err := SignRedeemTxSigHashECDSA("L4JzvBMUmkQCTdz2zbVgTyW8dDMvMU8HFwe413qfnBxW3vKSw6sm", sigHash, hashType)
+	require.NoError(t, err)
+	println(hex.EncodeToString(sig2))
+
+	pkh := testutils.HexToBytes("99c7e0b48a05cd6024b22cd490fcee30aa51d862")
+	rawTx, err := FixMultiSigUnsignedRedeemTx(tx, redeemScript, [][]byte{sig1, sig2}, pkh)
+	require.NoError(t, err)
+	println(rawTx)
 }

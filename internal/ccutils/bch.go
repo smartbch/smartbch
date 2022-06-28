@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/gcash/bchd/bchec"
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/chaincfg/chainhash"
 	"github.com/gcash/bchd/txscript"
@@ -73,9 +72,7 @@ func GetMultiSigRedeemScript(redeemScriptWithoutConstructorArgs string,
 	return builder.Script()
 }
 
-func MakeMultiSigUnsignedRedeemTx(redeemScript []byte,
-	txid string, vout uint32, toAddr string, outValue int64) (*wire.MsgTx, error) {
-
+func MakeMultiSigUnsignedRedeemTx(txid string, vout uint32, toAddr string, outAmt int64) (*wire.MsgTx, error) {
 	//prevOutValue := int64(10000)
 	//redeemOutValue := int64(6000)
 
@@ -93,7 +90,7 @@ func MakeMultiSigUnsignedRedeemTx(redeemScript []byte,
 	redeemTx.AddTxIn(txIn)
 
 	// adding the output to tx
-	decodedAddr, err := bchutil.DecodeAddress(toAddr, &chaincfg.MainNetParams)
+	decodedAddr, err := bchutil.DecodeAddress(toAddr, &chaincfg.TestNet3Params)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +100,7 @@ func MakeMultiSigUnsignedRedeemTx(redeemScript []byte,
 	}
 
 	// adding the destination address and the amount to the transaction
-	redeemTxOut := wire.NewTxOut(outValue, destinationAddrByte)
+	redeemTxOut := wire.NewTxOut(outAmt, destinationAddrByte)
 	redeemTx.AddTxOut(redeemTxOut)
 
 	//buf := bytes.NewBuffer(make([]byte, 0, redeemTx.SerializeSize()))
@@ -111,17 +108,55 @@ func MakeMultiSigUnsignedRedeemTx(redeemScript []byte,
 	return redeemTx, nil
 }
 
-func SignRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte, prevOutValue int64, key *bchec.PrivateKey) ([]byte, error) {
-	return txscript.RawTxInECDSASignature(redeemTx, 0, redeemScript, txscript.SigHashAll|txscript.SigHashForkID, key, prevOutValue)
+//const (
+//	inputIdx = 0
+//	hashType = txscript.SigHashAll | txscript.SigHashForkID
+//)
+
+func GetSigHash(tx *wire.MsgTx, idx int, subScript []byte,
+	hashType txscript.SigHashType, prevOutAmt int64) ([]byte, error) {
+
+	// If the forkID was not passed in with the hashtype then add it here
+	if hashType&txscript.SigHashForkID != txscript.SigHashForkID {
+		hashType |= txscript.SigHashForkID
+	}
+
+	sigHashes := txscript.NewTxSigHashes(tx)
+	hash, err := txscript.CalcSignatureHash(subScript, sigHashes, hashType, tx, idx, prevOutAmt, true)
+	return hash, err
 }
 
-func FixMultiSigUnsignedRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte, sigs [][]byte) (string, error) {
+//func SignRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte, prevOutValue int64, key *bchec.PrivateKey) ([]byte, error) {
+//	return txscript.RawTxInECDSASignature(redeemTx, 0, redeemScript, txscript.SigHashAll|txscript.SigHashForkID, key, prevOutValue)
+//}
+
+func SignRedeemTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
+	wif, err := bchutil.DecodeWIF(wifStr)
+	if err != nil {
+		return nil, err
+	}
+
+	signature, err := wif.PrivKey.SignECDSA(hash)
+	if err != nil {
+		return nil, fmt.Errorf("cannot sign tx input: %s", err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot sign tx input: %s", err)
+	}
+
+	return append(signature.Serialize(), byte(hashType)), nil
+}
+
+func FixMultiSigUnsignedRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte,
+	sigs [][]byte, pkh []byte) (string, error) {
+
 	signature := txscript.NewScriptBuilder()
 	//signature.AddOp(txscript.OP_FALSE)
-	for _, sig := range sigs {
-		signature.AddData(sig)
+	signature.AddData(pkh)
+	for i := len(sigs) - 1; i >= 0; i-- {
+		signature.AddData(sigs[i])
 	}
-	signature.AddInt64(1) // selector
+	signature.AddInt64(0) // selector
 	signature.AddData(redeemScript)
 	signatureScript, err := signature.Script()
 	if err != nil {
