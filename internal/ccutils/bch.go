@@ -12,39 +12,7 @@ import (
 func GetMultiSigP2SHAddr(redeemScriptWithoutConstructorArgs string,
 	operatorPks []string, monitorPks []string) (string, error) {
 
-	builder := txscript.NewScriptBuilder()
-
-	for i := len(monitorPks) - 1; i >= 0; i-- {
-		pk, err := hex.DecodeString(monitorPks[i])
-		if err != nil {
-			return "", fmt.Errorf("failed to decode monitorPk#%d", i)
-		}
-		if len(pk) != 33 {
-			return "", fmt.Errorf("len of monitorPk#%d is not 33", i)
-		}
-
-		builder.AddData(pk)
-	}
-
-	for i := len(operatorPks) - 1; i >= 0; i-- {
-		pk, err := hex.DecodeString(operatorPks[i])
-		if err != nil {
-			return "", fmt.Errorf("failed to decode operatorPk#%d", i)
-		}
-		if len(pk) != 33 {
-			return "", fmt.Errorf("len of operatorPk#%d is not 33", i)
-		}
-
-		builder.AddData(pk)
-	}
-
-	ops, err := hex.DecodeString(redeemScriptWithoutConstructorArgs)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode redeemScriptWithoutConstructorArgs")
-	}
-	builder.AddOps(ops)
-
-	redeemScript, err := builder.Script()
+	redeemScript, err := GetMultiSigRedeemScript(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks)
 	if err != nil {
 		return "", err
 	}
@@ -61,4 +29,46 @@ func GetMultiSigP2SHAddr(redeemScriptWithoutConstructorArgs string,
 	}
 
 	return addr.EncodeAddress(), nil
+}
+
+func GetMultiSigRedeemScript(redeemScriptWithoutConstructorArgs string,
+	operatorPks []string, monitorPks []string) ([]byte, error) {
+
+	builder := txscript.NewScriptBuilder()
+
+	for i := len(monitorPks) - 1; i >= 0; i-- {
+		pk, err := hex.DecodeString(monitorPks[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode monitorPk#%d", i)
+		}
+		if len(pk) != 33 {
+			return nil, fmt.Errorf("len of monitorPk#%d is not 33", i)
+		}
+
+		builder.AddData(pk)
+	}
+
+	for i := len(operatorPks) - 1; i >= 0; i-- {
+		pk, err := hex.DecodeString(operatorPks[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode operatorPk#%d", i)
+		}
+		if len(pk) != 33 {
+			return nil, fmt.Errorf("len of operatorPk#%d is not 33", i)
+		}
+
+		builder.AddData(pk)
+	}
+
+	ops, err := hex.DecodeString(redeemScriptWithoutConstructorArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode redeemScriptWithoutConstructorArgs")
+	}
+	builder.AddOps(ops)
+
+	return builder.Script()
+}
+
+func MakeMultiSigUnsignedRedeemTx() {
+
 }
