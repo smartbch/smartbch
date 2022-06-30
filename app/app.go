@@ -330,7 +330,7 @@ func (app *App) CheckTx(req abcitypes.RequestCheckTx) abcitypes.ResponseCheckTx 
 		app.sigCacheAdd(txid, SenderAndHeight{sender, app.currHeight})
 	}
 	if sender == ebp.BlockedAddress {
-		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + err.Error()}
+		return abcitypes.ResponseCheckTx{Code: CannotRecoverSender, Info: "invalid sender: " + sender.String()}
 	}
 	return app.checkTxWithContext(tx, sender, req.Type)
 }
