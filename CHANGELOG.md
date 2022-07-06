@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.4-p2
+
+* Hot fix to stop CoinFLEX's smartBCH treasury
+
+
 ## v0.4.4-p1
 
 * Extend epoch 20th 50 percent longer
