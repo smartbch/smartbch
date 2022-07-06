@@ -9,14 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-	"sort"
-	"strings"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
+	"math"
+	"sort"
+	"strings"
 
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
@@ -82,6 +81,7 @@ var (
 	SlotLastMinGasPrice           = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
 	SlotMinGasPriceProposalTarget = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
 	SlotVoters                    = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
+	SlotOnlineInfo                = strings.Repeat(string([]byte{0}), 31) + string([]byte{6})
 
 	// slot in hex
 	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
@@ -92,9 +92,11 @@ var (
 var (
 	/*------param------*/
 	//staking
-	InitialStakingAmount = uint256.NewInt(0)
-	MinimumStakingAmount = uint256.NewInt(0)
-	SlashedStakingAmount = uint256.NewInt(0)
+	InitialStakingAmount                 = uint256.NewInt(0)
+	MinimumStakingAmount                 = uint256.NewInt(0)
+	InitialStakingAmountAfterStakingFork = uint256.NewInt(0).Mul(uint256.NewInt(120), uint256.NewInt(Uint64_1e18))
+	MinimumStakingAmountAfterStakingFork = uint256.NewInt(0).Mul(uint256.NewInt(100), uint256.NewInt(Uint64_1e18))
+	SlashedStakingAmount                 = uint256.NewInt(0)
 
 	GasOfValidatorOp   uint64 = 400_000
 	GasOfMinGasPriceOp uint64 = 50_000
@@ -115,6 +117,7 @@ var (
 	InvalidSelector                   = errors.New("invalid selector")
 	BalanceNotEnough                  = errors.New("balance is not enough")
 	NoSuchValidator                   = errors.New("no such validator")
+	ValidatorInRetiring               = errors.New("validator in retiring")
 	ValidatorNotActive                = errors.New("validator not active")
 	OperatorNotValidator              = errors.New("minGasPrice operator not validator or its rewardTo")
 	MinGasPriceTooBig                 = errors.New("minGasPrice bigger than allowed highest value")
@@ -272,7 +275,11 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 	var pubkey [32]byte
 	copy(pubkey[:], callData[64:])
 
-	if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(InitialStakingAmount) <= 0 {
+	initialAmount := InitialStakingAmount
+	if ctx.IsStakingFork() {
+		initialAmount = InitialStakingAmountAfterStakingFork
+	}
+	if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(initialAmount) <= 0 {
 		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
 		return
 	}
@@ -314,6 +321,10 @@ func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, l
 	val := info.GetValidatorByAddr(tx.From)
 	if val == nil {
 		outData = []byte(NoSuchValidator.Error())
+		return
+	}
+	if val.IsRetiring {
+		outData = []byte(ValidatorInRetiring.Error())
 		return
 	}
 	var bz20Zero [20]byte
@@ -566,7 +577,7 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 		lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
 		info := LoadStakingInfo(ctx)
 		isValidatorOrRewardTo := false
-		activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+		activeValidators := GetActiveValidators(ctx, info.Validators)
 		for _, v := range activeValidators {
 			if v.Address == sender || v.RewardTo == sender {
 				isValidatorOrRewardTo = true
@@ -783,17 +794,108 @@ func GetVoters(ctx *mevmtypes.Context) (voters []common.Address) {
 	return voters
 }
 
+func LoadOnlineInfo(ctx *mevmtypes.Context) (infos types.ValidatorOnlineInfos) {
+	bz := ctx.GetStorageAt(StakingContractSequence, SlotOnlineInfo)
+	if len(bz) == 0 {
+		return
+	}
+	_, err := infos.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func SaveOnlineInfo(ctx *mevmtypes.Context, infos types.ValidatorOnlineInfos) {
+	bz, err := infos.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(StakingContractSequence, SlotOnlineInfo, bz)
+}
+
 // =========================================================================================
 // Following staking functions cannot be invoked through smart contract calls
 
+func NewOnlineInfos(activeValidators []*types.Validator, startHeight int64) *types.ValidatorOnlineInfos {
+	var infos types.ValidatorOnlineInfos
+	var onlineInfos []*types.OnlineInfo
+	for _, val := range activeValidators {
+		var onlineInfo types.OnlineInfo
+		copy(onlineInfo.ValidatorConsensusAddress[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
+		onlineInfos = append(onlineInfos, &onlineInfo)
+	}
+	infos.OnlineInfos = onlineInfos
+	infos.StartHeight = startHeight
+	return &infos
+}
+
+func UpdateOnlineInfos(ctx *mevmtypes.Context, infos *types.ValidatorOnlineInfos, voters [][]byte) (startHeight int64) {
+	if infos.StartHeight == 0 {
+		stakingInfo := LoadStakingInfo(ctx)
+		activeValidators := GetActiveValidators(ctx, stakingInfo.Validators)
+		infos = NewOnlineInfos(activeValidators, ctx.Height)
+	}
+	voterMap := make(map[[20]byte]bool)
+	for _, voter := range voters {
+		var v [20]byte
+		copy(v[:], voter)
+		voterMap[v] = true
+	}
+	if ctx.Height == infos.StartHeight+param.OnlineWindowSize {
+		for _, info := range infos.OnlineInfos {
+			info.SignatureAmount = 0
+		}
+		infos.StartHeight = ctx.Height
+	}
+	for _, info := range infos.OnlineInfos {
+		if voterMap[info.ValidatorConsensusAddress] {
+			info.SignatureAmount++
+		}
+	}
+	SaveOnlineInfo(ctx, *infos)
+	return infos.StartHeight
+}
+
+func HandleOnlineInfos(ctx *mevmtypes.Context, voters [][]byte) (slashValidators [][20]byte) {
+	var retireValidators = make(map[[20]byte]bool)
+	infos := LoadOnlineInfo(ctx)
+	var newInfos []*types.OnlineInfo
+	for _, info := range infos.OnlineInfos {
+		if info.SignatureAmount < param.MinOnlineSignatures {
+			retireValidators[info.ValidatorConsensusAddress] = true
+		} else {
+			newInfos = append(newInfos, info)
+		}
+	}
+	if len(retireValidators) == 0 {
+		UpdateOnlineInfos(ctx, &infos, voters)
+		return
+	}
+	infos.OnlineInfos = newInfos
+	stakingInfo := LoadStakingInfo(ctx)
+	for _, val := range stakingInfo.Validators {
+		var address [20]byte
+		copy(address[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
+		if retireValidators[address] {
+			val.IsRetiring = true
+			val.VotingPower = 0
+			slashValidators = append(slashValidators, address)
+		}
+	}
+	UpdateOnlineInfos(ctx, &infos, voters)
+	SaveStakingInfo(ctx, stakingInfo)
+	return
+}
+
 // slashValidators and lastVoters are consensus addresses generated from validator consensus pubkey
 func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte,
-	currProposer, lastProposer [20]byte, lastVoters [][]byte,
+	currProposer, lastProposer [20]byte, lastVoters [][]byte, /*include proposer*/
 	blockReward *uint256.Int) (currValidators, newValidators []*types.Validator, currEpochNum int64) {
 
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
 	currEpochNum = info.CurrEpochNum
-	currValidators = types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+	currValidators = GetActiveValidators(ctx, info.Validators)
 
 	pubkeyMapByConsAddr := make(map[[20]byte][32]byte, len(info.Validators))
 	var consAddr [20]byte
@@ -802,9 +904,16 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte,
 		pubkeyMapByConsAddr[consAddr] = v.Pubkey
 	}
 	//slash first
+	if ctx.IsStakingFork() {
+		slashValidators = append(slashValidators, HandleOnlineInfos(ctx, lastVoters)...)
+	}
 	for _, v := range slashValidators {
 		if pubkey, ok := pubkeyMapByConsAddr[v]; ok {
-			Slash(ctx, &info, pubkey, SlashedStakingAmount)
+			slashAmount := uint256.NewInt(0)
+			if ctx.IsStakingFork() {
+				slashAmount = MinimumStakingAmountAfterStakingFork.Div(MinimumStakingAmount, uint256.NewInt(param.SlashAmountDivisor))
+			}
+			Slash(ctx, &info, pubkey, slashAmount)
 		}
 	}
 	voters := make([][32]byte, 0, len(lastVoters))
@@ -817,7 +926,7 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte,
 	}
 	DistributeFee(ctx, stakingAcc, &info, blockReward, pubkeyMapByConsAddr[currProposer],
 		pubkeyMapByConsAddr[lastProposer], voters)
-	newValidators = types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+	newValidators = GetActiveValidators(ctx, info.Validators)
 	SaveStakingInfo(ctx, info)
 	return
 }
@@ -878,7 +987,7 @@ func DistributeFee(ctx *mevmtypes.Context, stakingAcc *mevmtypes.AccountInfo, in
 	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, halfFeeToBurn)
 
 	totalVotingPower, votedPower := int64(0), int64(0)
-	for _, val := range types.GetActiveValidators(info.Validators, MinimumStakingAmount) {
+	for _, val := range GetActiveValidators(ctx, info.Validators) {
 		totalVotingPower += val.VotingPower
 	}
 	valMapByPubkey := info.GetValMapByPubkey()
@@ -968,13 +1077,16 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, posVotes map[[32]by
 	}
 	// someone who call createValidator before switchEpoch can enjoy the voting power update
 	// someone who call retire() before switchEpoch cannot get elected in this update
-	updateVotingPower(&info, pubkey2power)
+	updateVotingPower(ctx, &info, pubkey2power)
 	// payback staking coins to rewardTo of useless validators and delete these validators
 	clearUselessValidators(ctx, stakingAcc, &info)
 	// allocate new entries in info.PendingRewards
-	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+	activeValidators := GetActiveValidators(ctx, info.Validators)
 	updatePendingRewardsInNewEpoch(activeValidators, &info, logger)
 	SaveStakingInfo(ctx, info)
+	if ctx.IsStakingFork() {
+		SaveOnlineInfo(ctx, *NewOnlineInfos(activeValidators, ctx.Height))
+	}
 	return activeValidators
 }
 
@@ -1015,7 +1127,7 @@ func deliverMintRewardInEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.Acco
 
 func checkEpoch(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (bool, map[[32]byte]int64, []*types.Validator) {
 	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger)
-	activeValidators := types.GetActiveValidators(info.Validators, MinimumStakingAmount)
+	activeValidators := GetActiveValidators(ctx, info.Validators)
 	if !(param.IsAmber && ctx.IsXHedgeFork()) {
 		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
 			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
@@ -1100,17 +1212,21 @@ func updatePendingRewardsInNewEpoch(activeValidators []*types.Validator, info *t
 }
 
 // Clear the old voting powers and assign pubkey2power to validators.
-func updateVotingPower(info *types.StakingInfo, pubkey2power map[[32]byte]int64) {
+func updateVotingPower(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey2power map[[32]byte]int64) {
 	for _, val := range info.Validators {
 		val.VotingPower = 0
 	}
 	valMapByPubkey := info.GetValMapByPubkey()
+	minimumStakingAmount := MinimumStakingAmount
+	if ctx.IsStakingFork() {
+		minimumStakingAmount = MinimumStakingAmountAfterStakingFork
+	}
 	for pubkey, power := range pubkey2power {
 		val, ok := valMapByPubkey[pubkey]
 		if !ok || val.IsRetiring {
 			continue
 		}
-		if uint256.NewInt(0).SetBytes32(val.StakedCoins[:]).Cmp(MinimumStakingAmount) >= 0 {
+		if uint256.NewInt(0).SetBytes32(val.StakedCoins[:]).Cmp(minimumStakingAmount) >= 0 {
 			val.VotingPower = power
 		}
 	}
@@ -1149,4 +1265,28 @@ func clearUselessValidators(ctx *mevmtypes.Context, stakingAcc *mevmtypes.Accoun
 	}
 	stakingAcc.UpdateBalance(stakingAccBalance)
 	ctx.SetAccount(StakingContractAddress, stakingAcc)
+}
+
+// Returns current validators on duty, who must have enough coins staked and be not in a retiring process
+// only update validator voting power on switchEpoch
+func GetActiveValidators(ctx *mevmtypes.Context, vals []*types.Validator) []*types.Validator {
+	minStakedCoins := MinimumStakingAmount
+	if ctx.IsStakingFork() {
+		minStakedCoins = MinimumStakingAmountAfterStakingFork
+	}
+	res := make([]*types.Validator, 0, len(vals))
+	for _, val := range vals {
+		coins := uint256.NewInt(0).SetBytes32(val.StakedCoins[:])
+		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
+			res = append(res, val)
+		}
+	}
+	//sort: 1.voting power; 2.create validator time (so stable sort is required)
+	sort.SliceStable(res, func(i, j int) bool {
+		return res[i].VotingPower > res[j].VotingPower
+	})
+	if len(res) > param.MaxActiveValidatorCount {
+		res = res[:param.MaxActiveValidatorCount]
+	}
+	return res
 }

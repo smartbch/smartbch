@@ -211,6 +211,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	} else {
 		app.block = &types.Block{}
 	}
+	ctx.SetCurrentHeight(app.currHeight)
 
 	app.root.SetHeight(app.currHeight)
 	app.txEngine.SetContext(app.GetRunTxContext())
@@ -221,7 +222,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	/*------set stakingInfo------*/
 	stakingInfo := staking.LoadStakingInfo(ctx)
-	currValidators := stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
+	currValidators := staking.GetActiveValidators(ctx, stakingInfo.Validators)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	for _, val := range currValidators {
 		app.logger.Debug(fmt.Sprintf("Load validator in NewApp: address(%s), pubkey(%s), votingPower(%d)",
@@ -438,7 +439,7 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 	staking.AddGenesisValidatorsIntoStakingInfo(ctx, genesisValidators)
 	ctx.Close(true)
 
-	currValidators := stakingtypes.GetActiveValidators(genesisValidators, staking.MinimumStakingAmount)
+	currValidators := staking.GetActiveValidators(ctx, genesisValidators)
 	valSet := make([]abcitypes.ValidatorUpdate, len(currValidators))
 	for i, v := range currValidators {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -820,6 +821,7 @@ func (app *App) GetRpcContext() *types.Context {
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
@@ -834,6 +836,7 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(height)
 	return c
@@ -844,6 +847,7 @@ func (app *App) GetRunTxContext() *types.Context {
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
@@ -852,6 +856,7 @@ func (app *App) GetHistoryOnlyContext() *types.Context {
 	c := types.NewContext(nil, nil)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
@@ -861,6 +866,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 	r := rabbit.NewRabbitStore(app.checkTrunk)
 	c = c.WithRbt(&r)
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
+	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
 	return c
@@ -948,7 +954,7 @@ func (app *App) GetValidatorsInfo() ValidatorsInfo {
 
 func (app *App) getValidatorsInfoFromCtx(ctx *types.Context) ValidatorsInfo {
 	stakingInfo := staking.LoadStakingInfo(ctx)
-	currValidators := stakingtypes.GetActiveValidators(stakingInfo.Validators, staking.MinimumStakingAmount)
+	currValidators := staking.GetActiveValidators(ctx, stakingInfo.Validators)
 	minGasPrice := staking.LoadMinGasPrice(ctx, false)
 	lastMinGasPrice := staking.LoadMinGasPrice(ctx, true)
 	return NewValidatorsInfo(currValidators, stakingInfo, minGasPrice, lastMinGasPrice)

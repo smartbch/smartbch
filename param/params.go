@@ -35,6 +35,11 @@ const (
 	BlocksInCCEpoch    int64 = 7
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
+	// staking params
+	OnlineWindowSize    int64  = 500
+	MinOnlineSignatures int32  = 400
+	SlashAmountDivisor  uint64 = 10
+
 	// network params
 	IsAmber                           bool  = false
 	AmberBlocksInEpochAfterXHedgeFork int64 = 2016 * 10 * 60 / 6
@@ -44,4 +49,5 @@ const (
 	XHedgeForkBlock        int64  = 4106000
 	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
+	StakingForkHeight      int64  = 8000000
 )

@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
-	"github.com/smartbch/smartbch/param"
 )
 
 //go:generate msgp
@@ -227,26 +226,6 @@ func (si *StakingInfo) ClearRewardsOf(addr [20]byte) (totalCleared *uint256.Int)
 	return totalCleared
 }
 
-// Returns current validators on duty, who must have enough coins staked and be not in a retiring process
-// only update validator voting power on switchEpoch
-func GetActiveValidators(vals []*Validator, minStakedCoins *uint256.Int) []*Validator {
-	res := make([]*Validator, 0, len(vals))
-	for _, val := range vals {
-		coins := uint256.NewInt(0).SetBytes32(val.StakedCoins[:])
-		if coins.Cmp(minStakedCoins) >= 0 && !val.IsRetiring && val.VotingPower > 0 {
-			res = append(res, val)
-		}
-	}
-	//sort: 1.voting power; 2.create validator time (so stable sort is required)
-	sort.SliceStable(res, func(i, j int) bool {
-		return res[i].VotingPower > res[j].VotingPower
-	})
-	if len(res) > param.MaxActiveValidatorCount {
-		res = res[:param.MaxActiveValidatorCount]
-	}
-	return res
-}
-
 func GetUpdateValidatorSet(currentValidators, newValidators []*Validator) []*Validator {
 	if newValidators == nil {
 		return nil
@@ -277,4 +256,14 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*Validator) []*Val
 		return bytes.Compare(updatedList[i].Address[:], updatedList[j].Address[:]) < 0
 	})
 	return updatedList
+}
+
+type ValidatorOnlineInfos struct {
+	StartHeight int64         `msgp:"start_height"`
+	OnlineInfos []*OnlineInfo `msgp:"online_infos"`
+}
+
+type OnlineInfo struct {
+	ValidatorConsensusAddress [20]byte `msgp:"validator_consensus_address"`
+	SignatureAmount           int32    `msgp:"signature_amount"`
 }

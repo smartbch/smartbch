@@ -675,6 +675,134 @@ func (z NominationHeap) Msgsize() (s int) {
 }
 
 // DecodeMsg implements msgp.Decodable
+func (z *OnlineInfo) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "ValidatorConsensusAddress":
+			err = dc.ReadExactBytes((z.ValidatorConsensusAddress)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "ValidatorConsensusAddress")
+				return
+			}
+		case "SignatureAmount":
+			z.SignatureAmount, err = dc.ReadInt32()
+			if err != nil {
+				err = msgp.WrapError(err, "SignatureAmount")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *OnlineInfo) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "ValidatorConsensusAddress"
+	err = en.Append(0x82, 0xb9, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x43, 0x6f, 0x6e, 0x73, 0x65, 0x6e, 0x73, 0x75, 0x73, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.ValidatorConsensusAddress)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "ValidatorConsensusAddress")
+		return
+	}
+	// write "SignatureAmount"
+	err = en.Append(0xaf, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt32(z.SignatureAmount)
+	if err != nil {
+		err = msgp.WrapError(err, "SignatureAmount")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *OnlineInfo) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 2
+	// string "ValidatorConsensusAddress"
+	o = append(o, 0x82, 0xb9, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x43, 0x6f, 0x6e, 0x73, 0x65, 0x6e, 0x73, 0x75, 0x73, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	o = msgp.AppendBytes(o, (z.ValidatorConsensusAddress)[:])
+	// string "SignatureAmount"
+	o = append(o, 0xaf, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
+	o = msgp.AppendInt32(o, z.SignatureAmount)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *OnlineInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "ValidatorConsensusAddress":
+			bts, err = msgp.ReadExactBytes(bts, (z.ValidatorConsensusAddress)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "ValidatorConsensusAddress")
+				return
+			}
+		case "SignatureAmount":
+			z.SignatureAmount, bts, err = msgp.ReadInt32Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "SignatureAmount")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *OnlineInfo) Msgsize() (s int) {
+	s = 1 + 26 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 16 + msgp.Int32Size
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
 func (z *PendingReward) DecodeMsg(dc *msgp.Reader) (err error) {
 	var field []byte
 	_ = field
@@ -1525,5 +1653,290 @@ func (z *Validator) UnmarshalMsg(bts []byte) (o []byte, err error) {
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Validator) Msgsize() (s int) {
 	s = 1 + 8 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 9 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 12 + msgp.Int64Size + 13 + msgp.StringPrefixSize + len(z.Introduction) + 12 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 11 + msgp.BoolSize
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
+func (z *ValidatorOnlineInfos) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "StartHeight":
+			z.StartHeight, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "StartHeight")
+				return
+			}
+		case "OnlineInfos":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "OnlineInfos")
+				return
+			}
+			if cap(z.OnlineInfos) >= int(zb0002) {
+				z.OnlineInfos = (z.OnlineInfos)[:zb0002]
+			} else {
+				z.OnlineInfos = make([]*OnlineInfo, zb0002)
+			}
+			for za0001 := range z.OnlineInfos {
+				if dc.IsNil() {
+					err = dc.ReadNil()
+					if err != nil {
+						err = msgp.WrapError(err, "OnlineInfos", za0001)
+						return
+					}
+					z.OnlineInfos[za0001] = nil
+				} else {
+					if z.OnlineInfos[za0001] == nil {
+						z.OnlineInfos[za0001] = new(OnlineInfo)
+					}
+					var zb0003 uint32
+					zb0003, err = dc.ReadMapHeader()
+					if err != nil {
+						err = msgp.WrapError(err, "OnlineInfos", za0001)
+						return
+					}
+					for zb0003 > 0 {
+						zb0003--
+						field, err = dc.ReadMapKeyPtr()
+						if err != nil {
+							err = msgp.WrapError(err, "OnlineInfos", za0001)
+							return
+						}
+						switch msgp.UnsafeString(field) {
+						case "ValidatorConsensusAddress":
+							err = dc.ReadExactBytes((z.OnlineInfos[za0001].ValidatorConsensusAddress)[:])
+							if err != nil {
+								err = msgp.WrapError(err, "OnlineInfos", za0001, "ValidatorConsensusAddress")
+								return
+							}
+						case "SignatureAmount":
+							z.OnlineInfos[za0001].SignatureAmount, err = dc.ReadInt32()
+							if err != nil {
+								err = msgp.WrapError(err, "OnlineInfos", za0001, "SignatureAmount")
+								return
+							}
+						default:
+							err = dc.Skip()
+							if err != nil {
+								err = msgp.WrapError(err, "OnlineInfos", za0001)
+								return
+							}
+						}
+					}
+				}
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *ValidatorOnlineInfos) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "StartHeight"
+	err = en.Append(0x82, 0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.StartHeight)
+	if err != nil {
+		err = msgp.WrapError(err, "StartHeight")
+		return
+	}
+	// write "OnlineInfos"
+	err = en.Append(0xab, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x49, 0x6e, 0x66, 0x6f, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.OnlineInfos)))
+	if err != nil {
+		err = msgp.WrapError(err, "OnlineInfos")
+		return
+	}
+	for za0001 := range z.OnlineInfos {
+		if z.OnlineInfos[za0001] == nil {
+			err = en.WriteNil()
+			if err != nil {
+				return
+			}
+		} else {
+			// map header, size 2
+			// write "ValidatorConsensusAddress"
+			err = en.Append(0x82, 0xb9, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x43, 0x6f, 0x6e, 0x73, 0x65, 0x6e, 0x73, 0x75, 0x73, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+			if err != nil {
+				return
+			}
+			err = en.WriteBytes((z.OnlineInfos[za0001].ValidatorConsensusAddress)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "OnlineInfos", za0001, "ValidatorConsensusAddress")
+				return
+			}
+			// write "SignatureAmount"
+			err = en.Append(0xaf, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
+			if err != nil {
+				return
+			}
+			err = en.WriteInt32(z.OnlineInfos[za0001].SignatureAmount)
+			if err != nil {
+				err = msgp.WrapError(err, "OnlineInfos", za0001, "SignatureAmount")
+				return
+			}
+		}
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *ValidatorOnlineInfos) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 2
+	// string "StartHeight"
+	o = append(o, 0x82, 0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendInt64(o, z.StartHeight)
+	// string "OnlineInfos"
+	o = append(o, 0xab, 0x4f, 0x6e, 0x6c, 0x69, 0x6e, 0x65, 0x49, 0x6e, 0x66, 0x6f, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.OnlineInfos)))
+	for za0001 := range z.OnlineInfos {
+		if z.OnlineInfos[za0001] == nil {
+			o = msgp.AppendNil(o)
+		} else {
+			// map header, size 2
+			// string "ValidatorConsensusAddress"
+			o = append(o, 0x82, 0xb9, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x43, 0x6f, 0x6e, 0x73, 0x65, 0x6e, 0x73, 0x75, 0x73, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+			o = msgp.AppendBytes(o, (z.OnlineInfos[za0001].ValidatorConsensusAddress)[:])
+			// string "SignatureAmount"
+			o = append(o, 0xaf, 0x53, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
+			o = msgp.AppendInt32(o, z.OnlineInfos[za0001].SignatureAmount)
+		}
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ValidatorOnlineInfos) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "StartHeight":
+			z.StartHeight, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "StartHeight")
+				return
+			}
+		case "OnlineInfos":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "OnlineInfos")
+				return
+			}
+			if cap(z.OnlineInfos) >= int(zb0002) {
+				z.OnlineInfos = (z.OnlineInfos)[:zb0002]
+			} else {
+				z.OnlineInfos = make([]*OnlineInfo, zb0002)
+			}
+			for za0001 := range z.OnlineInfos {
+				if msgp.IsNil(bts) {
+					bts, err = msgp.ReadNilBytes(bts)
+					if err != nil {
+						return
+					}
+					z.OnlineInfos[za0001] = nil
+				} else {
+					if z.OnlineInfos[za0001] == nil {
+						z.OnlineInfos[za0001] = new(OnlineInfo)
+					}
+					var zb0003 uint32
+					zb0003, bts, err = msgp.ReadMapHeaderBytes(bts)
+					if err != nil {
+						err = msgp.WrapError(err, "OnlineInfos", za0001)
+						return
+					}
+					for zb0003 > 0 {
+						zb0003--
+						field, bts, err = msgp.ReadMapKeyZC(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "OnlineInfos", za0001)
+							return
+						}
+						switch msgp.UnsafeString(field) {
+						case "ValidatorConsensusAddress":
+							bts, err = msgp.ReadExactBytes(bts, (z.OnlineInfos[za0001].ValidatorConsensusAddress)[:])
+							if err != nil {
+								err = msgp.WrapError(err, "OnlineInfos", za0001, "ValidatorConsensusAddress")
+								return
+							}
+						case "SignatureAmount":
+							z.OnlineInfos[za0001].SignatureAmount, bts, err = msgp.ReadInt32Bytes(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "OnlineInfos", za0001, "SignatureAmount")
+								return
+							}
+						default:
+							bts, err = msgp.Skip(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "OnlineInfos", za0001)
+								return
+							}
+						}
+					}
+				}
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *ValidatorOnlineInfos) Msgsize() (s int) {
+	s = 1 + 12 + msgp.Int64Size + 12 + msgp.ArrayHeaderSize
+	for za0001 := range z.OnlineInfos {
+		if z.OnlineInfos[za0001] == nil {
+			s += msgp.NilSize
+		} else {
+			s += 1 + 26 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 16 + msgp.Int32Size
+		}
+	}
 	return
 }
