@@ -836,7 +836,7 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos *types.ValidatorOnlineInfos
 		activeValidators := GetActiveValidators(ctx, stakingInfo.Validators)
 		infos = NewOnlineInfos(activeValidators, ctx.Height)
 	}
-	voterMap := make(map[[20]byte]bool)
+	voterMap := make(map[[20]byte]bool, len(voters))
 	for _, voter := range voters {
 		var v [20]byte
 		copy(v[:], voter)
@@ -844,13 +844,14 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos *types.ValidatorOnlineInfos
 	}
 	if ctx.Height == infos.StartHeight+param.OnlineWindowSize {
 		for _, info := range infos.OnlineInfos {
-			info.SignatureAmount = 0
+			info.SignatureCount = 0
 		}
 		infos.StartHeight = ctx.Height
 	}
 	for _, info := range infos.OnlineInfos {
 		if voterMap[info.ValidatorConsensusAddress] {
-			info.SignatureAmount++
+			info.SignatureCount++
+			info.HeightOfLastSignature = ctx.Height
 		}
 	}
 	SaveOnlineInfo(ctx, *infos)
@@ -858,11 +859,15 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos *types.ValidatorOnlineInfos
 }
 
 func HandleOnlineInfos(ctx *mevmtypes.Context, voters [][]byte) (slashValidators [][20]byte) {
-	var retireValidators = make(map[[20]byte]bool)
+	var retireValidators = make(map[[20]byte]bool, len(voters))
 	infos := LoadOnlineInfo(ctx)
+	if ctx.Height != infos.StartHeight+param.OnlineWindowSize {
+		UpdateOnlineInfos(ctx, &infos, voters)
+		return
+	}
 	var newInfos []*types.OnlineInfo
 	for _, info := range infos.OnlineInfos {
-		if info.SignatureAmount < param.MinOnlineSignatures {
+		if info.SignatureCount < param.MinOnlineSignatures {
 			retireValidators[info.ValidatorConsensusAddress] = true
 		} else {
 			newInfos = append(newInfos, info)

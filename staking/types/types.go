@@ -265,5 +265,6 @@ type ValidatorOnlineInfos struct {
 
 type OnlineInfo struct {
 	ValidatorConsensusAddress [20]byte `msgp:"validator_consensus_address"`
-	SignatureAmount           int32    `msgp:"signature_amount"`
+	SignatureCount            int32    `msgp:"signature_count"`
+	HeightOfLastSignature     int64    `msgp:"height_of_last_signature"`
 }
