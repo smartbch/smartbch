@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mackerelio/go-osstat/memory"
 	"github.com/tendermint/tendermint/libs/log"
+
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 const (
@@ -37,6 +39,7 @@ type DebugAPI interface {
 	GetStats() Stats
 	GetSeq(addr gethcmn.Address) hexutil.Uint64
 	NodeInfo() json.RawMessage
+	ValidatorOnlineInfos() json.RawMessage
 }
 
 type debugAPI struct {
@@ -106,4 +109,40 @@ func (api *debugAPI) updateStats() {
 
 func toMB(n uint64) uint64 {
 	return n / 1024 / 1024
+}
+
+/* Validator Online Info */
+
+type ValidatorOnlineInfosToMarshal struct {
+	StartHeight int64                  `json:"start_height"`
+	OnlineInfos []*OnlineInfoToMarshal `json:"online_infos"`
+}
+
+type OnlineInfoToMarshal struct {
+	ValidatorConsensusAddress gethcmn.Address `json:"validator_consensus_address"`
+	SignatureCount            int32           `json:"signature_count"`
+	HeightOfLastSignature     int64           `json:"height_of_last_signature"`
+}
+
+func castValidatorOnlineInfos(infos stakingtypes.ValidatorOnlineInfos) ValidatorOnlineInfosToMarshal {
+	infosToMarshal := ValidatorOnlineInfosToMarshal{
+		StartHeight: infos.StartHeight,
+		OnlineInfos: make([]*OnlineInfoToMarshal, len(infos.OnlineInfos)),
+	}
+	for i, onlineInfo := range infos.OnlineInfos {
+		infosToMarshal.OnlineInfos[i] = &OnlineInfoToMarshal{
+			ValidatorConsensusAddress: onlineInfo.ValidatorConsensusAddress,
+			SignatureCount:            onlineInfo.SignatureCount,
+			HeightOfLastSignature:     onlineInfo.HeightOfLastSignature,
+		}
+	}
+	return infosToMarshal
+}
+
+func (api *debugAPI) ValidatorOnlineInfos() json.RawMessage {
+	api.logger.Debug("debug_validatorsOnlineInfo")
+	onlineInfos := api.ethAPI.backend.ValidatorOnlineInfos()
+	onlineInfosToMarshal := castValidatorOnlineInfos(onlineInfos)
+	bytes, _ := json.Marshal(onlineInfosToMarshal)
+	return bytes
 }

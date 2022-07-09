@@ -429,6 +429,12 @@ func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 	return backend.app.GetValidatorsInfo()
 }
 
+func (backend *apiBackend) ValidatorOnlineInfos() stakingtypes.ValidatorOnlineInfos {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+	return staking.LoadOnlineInfo(ctx)
+}
+
 func (backend *apiBackend) IsArchiveMode() bool {
 	return backend.app.IsArchiveMode()
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/smartbch/smartbch/app"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 type CallDetail struct {
@@ -128,6 +129,7 @@ type BackendService interface {
 	//tendermint info
 	NodeInfo() Info
 	ValidatorsInfo() app.ValidatorsInfo
+	ValidatorOnlineInfos() stakingtypes.ValidatorOnlineInfos
 
 	IsArchiveMode() bool
 }
