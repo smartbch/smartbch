@@ -2,13 +2,18 @@ package staking
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/holiman/uint256"
-	"github.com/smartbch/moeingevm/types"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+
+	"github.com/smartbch/moeingads/store"
+	"github.com/smartbch/moeingads/store/rabbit"
+	"github.com/smartbch/moeingevm/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -85,4 +90,144 @@ func TestGetActiveValidators(t *testing.T) {
 	require.Equal(t, [20]byte{0xad, 0x07}, vals[1].Address)
 	require.Equal(t, [20]byte{0xad, 0x04}, vals[2].Address)
 	require.Equal(t, [20]byte{0xad, 0x05}, vals[3].Address)
+}
+
+func TestUpdateOnlineInfos(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := types.NewContext(&r, nil)
+	ctx.SetCurrentHeight(100)
+	ctx.SetStakingForkBlock(90)
+	validator1 := [32]byte{0x01}
+	validator2 := [32]byte{0x02}
+	validators := [][]byte{ed25519.PubKey(validator1[:]).Address(), ed25519.PubKey(validator2[:]).Address()}
+	infos := *NewOnlineInfos([]*stakingtypes.Validator{
+		{
+			Pubkey:      validator1,
+			VotingPower: 1,
+			StakedCoins: [32]byte{0x1},
+		},
+		{
+			Pubkey:      validator2,
+			VotingPower: 1,
+			StakedCoins: [32]byte{0x1},
+		},
+	}, 100)
+	startHeight := UpdateOnlineInfos(ctx, infos, validators)
+	require.Equal(t, int64(100), startHeight)
+	infosLoaded := LoadOnlineInfo(ctx)
+	require.Equal(t, int64(100), infosLoaded.StartHeight)
+	require.Equal(t, 2, len(infosLoaded.OnlineInfos))
+	for i, info := range infosLoaded.OnlineInfos {
+		require.Equal(t, crypto.Address(validators[i]).String(), crypto.Address(info.ValidatorConsensusAddress[:]).String())
+		require.Equal(t, int32(1), info.SignatureCount)
+		require.Equal(t, int64(100), info.HeightOfLastSignature)
+	}
+
+	// validator0 mint 1 block but validator1 not sign
+	ctx.SetCurrentHeight(101)
+	startHeight = UpdateOnlineInfos(ctx, infosLoaded, [][]byte{validators[0]})
+	require.Equal(t, int64(100), startHeight)
+	infosLoaded = LoadOnlineInfo(ctx)
+	require.Equal(t, int64(100), infosLoaded.StartHeight)
+	require.Equal(t, 2, len(infosLoaded.OnlineInfos))
+	for i, info := range infosLoaded.OnlineInfos {
+		require.Equal(t, crypto.Address(validators[i]).String(), crypto.Address(info.ValidatorConsensusAddress[:]).String())
+	}
+	require.Equal(t, int32(2), infosLoaded.OnlineInfos[0].SignatureCount)
+	require.Equal(t, int64(101), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
+	require.Equal(t, int32(1), infosLoaded.OnlineInfos[1].SignatureCount)
+	require.Equal(t, int64(100), infosLoaded.OnlineInfos[1].HeightOfLastSignature)
+
+	// meet the 500 block
+	ctx.SetCurrentHeight(600)
+	infosLoaded.OnlineInfos[0].SignatureCount = 450
+	SaveOnlineInfo(ctx, infosLoaded)
+	startHeight = UpdateOnlineInfos(ctx, infosLoaded, [][]byte{validators[0]})
+	require.Equal(t, int64(600), startHeight)
+	infosLoaded = LoadOnlineInfo(ctx)
+	require.Equal(t, int64(600), infosLoaded.StartHeight)
+	require.Equal(t, 2, len(infosLoaded.OnlineInfos))
+	for i, info := range infosLoaded.OnlineInfos {
+		require.Equal(t, crypto.Address(validators[i]).String(), crypto.Address(info.ValidatorConsensusAddress[:]).String())
+	}
+	require.Equal(t, int32(1), infosLoaded.OnlineInfos[0].SignatureCount)
+	require.Equal(t, int32(0), infosLoaded.OnlineInfos[1].SignatureCount)
+	require.Equal(t, int64(600), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
+	require.Equal(t, int64(100), infosLoaded.OnlineInfos[1].HeightOfLastSignature)
+}
+
+func BuildAndSaveStakingInfo(ctx *types.Context, validatorPubkeys [][32]byte) [][]byte {
+	info := stakingtypes.StakingInfo{
+		GenesisMainnetBlockHeight: 1,
+		CurrEpochNum:              1,
+	}
+	var validatorAddresses [][]byte
+	for _, v := range validatorPubkeys {
+		info.Validators = append(info.Validators, &stakingtypes.Validator{
+			Pubkey:      v,
+			VotingPower: 1,
+			StakedCoins: [32]byte{0x1},
+		})
+		validatorAddresses = append(validatorAddresses, ed25519.PubKey(v[:]).Address())
+	}
+	SaveStakingInfo(ctx, info)
+	return validatorAddresses
+}
+
+func TestHandleOnlineInfos(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := types.NewContext(&r, nil)
+	ctx.SetCurrentHeight(100)
+	ctx.SetStakingForkBlock(90)
+	validator1 := [32]byte{0x01}
+	validator2 := [32]byte{0x02}
+	validators := BuildAndSaveStakingInfo(ctx, [][32]byte{validator1, validator2})
+	stakingInfo := LoadStakingInfo(ctx)
+	slashValidators := HandleOnlineInfos(ctx, &stakingInfo, validators)
+	require.Equal(t, 0, len(slashValidators))
+	infosLoaded := LoadOnlineInfo(ctx)
+	SaveStakingInfo(ctx, stakingInfo)
+	require.Equal(t, int64(100), infosLoaded.StartHeight)
+	require.Equal(t, 2, len(infosLoaded.OnlineInfos))
+	for i, info := range infosLoaded.OnlineInfos {
+		require.Equal(t, crypto.Address(validators[i]).String(), crypto.Address(info.ValidatorConsensusAddress[:]).String())
+		require.Equal(t, int32(1), info.SignatureCount)
+		require.Equal(t, int64(100), info.HeightOfLastSignature)
+	}
+
+	ctx.SetCurrentHeight(101)
+	stakingInfo = LoadStakingInfo(ctx)
+	slashValidators = HandleOnlineInfos(ctx, &stakingInfo, validators)
+	SaveStakingInfo(ctx, stakingInfo)
+	require.Equal(t, 0, len(slashValidators))
+	infosLoaded = LoadOnlineInfo(ctx)
+	require.Equal(t, int64(100), infosLoaded.StartHeight)
+	require.Equal(t, 2, len(infosLoaded.OnlineInfos))
+	for i, info := range infosLoaded.OnlineInfos {
+		require.Equal(t, crypto.Address(validators[i]).String(), crypto.Address(info.ValidatorConsensusAddress[:]).String())
+		require.Equal(t, int32(2), info.SignatureCount)
+		require.Equal(t, int64(101), info.HeightOfLastSignature)
+	}
+
+	infosLoaded = LoadOnlineInfo(ctx)
+	infosLoaded.OnlineInfos[0].SignatureCount = 450
+	SaveOnlineInfo(ctx, infosLoaded)
+
+	ctx.SetCurrentHeight(600)
+	stakingInfo = LoadStakingInfo(ctx)
+	slashValidators = HandleOnlineInfos(ctx, &stakingInfo, validators)
+	SaveStakingInfo(ctx, stakingInfo)
+	require.Equal(t, 1, len(slashValidators))
+	infosLoaded = LoadOnlineInfo(ctx)
+	require.Equal(t, int64(600), infosLoaded.StartHeight)
+	require.Equal(t, 1, len(infosLoaded.OnlineInfos))
+
+	require.Equal(t, crypto.Address(validators[0]).String(), crypto.Address(infosLoaded.OnlineInfos[0].ValidatorConsensusAddress[:]).String())
+	require.Equal(t, int32(1), infosLoaded.OnlineInfos[0].SignatureCount)
+	require.Equal(t, int64(600), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
+	require.Equal(t, crypto.Address(validators[1]).String(), crypto.Address(slashValidators[0][:]).String())
+
+	stakingInfo = LoadStakingInfo(ctx)
+	require.Equal(t, int64(0), stakingInfo.Validators[1].VotingPower)
+	require.Equal(t, true, stakingInfo.Validators[1].IsRetiring)
 }

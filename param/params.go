@@ -36,9 +36,10 @@ const (
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
 	// staking params
-	OnlineWindowSize    int64  = 500
-	MinOnlineSignatures int32  = 400
-	SlashAmountDivisor  uint64 = 10
+	OnlineWindowSize               int64  = 500
+	MinOnlineSignatures            int32  = 400
+	NotOnlineSlashAmountDivisor    uint64 = 10
+	DuplicateSigSlashAMountDivisor uint64 = 5
 
 	// network params
 	IsAmber                           bool  = false

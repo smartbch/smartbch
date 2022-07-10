@@ -9,16 +9,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/holiman/uint256"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/libs/log"
 	"math"
 	"sort"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/log"
+
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
+
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking/types"
 )
@@ -830,12 +832,7 @@ func NewOnlineInfos(activeValidators []*types.Validator, startHeight int64) *typ
 	return &infos
 }
 
-func UpdateOnlineInfos(ctx *mevmtypes.Context, infos *types.ValidatorOnlineInfos, voters [][]byte) (startHeight int64) {
-	if infos.StartHeight == 0 {
-		stakingInfo := LoadStakingInfo(ctx)
-		activeValidators := GetActiveValidators(ctx, stakingInfo.Validators)
-		infos = NewOnlineInfos(activeValidators, ctx.Height)
-	}
+func UpdateOnlineInfos(ctx *mevmtypes.Context, infos types.ValidatorOnlineInfos, voters [][]byte) (startHeight int64) {
 	voterMap := make(map[[20]byte]bool, len(voters))
 	for _, voter := range voters {
 		var v [20]byte
@@ -854,15 +851,21 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos *types.ValidatorOnlineInfos
 			info.HeightOfLastSignature = ctx.Height
 		}
 	}
-	SaveOnlineInfo(ctx, *infos)
+	SaveOnlineInfo(ctx, infos)
 	return infos.StartHeight
 }
 
-func HandleOnlineInfos(ctx *mevmtypes.Context, voters [][]byte) (slashValidators [][20]byte) {
+func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, voters [][]byte) (slashValidators [][20]byte) {
 	var retireValidators = make(map[[20]byte]bool, len(voters))
 	infos := LoadOnlineInfo(ctx)
+	if infos.StartHeight == 0 {
+		activeValidators := GetActiveValidators(ctx, stakingInfo.Validators)
+		infos = *NewOnlineInfos(activeValidators, ctx.Height)
+		UpdateOnlineInfos(ctx, infos, voters)
+		return
+	}
 	if ctx.Height != infos.StartHeight+param.OnlineWindowSize {
-		UpdateOnlineInfos(ctx, &infos, voters)
+		UpdateOnlineInfos(ctx, infos, voters)
 		return
 	}
 	var newInfos []*types.OnlineInfo
@@ -874,11 +877,10 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, voters [][]byte) (slashValidators
 		}
 	}
 	if len(retireValidators) == 0 {
-		UpdateOnlineInfos(ctx, &infos, voters)
+		UpdateOnlineInfos(ctx, infos, voters)
 		return
 	}
 	infos.OnlineInfos = newInfos
-	stakingInfo := LoadStakingInfo(ctx)
 	for _, val := range stakingInfo.Validators {
 		var address [20]byte
 		copy(address[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
@@ -888,13 +890,12 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, voters [][]byte) (slashValidators
 			slashValidators = append(slashValidators, address)
 		}
 	}
-	UpdateOnlineInfos(ctx, &infos, voters)
-	SaveStakingInfo(ctx, stakingInfo)
+	UpdateOnlineInfos(ctx, infos, voters)
 	return
 }
 
 // slashValidators and lastVoters are consensus addresses generated from validator consensus pubkey
-func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte,
+func SlashAndReward(ctx *mevmtypes.Context, duplicateSigSlashValidators [][20]byte,
 	currProposer, lastProposer [20]byte, lastVoters [][]byte, /*include proposer*/
 	blockReward *uint256.Int) (currValidators, newValidators []*types.Validator, currEpochNum int64) {
 
@@ -909,16 +910,22 @@ func SlashAndReward(ctx *mevmtypes.Context, slashValidators [][20]byte,
 		pubkeyMapByConsAddr[consAddr] = v.Pubkey
 	}
 	//slash first
-	if ctx.IsStakingFork() {
-		slashValidators = append(slashValidators, HandleOnlineInfos(ctx, lastVoters)...)
-	}
-	for _, v := range slashValidators {
+	for _, v := range duplicateSigSlashValidators {
 		if pubkey, ok := pubkeyMapByConsAddr[v]; ok {
 			slashAmount := uint256.NewInt(0)
 			if ctx.IsStakingFork() {
-				slashAmount = MinimumStakingAmountAfterStakingFork.Div(MinimumStakingAmount, uint256.NewInt(param.SlashAmountDivisor))
+				slashAmount = uint256.NewInt(0).Div(MinimumStakingAmountAfterStakingFork, uint256.NewInt(param.DuplicateSigSlashAMountDivisor))
 			}
 			Slash(ctx, &info, pubkey, slashAmount)
+		}
+	}
+	if ctx.IsStakingFork() {
+		notOnlineSlashValidators := HandleOnlineInfos(ctx, &info, lastVoters)
+		for _, v := range notOnlineSlashValidators {
+			if pubkey, ok := pubkeyMapByConsAddr[v]; ok {
+				slashAmount := uint256.NewInt(0).Div(MinimumStakingAmountAfterStakingFork, uint256.NewInt(param.NotOnlineSlashAmountDivisor))
+				Slash(ctx, &info, pubkey, slashAmount)
+			}
 		}
 	}
 	voters := make([][32]byte, 0, len(lastVoters))

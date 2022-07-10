@@ -10,9 +10,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 
+	"github.com/smartbch/moeingads/store"
+	"github.com/smartbch/moeingads/store/rabbit"
+	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
+
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/staking"
 	types2 "github.com/smartbch/smartbch/staking/types"
@@ -318,6 +323,45 @@ func TestSlash(t *testing.T) {
 		allBurnt.SetBytes32(bz)
 	}
 	require.Equal(t, uint64(1), allBurnt.Uint64())
+}
+
+func TestSlashAndReward(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := types.NewContext(&r, nil)
+	stakingAcc := types.ZeroAccountInfo()
+	balance := uint256.NewInt(0).Mul(uint256.NewInt(1000), uint256.NewInt(staking.Uint64_1e18))
+	stakingAcc.UpdateBalance(balance)
+	ctx.SetAccount(staking.StakingContractAddress, stakingAcc)
+	ctx.SetCurrentHeight(100)
+	ctx.SetStakingForkBlock(90)
+
+	validator1 := [32]byte{0x01}
+	validator2 := [32]byte{0x02}
+	var valAddress1 [20]byte
+	var valAddress2 [20]byte
+	copy(valAddress1[:], ed25519.PubKey(validator1[:]).Address().Bytes())
+	copy(valAddress2[:], ed25519.PubKey(validator2[:]).Address().Bytes())
+	staking.BuildAndSaveStakingInfo(ctx, [][32]byte{validator1, validator2})
+	currValidators, newValidators, _ := staking.SlashAndReward(ctx, nil, valAddress1, valAddress2, [][]byte{valAddress1[:], valAddress2[:]}, nil)
+	require.Equal(t, 2, len(currValidators))
+	require.Equal(t, 2, len(newValidators))
+	onlineInfos := staking.LoadOnlineInfo(ctx)
+	require.Equal(t, int64(100), onlineInfos.StartHeight)
+	require.Equal(t, 2, len(onlineInfos.OnlineInfos))
+	require.Equal(t, valAddress1, onlineInfos.OnlineInfos[0].ValidatorConsensusAddress)
+
+	ctx.SetCurrentHeight(600)
+	currValidators, newValidators, _ = staking.SlashAndReward(ctx, nil, valAddress1, valAddress2, [][]byte{valAddress1[:], valAddress2[:]}, nil)
+	require.Equal(t, 2, len(currValidators))
+	require.Equal(t, 0, len(newValidators))
+	onlineInfos = staking.LoadOnlineInfo(ctx)
+	require.Equal(t, int64(600), onlineInfos.StartHeight)
+	require.Equal(t, 0, len(onlineInfos.OnlineInfos))
+
+	stakingAccLoaded := ctx.GetAccount(staking.StakingContractAddress)
+	require.Equal(t, stakingAcc.Balance().String(), uint256.NewInt(0).Add(stakingAccLoaded.Balance(), uint256.NewInt(0).Mul(uint256.NewInt(20), uint256.NewInt(staking.Uint64_1e18))).String())
+	blackHoleBalance := ebp.GetBlackHoleBalance(ctx)
+	require.Equal(t, blackHoleBalance, uint256.NewInt(0).Mul(uint256.NewInt(20), uint256.NewInt(staking.Uint64_1e18)))
 }
 
 func TestLoadEpoch(t *testing.T) {
