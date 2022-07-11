@@ -70,6 +70,7 @@ func (ti TxInfo) GetNewCCUTXOTransferInfo() *cctypes.CCTransferInfo {
 			if len(scriptSig.Hex) == 25 && strings.HasPrefix(scriptSig.Hex, "76a914") &&
 				scriptSig.Hex[23] == 0x88 && scriptSig.Hex[24] == 0xa9 {
 				copy(info.Receiver[:], scriptSig.Hex[3:23])
+				info.Type = cctypes.TransferType
 				return &info
 			}
 		}
@@ -77,8 +78,18 @@ func (ti TxInfo) GetNewCCUTXOTransferInfo() *cctypes.CCTransferInfo {
 	return nil
 }
 
-func (ti TxInfo) GetConvertUTXOTransferInfo() *cctypes.CCTransferInfo {
+/*
+	type Vin struct {
+		Coinbase  string     `json:"coinbase"`
+		Txid      string     `json:"txid"`
+		Vout      uint32     `json:"vout"`
+		ScriptSig *ScriptSig `json:"scriptSig"`
+		Sequence  uint32     `json:"sequence"`
+	}
+*/
+func (ti TxInfo) GetConvertUTXOTransferInfo(outpointSet map[string]uint32) *cctypes.CCTransferInfo {
 	var info cctypes.CCTransferInfo
+	outputHasCurrentRedeemScript := false
 	for n, vOut := range ti.VoutList {
 		asm, ok := vOut.ScriptPubKey["asm"]
 		if !ok || asm == nil {
@@ -92,34 +103,37 @@ func (ti TxInfo) GetConvertUTXOTransferInfo() *cctypes.CCTransferInfo {
 			info.UTXO.Amount = int64(vOut.Value * (10e8))
 			copy(info.UTXO.TxID[:], ti.Hash)
 			info.UTXO.Index = uint32(n)
+			outputHasCurrentRedeemScript = true
 			break
 		}
 	}
-	/*
-		type Vin struct {
-			Coinbase  string     `json:"coinbase"`
-			Txid      string     `json:"txid"`
-			Vout      uint32     `json:"vout"`
-			ScriptSig *ScriptSig `json:"scriptSig"`
-			Sequence  uint32     `json:"sequence"`
+	if outputHasCurrentRedeemScript {
+		for _, vIn := range ti.VinList {
+			txid, exist := vIn["txid"]
+			if !exist || txid == nil {
+				continue
+			}
+			txidString, ok := txid.(string)
+			if !ok {
+				continue
+			}
+			if index, ok := outpointSet[txidString]; ok {
+				vout, exist := vIn["vout"]
+				if !exist || vout == nil {
+					continue
+				}
+				v, ok := vout.(uint32)
+				if !ok {
+					continue
+				}
+				if index == v {
+					copy(info.PrevUTXO.TxID[:], ti.Hash)
+					info.PrevUTXO.Index = v
+					info.Type = cctypes.ConvertType
+					return &info
+				}
+			}
 		}
-	*/
-	//if info.UTXO.Amount != 0 {
-	//	for _, vIn := range ti.VinList {
-	//		txid, exist := vIn["txid"]
-	//		if !exist || txid == nil {
-	//			continue
-	//		}
-	//		txidtString, ok := txid.(string)
-	//		if !ok {
-	//			continue
-	//		}
-	//		if len(scriptSig.Hex) == 25 && strings.HasPrefix(scriptSig.Hex, "76a914") &&
-	//			scriptSig.Hex[23] == 0x88 && scriptSig.Hex[24] == 0xa9 {
-	//			copy(info.Receiver[:], scriptSig.Hex[3:23])
-	//			return &info
-	//		}
-	//	}
-	//}
+	}
 	return nil
 }

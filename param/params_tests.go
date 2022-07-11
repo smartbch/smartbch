@@ -31,10 +31,6 @@ const (
 	StakingEpochSwitchDelay                int64 = 3*10 + 10
 	MaxActiveValidatorCount                int   = 50
 
-	// ccEpoch param
-	BlocksInCCEpoch    int64 = 3
-	CCEpochSwitchDelay int64 = 3*10 + 10
-
 	// network params
 	IsAmber                           bool  = false
 	AmberBlocksInEpochAfterXHedgeFork int64 = 2016 * 10 * 60 / 6

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
@@ -106,11 +105,6 @@ func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
 	return nil
 }
 
-func (m MockRpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
-	fmt.Printf("mock Rpc not support get cc Epoch")
-	return nil
-}
-
 var _ types.RpcClient = MockRpcClient{}
 
 type MockEpochConsumer struct {
@@ -129,7 +123,7 @@ func (m *MockEpochConsumer) consume() {
 }
 
 func TestRun(t *testing.T) {
-	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w := NewWatcher(log.NewNopLogger(), 0, 0, param.DefaultConfig())
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w.rpcClient = client
 	catchupChan := make(chan bool, 1)
@@ -142,7 +136,7 @@ func TestRun(t *testing.T) {
 }
 
 func TestRunWithNewEpoch(t *testing.T) {
-	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w := NewWatcher(log.NewNopLogger(), 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	c := MockEpochConsumer{
 		w: w,
@@ -166,7 +160,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 }
 
 func TestRunWithFork(t *testing.T) {
-	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
+	w := NewWatcher(log.NewNopLogger(), 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
 	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)

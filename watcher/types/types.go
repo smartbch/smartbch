@@ -22,7 +22,6 @@ type RpcClient interface {
 	GetLatestHeight(retry bool) int64
 	GetBlockByHeight(height int64, retry bool) *BCHBlock
 	GetEpochs(start, end uint64) []*stakingtypes.Epoch
-	GetCCEpochs(start, end uint64) []*cctypes.CCEpoch
 }
 
 // This struct contains the useful information of a BCH block

@@ -57,32 +57,12 @@ func castNominations(nominations []*stakingtypes.Nomination) []*Nomination {
 	return rpcNominations
 }
 
-// CCEpoch
-
-type CCEpoch struct {
-	Number        hexutil.Uint64    `json:"number"`
-	StartHeight   hexutil.Uint64    `json:"startHeight"`
-	EndTime       int64             `json:"endTime"`
-	TransferInfos []*CCTransferInfo `json:"transferInfos"`
-}
 type CCTransferInfo struct {
 	UTXO         hexutil.Bytes  `json:"utxo"`
 	Amount       hexutil.Uint64 `json:"amount"`
 	SenderPubkey hexutil.Bytes  `json:"senderPubkey"`
 }
 
-func castCCEpochs(ccEpochs []*cctypes.CCEpoch) []*CCEpoch {
-	rpcEpochs := make([]*CCEpoch, len(ccEpochs))
-	for i, ccEpoch := range ccEpochs {
-		rpcEpochs[i] = &CCEpoch{
-			Number:        hexutil.Uint64(ccEpoch.Number),
-			StartHeight:   hexutil.Uint64(ccEpoch.StartHeight),
-			EndTime:       ccEpoch.EndTime,
-			TransferInfos: castTransferInfos(ccEpoch.TransferInfos),
-		}
-	}
-	return rpcEpochs
-}
 func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
 	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
 	//for i, ccTransferInfo := range ccTransferInfos {

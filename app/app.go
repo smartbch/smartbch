@@ -132,7 +132,6 @@ type App struct {
 	//watcher
 	watcher   *watcher.Watcher
 	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
-	//ccEpochList []*cctypes.CCEpoch
 
 	//util
 	signer gethtypes.Signer
@@ -233,10 +232,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set watcher------*/
-	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, 0, stakingInfo.CurrEpochNum, app.config)
-	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
-		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), 0, stakingInfo.CurrEpochNum, app.config)
+	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), speedUp(%v)\n",
+		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(skipSanityCheck)
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)

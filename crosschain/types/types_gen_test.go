@@ -9,8 +9,8 @@ import (
 	"github.com/tinylib/msgp/msgp"
 )
 
-func TestMarshalUnmarshalCCEpoch(t *testing.T) {
-	v := CCEpoch{}
+func TestMarshalUnmarshalCCContext(t *testing.T) {
+	v := CCContext{}
 	bts, err := v.MarshalMsg(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -32,8 +32,8 @@ func TestMarshalUnmarshalCCEpoch(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalMsgCCEpoch(b *testing.B) {
-	v := CCEpoch{}
+func BenchmarkMarshalMsgCCContext(b *testing.B) {
+	v := CCContext{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -41,8 +41,8 @@ func BenchmarkMarshalMsgCCEpoch(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgCCEpoch(b *testing.B) {
-	v := CCEpoch{}
+func BenchmarkAppendMsgCCContext(b *testing.B) {
+	v := CCContext{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalMsg(bts[0:0])
 	b.SetBytes(int64(len(bts)))
@@ -53,8 +53,8 @@ func BenchmarkAppendMsgCCEpoch(b *testing.B) {
 	}
 }
 
-func BenchmarkUnmarshalCCEpoch(b *testing.B) {
-	v := CCEpoch{}
+func BenchmarkUnmarshalCCContext(b *testing.B) {
+	v := CCContext{}
 	bts, _ := v.MarshalMsg(nil)
 	b.ReportAllocs()
 	b.SetBytes(int64(len(bts)))
@@ -67,17 +67,17 @@ func BenchmarkUnmarshalCCEpoch(b *testing.B) {
 	}
 }
 
-func TestEncodeDecodeCCEpoch(t *testing.T) {
-	v := CCEpoch{}
+func TestEncodeDecodeCCContext(t *testing.T) {
+	v := CCContext{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 
 	m := v.Msgsize()
 	if buf.Len() > m {
-		t.Log("WARNING: TestEncodeDecodeCCEpoch Msgsize() is inaccurate")
+		t.Log("WARNING: TestEncodeDecodeCCContext Msgsize() is inaccurate")
 	}
 
-	vn := CCEpoch{}
+	vn := CCContext{}
 	err := msgp.Decode(&buf, &vn)
 	if err != nil {
 		t.Error(err)
@@ -91,8 +91,8 @@ func TestEncodeDecodeCCEpoch(t *testing.T) {
 	}
 }
 
-func BenchmarkEncodeCCEpoch(b *testing.B) {
-	v := CCEpoch{}
+func BenchmarkEncodeCCContext(b *testing.B) {
+	v := CCContext{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
@@ -105,8 +105,8 @@ func BenchmarkEncodeCCEpoch(b *testing.B) {
 	en.Flush()
 }
 
-func BenchmarkDecodeCCEpoch(b *testing.B) {
-	v := CCEpoch{}
+func BenchmarkDecodeCCContext(b *testing.B) {
+	v := CCContext{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
@@ -574,8 +574,8 @@ func BenchmarkDecodeUTXO(b *testing.B) {
 	}
 }
 
-func TestMarshalUnmarshalUTXOInfos(t *testing.T) {
-	v := UTXOInfos{}
+func TestMarshalUnmarshalUTXORecord(t *testing.T) {
+	v := UTXORecord{}
 	bts, err := v.MarshalMsg(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -597,8 +597,8 @@ func TestMarshalUnmarshalUTXOInfos(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalMsgUTXOInfos(b *testing.B) {
-	v := UTXOInfos{}
+func BenchmarkMarshalMsgUTXORecord(b *testing.B) {
+	v := UTXORecord{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -606,8 +606,8 @@ func BenchmarkMarshalMsgUTXOInfos(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgUTXOInfos(b *testing.B) {
-	v := UTXOInfos{}
+func BenchmarkAppendMsgUTXORecord(b *testing.B) {
+	v := UTXORecord{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalMsg(bts[0:0])
 	b.SetBytes(int64(len(bts)))
@@ -618,8 +618,8 @@ func BenchmarkAppendMsgUTXOInfos(b *testing.B) {
 	}
 }
 
-func BenchmarkUnmarshalUTXOInfos(b *testing.B) {
-	v := UTXOInfos{}
+func BenchmarkUnmarshalUTXORecord(b *testing.B) {
+	v := UTXORecord{}
 	bts, _ := v.MarshalMsg(nil)
 	b.ReportAllocs()
 	b.SetBytes(int64(len(bts)))
@@ -632,17 +632,17 @@ func BenchmarkUnmarshalUTXOInfos(b *testing.B) {
 	}
 }
 
-func TestEncodeDecodeUTXOInfos(t *testing.T) {
-	v := UTXOInfos{}
+func TestEncodeDecodeUTXORecord(t *testing.T) {
+	v := UTXORecord{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 
 	m := v.Msgsize()
 	if buf.Len() > m {
-		t.Log("WARNING: TestEncodeDecodeUTXOInfos Msgsize() is inaccurate")
+		t.Log("WARNING: TestEncodeDecodeUTXORecord Msgsize() is inaccurate")
 	}
 
-	vn := UTXOInfos{}
+	vn := UTXORecord{}
 	err := msgp.Decode(&buf, &vn)
 	if err != nil {
 		t.Error(err)
@@ -656,8 +656,8 @@ func TestEncodeDecodeUTXOInfos(t *testing.T) {
 	}
 }
 
-func BenchmarkEncodeUTXOInfos(b *testing.B) {
-	v := UTXOInfos{}
+func BenchmarkEncodeUTXORecord(b *testing.B) {
+	v := UTXORecord{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
@@ -670,8 +670,8 @@ func BenchmarkEncodeUTXOInfos(b *testing.B) {
 	en.Flush()
 }
 
-func BenchmarkDecodeUTXOInfos(b *testing.B) {
-	v := UTXOInfos{}
+func BenchmarkDecodeUTXORecord(b *testing.B) {
+	v := UTXORecord{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))

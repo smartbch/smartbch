@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/tendermint/tendermint/libs/log"
 
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
 )
@@ -21,10 +20,9 @@ const (
 	ReqStrBlockCount = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockcount", "params": [] }`
 	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
 	//verbose = 2, show all txs rawdata
-	ReqStrBlock    = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
-	ReqStrTx       = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
-	ReqStrEpochs   = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
-	ReqStrCCEpochs = `{"jsonrpc": "2.0", "method": "sbch_getCCEpochs", "params": ["%s","%s"], "id":1}`
+	ReqStrBlock  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
+	ReqStrTx     = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
+	ReqStrEpochs = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
 )
 
 type RpcClient struct {
@@ -290,25 +288,6 @@ func (client *RpcClient) getEpochs(start, end uint64) []*stakingtypes.Epoch {
 		return nil
 	}
 	var epochsResp []*stakingtypes.Epoch
-	client.err = json.Unmarshal(m.Result, &epochsResp)
-	if client.err != nil {
-		return nil
-	}
-	return epochsResp
-}
-
-func (client *RpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
-	var respData []byte
-	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrCCEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
-	if client.err != nil {
-		return nil
-	}
-	var m smartBchJsonrpcMessage
-	client.err = json.Unmarshal(respData, &m)
-	if client.err != nil {
-		return nil
-	}
-	var epochsResp []*cctypes.CCEpoch
 	client.err = json.Unmarshal(m.Result, &epochsResp)
 	if client.err != nil {
 		return nil

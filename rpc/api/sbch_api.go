@@ -14,7 +14,6 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	"github.com/smartbch/smartbch/staking"
 	"github.com/smartbch/smartbch/staking/types"
@@ -35,8 +34,6 @@ type SbchAPI interface {
 	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
 	GetEpochList(from string) ([]*StakingEpoch, error)
 	GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error)
-	GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error)
-	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
@@ -234,20 +231,6 @@ func coinDaysSlotToFloat(coindaysSlot *big.Int) float64 {
 		big.NewFloat(0).SetInt(staking.CoindayUnit.ToBig()),
 	).Float64()
 	return fCoinDays
-}
-
-func (sbch sbchAPI) GetCCEpochs(start, end hexutil.Uint64) ([]*cctypes.CCEpoch, error) {
-	if end == 0 {
-		end = start + 10
-	}
-	return sbch.backend.GetCCEpochs(uint64(start), uint64(end))
-}
-func (sbch sbchAPI) GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) {
-	ccEpochs, err := sbch.GetCCEpochs(start, end)
-	if err != nil {
-		return nil, err
-	}
-	return castCCEpochs(ccEpochs), nil
 }
 
 func (sbch sbchAPI) HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{} {

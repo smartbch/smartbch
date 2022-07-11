@@ -11,7 +11,6 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
@@ -40,12 +39,6 @@ type Watcher struct {
 	lastEpochEndHeight int64
 	lastKnownEpochNum  int64
 
-	CCEpochChan          chan *cctypes.CCEpoch
-	lastCCEpochEndHeight int64
-	numBlocksInCCEpoch   int64
-	ccEpochList          []*cctypes.CCEpoch
-	lastKnownCCEpochNum  int64
-
 	numBlocksToClearMemory int
 	waitingBlockDelayTime  int
 	parallelNum            int
@@ -55,7 +48,7 @@ type Watcher struct {
 	currentMainnetBlockTimestamp int64
 }
 
-func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
+func NewWatcher(logger log.Logger, lastHeight, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
 	return &Watcher{
 		logger: logger,
 
@@ -74,11 +67,6 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastK
 		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
 		numBlocksToClearMemory: NumBlocksToClearMemory,
 		waitingBlockDelayTime:  WaitingBlockDelayTime,
-
-		CCEpochChan:          make(chan *cctypes.CCEpoch, 96*10000),
-		ccEpochList:          make([]*cctypes.CCEpoch, 0, 40),
-		lastCCEpochEndHeight: lastCCEpochEndHeight,
-		numBlocksInCCEpoch:   param.BlocksInCCEpoch,
 
 		parallelNum: 10,
 		chainConfig: chainConfig,
@@ -177,13 +165,8 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 	if watcher.chainConfig.AppConfig.Speedup {
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
-			if latestMainnetHeight < latestFinalizedHeight+watcher.numBlocksInEpoch {
-				watcher.ccEpochSpeedup()
-				break
-			}
 			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
 			if len(epochs) == 0 {
-				watcher.ccEpochSpeedup()
 				break
 			}
 			for _, e := range epochs {
@@ -206,28 +189,6 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 	return latestFinalizedHeight
 }
 
-func (watcher *Watcher) ccEpochSpeedup() {
-	if !param.ShaGateSwitch {
-		return
-	}
-	start := uint64(watcher.lastKnownCCEpochNum) + 1
-	for {
-		epochs := watcher.smartBchRpcClient.GetCCEpochs(start, start+100)
-		if len(epochs) == 0 {
-			break
-		}
-		for _, e := range epochs {
-			out, _ := json.Marshal(e)
-			fmt.Println(string(out))
-		}
-		watcher.ccEpochList = append(watcher.ccEpochList, epochs...)
-		for _, e := range epochs {
-			watcher.CCEpochChan <- e
-		}
-		start = start + uint64(len(epochs))
-	}
-}
-
 func (watcher *Watcher) suspended(delayDuration time.Duration) {
 	time.Sleep(delayDuration)
 }
@@ -241,9 +202,6 @@ func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) {
 	if watcher.latestFinalizedHeight-watcher.lastEpochEndHeight == watcher.numBlocksInEpoch {
 		watcher.generateNewEpoch()
 	}
-	//if watcher.latestFinalizedHeight-watcher.lastCCEpochEndHeight == watcher.numBlocksInCCEpoch {
-	//	watcher.generateNewCCEpoch()
-	//}
 }
 
 // Generate a new block's information
@@ -298,35 +256,6 @@ func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
 	return watcher.currentMainnetBlockTimestamp
 }
 
-//func (watcher *Watcher) generateNewCCEpoch() {
-//	if !watcher.chainConfig.ShaGateSwitch {
-//		return
-//	}
-//	epoch := watcher.buildNewCCEpoch()
-//	watcher.ccEpochList = append(watcher.ccEpochList, epoch)
-//	watcher.logger.Debug("Generate new cc epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
-//	watcher.CCEpochChan <- epoch
-//	watcher.lastCCEpochEndHeight = watcher.latestFinalizedHeight
-//}
-
-//func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
-//	epoch := &cctypes.CCEpoch{
-//		StartHeight:   watcher.lastCCEpochEndHeight + 1,
-//		TransferInfos: make([]*cctypes.CCTransferInfo, 0, 10),
-//	}
-//	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
-//		blk, ok := watcher.heightToFinalizedBlock[i]
-//		if !ok {
-//			panic("Missing Block")
-//		}
-//		if epoch.EndTime < blk.Timestamp {
-//			epoch.EndTime = blk.Timestamp
-//		}
-//		//epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
-//	}
-//	return epoch
-//}
-
 func (watcher *Watcher) CheckSanity(skipCheck bool) {
 	if !skipCheck {
 		latestHeight := watcher.rpcClient.GetLatestHeight(false)
@@ -368,9 +297,5 @@ func (watcher *Watcher) ClearOldData() {
 	}
 	if elLen > 5 /*param it*/ {
 		watcher.epochList = watcher.epochList[elLen-5:]
-	}
-	ccEpochLen := len(watcher.ccEpochList)
-	if ccEpochLen > 5*int(param.StakingNumBlocksInEpoch/param.BlocksInCCEpoch) {
-		watcher.epochList = watcher.epochList[ccEpochLen-5:]
 	}
 }

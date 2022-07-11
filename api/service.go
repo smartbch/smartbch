@@ -13,7 +13,6 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
 )
 
@@ -120,7 +119,6 @@ type BackendService interface {
 	GetEpochs(start, end uint64) ([]*types.Epoch, error)
 	GetEpochList(from string) ([]*types.Epoch, error)
 	GetCurrEpoch() *types.Epoch
-	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
