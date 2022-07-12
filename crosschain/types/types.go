@@ -33,8 +33,9 @@ type UTXOParam byte
 var (
 	TransferType             = UTXOType(0)
 	ConvertType              = UTXOType(1)
-	MonitorCancelRedeemType  = UTXOType(2)
-	MonitorCancelConvertType = UTXOType(3)
+	RedeemOrLostAndFoundType = UTXOType(2)
+	MonitorCancelRedeemType  = UTXOType(3)
+	MonitorCancelConvertType = UTXOType(4)
 )
 
 var (

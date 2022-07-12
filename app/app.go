@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/smartbch/smartbch/crosschain"
 	"math"
 	"os"
 	"path"
@@ -231,10 +232,15 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		staking.SaveStakingInfo(ctx, stakingInfo) // only executed at genesis
 	}
 
+	/*------set cc------*/
+	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"))
+	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+
 	/*------set watcher------*/
 	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), 0, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup))
+	app.watcher.SetCCExecutor(ccExecutor)
 	app.watcher.CheckSanity(skipSanityCheck)
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)

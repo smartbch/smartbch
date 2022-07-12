@@ -21,10 +21,26 @@ type ScriptSig struct {
 	Hex string `json:"hex"`
 }
 
-func (ti TxInfo) GetNewCCUTXOTransferInfo() *cctypes.CCTransferInfo {
+/*
+	type Vin struct {
+		Coinbase  string     `json:"coinbase"`
+		Txid      string     `json:"txid"`
+		Vout      uint32     `json:"vout"`
+		ScriptSig *ScriptSig `json:"scriptSig"`
+		Sequence  uint32     `json:"sequence"`
+	}
+*/
+
+func (ti TxInfo) GetCCUTXOTransferInfo(outpointSet map[[32]byte]uint32 /*txid => vout*/) *cctypes.CCTransferInfo {
 	var info cctypes.CCTransferInfo
 	hasReceiver := false
+	hasCurrentRedeemAddressInOutput := false
+	hasCCUTXOInInput := false
+
 	for n, vOut := range ti.VoutList {
+		if hasCurrentRedeemAddressInOutput && hasReceiver {
+			break
+		}
 		asm, ok := vOut.ScriptPubKey["asm"]
 		if !ok || asm == nil {
 			continue
@@ -33,32 +49,27 @@ func (ti TxInfo) GetNewCCUTXOTransferInfo() *cctypes.CCTransferInfo {
 		if !ok {
 			continue
 		}
-		if script == "OP_HASH160 "+currentRedeemScriptAddr+" OP_EQUAL" {
-			info.UTXO.Amount = int64(vOut.Value * (10e8))
-			copy(info.UTXO.TxID[:], ti.Hash)
-			info.UTXO.Index = uint32(n)
-		} else {
-			prefix := "OP_RETURN " + ccIdentifier
-			if !strings.HasPrefix(script, prefix) {
+		if !hasCurrentRedeemAddressInOutput {
+			if script == "OP_HASH160 "+currentRedeemScriptAddr+" OP_EQUAL" {
+				info.UTXO.Amount = int64(vOut.Value * (10e8))
+				copy(info.UTXO.TxID[:], ti.Hash)
+				info.UTXO.Index = uint32(n)
+				hasCurrentRedeemAddressInOutput = true
 				continue
 			}
-			script = script[len(prefix):]
-			if len(script) != 40 {
+		}
+		if !hasReceiver {
+			var receiver []byte
+			receiver, hasReceiver = findReceiverInOPReturn(script)
+			if hasReceiver {
+				copy(info.Receiver[:], receiver)
 				continue
 			}
-			bz, err := hex.DecodeString(script)
-			if err != nil {
-				continue
-			}
-			copy(info.Receiver[:], bz)
-			hasReceiver = true
 		}
 	}
-	if hasReceiver {
-		return &info
-	}
-	if info.UTXO.Amount != 0 {
-		for _, vIn := range ti.VinList {
+
+	for _, vIn := range ti.VinList {
+		if !hasReceiver {
 			script, exist := vIn["scriptSig"]
 			if !exist || script == nil {
 				continue
@@ -70,54 +81,29 @@ func (ti TxInfo) GetNewCCUTXOTransferInfo() *cctypes.CCTransferInfo {
 			if len(scriptSig.Hex) == 25 && strings.HasPrefix(scriptSig.Hex, "76a914") &&
 				scriptSig.Hex[23] == 0x88 && scriptSig.Hex[24] == 0xa9 {
 				copy(info.Receiver[:], scriptSig.Hex[3:23])
-				info.Type = cctypes.TransferType
-				return &info
-			}
-		}
-	}
-	return nil
-}
-
-/*
-	type Vin struct {
-		Coinbase  string     `json:"coinbase"`
-		Txid      string     `json:"txid"`
-		Vout      uint32     `json:"vout"`
-		ScriptSig *ScriptSig `json:"scriptSig"`
-		Sequence  uint32     `json:"sequence"`
-	}
-*/
-func (ti TxInfo) GetConvertUTXOTransferInfo(outpointSet map[string]uint32) *cctypes.CCTransferInfo {
-	var info cctypes.CCTransferInfo
-	outputHasCurrentRedeemScript := false
-	for n, vOut := range ti.VoutList {
-		asm, ok := vOut.ScriptPubKey["asm"]
-		if !ok || asm == nil {
-			continue
-		}
-		script, ok := asm.(string)
-		if !ok {
-			continue
-		}
-		if script == "OP_HASH160 "+currentRedeemScriptAddr+" OP_EQUAL" {
-			info.UTXO.Amount = int64(vOut.Value * (10e8))
-			copy(info.UTXO.TxID[:], ti.Hash)
-			info.UTXO.Index = uint32(n)
-			outputHasCurrentRedeemScript = true
-			break
-		}
-	}
-	if outputHasCurrentRedeemScript {
-		for _, vIn := range ti.VinList {
-			txid, exist := vIn["txid"]
-			if !exist || txid == nil {
+				hasReceiver = true
 				continue
 			}
-			txidString, ok := txid.(string)
+		}
+		if !hasCCUTXOInInput {
+			txidV, exist := vIn["txid"]
+			if !exist || txidV == nil {
+				continue
+			}
+			txidString, ok := txidV.(string)
 			if !ok {
 				continue
 			}
-			if index, ok := outpointSet[txidString]; ok {
+			id, err := hex.DecodeString(txidString)
+			if err != nil {
+				continue
+			}
+			if len(id) != 32 {
+				continue
+			}
+			var txid [32]byte
+			copy(txid[:], id)
+			if index, ok := outpointSet[txid]; ok {
 				vout, exist := vIn["vout"]
 				if !exist || vout == nil {
 					continue
@@ -127,13 +113,43 @@ func (ti TxInfo) GetConvertUTXOTransferInfo(outpointSet map[string]uint32) *ccty
 					continue
 				}
 				if index == v {
-					copy(info.PrevUTXO.TxID[:], ti.Hash)
+					info.PrevUTXO.TxID = txid
 					info.PrevUTXO.Index = v
-					info.Type = cctypes.ConvertType
-					return &info
+					hasCCUTXOInInput = true
+					break
 				}
 			}
 		}
 	}
+
+	// todo: not allow redeem target address is current redeem address
+	if hasCCUTXOInInput && hasCurrentRedeemAddressInOutput {
+		info.Type = cctypes.ConvertType
+		return &info
+	}
+	if hasCCUTXOInInput {
+		info.Type = cctypes.RedeemOrLostAndFoundType
+		//todo: find the receiver
+		return &info
+	}
+	if hasCurrentRedeemAddressInOutput && hasReceiver {
+		info.Type = cctypes.TransferType
+	}
 	return nil
+}
+
+func findReceiverInOPReturn(script string) ([]byte, bool) {
+	prefix := "OP_RETURN " + ccIdentifier
+	if !strings.HasPrefix(script, prefix) {
+		return nil, false
+	}
+	script = script[len(prefix):]
+	if len(script) != 40 {
+		return nil, false
+	}
+	bz, err := hex.DecodeString(script)
+	if err != nil {
+		return nil, false
+	}
+	return bz, true
 }

@@ -30,6 +30,7 @@ var (
 	SelectorRedeem      [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 	SelectorStartRescan [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 	SelectorHandelUTXOs [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
+	SelectorPause       [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 
 	HashOfEventTransferToBch [32]byte = common.HexToHash("0x4a9f09be1e2df144675144ec10cb5fe6c05504a84262275b62028189c1d410c1")
 	HashOfEventBurn          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
@@ -56,9 +57,13 @@ var (
 )
 
 type CcContractExecutor struct {
-	Infos           []*types.CCTransferInfo
-	UTXOCollectDone chan bool
-	logger          log.Logger
+	Infos            []*types.CCTransferInfo
+	UTXOCollectDone  chan bool
+	StartUTXOCollect chan struct {
+		BeginHeight int64
+		EndHeight   int64
+	}
+	logger log.Logger
 }
 
 func NewCcContractExecutor(logger log.Logger) *CcContractExecutor {
@@ -95,6 +100,8 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 		return redeem(ctx, tx)
 	case SelectorStartRescan:
 		return startRescan(ctx, currBlock, tx)
+	case SelectorPause:
+		return pause(ctx, tx)
 	case SelectorHandelUTXOs:
 		return handleUTXOs(ctx, c, currBlock, tx)
 	default:
@@ -200,6 +207,24 @@ func startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mev
 	copy(context.RescanHint[:], callData[:32])
 	context.RescanTime = currBlock.Timestamp
 	context.UTXOAlreadyHandle = false
+	SaveCCContext(ctx, *context)
+	status = StatusSuccess
+	return
+}
+
+// pause() onlyMonitor
+func pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfCCOp
+	if !isMonitor(tx.From) {
+		outData = []byte(MustMonitor.Error())
+		return
+	}
+	context := LoadCCContext(ctx)
+	if context == nil {
+		panic("cc context is nil")
+	}
+	context.IsPaused = true
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
