@@ -12,10 +12,10 @@ import (
 	"github.com/gcash/bchutil"
 )
 
-func GetMultiSigP2SHAddr(redeemScriptWithoutConstructorArgs string,
+func GetCcCovenantP2SHAddr(redeemScriptWithoutConstructorArgs string,
 	operatorPks []string, monitorPks []string) (string, error) {
 
-	redeemScript, err := GetMultiSigRedeemScript(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks)
+	redeemScript, err := GetCcCovenantFullRedeemScript(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks)
 	if err != nil {
 		return "", err
 	}
@@ -26,7 +26,7 @@ func GetMultiSigP2SHAddr(redeemScriptWithoutConstructorArgs string,
 	//println("redeemScriptHash160:", hex.EncodeToString(redeemHash))
 
 	// if using Bitcoin main net then pass &chaincfg.MainNetParams as second argument
-	addr, err := bchutil.NewAddressScriptHashFromHash(redeemHash, &chaincfg.MainNetParams)
+	addr, err := bchutil.NewAddressScriptHashFromHash(redeemHash, &chaincfg.TestNet3Params)
 	if err != nil {
 		return "", err
 	}
@@ -34,34 +34,21 @@ func GetMultiSigP2SHAddr(redeemScriptWithoutConstructorArgs string,
 	return addr.EncodeAddress(), nil
 }
 
-func GetMultiSigRedeemScript(redeemScriptWithoutConstructorArgs string,
+func GetCcCovenantFullRedeemScript(redeemScriptWithoutConstructorArgs string,
 	operatorPks []string, monitorPks []string) ([]byte, error) {
 
+	operatorPubkeys, err := joinHexPks(operatorPks)
+	if err != nil {
+		return nil, err
+	}
+	monitorPubkeys, err := joinHexPks(monitorPks)
+	if err != nil {
+		return nil, err
+	}
+
 	builder := txscript.NewScriptBuilder()
-
-	for i := len(monitorPks) - 1; i >= 0; i-- {
-		pk, err := hex.DecodeString(monitorPks[i])
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode monitorPk#%d", i)
-		}
-		if len(pk) != 33 {
-			return nil, fmt.Errorf("len of monitorPk#%d is not 33", i)
-		}
-
-		builder.AddData(pk)
-	}
-
-	for i := len(operatorPks) - 1; i >= 0; i-- {
-		pk, err := hex.DecodeString(operatorPks[i])
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode operatorPk#%d", i)
-		}
-		if len(pk) != 33 {
-			return nil, fmt.Errorf("len of operatorPk#%d is not 33", i)
-		}
-
-		builder.AddData(pk)
-	}
+	builder.AddData(bchutil.Hash160(monitorPubkeys))
+	builder.AddData(bchutil.Hash160(operatorPubkeys))
 
 	ops, err := hex.DecodeString(redeemScriptWithoutConstructorArgs)
 	if err != nil {
@@ -72,11 +59,24 @@ func GetMultiSigRedeemScript(redeemScriptWithoutConstructorArgs string,
 	return builder.Script()
 }
 
-func MakeMultiSigUnsignedRedeemTx(txid string, vout uint32, toAddr string, outAmt int64) (*wire.MsgTx, error) {
-	//prevOutValue := int64(10000)
-	//redeemOutValue := int64(6000)
+func joinHexPks(hexPks []string) ([]byte, error) {
+	var allPkBytes []byte
+	for i, pkHex := range hexPks {
+		pkBytes, err := hex.DecodeString(pkHex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode pk: %s", pkHex)
+		}
+		if len(pkBytes) != 33 {
+			return nil, fmt.Errorf("len of pk#%d is not 33", i)
+		}
 
-	redeemTx := wire.NewMsgTx(wire.TxVersion)
+		allPkBytes = append(allPkBytes, pkBytes...)
+	}
+	return allPkBytes, nil
+}
+
+func MakeCcCovenantUnsignedRedeemTx(txid string, vout uint32, toAddr string, outAmt int64) (*wire.MsgTx, error) {
+	redeemTx := wire.NewMsgTx(2)
 
 	// you should provide your UTXO hash
 	utxoHash, err := chainhash.NewHashFromStr(txid)
@@ -130,7 +130,7 @@ func GetSigHash(tx *wire.MsgTx, idx int, subScript []byte,
 //	return txscript.RawTxInECDSASignature(redeemTx, 0, redeemScript, txscript.SigHashAll|txscript.SigHashForkID, key, prevOutValue)
 //}
 
-func SignRedeemTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
+func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
 	wif, err := bchutil.DecodeWIF(wifStr)
 	if err != nil {
 		return nil, err
@@ -147,12 +147,15 @@ func SignRedeemTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigH
 	return append(signature.Serialize(), byte(hashType)), nil
 }
 
-func FixMultiSigUnsignedRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte,
-	sigs [][]byte, pkh []byte) (string, error) {
+func FixCcCovenantUnsignedRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte,
+	pks [][]byte, sigs [][]byte, pkh []byte) (string, error) {
 
 	signature := txscript.NewScriptBuilder()
-	//signature.AddOp(txscript.OP_FALSE)
+	signature.AddOp(txscript.OP_TRUE)
 	signature.AddData(pkh)
+	for i := len(pks) - 1; i >= 0; i-- {
+		signature.AddData(pks[i])
+	}
 	for i := len(sigs) - 1; i >= 0; i-- {
 		signature.AddData(sigs[i])
 	}
@@ -163,6 +166,7 @@ func FixMultiSigUnsignedRedeemTx(redeemTx *wire.MsgTx, redeemScript []byte,
 		// Handle the error.
 		return "", err
 	}
+	println("sigScript:", hex.EncodeToString(signatureScript))
 
 	redeemTx.TxIn[0].SignatureScript = signatureScript
 
