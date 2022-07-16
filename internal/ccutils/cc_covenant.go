@@ -73,7 +73,7 @@ func (c CcCovenant) GetP2SHAddress() (string, error) {
 }
 
 func (c CcCovenant) BuildUnsignedRedeemTx(
-	txid string, vout uint32, /*inAmt int64,*/
+	txid string, vout uint32, /*prevOutAmt int64,*/
 	toAddr string, outAmt int64) (*wire.MsgTx, error) {
 
 	redeemTx := wire.NewMsgTx(2)
@@ -106,29 +106,29 @@ func (c CcCovenant) BuildUnsignedRedeemTx(
 
 func (c CcCovenant) GetRedeemTxSigHash(
 	txid string, vout uint32, prevOutAmt int64,
-	toAddr string, outAmt int64) ([]byte, error) {
+	toAddr string, outAmt int64) (*wire.MsgTx, []byte, error) {
 
 	redeemScript, err := c.BuildFullRedeemScript()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tx, err := c.BuildUnsignedRedeemTx(txid, vout, toAddr, outAmt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sigHashes := txscript.NewTxSigHashes(tx)
 	hashType := txscript.SigHashAll | txscript.SigHashForkID
 	inputIdx := 0
 	hash, err := txscript.CalcSignatureHash(redeemScript, sigHashes, hashType, tx, inputIdx, prevOutAmt, true)
-	return hash, err
+	return tx, hash, err
 }
 
 func (c CcCovenant) FinishRedeemTx(unsignedTx *wire.MsgTx,
 	sigs [][]byte, pkh []byte) (string, error) {
 
-	sigScript, err := c.BuildSigScript(sigs, pkh)
+	sigScript, err := c.BuildRedeemSigScript(sigs, pkh)
 	if err != nil {
 		return "", err
 	}
@@ -143,7 +143,7 @@ func (c CcCovenant) FinishRedeemTx(unsignedTx *wire.MsgTx,
 	return hexSignedTx, nil
 }
 
-func (c *CcCovenant) BuildSigScript(sigs [][]byte, pkh []byte) ([]byte, error) {
+func (c *CcCovenant) BuildRedeemSigScript(sigs [][]byte, pkh []byte) ([]byte, error) {
 	redeemScript, err := c.BuildFullRedeemScript()
 	if err != nil {
 		return nil, err
@@ -161,4 +161,21 @@ func (c *CcCovenant) BuildSigScript(sigs [][]byte, pkh []byte) ([]byte, error) {
 	builder.AddInt64(0) // selector
 	builder.AddData(redeemScript)
 	return builder.Script()
+}
+
+func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
+	wif, err := bchutil.DecodeWIF(wifStr)
+	if err != nil {
+		return nil, err
+	}
+
+	signature, err := wif.PrivKey.SignECDSA(hash)
+	if err != nil {
+		return nil, fmt.Errorf("cannot sign tx input: %s", err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot sign tx input: %s", err)
+	}
+
+	return append(signature.Serialize(), byte(hashType)), nil
 }
