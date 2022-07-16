@@ -173,9 +173,6 @@ func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.
 	if err != nil {
 		return nil, fmt.Errorf("cannot sign tx input: %s", err)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("cannot sign tx input: %s", err)
-	}
 
 	return append(signature.Serialize(), byte(hashType)), nil
 }
