@@ -36,16 +36,16 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "RescanTime")
 				return
 			}
-		case "RescanHint":
-			err = dc.ReadExactBytes((z.RescanHint)[:])
+		case "RescanHeight":
+			z.RescanHeight, err = dc.ReadUint64()
 			if err != nil {
-				err = msgp.WrapError(err, "RescanHint")
+				err = msgp.WrapError(err, "RescanHeight")
 				return
 			}
-		case "LastRescannedHint":
-			err = dc.ReadExactBytes((z.LastRescannedHint)[:])
+		case "LastRescannedHeight":
+			z.LastRescannedHeight, err = dc.ReadUint64()
 			if err != nil {
-				err = msgp.WrapError(err, "LastRescannedHint")
+				err = msgp.WrapError(err, "LastRescannedHeight")
 				return
 			}
 		case "UTXOAlreadyHandle":
@@ -112,24 +112,24 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "RescanTime")
 		return
 	}
-	// write "RescanHint"
-	err = en.Append(0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x48, 0x69, 0x6e, 0x74)
+	// write "RescanHeight"
+	err = en.Append(0xac, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	if err != nil {
 		return
 	}
-	err = en.WriteBytes((z.RescanHint)[:])
+	err = en.WriteUint64(z.RescanHeight)
 	if err != nil {
-		err = msgp.WrapError(err, "RescanHint")
+		err = msgp.WrapError(err, "RescanHeight")
 		return
 	}
-	// write "LastRescannedHint"
-	err = en.Append(0xb1, 0x4c, 0x61, 0x73, 0x74, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x6e, 0x65, 0x64, 0x48, 0x69, 0x6e, 0x74)
+	// write "LastRescannedHeight"
+	err = en.Append(0xb3, 0x4c, 0x61, 0x73, 0x74, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x6e, 0x65, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	if err != nil {
 		return
 	}
-	err = en.WriteBytes((z.LastRescannedHint)[:])
+	err = en.WriteUint64(z.LastRescannedHeight)
 	if err != nil {
-		err = msgp.WrapError(err, "LastRescannedHint")
+		err = msgp.WrapError(err, "LastRescannedHeight")
 		return
 	}
 	// write "UTXOAlreadyHandle"
@@ -195,12 +195,12 @@ func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "RescanTime"
 	o = append(o, 0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x54, 0x69, 0x6d, 0x65)
 	o = msgp.AppendInt64(o, z.RescanTime)
-	// string "RescanHint"
-	o = append(o, 0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x48, 0x69, 0x6e, 0x74)
-	o = msgp.AppendBytes(o, (z.RescanHint)[:])
-	// string "LastRescannedHint"
-	o = append(o, 0xb1, 0x4c, 0x61, 0x73, 0x74, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x6e, 0x65, 0x64, 0x48, 0x69, 0x6e, 0x74)
-	o = msgp.AppendBytes(o, (z.LastRescannedHint)[:])
+	// string "RescanHeight"
+	o = append(o, 0xac, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendUint64(o, z.RescanHeight)
+	// string "LastRescannedHeight"
+	o = append(o, 0xb3, 0x4c, 0x61, 0x73, 0x74, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x6e, 0x65, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendUint64(o, z.LastRescannedHeight)
 	// string "UTXOAlreadyHandle"
 	o = append(o, 0xb1, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65)
 	o = msgp.AppendBool(o, z.UTXOAlreadyHandle)
@@ -249,16 +249,16 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "RescanTime")
 				return
 			}
-		case "RescanHint":
-			bts, err = msgp.ReadExactBytes(bts, (z.RescanHint)[:])
+		case "RescanHeight":
+			z.RescanHeight, bts, err = msgp.ReadUint64Bytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "RescanHint")
+				err = msgp.WrapError(err, "RescanHeight")
 				return
 			}
-		case "LastRescannedHint":
-			bts, err = msgp.ReadExactBytes(bts, (z.LastRescannedHint)[:])
+		case "LastRescannedHeight":
+			z.LastRescannedHeight, bts, err = msgp.ReadUint64Bytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "LastRescannedHint")
+				err = msgp.WrapError(err, "LastRescannedHeight")
 				return
 			}
 		case "UTXOAlreadyHandle":
@@ -305,135 +305,7 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CCContext) Msgsize() (s int) {
-	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 11 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 18 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 18 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 15 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
-	return
-}
-
-// DecodeMsg implements msgp.Decodable
-func (z *CCInfo) DecodeMsg(dc *msgp.Reader) (err error) {
-	var field []byte
-	_ = field
-	var zb0001 uint32
-	zb0001, err = dc.ReadMapHeader()
-	if err != nil {
-		err = msgp.WrapError(err)
-		return
-	}
-	for zb0001 > 0 {
-		zb0001--
-		field, err = dc.ReadMapKeyPtr()
-		if err != nil {
-			err = msgp.WrapError(err)
-			return
-		}
-		switch msgp.UnsafeString(field) {
-		case "GenesisMainnetBlockHeight":
-			z.GenesisMainnetBlockHeight, err = dc.ReadInt64()
-			if err != nil {
-				err = msgp.WrapError(err, "GenesisMainnetBlockHeight")
-				return
-			}
-		case "CurrEpochNum":
-			z.CurrEpochNum, err = dc.ReadInt64()
-			if err != nil {
-				err = msgp.WrapError(err, "CurrEpochNum")
-				return
-			}
-		default:
-			err = dc.Skip()
-			if err != nil {
-				err = msgp.WrapError(err)
-				return
-			}
-		}
-	}
-	return
-}
-
-// EncodeMsg implements msgp.Encodable
-func (z CCInfo) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 2
-	// write "GenesisMainnetBlockHeight"
-	err = en.Append(0x82, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
-	if err != nil {
-		return
-	}
-	err = en.WriteInt64(z.GenesisMainnetBlockHeight)
-	if err != nil {
-		err = msgp.WrapError(err, "GenesisMainnetBlockHeight")
-		return
-	}
-	// write "CurrEpochNum"
-	err = en.Append(0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
-	if err != nil {
-		return
-	}
-	err = en.WriteInt64(z.CurrEpochNum)
-	if err != nil {
-		err = msgp.WrapError(err, "CurrEpochNum")
-		return
-	}
-	return
-}
-
-// MarshalMsg implements msgp.Marshaler
-func (z CCInfo) MarshalMsg(b []byte) (o []byte, err error) {
-	o = msgp.Require(b, z.Msgsize())
-	// map header, size 2
-	// string "GenesisMainnetBlockHeight"
-	o = append(o, 0x82, 0xb9, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x4d, 0x61, 0x69, 0x6e, 0x6e, 0x65, 0x74, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
-	o = msgp.AppendInt64(o, z.GenesisMainnetBlockHeight)
-	// string "CurrEpochNum"
-	o = append(o, 0xac, 0x43, 0x75, 0x72, 0x72, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x4e, 0x75, 0x6d)
-	o = msgp.AppendInt64(o, z.CurrEpochNum)
-	return
-}
-
-// UnmarshalMsg implements msgp.Unmarshaler
-func (z *CCInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
-	var field []byte
-	_ = field
-	var zb0001 uint32
-	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
-	if err != nil {
-		err = msgp.WrapError(err)
-		return
-	}
-	for zb0001 > 0 {
-		zb0001--
-		field, bts, err = msgp.ReadMapKeyZC(bts)
-		if err != nil {
-			err = msgp.WrapError(err)
-			return
-		}
-		switch msgp.UnsafeString(field) {
-		case "GenesisMainnetBlockHeight":
-			z.GenesisMainnetBlockHeight, bts, err = msgp.ReadInt64Bytes(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "GenesisMainnetBlockHeight")
-				return
-			}
-		case "CurrEpochNum":
-			z.CurrEpochNum, bts, err = msgp.ReadInt64Bytes(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "CurrEpochNum")
-				return
-			}
-		default:
-			bts, err = msgp.Skip(bts)
-			if err != nil {
-				err = msgp.WrapError(err)
-				return
-			}
-		}
-	}
-	o = bts
-	return
-}
-
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z CCInfo) Msgsize() (s int) {
-	s = 1 + 26 + msgp.Int64Size + 13 + msgp.Int64Size
+	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 18 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 15 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
 	return
 }
 
@@ -483,6 +355,12 @@ func (z *CCTransferInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "Receiver")
 				return
 			}
+		case "CovenantAddress":
+			err = dc.ReadExactBytes((z.CovenantAddress)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "CovenantAddress")
+				return
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -496,9 +374,9 @@ func (z *CCTransferInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *CCTransferInfo) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 4
+	// map header, size 5
 	// write "Type"
-	err = en.Append(0x84, 0xa4, 0x54, 0x79, 0x70, 0x65)
+	err = en.Append(0x85, 0xa4, 0x54, 0x79, 0x70, 0x65)
 	if err != nil {
 		return
 	}
@@ -537,15 +415,25 @@ func (z *CCTransferInfo) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "Receiver")
 		return
 	}
+	// write "CovenantAddress"
+	err = en.Append(0xaf, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.CovenantAddress)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "CovenantAddress")
+		return
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *CCTransferInfo) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 4
+	// map header, size 5
 	// string "Type"
-	o = append(o, 0x84, 0xa4, 0x54, 0x79, 0x70, 0x65)
+	o = append(o, 0x85, 0xa4, 0x54, 0x79, 0x70, 0x65)
 	o = msgp.AppendByte(o, byte(z.Type))
 	// string "PrevUTXO"
 	o = append(o, 0xa8, 0x50, 0x72, 0x65, 0x76, 0x55, 0x54, 0x58, 0x4f)
@@ -564,6 +452,9 @@ func (z *CCTransferInfo) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "Receiver"
 	o = append(o, 0xa8, 0x52, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72)
 	o = msgp.AppendBytes(o, (z.Receiver)[:])
+	// string "CovenantAddress"
+	o = append(o, 0xaf, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	o = msgp.AppendBytes(o, (z.CovenantAddress)[:])
 	return
 }
 
@@ -613,6 +504,12 @@ func (z *CCTransferInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "Receiver")
 				return
 			}
+		case "CovenantAddress":
+			bts, err = msgp.ReadExactBytes(bts, (z.CovenantAddress)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "CovenantAddress")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -627,185 +524,59 @@ func (z *CCTransferInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CCTransferInfo) Msgsize() (s int) {
-	s = 1 + 5 + msgp.ByteSize + 9 + z.PrevUTXO.Msgsize() + 5 + z.UTXO.Msgsize() + 9 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
+	s = 1 + 5 + msgp.ByteSize + 9 + z.PrevUTXO.Msgsize() + 5 + z.UTXO.Msgsize() + 9 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 16 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
 	return
 }
 
 // DecodeMsg implements msgp.Decodable
-func (z *ScriptInfo) DecodeMsg(dc *msgp.Reader) (err error) {
-	var field []byte
-	_ = field
-	var zb0001 uint32
-	zb0001, err = dc.ReadMapHeader()
-	if err != nil {
-		err = msgp.WrapError(err)
-		return
-	}
-	for zb0001 > 0 {
-		zb0001--
-		field, err = dc.ReadMapKeyPtr()
+func (z *SourceType) DecodeMsg(dc *msgp.Reader) (err error) {
+	{
+		var zb0001 uint8
+		zb0001, err = dc.ReadUint8()
 		if err != nil {
 			err = msgp.WrapError(err)
 			return
 		}
-		switch msgp.UnsafeString(field) {
-		case "PrevP2sh":
-			err = dc.ReadExactBytes((z.PrevP2sh)[:])
-			if err != nil {
-				err = msgp.WrapError(err, "PrevP2sh")
-				return
-			}
-		case "PrevRedeemScript":
-			z.PrevRedeemScript, err = dc.ReadBytes(z.PrevRedeemScript)
-			if err != nil {
-				err = msgp.WrapError(err, "PrevRedeemScript")
-				return
-			}
-		case "P2sh":
-			err = dc.ReadExactBytes((z.P2sh)[:])
-			if err != nil {
-				err = msgp.WrapError(err, "P2sh")
-				return
-			}
-		case "RedeemScript":
-			z.RedeemScript, err = dc.ReadBytes(z.RedeemScript)
-			if err != nil {
-				err = msgp.WrapError(err, "RedeemScript")
-				return
-			}
-		default:
-			err = dc.Skip()
-			if err != nil {
-				err = msgp.WrapError(err)
-				return
-			}
-		}
+		(*z) = SourceType(zb0001)
 	}
 	return
 }
 
 // EncodeMsg implements msgp.Encodable
-func (z *ScriptInfo) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 4
-	// write "PrevP2sh"
-	err = en.Append(0x84, 0xa8, 0x50, 0x72, 0x65, 0x76, 0x50, 0x32, 0x73, 0x68)
+func (z SourceType) EncodeMsg(en *msgp.Writer) (err error) {
+	err = en.WriteUint8(uint8(z))
 	if err != nil {
-		return
-	}
-	err = en.WriteBytes((z.PrevP2sh)[:])
-	if err != nil {
-		err = msgp.WrapError(err, "PrevP2sh")
-		return
-	}
-	// write "PrevRedeemScript"
-	err = en.Append(0xb0, 0x50, 0x72, 0x65, 0x76, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x53, 0x63, 0x72, 0x69, 0x70, 0x74)
-	if err != nil {
-		return
-	}
-	err = en.WriteBytes(z.PrevRedeemScript)
-	if err != nil {
-		err = msgp.WrapError(err, "PrevRedeemScript")
-		return
-	}
-	// write "P2sh"
-	err = en.Append(0xa4, 0x50, 0x32, 0x73, 0x68)
-	if err != nil {
-		return
-	}
-	err = en.WriteBytes((z.P2sh)[:])
-	if err != nil {
-		err = msgp.WrapError(err, "P2sh")
-		return
-	}
-	// write "RedeemScript"
-	err = en.Append(0xac, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x53, 0x63, 0x72, 0x69, 0x70, 0x74)
-	if err != nil {
-		return
-	}
-	err = en.WriteBytes(z.RedeemScript)
-	if err != nil {
-		err = msgp.WrapError(err, "RedeemScript")
+		err = msgp.WrapError(err)
 		return
 	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
-func (z *ScriptInfo) MarshalMsg(b []byte) (o []byte, err error) {
+func (z SourceType) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 4
-	// string "PrevP2sh"
-	o = append(o, 0x84, 0xa8, 0x50, 0x72, 0x65, 0x76, 0x50, 0x32, 0x73, 0x68)
-	o = msgp.AppendBytes(o, (z.PrevP2sh)[:])
-	// string "PrevRedeemScript"
-	o = append(o, 0xb0, 0x50, 0x72, 0x65, 0x76, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x53, 0x63, 0x72, 0x69, 0x70, 0x74)
-	o = msgp.AppendBytes(o, z.PrevRedeemScript)
-	// string "P2sh"
-	o = append(o, 0xa4, 0x50, 0x32, 0x73, 0x68)
-	o = msgp.AppendBytes(o, (z.P2sh)[:])
-	// string "RedeemScript"
-	o = append(o, 0xac, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x53, 0x63, 0x72, 0x69, 0x70, 0x74)
-	o = msgp.AppendBytes(o, z.RedeemScript)
+	o = msgp.AppendUint8(o, uint8(z))
 	return
 }
 
 // UnmarshalMsg implements msgp.Unmarshaler
-func (z *ScriptInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
-	var field []byte
-	_ = field
-	var zb0001 uint32
-	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
-	if err != nil {
-		err = msgp.WrapError(err)
-		return
-	}
-	for zb0001 > 0 {
-		zb0001--
-		field, bts, err = msgp.ReadMapKeyZC(bts)
+func (z *SourceType) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	{
+		var zb0001 uint8
+		zb0001, bts, err = msgp.ReadUint8Bytes(bts)
 		if err != nil {
 			err = msgp.WrapError(err)
 			return
 		}
-		switch msgp.UnsafeString(field) {
-		case "PrevP2sh":
-			bts, err = msgp.ReadExactBytes(bts, (z.PrevP2sh)[:])
-			if err != nil {
-				err = msgp.WrapError(err, "PrevP2sh")
-				return
-			}
-		case "PrevRedeemScript":
-			z.PrevRedeemScript, bts, err = msgp.ReadBytesBytes(bts, z.PrevRedeemScript)
-			if err != nil {
-				err = msgp.WrapError(err, "PrevRedeemScript")
-				return
-			}
-		case "P2sh":
-			bts, err = msgp.ReadExactBytes(bts, (z.P2sh)[:])
-			if err != nil {
-				err = msgp.WrapError(err, "P2sh")
-				return
-			}
-		case "RedeemScript":
-			z.RedeemScript, bts, err = msgp.ReadBytesBytes(bts, z.RedeemScript)
-			if err != nil {
-				err = msgp.WrapError(err, "RedeemScript")
-				return
-			}
-		default:
-			bts, err = msgp.Skip(bts)
-			if err != nil {
-				err = msgp.WrapError(err)
-				return
-			}
-		}
+		(*z) = SourceType(zb0001)
 	}
 	o = bts
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z *ScriptInfo) Msgsize() (s int) {
-	s = 1 + 9 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.BytesPrefixSize + len(z.PrevRedeemScript) + 5 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 13 + msgp.BytesPrefixSize + len(z.RedeemScript)
+func (z SourceType) Msgsize() (s int) {
+	s = msgp.Uint8Size
 	return
 }
 
@@ -840,7 +611,7 @@ func (z *UTXO) DecodeMsg(dc *msgp.Reader) (err error) {
 				return
 			}
 		case "Amount":
-			z.Amount, err = dc.ReadInt64()
+			err = dc.ReadExactBytes((z.Amount)[:])
 			if err != nil {
 				err = msgp.WrapError(err, "Amount")
 				return
@@ -884,7 +655,7 @@ func (z *UTXO) EncodeMsg(en *msgp.Writer) (err error) {
 	if err != nil {
 		return
 	}
-	err = en.WriteInt64(z.Amount)
+	err = en.WriteBytes((z.Amount)[:])
 	if err != nil {
 		err = msgp.WrapError(err, "Amount")
 		return
@@ -904,7 +675,7 @@ func (z *UTXO) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendUint32(o, z.Index)
 	// string "Amount"
 	o = append(o, 0xa6, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
-	o = msgp.AppendInt64(o, z.Amount)
+	o = msgp.AppendBytes(o, (z.Amount)[:])
 	return
 }
 
@@ -939,7 +710,7 @@ func (z *UTXO) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "Amount":
-			z.Amount, bts, err = msgp.ReadInt64Bytes(bts)
+			bts, err = msgp.ReadExactBytes(bts, (z.Amount)[:])
 			if err != nil {
 				err = msgp.WrapError(err, "Amount")
 				return
@@ -958,7 +729,7 @@ func (z *UTXO) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *UTXO) Msgsize() (s int) {
-	s = 1 + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint32Size + 7 + msgp.Int64Size
+	s = 1 + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint32Size + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize))
 	return
 }
 
@@ -1288,7 +1059,7 @@ func (z *UTXORecord) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *UTXORecord) Msgsize() (s int) {
-	s = 1 + 12 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 11 + msgp.BoolSize + 13 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.Int64Size + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint32Size + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize))
+	s = 1 + 12 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 11 + msgp.BoolSize + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.Int64Size + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint32Size + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize))
 	return
 }
 

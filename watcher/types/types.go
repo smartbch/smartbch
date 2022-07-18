@@ -2,8 +2,6 @@ package types
 
 import (
 	"encoding/hex"
-	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"strings"
 
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
@@ -137,56 +135,6 @@ func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, success bool) {
 		break
 	}
 	return
-}
-
-func (ti TxInfo) GetCCTransferInfos() (infos []*cctypes.CCTransferInfo) {
-	for n, vOut := range ti.VoutList {
-		asm, ok := vOut.ScriptPubKey["asm"]
-		if !ok || asm == nil {
-			continue
-		}
-		script, ok := asm.(string)
-		if !ok {
-			continue
-		}
-		target := "OP_HASH160 " + ShaGateAddress + " OP_EQUAL"
-		if script != target {
-			continue
-		}
-		var info cctypes.CCTransferInfo
-		info.UTXO.Amount = int64(vOut.Value * (10e8))
-		copy(info.UTXO.TxID[:], ti.Hash)
-		info.UTXO.Index = uint32(n)
-		infos = append(infos, &info)
-	}
-	if len(infos) != 0 {
-		vIn := ti.VinList[0]
-		//todo: modify this to match real rules, for test now
-		value, exist := vIn["test"]
-		if !exist || value == nil {
-			return nil
-		}
-		pubkeyString, ok := value.(string)
-		if !ok {
-			return nil
-		}
-		pubkeyBytes, err := hex.DecodeString(pubkeyString)
-		if err != nil {
-			return nil
-		}
-		var pubkey [33]byte
-		copy(pubkey[:], pubkeyBytes)
-		fmt.Printf("get cc infos:\n")
-		for _, info := range infos {
-			info.Receiver = convertBCHPubkey2EvmAddress(pubkey)
-			fmt.Printf("info.receiver:%v, info.amount:%d, info.utxo:%v\n", info.Receiver, info.UTXO.Amount, info.UTXO)
-		}
-	}
-	return
-}
-
-func convertBCHPubkey2EvmAddress(pubkey [33]byte) common.Address {
-	return common.Address{}
 }
 
 type TxInfoResp struct {

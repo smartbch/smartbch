@@ -3,7 +3,9 @@ package crosschain
 import (
 	"bytes"
 	"encoding/hex"
+
 	"github.com/gcash/bchd/txscript"
+	"github.com/holiman/uint256"
 
 	"github.com/gcash/bchd/wire"
 	"github.com/gcash/bchutil"
@@ -20,7 +22,9 @@ func buildUnsignedTx(utxo types.UTXO, redeemScript []byte, p2shHash [20]byte) (s
 	if err != nil {
 		panic(err)
 	}
-	tx.AddTxOut(wire.NewTxOut(utxo.Amount-fixedMainnetFee, pkScript))
+	amount := uint256.NewInt(0).Sub(uint256.NewInt(0).SetBytes32(utxo.Amount[:]), uint256.NewInt(uint64(FixedMainnetFee)))
+	amount.Div(amount, uint256.NewInt(10e10))
+	tx.AddTxOut(wire.NewTxOut(int64(amount.Uint64()), pkScript))
 	// 2. build tx input
 	in := wire.TxIn{
 		PreviousOutPoint: wire.OutPoint{

@@ -35,6 +35,10 @@ func SaveUTXORecord(ctx *mevmtypes.Context, record types.UTXORecord) {
 	ctx.SetStorageAt(ccContractSequence, buildUTXOKey(record.Txid, record.Index), bz)
 }
 
+func DeleteUTXORecord(ctx *mevmtypes.Context, txid [32]byte, index uint32) {
+	ctx.DeleteStorageAt(ccContractSequence, buildUTXOKey(txid, index))
+}
+
 func LoadCCContext(ctx *mevmtypes.Context) *types.CCContext {
 	bz := ctx.GetStorageAt(ccContractSequence, SlotContext)
 	if len(bz) == 0 {
@@ -61,44 +65,4 @@ func buildUTXOKey(txid [32]byte, index uint32) string {
 	binary.BigEndian.PutUint32(v[:], index)
 	hash := sha256.Sum256(append(txid[:], v[:]...))
 	return string(hash[:])
-}
-
-func LoadCCInfo(ctx *mevmtypes.Context) (info types.CCInfo) {
-	bz := ctx.GetStorageAt(ccContractSequence, SlotCCInfo)
-	if bz == nil {
-		return types.CCInfo{}
-	}
-	_, err := info.UnmarshalMsg(bz)
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
-func SaveCCInfo(ctx *mevmtypes.Context, info types.CCInfo) {
-	bz, err := info.MarshalMsg(nil)
-	if err != nil {
-		panic(err)
-	}
-	ctx.SetStorageAt(ccContractSequence, SlotCCInfo, bz)
-}
-
-func LoadScriptInfo(ctx *mevmtypes.Context) (info types.ScriptInfo) {
-	bz := ctx.GetStorageAt(ccContractSequence, SlotScriptInfo)
-	if bz == nil {
-		return types.ScriptInfo{}
-	}
-	_, err := info.UnmarshalMsg(bz)
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
-func SaveScriptInfo(ctx *mevmtypes.Context, info types.ScriptInfo) {
-	bz, err := info.MarshalMsg(nil)
-	if err != nil {
-		panic(err)
-	}
-	ctx.SetStorageAt(ccContractSequence, SlotScriptInfo, bz)
 }

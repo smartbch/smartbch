@@ -154,7 +154,8 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 		if nomination != nil {
 			bchBlock.Nominations = append(bchBlock.Nominations, *nomination)
 		}
-		//bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.getCCTransferInfos(bi)...)
+		// todo: get outpoint set from db
+		bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, bi.GetCCUTXOTransferInfo(nil)...)
 	}
 	return bchBlock, nil
 }
