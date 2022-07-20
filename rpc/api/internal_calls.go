@@ -6,6 +6,9 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/smartbch/moeingevm/ebp"
 	motypes "github.com/smartbch/moeingevm/types"
 )
 
@@ -98,7 +101,11 @@ func newCallSite(call motypes.InternalTxCall) *InternalTx {
 	}
 }
 func addRetInfo(callSite *InternalTx, ret motypes.InternalTxReturn) {
-	callSite.StatusCode = hexutil.Uint64(ret.StatusCode)
+	callSite.StatusCode = hexutil.Uint64(gethtypes.ReceiptStatusSuccessful)
+	if ebp.StatusIsFailure(ret.StatusCode) {
+		callSite.StatusCode = hexutil.Uint64(gethtypes.ReceiptStatusFailed)
+	}
+
 	callSite.GasUsed = callSite.GasLimit - hexutil.Uint64(ret.GasLeft)
 	callSite.Output = ret.Output
 	if !isZeroAddress(ret.CreateAddress) {
