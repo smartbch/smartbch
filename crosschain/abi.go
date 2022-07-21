@@ -9,6 +9,8 @@ import (
 //event NewRedeemable(uint256 txid, uint32 vout, address covenantAddr);
 //event NewLostAndFound(uint256 txid, uint32 vout, address covenantAddr);
 //event Redeem(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType);
+//event Convert(uint256 txid, uint32 vout, address newCovenantAddr);
+//event ChangeAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout);
 //event Deleted(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType);
 
 var ABI = ethutils.MustParseABI(`

@@ -237,7 +237,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
 
 	/*------set watcher------*/
-	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), 0, stakingInfo.CurrEpochNum, app.config)
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), app.historyStore, 0, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup))
 	app.watcher.SetCCExecutor(ccExecutor)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/smartbch/crosschain"
 	"math"
 	"sort"
@@ -52,12 +53,12 @@ type Watcher struct {
 	ccContractExecutor *crosschain.CcContractExecutor
 }
 
-func NewWatcher(logger log.Logger, lastHeight, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
+func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
 	return &Watcher{
 		logger: logger,
 
-		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", logger),
-		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", logger),
+		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", historyDB, logger),
+		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", nil, logger),
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,

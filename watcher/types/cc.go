@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"github.com/holiman/uint256"
 	"strings"
@@ -32,7 +33,14 @@ type ScriptSig struct {
 */
 
 // GetCCUTXOTransferInfo todo: refactor
-func (bi *BlockInfo) GetCCUTXOTransferInfo(outpointSet map[[32]byte]uint32 /*txid => vout*/) []*cctypes.CCTransferInfo {
+func (bi *BlockInfo) GetCCUTXOTransferInfo(ids [][36]byte) []*cctypes.CCTransferInfo {
+	var outpointSet map[[32]byte]uint32 /*txid => vout*/
+	for _, id := range ids {
+		var txid [32]byte
+		copy(txid[:], id[:32])
+		index := binary.BigEndian.Uint32(id[32:])
+		outpointSet[txid] = index
+	}
 	var infos []*cctypes.CCTransferInfo
 	hasReceiver := false
 	hasCurrentRedeemAddressInOutput := false

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	modbtypes "github.com/smartbch/moeingdb/types"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -31,12 +32,13 @@ type RpcClient struct {
 	password    string
 	err         error
 	contentType string
+	db          modbtypes.DB
 	logger      log.Logger
 }
 
 var _ types.RpcClient = (*RpcClient)(nil)
 
-func NewRpcClient(url, user, password, contentType string, logger log.Logger) *RpcClient {
+func NewRpcClient(url, user, password, contentType string, db modbtypes.DB, logger log.Logger) *RpcClient {
 	if url == "" {
 		return nil
 	}
@@ -45,6 +47,7 @@ func NewRpcClient(url, user, password, contentType string, logger log.Logger) *R
 		user:        user,
 		password:    password,
 		contentType: contentType,
+		db:          db,
 		logger:      logger,
 	}
 }
@@ -154,8 +157,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 		if nomination != nil {
 			bchBlock.Nominations = append(bchBlock.Nominations, *nomination)
 		}
-		// todo: get outpoint set from db
-		bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, bi.GetCCUTXOTransferInfo(nil)...)
+		bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, bi.GetCCUTXOTransferInfo(client.db.GetAllUtxoIds())...)
 	}
 	return bchBlock, nil
 }

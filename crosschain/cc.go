@@ -2,6 +2,7 @@ package crosschain
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -37,6 +38,8 @@ var (
 	HashOfEventRedeem          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 	HashOfEventNewLostAndFound [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 	HashOfEvenDeleted          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
+	HashOfEventConvert         [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
+	HashOfEvenChangeAddr       [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
@@ -151,7 +154,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 	amount := uint256.NewInt(0).SetBytes32(tx.Value[:])
 	if amount.IsZero() {
 		gasUsed = GasOfLostAndFoundRedeem
-		if err, ok := checkAndUpdateLostAndFoundTX(ctx, block, txid, uint32(index.Uint64()), tx.From, targetAddress); !ok {
+		if err, ok := checkAndUpdateLostAndFoundTX(ctx, block, txid, uint32(index.Uint64()), tx.From, targetAddress, logs); !ok {
 			outData = []byte(err.Error())
 			return
 		}
@@ -163,17 +166,12 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 		outData = []byte(err.Error())
 		return
 	}
-	if err, ok := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress); !ok {
+	if err, ok := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress, logs); !ok {
 		outData = []byte(err.Error())
 		return
 	}
 	status = StatusSuccess
 	return
-}
-
-// todo: vote contract offer this
-func isMonitor(address common.Address) bool {
-	return true
 }
 
 // startRescan(uint mainFinalizedBlockHeight) onlyMonitor
@@ -185,7 +183,7 @@ func startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mev
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
-	if !isMonitor(tx.From) {
+	if !isMonitor(ctx, tx.From) {
 		outData = []byte(MustMonitor.Error())
 		return
 	}
@@ -210,7 +208,7 @@ func startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mev
 func pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
-	if !isMonitor(tx.From) {
+	if !isMonitor(ctx, tx.From) {
 		outData = []byte(MustMonitor.Error())
 		return
 	}
@@ -249,7 +247,7 @@ func handleUTXOs(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock
 		return
 	}
 	handleTransferInfos(ctx, context, executor, logs)
-	handleOperatorOrMonitorSetChanged(ctx, context)
+	handleOperatorOrMonitorSetChanged(ctx, context, logs)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
@@ -342,10 +340,8 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 		Amount: newAmount.Bytes32(),
 	}
 	SaveUTXORecord(ctx, newR)
-	logs = append(logs, buildNewRedeemable(newR.Txid, newR.Index, context.CurrCovenantAddr))
-
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	logs = append(logs, buildDeletedLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromRedeemable))
+	logs = append(logs, buildChangeAddrLog(r.Txid, r.Index, newR.CovenantAddr, newR.Txid, newR.Index))
 }
 
 func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo, logs []mevmtypes.EvmLog) {
@@ -365,11 +361,21 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	}
 }
 
-func handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext) {
-
+func handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext, logs []mevmtypes.EvmLog) {
+	if !isOperatorOrMonitorChanged(ctx) {
+		return
+	}
+	newAddress := getNewCovenantAddress(ctx)
+	RedeemableUTXOs := ctx.Db.GetRedeemableUtxoIds()
+	for _, utxo := range RedeemableUTXOs {
+		var prevTxid [32]byte
+		copy(prevTxid[:], utxo[:32])
+		logs = append(logs, buildConvert(prevTxid, binary.BigEndian.Uint32(utxo[32:]), newAddress))
+	}
+	//todo: lostAndFound tx convert?
 }
 
-func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress [20]byte) (error, bool) {
+func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress [20]byte, logs []mevmtypes.EvmLog) (error, bool) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
 		return UTXONotExist, false
@@ -384,10 +390,11 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	r.RedeemTarget = targetAddress
 	r.ExpectedSignTime = block.Timestamp + ExpectedSignTimeDelay
 	SaveUTXORecord(ctx, *r)
+	logs = append(logs, buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable))
 	return nil, true
 }
 
-func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, sender common.Address, targetAddress [20]byte) (error, bool) {
+func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, sender common.Address, targetAddress [20]byte, logs []mevmtypes.EvmLog) (error, bool) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
 		return UTXONotExist, false
@@ -405,6 +412,7 @@ func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.Block
 	r.RedeemTarget = targetAddress
 	r.ExpectedSignTime = block.Timestamp + ExpectedSignTimeDelay
 	SaveUTXORecord(ctx, *r)
+	logs = append(logs, buildRedeemLog(r.Txid, index, r.CovenantAddr, types.FromLostAndFound))
 	return nil, true
 }
 
@@ -429,4 +437,19 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 		ctx.SetAccount(receiver, receiverAcc)
 	}
 	return nil
+}
+
+// todo: vote contract offer this
+func isMonitor(ctx *mevmtypes.Context, address common.Address) bool {
+	return true
+}
+
+// todo: vote contract offer this
+func isOperatorOrMonitorChanged(ctx *mevmtypes.Context) bool {
+	return true
+}
+
+// todo: vote contract offer this
+func getNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
+	return common.Address{}
 }
