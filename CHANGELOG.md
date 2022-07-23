@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.5
+
+* JSON-RPC
+  * Fix internal transaction status of sbch_getTransactionReceipt
+* Library
+  * Upgrade moeingdb to v0.4.3
+  * Upgrade moeingevm to v0.4.3
+* Others
+  * Prepare to slash offline validators
+
+
 ## v0.4.4-p2
 
 * Hot fix to stop CoinFLEX's smartBCH treasury
