@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math"
 	"os"
 	"path"
@@ -131,8 +132,9 @@ type App struct {
 	frontier    ebp.Frontier // recorded in Commit, used in next block's CheckTx
 
 	//watcher
-	watcher   *watcher.Watcher
-	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
+	watcher             *watcher.Watcher
+	epochList           []*stakingtypes.Epoch      // caches the epochs collected by the watcher
+	monitorVoteInfoList []*cctypes.MonitorVoteInfo // caches the monitor vote infos collected by the watcher
 
 	//util
 	signer gethtypes.Signer
@@ -633,6 +635,15 @@ func (app *App) updateValidatorsAndStakingInfo() {
 				epoch.Number, epoch.StartHeight, len(app.epochList)))
 		default:
 		}
+		if ctx.IsShaGateFork() {
+			select {
+			case voteInfo := <-app.watcher.MonitorVoteChan:
+				app.monitorVoteInfoList = append(app.monitorVoteInfoList, voteInfo)
+				app.logger.Debug(fmt.Sprintf("Get new monitor vote info, infoNum(%d), startHeight(%d), infoListLens(%d)",
+					voteInfo.Number, voteInfo.StartHeight, len(app.monitorVoteInfoList)))
+			default:
+			}
+		}
 	}
 
 	if len(app.epochList) != 0 {
@@ -656,6 +667,13 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			app.epochList = app.epochList[1:] // possible memory leak here, but the length would not be very large
 			if ctx.IsXHedgeFork() {
 				staking.CreateInitVotes(ctx, xHedgeSequence, newValidators)
+			}
+		}
+		if ctx.IsShaGateFork() {
+			if len(app.monitorVoteInfoList) != 0 {
+				info := app.monitorVoteInfoList[0]
+				crosschain.HandleMonitorVoteInfo(ctx, info)
+				app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
 			}
 		}
 	}

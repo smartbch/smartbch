@@ -16,7 +16,7 @@ import (
 	sbchapi "github.com/smartbch/smartbch/api"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	"github.com/smartbch/smartbch/staking"
-	"github.com/smartbch/smartbch/staking/types"
+	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
 
 var _ SbchAPI = (*sbchAPI)(nil)
@@ -31,7 +31,7 @@ type SbchAPI interface {
 	GetTxListByHeightWithRange(height gethrpc.BlockNumber, start, end hexutil.Uint64) ([]map[string]interface{}, error)
 	GetAddressCount(kind string, addr gethcmn.Address) hexutil.Uint64
 	GetSep20AddressCount(kind string, contract, addr gethcmn.Address) hexutil.Uint64
-	GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error)
+	getVoteInfos(start, end hexutil.Uint64) ([]*watchertypes.VoteInfo, error)
 	GetEpochList(from string) ([]*StakingEpoch, error)
 	GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error)
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
@@ -192,12 +192,12 @@ func (sbch sbchAPI) GetSep20AddressCount(kind string, contract, addr gethcmn.Add
 	return hexutil.Uint64(0)
 }
 
-func (sbch sbchAPI) GetEpochs(start, end hexutil.Uint64) ([]*types.Epoch, error) {
-	sbch.logger.Debug("sbch_getEpochs")
+func (sbch sbchAPI) getVoteInfos(start, end hexutil.Uint64) ([]*watchertypes.VoteInfo, error) {
+	sbch.logger.Debug("sbch_getVoteInfos")
 	if end == 0 {
 		end = start + 10
 	}
-	return sbch.backend.GetEpochs(uint64(start), uint64(end))
+	return sbch.backend.GetVoteInfos(uint64(start), uint64(end))
 }
 func (sbch sbchAPI) GetEpochList(from string) ([]*StakingEpoch, error) {
 	epochs, err := sbch.backend.GetEpochList(from)

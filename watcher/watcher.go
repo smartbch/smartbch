@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	modbtypes "github.com/smartbch/moeingdb/types"
-	"github.com/smartbch/smartbch/crosschain"
 	"math"
 	"sort"
 	"sync"
 	"time"
 
+	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/tendermint/tendermint/libs/log"
 
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
@@ -35,8 +36,14 @@ type Watcher struct {
 
 	heightToFinalizedBlock map[int64]*types.BCHBlock
 
-	EpochChan          chan *stakingtypes.Epoch
-	epochList          []*stakingtypes.Epoch
+	EpochChan chan *stakingtypes.Epoch
+	epochList []*stakingtypes.Epoch
+
+	MonitorVoteChan     chan *cctypes.MonitorVoteInfo
+	monitorVoteInfoList []*cctypes.MonitorVoteInfo
+
+	voteInfoList []*types.VoteInfo
+
 	numBlocksInEpoch   int64
 	lastEpochEndHeight int64
 	lastKnownEpochNum  int64
@@ -65,9 +72,12 @@ func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnown
 		lastKnownEpochNum:     lastKnownEpochNum,
 
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
-		epochList:              make([]*stakingtypes.Epoch, 0, 10),
 
-		EpochChan: make(chan *stakingtypes.Epoch, 10000),
+		EpochChan:           make(chan *stakingtypes.Epoch, 10000),
+		MonitorVoteChan:     make(chan *cctypes.MonitorVoteInfo, 5000),
+		monitorVoteInfoList: make([]*cctypes.MonitorVoteInfo, 0, 10),
+
+		voteInfoList: make([]*types.VoteInfo, 0, 10),
 
 		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
 		numBlocksToClearMemory: NumBlocksToClearMemory,
@@ -105,7 +115,7 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 	}
 	latestFinalizedHeight := watcher.latestFinalizedHeight
 	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
-	latestFinalizedHeight = watcher.epochSpeedup(latestFinalizedHeight, latestMainnetHeight)
+	latestFinalizedHeight = watcher.speedup(latestFinalizedHeight, latestMainnetHeight)
 	go watcher.CollectCCTransferInfos()
 	watcher.fetchBlocks(catchupChan, latestFinalizedHeight, latestMainnetHeight)
 }
@@ -171,32 +181,41 @@ func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
 	watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
 }
 
-func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight int64) int64 {
+func (watcher *Watcher) speedup(latestFinalizedHeight, latestMainnetHeight int64) int64 {
 	if watcher.chainConfig.AppConfig.Speedup {
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
-			epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
-			if len(epochs) == 0 {
+			infos := watcher.smartBchRpcClient.GetVoteInfoByEpochNumber(start, start+100)
+			if len(infos) == 0 {
 				break
 			}
-			for _, e := range epochs {
-				out, _ := json.Marshal(e)
-				fmt.Println(string(out))
-			}
-			watcher.epochList = append(watcher.epochList, epochs...)
-			for _, e := range epochs {
-				if e.EndTime != 0 {
-					watcher.EpochChan <- e
+			debugVoteInfo(infos)
+			watcher.voteInfoList = append(watcher.voteInfoList, infos...)
+			for _, in := range infos {
+				if in.Epoch.EndTime != 0 {
+					watcher.EpochChan <- &in.Epoch
+				}
+				if !param.IsAmber && in.MonitorVote.EndTime != 0 {
+					watcher.MonitorVoteChan <- &in.MonitorVote
 				}
 			}
-			latestFinalizedHeight += int64(len(epochs)) * watcher.numBlocksInEpoch
-			start = start + uint64(len(epochs))
+			latestFinalizedHeight += int64(len(infos)) * watcher.numBlocksInEpoch
+			start = start + uint64(len(infos))
 		}
 		watcher.latestFinalizedHeight = latestFinalizedHeight
 		watcher.lastEpochEndHeight = latestFinalizedHeight
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
 	return latestFinalizedHeight
+}
+
+func debugVoteInfo(infos []*types.VoteInfo) {
+	for _, e := range infos {
+		out, _ := json.Marshal(e.Epoch)
+		fmt.Println(string(out))
+		out, _ = json.Marshal(e.MonitorVote)
+		fmt.Println(string(out))
+	}
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {
@@ -217,11 +236,47 @@ func (watcher *Watcher) addFinalizedBlock(blk *types.BCHBlock) {
 // Generate a new block's information
 func (watcher *Watcher) generateNewEpoch() {
 	epoch := watcher.buildNewEpoch()
-	watcher.epochList = append(watcher.epochList, epoch)
 	watcher.logger.Debug("Generate new epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
 	watcher.EpochChan <- epoch
+	info := watcher.buildMonitorVoteInfo()
+	if info != nil {
+		watcher.MonitorVoteChan <- info
+	}
+	var voteInfo types.VoteInfo
+	voteInfo.Epoch = *epoch
+	if info != nil {
+		voteInfo.MonitorVote = *info
+	}
+	watcher.voteInfoList = append(watcher.voteInfoList, &voteInfo)
 	watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 	watcher.ClearOldData()
+}
+
+func (watcher *Watcher) buildMonitorVoteInfo() *cctypes.MonitorVoteInfo {
+	startHeight := watcher.lastEpochEndHeight + 1
+	if startHeight < param.EpochStartHeightForCC {
+		return nil
+	}
+	var info cctypes.MonitorVoteInfo
+	var monitorMapByPubkey = make(map[[33]byte]*cctypes.Nomination)
+
+	for i := startHeight; i <= watcher.latestFinalizedHeight; i++ {
+		blk, ok := watcher.heightToFinalizedBlock[i]
+		if !ok {
+			panic("Missing Block")
+		}
+		for _, ccNomination := range blk.CCNominations {
+			if _, ok := monitorMapByPubkey[ccNomination.Pubkey]; !ok {
+				monitorMapByPubkey[ccNomination.Pubkey] = &ccNomination
+			}
+			monitorMapByPubkey[ccNomination.Pubkey].NominatedCount += ccNomination.NominatedCount
+		}
+	}
+	for _, v := range monitorMapByPubkey {
+		info.Nominations = append(info.Nominations, v)
+	}
+	crosschain.SortMonitorVoteNominations(info.Nominations)
+	return &info
 }
 
 func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {
@@ -291,11 +346,11 @@ func sortEpochNominations(epoch *stakingtypes.Epoch) {
 }
 
 func (watcher *Watcher) ClearOldData() {
-	elLen := len(watcher.epochList)
-	if elLen == 0 {
+	vLen := len(watcher.voteInfoList)
+	if vLen == 0 {
 		return
 	}
-	height := watcher.epochList[elLen-1].StartHeight
+	height := watcher.voteInfoList[vLen-1].Epoch.StartHeight
 	height -= 5 * watcher.numBlocksInEpoch
 	for {
 		_, ok := watcher.heightToFinalizedBlock[height]
@@ -305,14 +360,18 @@ func (watcher *Watcher) ClearOldData() {
 		delete(watcher.heightToFinalizedBlock, height)
 		height--
 	}
-	if elLen > 5 /*param it*/ {
-		watcher.epochList = watcher.epochList[elLen-5:]
+	if vLen > 5 /*param it*/ {
+		watcher.voteInfoList = watcher.voteInfoList[vLen-5:]
 	}
 }
 
 func (watcher *Watcher) CollectCCTransferInfos() {
 	var beginBlockHeight, endBlockHeight int64
 	for {
+		if watcher.latestFinalizedHeight < param.EpochStartHeightForCC {
+			time.Sleep(5 * time.Second)
+			continue
+		}
 		heightInfo := <-watcher.ccContractExecutor.StartUTXOCollect
 		beginBlockHeight = heightInfo.BeginHeight
 		endBlockHeight = heightInfo.EndHeight
@@ -329,6 +388,7 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 				watcher.ccContractExecutor.Infos = append(watcher.ccContractExecutor.Infos, blk.CCTransferInfos...)
 			}
 			watcher.ccContractExecutor.UTXOCollectDone <- true
+			break
 		}
 	}
 }

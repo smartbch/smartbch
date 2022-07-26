@@ -61,3 +61,15 @@ var (
 	FromRedeeming    = SourceType(2)
 	FromBurnRedeem   = SourceType(9)
 )
+
+type MonitorVoteInfo struct {
+	Number      int64         `msgp:"number"`
+	StartHeight int64         `msgp:"start_height"`
+	EndTime     int64         `msgp:"end_time"`
+	Nominations []*Nomination `msgp:"nominations"`
+}
+
+type Nomination struct {
+	Pubkey         [33]byte `msgp:"pubkey"` // The monitor's compressed pubkey used in main chain
+	NominatedCount int64    `msgp:"nominated_count"`
+}

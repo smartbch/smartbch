@@ -25,8 +25,12 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	MaxCCAmount uint64 = 1000
-	MinCCAmount uint64 = 1
+	EpochStartHeightForCC         = 10000000
+	EpochStartNumberForCC         = 300
+	EpochNumbersPerCCEpoch        = 100
+	MaxCCAmount            uint64 = 1000
+	MinCCAmount            uint64 = 1
+	MaxMonitorNumber       int    = 3
 
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201

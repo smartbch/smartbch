@@ -1,9 +1,11 @@
 package crosschain
 
 import (
-	gethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"math/big"
+
+	gethcmn "github.com/ethereum/go-ethereum/common"
+
+	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
 //event NewRedeemable(uint256 txid, uint32 vout, address covenantAddr);

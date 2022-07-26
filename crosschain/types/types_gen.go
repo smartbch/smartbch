@@ -529,6 +529,469 @@ func (z *CCTransferInfo) Msgsize() (s int) {
 }
 
 // DecodeMsg implements msgp.Decodable
+func (z *MonitorVoteInfo) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Number":
+			z.Number, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "Number")
+				return
+			}
+		case "StartHeight":
+			z.StartHeight, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "StartHeight")
+				return
+			}
+		case "EndTime":
+			z.EndTime, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "EndTime")
+				return
+			}
+		case "Nominations":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
+			if err != nil {
+				err = msgp.WrapError(err, "Nominations")
+				return
+			}
+			if cap(z.Nominations) >= int(zb0002) {
+				z.Nominations = (z.Nominations)[:zb0002]
+			} else {
+				z.Nominations = make([]*Nomination, zb0002)
+			}
+			for za0001 := range z.Nominations {
+				if dc.IsNil() {
+					err = dc.ReadNil()
+					if err != nil {
+						err = msgp.WrapError(err, "Nominations", za0001)
+						return
+					}
+					z.Nominations[za0001] = nil
+				} else {
+					if z.Nominations[za0001] == nil {
+						z.Nominations[za0001] = new(Nomination)
+					}
+					var zb0003 uint32
+					zb0003, err = dc.ReadMapHeader()
+					if err != nil {
+						err = msgp.WrapError(err, "Nominations", za0001)
+						return
+					}
+					for zb0003 > 0 {
+						zb0003--
+						field, err = dc.ReadMapKeyPtr()
+						if err != nil {
+							err = msgp.WrapError(err, "Nominations", za0001)
+							return
+						}
+						switch msgp.UnsafeString(field) {
+						case "Pubkey":
+							err = dc.ReadExactBytes((z.Nominations[za0001].Pubkey)[:])
+							if err != nil {
+								err = msgp.WrapError(err, "Nominations", za0001, "Pubkey")
+								return
+							}
+						case "NominatedCount":
+							z.Nominations[za0001].NominatedCount, err = dc.ReadInt64()
+							if err != nil {
+								err = msgp.WrapError(err, "Nominations", za0001, "NominatedCount")
+								return
+							}
+						default:
+							err = dc.Skip()
+							if err != nil {
+								err = msgp.WrapError(err, "Nominations", za0001)
+								return
+							}
+						}
+					}
+				}
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *MonitorVoteInfo) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 4
+	// write "Number"
+	err = en.Append(0x84, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.Number)
+	if err != nil {
+		err = msgp.WrapError(err, "Number")
+		return
+	}
+	// write "StartHeight"
+	err = en.Append(0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.StartHeight)
+	if err != nil {
+		err = msgp.WrapError(err, "StartHeight")
+		return
+	}
+	// write "EndTime"
+	err = en.Append(0xa7, 0x45, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.EndTime)
+	if err != nil {
+		err = msgp.WrapError(err, "EndTime")
+		return
+	}
+	// write "Nominations"
+	err = en.Append(0xab, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteArrayHeader(uint32(len(z.Nominations)))
+	if err != nil {
+		err = msgp.WrapError(err, "Nominations")
+		return
+	}
+	for za0001 := range z.Nominations {
+		if z.Nominations[za0001] == nil {
+			err = en.WriteNil()
+			if err != nil {
+				return
+			}
+		} else {
+			// map header, size 2
+			// write "Pubkey"
+			err = en.Append(0x82, 0xa6, 0x50, 0x75, 0x62, 0x6b, 0x65, 0x79)
+			if err != nil {
+				return
+			}
+			err = en.WriteBytes((z.Nominations[za0001].Pubkey)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "Nominations", za0001, "Pubkey")
+				return
+			}
+			// write "NominatedCount"
+			err = en.Append(0xae, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x64, 0x43, 0x6f, 0x75, 0x6e, 0x74)
+			if err != nil {
+				return
+			}
+			err = en.WriteInt64(z.Nominations[za0001].NominatedCount)
+			if err != nil {
+				err = msgp.WrapError(err, "Nominations", za0001, "NominatedCount")
+				return
+			}
+		}
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *MonitorVoteInfo) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 4
+	// string "Number"
+	o = append(o, 0x84, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
+	o = msgp.AppendInt64(o, z.Number)
+	// string "StartHeight"
+	o = append(o, 0xab, 0x53, 0x74, 0x61, 0x72, 0x74, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendInt64(o, z.StartHeight)
+	// string "EndTime"
+	o = append(o, 0xa7, 0x45, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65)
+	o = msgp.AppendInt64(o, z.EndTime)
+	// string "Nominations"
+	o = append(o, 0xab, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Nominations)))
+	for za0001 := range z.Nominations {
+		if z.Nominations[za0001] == nil {
+			o = msgp.AppendNil(o)
+		} else {
+			// map header, size 2
+			// string "Pubkey"
+			o = append(o, 0x82, 0xa6, 0x50, 0x75, 0x62, 0x6b, 0x65, 0x79)
+			o = msgp.AppendBytes(o, (z.Nominations[za0001].Pubkey)[:])
+			// string "NominatedCount"
+			o = append(o, 0xae, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x64, 0x43, 0x6f, 0x75, 0x6e, 0x74)
+			o = msgp.AppendInt64(o, z.Nominations[za0001].NominatedCount)
+		}
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *MonitorVoteInfo) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Number":
+			z.Number, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Number")
+				return
+			}
+		case "StartHeight":
+			z.StartHeight, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "StartHeight")
+				return
+			}
+		case "EndTime":
+			z.EndTime, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "EndTime")
+				return
+			}
+		case "Nominations":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Nominations")
+				return
+			}
+			if cap(z.Nominations) >= int(zb0002) {
+				z.Nominations = (z.Nominations)[:zb0002]
+			} else {
+				z.Nominations = make([]*Nomination, zb0002)
+			}
+			for za0001 := range z.Nominations {
+				if msgp.IsNil(bts) {
+					bts, err = msgp.ReadNilBytes(bts)
+					if err != nil {
+						return
+					}
+					z.Nominations[za0001] = nil
+				} else {
+					if z.Nominations[za0001] == nil {
+						z.Nominations[za0001] = new(Nomination)
+					}
+					var zb0003 uint32
+					zb0003, bts, err = msgp.ReadMapHeaderBytes(bts)
+					if err != nil {
+						err = msgp.WrapError(err, "Nominations", za0001)
+						return
+					}
+					for zb0003 > 0 {
+						zb0003--
+						field, bts, err = msgp.ReadMapKeyZC(bts)
+						if err != nil {
+							err = msgp.WrapError(err, "Nominations", za0001)
+							return
+						}
+						switch msgp.UnsafeString(field) {
+						case "Pubkey":
+							bts, err = msgp.ReadExactBytes(bts, (z.Nominations[za0001].Pubkey)[:])
+							if err != nil {
+								err = msgp.WrapError(err, "Nominations", za0001, "Pubkey")
+								return
+							}
+						case "NominatedCount":
+							z.Nominations[za0001].NominatedCount, bts, err = msgp.ReadInt64Bytes(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "Nominations", za0001, "NominatedCount")
+								return
+							}
+						default:
+							bts, err = msgp.Skip(bts)
+							if err != nil {
+								err = msgp.WrapError(err, "Nominations", za0001)
+								return
+							}
+						}
+					}
+				}
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *MonitorVoteInfo) Msgsize() (s int) {
+	s = 1 + 7 + msgp.Int64Size + 12 + msgp.Int64Size + 8 + msgp.Int64Size + 12 + msgp.ArrayHeaderSize
+	for za0001 := range z.Nominations {
+		if z.Nominations[za0001] == nil {
+			s += msgp.NilSize
+		} else {
+			s += 1 + 7 + msgp.ArrayHeaderSize + (33 * (msgp.ByteSize)) + 15 + msgp.Int64Size
+		}
+	}
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
+func (z *Nomination) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Pubkey":
+			err = dc.ReadExactBytes((z.Pubkey)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "Pubkey")
+				return
+			}
+		case "NominatedCount":
+			z.NominatedCount, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "NominatedCount")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *Nomination) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "Pubkey"
+	err = en.Append(0x82, 0xa6, 0x50, 0x75, 0x62, 0x6b, 0x65, 0x79)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.Pubkey)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "Pubkey")
+		return
+	}
+	// write "NominatedCount"
+	err = en.Append(0xae, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x64, 0x43, 0x6f, 0x75, 0x6e, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.NominatedCount)
+	if err != nil {
+		err = msgp.WrapError(err, "NominatedCount")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *Nomination) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 2
+	// string "Pubkey"
+	o = append(o, 0x82, 0xa6, 0x50, 0x75, 0x62, 0x6b, 0x65, 0x79)
+	o = msgp.AppendBytes(o, (z.Pubkey)[:])
+	// string "NominatedCount"
+	o = append(o, 0xae, 0x4e, 0x6f, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x64, 0x43, 0x6f, 0x75, 0x6e, 0x74)
+	o = msgp.AppendInt64(o, z.NominatedCount)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *Nomination) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Pubkey":
+			bts, err = msgp.ReadExactBytes(bts, (z.Pubkey)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "Pubkey")
+				return
+			}
+		case "NominatedCount":
+			z.NominatedCount, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "NominatedCount")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *Nomination) Msgsize() (s int) {
+	s = 1 + 7 + msgp.ArrayHeaderSize + (33 * (msgp.ByteSize)) + 15 + msgp.Int64Size
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
 func (z *SourceType) DecodeMsg(dc *msgp.Reader) (err error) {
 	{
 		var zb0001 uint8

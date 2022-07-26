@@ -66,3 +66,31 @@ func buildUTXOKey(txid [32]byte, index uint32) string {
 	hash := sha256.Sum256(append(txid[:], v[:]...))
 	return string(hash[:])
 }
+
+func LoadMonitorVoteInfo(ctx *mevmtypes.Context, number int64) *types.MonitorVoteInfo {
+	bz := ctx.GetStorageAt(ccContractSequence, getSlotForVoteInfo(number))
+	if len(bz) == 0 {
+		return nil
+	}
+	var info types.MonitorVoteInfo
+	_, err := info.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	return &info
+}
+
+func SaveMonitorVoteInfo(ctx *mevmtypes.Context, info types.MonitorVoteInfo) {
+	bz, err := info.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(ccContractSequence, getSlotForVoteInfo(info.Number), bz)
+}
+
+func getSlotForVoteInfo(number int64) string {
+	var buf [32]byte
+	buf[23] = 1
+	binary.BigEndian.PutUint64(buf[24:], uint64(number))
+	return string(buf[:])
+}

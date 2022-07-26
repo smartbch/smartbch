@@ -10,7 +10,8 @@ import (
 
 const (
 	Identifier = "73424348" // ascii code for 'sBCH'
-	Version    = "00"
+	Validator  = "00"
+	Monitor    = "01"
 
 	ShaGateAddress = "14f8c7e99fd4e867c34cbd5968e35575fd5919a4"
 )
@@ -19,7 +20,12 @@ const (
 type RpcClient interface {
 	GetLatestHeight(retry bool) int64
 	GetBlockByHeight(height int64, retry bool) *BCHBlock
-	GetEpochs(start, end uint64) []*stakingtypes.Epoch
+	GetVoteInfoByEpochNumber(start, end uint64) []*VoteInfo
+}
+
+type VoteInfo struct {
+	Epoch       stakingtypes.Epoch
+	MonitorVote cctypes.MonitorVoteInfo
 }
 
 // This struct contains the useful information of a BCH block
@@ -28,6 +34,7 @@ type BCHBlock struct {
 	Timestamp       int64
 	HashId          [32]byte
 	ParentBlk       [32]byte
+	CCNominations   []cctypes.Nomination
 	Nominations     []stakingtypes.Nomination
 	CCTransferInfos []*cctypes.CCTransferInfo
 }
@@ -118,12 +125,41 @@ func (ti TxInfo) GetValidatorPubKey() (pubKey [32]byte, success bool) {
 		if !ok {
 			continue
 		}
-		prefix := "OP_RETURN " + Identifier + Version
+		prefix := "OP_RETURN " + Identifier + Validator
 		if !strings.HasPrefix(script, prefix) {
 			continue
 		}
 		script = script[len(prefix):]
 		if len(script) != 64 {
+			continue
+		}
+		bz, err := hex.DecodeString(script)
+		if err != nil {
+			continue
+		}
+		copy(pubKey[:], bz)
+		success = true
+		break
+	}
+	return
+}
+
+func (ti TxInfo) GetMonitorPubKey() (pubKey [33]byte, success bool) {
+	for _, vout := range ti.VoutList {
+		asm, ok := vout.ScriptPubKey["asm"]
+		if !ok || asm == nil {
+			continue
+		}
+		script, ok := asm.(string)
+		if !ok {
+			continue
+		}
+		prefix := "OP_RETURN " + Identifier + Monitor
+		if !strings.HasPrefix(script, prefix) {
+			continue
+		}
+		script = script[len(prefix):]
+		if len(script) != 66 {
 			continue
 		}
 		bz, err := hex.DecodeString(script)

@@ -14,6 +14,7 @@ import (
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/staking/types"
+	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
 
 type CallDetail struct {
@@ -116,7 +117,7 @@ type BackendService interface {
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
-	GetEpochs(start, end uint64) ([]*types.Epoch, error)
+	GetVoteInfos(start, end uint64) ([]*watchertypes.VoteInfo, error)
 	GetEpochList(from string) ([]*types.Epoch, error)
 	GetCurrEpoch() *types.Epoch
 	GetSeq(address common.Address) uint64

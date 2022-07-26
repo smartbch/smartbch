@@ -16,9 +16,11 @@ import (
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
+	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
 
 var _ BackendService = &apiBackend{}
@@ -256,19 +258,27 @@ func (backend *apiBackend) GetCurrEpoch() *stakingtypes.Epoch {
 }
 
 //[start, end)
-func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
+func (backend *apiBackend) GetVoteInfos(start, end uint64) ([]*watchertypes.VoteInfo, error) {
 	if start >= end {
-		return nil, errors.New("invalid start or empty epochs")
+		return nil, errors.New("invalid start or empty epoch numbers")
 	}
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
-	result := make([]*stakingtypes.Epoch, 0, end-start)
+	result := make([]*watchertypes.VoteInfo, 0, end-start)
 	info := staking.LoadStakingInfo(ctx)
 	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
+		var voteInfo watchertypes.VoteInfo
 		epoch, ok := staking.LoadEpoch(ctx, epochNum)
 		if ok {
-			result = append(result, &epoch)
+			voteInfo.Epoch = epoch
+			if !param.IsAmber {
+				info := crosschain.LoadMonitorVoteInfo(ctx, epochNum)
+				if info != nil {
+					voteInfo.MonitorVote = *info
+				}
+			}
+			result = append(result, &voteInfo)
 		}
 	}
 	return result, nil
@@ -283,7 +293,15 @@ func (backend *apiBackend) GetEpochList(from string) ([]*stakingtypes.Epoch, err
 	case "storage":
 		fallthrough
 	default:
-		return backend.GetEpochs(0, 999)
+		infos, err := backend.GetVoteInfos(0, 999)
+		if err != nil {
+			return nil, err
+		}
+		var epochs []*stakingtypes.Epoch
+		for _, info := range infos {
+			epochs = append(epochs, &info.Epoch)
+		}
+		return epochs, nil
 	}
 }
 

@@ -100,8 +100,8 @@ func (m MockRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return m.node.blocks[height-1]
 }
 
-func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
-	fmt.Printf("mock Rpc not support get Epoch")
+func (m MockRpcClient) GetVoteInfoByEpochNumber(start, end uint64) []*types.VoteInfo {
+	fmt.Printf("mock Rpc not support get vote info")
 	return nil
 }
 

@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"math"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
-	"github.com/smartbch/smartbch/param"
 	"github.com/tendermint/tendermint/libs/log"
-	"math"
 
 	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/types"
+	"github.com/smartbch/smartbch/param"
 )
 
 const (
@@ -74,7 +75,12 @@ type CcContractExecutor struct {
 
 func NewCcContractExecutor(logger log.Logger) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger: logger,
+		logger:          logger,
+		UTXOCollectDone: make(chan bool),
+		StartUTXOCollect: make(chan struct {
+			BeginHeight int64
+			EndHeight   int64
+		}),
 	}
 }
 
@@ -107,7 +113,7 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 		return redeem(ctx, currBlock, tx)
 	case SelectorStartRescan:
 		// func startRescan(uint mainFinalizedBlockHeight) onlyMonitor
-		return startRescan(ctx, currBlock, tx)
+		return startRescan(ctx, c, currBlock, tx)
 	case SelectorPause:
 		// func pause() onlyMonitor
 		return pause(ctx, tx)
@@ -175,7 +181,8 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 }
 
 // startRescan(uint mainFinalizedBlockHeight) onlyMonitor
-func startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func startRescan(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	//todo: add protect scheme to avoid monitor wrong call
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	callData := tx.Data[4:]
@@ -200,6 +207,10 @@ func startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mev
 	context.RescanTime = currBlock.Timestamp
 	context.UTXOAlreadyHandle = false
 	SaveCCContext(ctx, *context)
+	executor.StartUTXOCollect <- struct {
+		BeginHeight int64
+		EndHeight   int64
+	}{BeginHeight: int64(context.LastRescannedHeight), EndHeight: int64(context.RescanHeight)}
 	status = StatusSuccess
 	return
 }
