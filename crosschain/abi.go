@@ -114,7 +114,7 @@ var ABI = ethutils.MustParseABI(`
 		],
 		"name": "Deleted",
 		"type": "event"
-	},
+	}
 ]
 `)
 
