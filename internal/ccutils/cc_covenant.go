@@ -50,8 +50,8 @@ func (c CcCovenant) BuildFullRedeemScript() ([]byte, error) {
 	monitorPubkeysHash := bchutil.Hash160(bytes.Join(c.monitorPks, nil))
 
 	builder := txscript.NewScriptBuilder()
-	builder.AddData(monitorPubkeysHash)
 	builder.AddData(operatorPubkeysHash)
+	builder.AddData(monitorPubkeysHash)
 	builder.AddOps(c.redeemScriptWithoutConstructorArgs)
 
 	return builder.Script()
@@ -71,6 +71,8 @@ func (c CcCovenant) GetP2SHAddress() (string, error) {
 
 	return addr.EncodeAddress(), nil
 }
+
+/* redeem by user */
 
 func (c CcCovenant) BuildUnsignedRedeemTx(
 	txid string, vout uint32, /*prevOutAmt int64,*/
@@ -125,10 +127,8 @@ func (c CcCovenant) GetRedeemTxSigHash(
 	return tx, hash, err
 }
 
-func (c CcCovenant) FinishRedeemTx(unsignedTx *wire.MsgTx,
-	sigs [][]byte, pkh []byte) (string, error) {
-
-	sigScript, err := c.BuildRedeemSigScript(sigs, pkh)
+func (c CcCovenant) FinishRedeemTx(unsignedTx *wire.MsgTx, sigs [][]byte) (string, error) {
+	sigScript, err := c.BuildRedeemSigScript(sigs)
 	if err != nil {
 		return "", err
 	}
@@ -143,15 +143,15 @@ func (c CcCovenant) FinishRedeemTx(unsignedTx *wire.MsgTx,
 	return hexSignedTx, nil
 }
 
-func (c *CcCovenant) BuildRedeemSigScript(sigs [][]byte, pkh []byte) ([]byte, error) {
+func (c *CcCovenant) BuildRedeemSigScript(sigs [][]byte) ([]byte, error) {
 	redeemScript, err := c.BuildFullRedeemScript()
 	if err != nil {
 		return nil, err
 	}
 
 	builder := txscript.NewScriptBuilder()
-	builder.AddOp(txscript.OP_TRUE)
-	builder.AddData(pkh)
+	builder.AddData(bchutil.Hash160(bytes.Join(c.operatorPks, nil)))
+	builder.AddData(bchutil.Hash160(bytes.Join(c.monitorPks, nil)))
 	for i := len(c.operatorPks) - 1; i >= 0; i-- {
 		builder.AddData(c.operatorPks[i])
 	}
@@ -162,6 +162,10 @@ func (c *CcCovenant) BuildRedeemSigScript(sigs [][]byte, pkh []byte) ([]byte, er
 	builder.AddData(redeemScript)
 	return builder.Script()
 }
+
+/* convert by operators */
+
+/* convert by monitors */
 
 func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
 	wif, err := bchutil.DecodeWIF(wifStr)
