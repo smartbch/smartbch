@@ -2,7 +2,6 @@ package ccutils
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -127,7 +126,9 @@ func (c CcCovenant) BuildRedeemByUserUnsignedTx(
 }
 
 func (c CcCovenant) GetRedeemByUserTxSigHash(
-	txid string, vout uint32, inAmt int64, toAddr string) (*wire.MsgTx, []byte, error) {
+	txid string, vout uint32, inAmt int64, // input info
+	toAddr string, // output info
+) (*wire.MsgTx, []byte, error) {
 
 	redeemScript, err := c.BuildFullRedeemScript()
 	if err != nil {
@@ -146,7 +147,10 @@ func (c CcCovenant) GetRedeemByUserTxSigHash(
 	return tx, hash, err
 }
 
-func (c CcCovenant) FinishRedeemByUserTx(unsignedTx *wire.MsgTx, sigs [][]byte) (string, error) {
+func (c CcCovenant) FinishRedeemByUserTx(
+	unsignedTx *wire.MsgTx,
+	sigs [][]byte,
+) (string, error) {
 	sigScript, err := c.BuildRedeemByUserUnlockingScript(sigs)
 	if err != nil {
 		return "", err
@@ -154,19 +158,15 @@ func (c CcCovenant) FinishRedeemByUserTx(unsignedTx *wire.MsgTx, sigs [][]byte) 
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-
-	var signedTx bytes.Buffer
-	_ = unsignedTx.Serialize(&signedTx)
-
-	hexSignedTx := hex.EncodeToString(signedTx.Bytes())
-	return hexSignedTx, nil
+	return msgTxToHex(unsignedTx), nil
 }
 
 func (c *CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
 	return c.BuildRedeemOrConvertUnlockingScript(sigs, c.operatorPks, c.monitorPks)
 }
 
-func (c *CcCovenant) BuildRedeemOrConvertUnlockingScript(sigs [][]byte,
+func (c *CcCovenant) BuildRedeemOrConvertUnlockingScript(
+	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
 ) ([]byte, error) {
@@ -246,7 +246,9 @@ func (c CcCovenant) GetConvertByOperatorsTxSigHash(
 	return tx, hash, err
 }
 
-func (c CcCovenant) FinishConvertByOperatorsTx(unsignedTx *wire.MsgTx, sigs [][]byte,
+func (c CcCovenant) FinishConvertByOperatorsTx(
+	unsignedTx *wire.MsgTx,
+	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
 ) (string, error) {
@@ -258,15 +260,11 @@ func (c CcCovenant) FinishConvertByOperatorsTx(unsignedTx *wire.MsgTx, sigs [][]
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-
-	var signedTx bytes.Buffer
-	_ = unsignedTx.Serialize(&signedTx)
-
-	hexSignedTx := hex.EncodeToString(signedTx.Bytes())
-	return hexSignedTx, nil
+	return msgTxToHex(unsignedTx), nil
 }
 
-func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(sigs [][]byte,
+func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
+	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
 ) ([]byte, error) {
@@ -284,8 +282,6 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(sigs [][]byte,
 
 func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 	txid string, vout uint32, inAmt int64, // input info
-	txid2 string, vout2 uint32, inAmt2 int64, // miner fee
-	changeAddr string,
 	newOperatorPks [][]byte,
 ) (*wire.MsgTx, error) {
 
@@ -299,13 +295,7 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 	if err = builder.addInput(txid, vout); err != nil {
 		return nil, err
 	}
-	if err = builder.addInput(txid2, vout2); err != nil {
-		return nil, err
-	}
 	if err = builder.addOutput(toAddr, inAmt); err != nil {
-		return nil, err
-	}
-	if err = builder.addOutput(changeAddr, inAmt2-c.minerFee); err != nil {
 		return nil, err
 	}
 
@@ -314,8 +304,6 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 
 func (c CcCovenant) GetConvertByMonitorsTxSigHash(
 	txid string, vout uint32, inAmt int64, // input info
-	txid2 string, vout2 uint32, inAmt2 int64, // miner fee
-	changeAddr string,
 	newOperatorPks [][]byte,
 ) (*wire.MsgTx, []byte, error) {
 
@@ -324,8 +312,7 @@ func (c CcCovenant) GetConvertByMonitorsTxSigHash(
 		return nil, nil, err
 	}
 
-	tx, err := c.BuildConvertByMonitorsUnsignedTx(txid, vout, inAmt,
-		txid2, vout2, inAmt2, changeAddr, newOperatorPks)
+	tx, err := c.BuildConvertByMonitorsUnsignedTx(txid, vout, inAmt, newOperatorPks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -337,23 +324,20 @@ func (c CcCovenant) GetConvertByMonitorsTxSigHash(
 	return tx, hash, err
 }
 
-func (c CcCovenant) FinishConvertByMonitorsTx(unsignedTx *wire.MsgTx, sigs [][]byte,
-	newOperatorPks [][]byte,
-) (string, error) {
+func (c CcCovenant) AddConvertByMonitorsTxMonitorSigs(
+	unsignedTx *wire.MsgTx,
+	sigs [][]byte, newOperatorPks [][]byte,
+) (*wire.MsgTx, error) {
 
 	sigScript, err := c.BuildConvertByMonitorsUnlockingScript(sigs, newOperatorPks)
 	if err != nil {
-		return "", err
+		return unsignedTx, err
 	}
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
 
-	var signedTx bytes.Buffer
-	_ = unsignedTx.Serialize(&signedTx)
-
-	hexSignedTx := hex.EncodeToString(signedTx.Bytes())
-	return hexSignedTx, nil
+	return unsignedTx, nil
 }
 
 func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
@@ -386,18 +370,59 @@ func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
 	return builder.Script()
 }
 
-/* signature */
+func (c CcCovenant) AddConvertByMonitorsTxMinerFee(
+	signedTx *wire.MsgTx,
+	txid string, vout uint32, inAmt int64, // input info
+	minerFee int64, changeAddr string, // miner fee
+) (*wire.MsgTx, error) {
 
-func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
-	wif, err := bchutil.DecodeWIF(wifStr)
+	builder := wrapMsgTx(signedTx, c.net)
+	if err := builder.addInput(txid, vout); err != nil {
+		return signedTx, err
+	}
+	if inAmt > minerFee {
+		if err := builder.addOutput(changeAddr, inAmt-minerFee); err != nil {
+			return signedTx, err
+		}
+	}
+
+	return signedTx, nil
+}
+
+func (c CcCovenant) GetConvertByMonitorsTxSigHash2(
+	txWithMinerFee *wire.MsgTx,
+	inAmt int64,
+	addr string,
+) ([]byte, error) {
+	decodedAddr, err := bchutil.DecodeAddress(addr, c.net)
 	if err != nil {
 		return nil, err
 	}
 
-	signature, err := wif.PrivKey.SignECDSA(hash)
+	pkScript, err := txscript.PayToAddrScript(decodedAddr) // locking script
 	if err != nil {
-		return nil, fmt.Errorf("cannot sign tx input: %s", err)
+		return nil, err
 	}
 
-	return append(signature.Serialize(), byte(hashType)), nil
+	sigHashes := txscript.NewTxSigHashes(txWithMinerFee)
+	hashType := txscript.SigHashAll | txscript.SigHashForkID
+	inputIdx := 1
+	hash, err := txscript.CalcSignatureHash(pkScript, sigHashes, hashType, txWithMinerFee, inputIdx, inAmt, true)
+	return hash, err
+}
+
+func (c CcCovenant) AddConvertByMonitorsTxMinerFeeSig(
+	txWithMinerFee *wire.MsgTx,
+	sig, pkData []byte,
+) (*wire.MsgTx, error) {
+
+	sigScript, err := txscript.NewScriptBuilder().AddData(sig).AddData(pkData).Script()
+	if err != nil {
+		return txWithMinerFee, err
+	}
+
+	inputIdx := 1
+	txWithMinerFee.TxIn[inputIdx].SignatureScript = sigScript
+
+	return txWithMinerFee, nil
 }

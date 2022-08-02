@@ -13,6 +13,12 @@ type msgTxBuilder struct {
 	net   *chaincfg.Params
 }
 
+func wrapMsgTx(msgTx *wire.MsgTx, net *chaincfg.Params) *msgTxBuilder {
+	return &msgTxBuilder{
+		msgTx: msgTx,
+		net:   net,
+	}
+}
 func newMsgTxBuilder(net *chaincfg.Params) *msgTxBuilder {
 	return &msgTxBuilder{
 		msgTx: wire.NewMsgTx(2),
