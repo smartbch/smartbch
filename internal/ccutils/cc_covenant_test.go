@@ -37,7 +37,7 @@ func Test_GetP2SHAddr(t *testing.T) {
 	require.Equal(t, "bchtest:pplmykcc2lale6j6fg4ejsdtlhut6sc08q7uv8pxhm", addr)
 }
 
-func Test_BuildRedeemOrConvertUnlockingScript(t *testing.T) {
+func Test_BuildRedeemByUserUnlockingScript(t *testing.T) {
 	redeemScriptWithoutConstructorArgs := testutils.HexToBytes("5279009c635a795c797e5d797e5e797e5f797e60797e0111797e0112797e0113797e0114797ea952798800717c567a577a587a597a5a7a575c7a5d7a5e7a5f7a607a01117a01127a01137a01147a01157a5aafc3519dc4519d00cc00c602d007949d5379879154797b87919b63011453797e01147e52797ec1012a7f777e02a91478a97e01877e00cd78886d686d7551677b519d547956797e57797ea98800727c52557a567a577a53afc0009d00cc00c69d024065b27501147b7ec101157f777e02a9147ca97e01877e00cd877768")
 	operatorPks := [][]byte{
 		testutils.HexToBytes("02d86b49e3424e557beebf67bd06842cdb88e314c44887f3f265b7f81107dd6994"),
@@ -60,7 +60,7 @@ func Test_BuildRedeemOrConvertUnlockingScript(t *testing.T) {
 	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
-	sigScript, err := c.BuildRedeemOrConvertUnlockingScript([][]byte{
+	sigScript, err := c.BuildRedeemByUserUnlockingScript([][]byte{
 		testutils.HexToBytes("0x304402203b289d27eed12a2abb874c41a36bee14c5a4340f34e1306c21b32fad2040613b022061db8baa44af6adffc0f420bd7ff40b23501fb0d3a32e86e718730e2729d965841"),
 		testutils.HexToBytes("0x30440220081a832b6f0beef5a2311bc24eb818bb34e598d88fa9cc217b41e4d88cc517de02203f158e5746f481a4676c3cbe7edd6a2e648a2294552458d64fea0dda27ad72ed41"),
 		testutils.HexToBytes("0x3045022100a2e36c1b73bfe1baa2eb4a44c5ee675eaee67e85a26eecf5d54cbddf655ba3e802207fb19769f4e9ba97093af84a1bc96465c76c9a4d10b23d76d84049d6e9517c9141"),
