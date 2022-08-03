@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	DefaultGasLimit    = 1000000
+	DefaultGasLimit    = 2000000
 	DefaultGasPrice    = 0
 	DefaultInitBalance = uint64(10000000)
 	BlockInterval      = 5 * time.Second

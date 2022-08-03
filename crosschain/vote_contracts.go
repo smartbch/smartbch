@@ -9,52 +9,50 @@ import (
 )
 
 const (
-	VotingContractSeq = 0 // TODO
-	OperatorsSlot     = 0
-	MonitorsSlot      = 1
+	OperatorsGovSeq = 0 // TODO
+	OperatorsSlot   = 0
+	OperatorWords   = 8
+
+	MonitorsGovSeq              = 0 // TODO
+	MonitorLastElectionTimeSlot = 0
+	MonitorsSlot                = 1
+	MonitorWords                = 6
 )
 
 /*
-	struct OperatorOrMonitorInfo {
-		address addr;              // address
-		uint    pubkeyPrefix;      // 0x02 or 0x03
-		bytes32 pubkeyX;           // x
-		bytes32 rpcUrl;            // ip:port (not used by monitors)
-		bytes32 intro;             // introduction
-		uint    totalStakedAmt;    // in BCH
-		uint    selfStakedAmt;     // in BCH
-		uint    inOfficeStartTime; // 0 means not in office, this field is set from Golang
-	}
+   struct OperatorInfo {
+       address addr;           // address
+       uint    pubkeyPrefix;   // 0x02 or 0x03
+       bytes32 pubkeyX;        // x
+       bytes32 rpcUrl;         // ip:port
+       bytes32 intro;          // introduction
+       uint    totalStakedAmt; // in BCH
+       uint    selfStakedAmt;  // in BCH
+       uint    electedTime;    // 0 means not elected, set by Golang
+   }
 */
-type OperatorOrMonitorInfo struct {
-	Addr              gethcmn.Address
-	Pubkey            []byte // 33 bytes
-	RpcUrl            []byte // 32 bytes
-	Intro             []byte // 32 bytes
-	TotalStakedAmt    *uint256.Int
-	SelfStakedAmt     *uint256.Int
-	InOfficeStartTime *uint256.Int
+
+type OperatorInfo struct {
+	Addr           gethcmn.Address
+	Pubkey         []byte // 33 bytes
+	RpcUrl         []byte // 32 bytes
+	Intro          []byte // 32 bytes
+	TotalStakedAmt *uint256.Int
+	SelfStakedAmt  *uint256.Int
+	ElectedTime    *uint256.Int
 }
 
-func ReadOperators(ctx *types.Context) []OperatorOrMonitorInfo {
-	return ReadOperatorOrMonitorArr(ctx, VotingContractSeq, OperatorsSlot)
-}
-func ReadMonitors(ctx *types.Context) []OperatorOrMonitorInfo {
-	return ReadOperatorOrMonitorArr(ctx, VotingContractSeq, MonitorsSlot)
-}
-
-func ReadOperatorOrMonitorArr(ctx *types.Context, seq uint64, slot uint64) (result []OperatorOrMonitorInfo) {
-	arrSlot := uint256.NewInt(slot).PaddedBytes(32)
+func ReadOperatorArr(ctx *types.Context, seq uint64) (result []OperatorInfo) {
+	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 
 	for i := uint64(0); i < arrLen.ToBig().Uint64(); i++ {
-		result = append(result, readOperatorOrMonitorInfo(ctx, seq, arrLoc))
+		result = append(result, readOperatorInfo(ctx, seq, arrLoc))
 	}
 	return
 }
-
-func readOperatorOrMonitorInfo(ctx *types.Context, seq uint64, loc *uint256.Int) OperatorOrMonitorInfo {
+func readOperatorInfo(ctx *types.Context, seq uint64, loc *uint256.Int) OperatorInfo {
 	addr := gethcmn.BytesToAddress(ctx.GetStorageAt(seq, string(loc.PaddedBytes(32))))
 	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
 	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
@@ -63,34 +61,90 @@ func readOperatorOrMonitorInfo(ctx *types.Context, seq uint64, loc *uint256.Int)
 	selfStakedAmt := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))))
 	totalStakedAmt := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))))
 	key := loc.AddUint64(loc, 1).PaddedBytes(32)
-	//println("inOfficeStartTimeKey:", hex.EncodeToString(key))
-	inOfficeStartTime := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(key)))
-	//println("inOfficeStartTime:", inOfficeStartTime.Uint64())
+	electedTime := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(key)))
 	loc.AddUint64(loc, 1)
-	return OperatorOrMonitorInfo{
-		Addr:              addr,
-		Pubkey:            append(pubkeyPrefix[31:], pubkeyX...),
-		RpcUrl:            rpcUrl[:],
-		Intro:             intro[:],
-		TotalStakedAmt:    totalStakedAmt,
-		SelfStakedAmt:     selfStakedAmt,
-		InOfficeStartTime: inOfficeStartTime,
+	return OperatorInfo{
+		Addr:           addr,
+		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
+		RpcUrl:         rpcUrl[:],
+		Intro:          intro[:],
+		TotalStakedAmt: totalStakedAmt,
+		SelfStakedAmt:  selfStakedAmt,
+		ElectedTime:    electedTime,
 	}
 }
 
-func WriteOperatorInOfficeStartTime(ctx *types.Context, idx uint64, val uint64) {
-	WriteOperatorOrMonitorInOfficeStartTime(ctx, VotingContractSeq, OperatorsSlot, idx, val)
-}
-func WriteMonitorInOfficeStartTime(ctx *types.Context, idx uint64, val uint64) {
-	WriteOperatorOrMonitorInOfficeStartTime(ctx, VotingContractSeq, MonitorsSlot, idx, val)
-}
-
-func WriteOperatorOrMonitorInOfficeStartTime(ctx *types.Context, seq uint64, slot uint64, idx uint64, val uint64) {
-	arrSlot := uint256.NewInt(slot).PaddedBytes(32)
+func WriteOperatorElectedTime(ctx *types.Context, seq uint64, operatorIdx uint64, val uint64) {
+	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
-	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, idx*8)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, 7)
-	//println("kkk:", hex.EncodeToString(fieldLoc.PaddedBytes(32)), val)
+	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords)
+	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, OperatorWords-1)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
+}
+
+/*
+   struct MonitorInfo {
+       address addr;         // address
+       uint    pubkeyPrefix; // 0x02 or 0x03
+       bytes32 pubkeyX;      // x
+       bytes32 intro;        // introduction
+       uint    stakedAmt;    // in BCH
+       uint    electedTime;  // 0 means not elected, set by Golang
+   }
+*/
+
+type MonitorInfo struct {
+	Addr        gethcmn.Address
+	Pubkey      []byte // 33 bytes
+	Intro       []byte // 32 bytes
+	StakedAmt   *uint256.Int
+	ElectedTime *uint256.Int
+}
+
+func ReadMonitorArr(ctx *types.Context, seq uint64) (result []MonitorInfo) {
+	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
+	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
+	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
+
+	for i := uint64(0); i < arrLen.ToBig().Uint64(); i++ {
+		result = append(result, readMonitorInfo(ctx, seq, arrLoc))
+	}
+	return
+}
+func readMonitorInfo(ctx *types.Context, seq uint64, loc *uint256.Int) MonitorInfo {
+	addr := gethcmn.BytesToAddress(ctx.GetStorageAt(seq, string(loc.PaddedBytes(32))))
+	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
+	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
+	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
+	stakedAmt := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))))
+	key := loc.AddUint64(loc, 1).PaddedBytes(32)
+	electedTime := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(key)))
+	loc.AddUint64(loc, 1)
+	return MonitorInfo{
+		Addr:        addr,
+		Pubkey:      append(pubkeyPrefix[31:], pubkeyX...),
+		Intro:       intro[:],
+		StakedAmt:   stakedAmt,
+		ElectedTime: electedTime,
+	}
+}
+
+func WriteMonitorElectedTime(ctx *types.Context, seq uint64, monitorIdx uint64, val uint64) {
+	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
+	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
+	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords)
+	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, MonitorWords-1)
+	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
+		uint256.NewInt(val).PaddedBytes(32))
+}
+
+func ReadMonitorsLastElectionTime(ctx *types.Context, seq uint64) *uint256.Int {
+	slot := uint256.NewInt(MonitorLastElectionTimeSlot).PaddedBytes(32)
+	val := ctx.GetStorageAt(seq, string(slot))
+	return uint256.NewInt(0).SetBytes(val)
+}
+func WriteMonitorsLastElectionTime(ctx *types.Context, seq uint64, val uint64) {
+	slot := uint256.NewInt(MonitorLastElectionTimeSlot).PaddedBytes(32)
+	ctx.SetStorageAt(seq, string(slot), uint256.NewInt(val).PaddedBytes(32))
 }
