@@ -1,4 +1,4 @@
-package ccutils
+package covenant
 
 import (
 	"encoding/hex"

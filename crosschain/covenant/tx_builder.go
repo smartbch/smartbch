@@ -1,4 +1,4 @@
-package ccutils
+package covenant
 
 import (
 	"github.com/gcash/bchd/chaincfg"
