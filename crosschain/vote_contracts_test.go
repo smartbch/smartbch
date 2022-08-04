@@ -107,7 +107,7 @@ func TestOperatorsGov(t *testing.T) {
 	accInfo := ctx.GetAccount(contractAddr)
 	seq := accInfo.Sequence()
 
-	operators := crosschain.ReadOperatorArr(ctx, seq)
+	operators := crosschain.ReadOperatorInfos(ctx, seq)
 	require.Len(t, operators, 3)
 	require.Equal(t, addr, operators[0].Addr)
 	require.Equal(t, "027075626b6579585f6f3100000000000000000000000000000000000000000000",
@@ -146,7 +146,7 @@ func TestOperatorsGov(t *testing.T) {
 	//ctx2 := _app.GetRunTxContext()
 	crosschain.WriteOperatorElectedTime(ctx, seq, 1, 123)
 	//ctx2.Close(true)
-	operators = crosschain.ReadOperatorArr(ctx, seq)
+	operators = crosschain.ReadOperatorInfos(ctx, seq)
 	require.Equal(t, uint64(0), operators[0].ElectedTime.Uint64())
 	require.Equal(t, uint64(123), operators[1].ElectedTime.Uint64())
 	require.Equal(t, uint64(0), operators[2].ElectedTime.Uint64())
@@ -260,7 +260,7 @@ func TestMonitorsGov(t *testing.T) {
 	accInfo := ctx.GetAccount(contractAddr)
 	seq := accInfo.Sequence()
 
-	monitors := crosschain.ReadMonitorArr(ctx, seq)
+	monitors := crosschain.ReadMonitorInfos(ctx, seq)
 	require.Len(t, monitors, 3)
 	require.Equal(t, addr, monitors[0].Addr)
 	require.Equal(t, "027075626b6579585f6d3100000000000000000000000000000000000000000000",
@@ -290,7 +290,7 @@ func TestMonitorsGov(t *testing.T) {
 	//ctx2 := _app.GetRunTxContext()
 	crosschain.WriteMonitorElectedTime(ctx, seq, 1, 12345)
 	//ctx2.Close(true)
-	monitors = crosschain.ReadMonitorArr(ctx, seq)
+	monitors = crosschain.ReadMonitorInfos(ctx, seq)
 	require.Equal(t, uint64(0), monitors[0].ElectedTime.Uint64())
 	require.Equal(t, uint64(12345), monitors[1].ElectedTime.Uint64())
 	require.Equal(t, uint64(0), monitors[2].ElectedTime.Uint64())

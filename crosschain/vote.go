@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"sort"
 
-	mevmtypes "github.com/smartbch/moeingevm/types"
+	"github.com/tendermint/tendermint/libs/log"
 
+	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 )
 
-func HandleMonitorVoteInfo(ctx *mevmtypes.Context, info *types.MonitorVoteInfo, blockTime int64) {
+func HandleMonitorVoteInfo(ctx *mevmtypes.Context, info *types.MonitorVoteInfo, blockTime int64, logger log.Logger) {
 	SaveMonitorVoteInfo(ctx, *info)
 	if info.Number%param.EpochNumbersPerCCEpoch != 0 {
 		return
@@ -29,10 +30,10 @@ func HandleMonitorVoteInfo(ctx *mevmtypes.Context, info *types.MonitorVoteInfo, 
 			pubkeyVoteMap[n.Pubkey] += n.NominatedCount
 		}
 	}
-	handleMonitorInfos(ctx, pubkeyVoteMap, blockTime)
+	handleMonitorInfos(ctx, pubkeyVoteMap, blockTime, logger)
 }
 
-func handleMonitorInfos(ctx *mevmtypes.Context, pubkeyVoteMap map[[33]byte]int64, blockTime int64) {
+func handleMonitorInfos(ctx *mevmtypes.Context, pubkeyVoteMap map[[33]byte]int64, blockTime int64, logger log.Logger) {
 	// 1. sort pubkey vote map
 	var infos = make([]*types.Nomination, 0, len(pubkeyVoteMap))
 	for k, v := range pubkeyVoteMap {
@@ -46,17 +47,7 @@ func handleMonitorInfos(ctx *mevmtypes.Context, pubkeyVoteMap map[[33]byte]int64
 		infos = infos[:param.MaxMonitorNumber]
 	}
 	// 2. set the monitor info to vote contract
-	monitors := ReadMonitorArr(ctx, MonitorsGovSeq)
-	for idx, monitor := range monitors {
-		WriteMonitorElectedTime(ctx, MonitorsGovSeq, uint64(idx), 0)
-		for _, info := range infos {
-			if bytes.Equal(info.Pubkey[:], monitor.Pubkey) {
-				WriteMonitorElectedTime(ctx, MonitorsGovSeq, uint64(idx), uint64(blockTime))
-				break
-			}
-		}
-	}
-	WriteMonitorsLastElectionTime(ctx, MonitorsGovSeq, uint64(blockTime))
+	ElectMonitors(ctx, infos, blockTime, logger)
 }
 
 func SortMonitorVoteNominations(nominations []*types.Nomination) {

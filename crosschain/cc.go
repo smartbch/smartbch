@@ -452,7 +452,7 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 
 // todo: vote contract offer this
 func isMonitor(ctx *mevmtypes.Context, address common.Address) bool {
-	monitors := ReadMonitorArr(ctx, MonitorsGovSeq)
+	monitors := ReadMonitorInfos(ctx, MonitorsGovSeq)
 	for _, monitor := range monitors {
 		if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
 			return true

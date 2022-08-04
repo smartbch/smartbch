@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/smartbch/smartbch/crosschain"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math"
 	"os"
 	"path"
@@ -38,6 +36,8 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
@@ -672,7 +672,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		if ctx.IsShaGateFork() {
 			if len(app.monitorVoteInfoList) != 0 {
 				info := app.monitorVoteInfoList[0]
-				crosschain.HandleMonitorVoteInfo(ctx, info, app.block.Timestamp)
+				crosschain.HandleMonitorVoteInfo(ctx, info, app.block.Timestamp, app.logger)
 				app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
 			}
 		}
