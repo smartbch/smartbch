@@ -28,6 +28,8 @@ const (
 	EpochStartHeightForCC         = 10000000
 	EpochStartNumberForCC         = 300
 	EpochNumbersPerCCEpoch        = 100
+	MonitorElectionEpochs         = 12
+	OperatorElectionEpochs        = 4
 	MaxCCAmount            uint64 = 1000
 	MinCCAmount            uint64 = 1
 	MaxMonitorNumber       int    = 3

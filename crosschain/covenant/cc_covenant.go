@@ -12,12 +12,17 @@ import (
 	"github.com/gcash/bchutil"
 )
 
+// TODO: move to params.go
 const (
 	operatorCount    = 10
 	operatorSigCount = 7
 	monitorCount     = 3
 	monitorSigCount  = 2
+	minerFeeMainnet  = 2000
 )
+
+// TODO
+var redeemScriptWithoutConstructorArgsMainnet []byte
 
 type CcCovenant struct {
 	redeemScriptWithoutConstructorArgs []byte
@@ -25,6 +30,11 @@ type CcCovenant struct {
 	monitorPks                         [][]byte
 	minerFee                           int64
 	net                                *chaincfg.Params
+}
+
+func NewCcCovenantMainnet(operatorPks, monitorPks [][]byte) (*CcCovenant, error) {
+	return NewCcCovenant(redeemScriptWithoutConstructorArgsMainnet,
+		operatorPks, monitorPks, minerFeeMainnet, &chaincfg.MainNetParams)
 }
 
 func NewCcCovenant(
@@ -81,6 +91,15 @@ func (c CcCovenant) BuildFullRedeemScript() ([]byte, error) {
 	builder.AddOps(c.redeemScriptWithoutConstructorArgs)
 
 	return builder.Script()
+}
+
+func (c CcCovenant) GetP2SHAddress20() (addr [20]byte, err error) {
+	redeemScript, err := c.BuildFullRedeemScript()
+	if err == nil {
+		redeemHash := bchutil.Hash160(redeemScript)
+		copy(addr[:], redeemHash)
+	}
+	return
 }
 
 func (c CcCovenant) GetP2SHAddress() (string, error) {

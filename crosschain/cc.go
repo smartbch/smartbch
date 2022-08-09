@@ -373,7 +373,7 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 }
 
 func handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext, logs []mevmtypes.EvmLog) {
-	if !isOperatorOrMonitorChanged(ctx) {
+	if !isOperatorOrMonitorChanged(ctx, context) {
 		return
 	}
 	newAddress := getNewCovenantAddress(ctx)
@@ -462,11 +462,13 @@ func isMonitor(ctx *mevmtypes.Context, address common.Address) bool {
 }
 
 // todo: vote contract offer this
-func isOperatorOrMonitorChanged(ctx *mevmtypes.Context) bool {
-	return true
+func isOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool {
+	newAddr := GetCCCovenantP2SHAddr(ctx)
+	oldAddr := ccCtx.LastCovenantAddr
+	return oldAddr != newAddr
 }
 
 // todo: vote contract offer this
 func getNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
-	return common.Address{}
+	return GetCCCovenantP2SHAddr(ctx)
 }

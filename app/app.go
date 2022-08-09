@@ -675,6 +675,10 @@ func (app *App) updateValidatorsAndStakingInfo() {
 				crosschain.HandleMonitorVoteInfo(ctx, info, app.block.Timestamp, app.logger)
 				app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
 			}
+			newEpochNum := app.epochList[0].Number
+			if (newEpochNum-param.EpochStartNumberForCC)%param.OperatorElectionEpochs == 0 {
+				crosschain.ElectOperators(ctx, app.block.Timestamp, app.logger)
+			}
 		}
 	}
 
