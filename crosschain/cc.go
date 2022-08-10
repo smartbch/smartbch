@@ -168,7 +168,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 		status = StatusSuccess
 		return
 	}
-	err := transferBch(ctx, tx.From, CCContractAddress, uint256.NewInt(0).SetBytes32(tx.Value[:]))
+	err := transferBch(ctx, tx.From, CCContractAddress, amount)
 	if err != nil {
 		outData = []byte(err.Error())
 		return
