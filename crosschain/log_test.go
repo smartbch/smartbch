@@ -44,7 +44,7 @@ func TestBuildChangeAddrLog(t *testing.T) {
 	vout := uint32(1)
 	log := buildChangeAddrLog(prevTxid, prevVout, address, txid, vout)
 	require.Equal(t, 4, len(log.Topics))
-	require.Equal(t, HashOfEvenChangeAddr, [32]byte(log.Topics[0]))
+	require.Equal(t, HashOfEventChangeAddr, [32]byte(log.Topics[0]))
 	require.Equal(t, prevTxid, [32]byte(log.Topics[1]))
 	require.Equal(t, prevVout, uint32(uint256.NewInt(0).SetBytes32(log.Topics[2].Bytes()).Uint64()))
 	require.Equal(t, address.Hash(), log.Topics[3])

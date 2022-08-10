@@ -45,7 +45,7 @@ func buildRedeemLog(txid [32]byte, vout uint32, covenantAddress common.Address, 
 }
 
 func buildDeletedLog(txid [32]byte, vout uint32, covenantAddress common.Address, sourceType types.SourceType) mevmtypes.EvmLog {
-	log := buildEvmLogWithTxidVoutAndAddress(HashOfEvenDeleted, txid, vout, covenantAddress)
+	log := buildEvmLogWithTxidVoutAndAddress(HashOfEventDeleted, txid, vout, covenantAddress)
 	o := uint256.NewInt(uint64(sourceType)).Bytes32()
 	AddDataToEvmLog(&log, o[:])
 	return log
@@ -53,7 +53,7 @@ func buildDeletedLog(txid [32]byte, vout uint32, covenantAddress common.Address,
 
 //event ChangeAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
 func buildChangeAddrLog(prevTxid [32]byte, prevVout uint32, newCovenantAddr common.Address, txid [32]byte, vout uint32) mevmtypes.EvmLog {
-	log := buildEvmLogWithTxidVoutAndAddress(HashOfEvenChangeAddr, prevTxid, prevVout, newCovenantAddr)
+	log := buildEvmLogWithTxidVoutAndAddress(HashOfEventChangeAddr, prevTxid, prevVout, newCovenantAddr)
 	o := uint256.NewInt(uint64(vout)).Bytes32()
 	AddDataToEvmLog(&log, append(txid[:], o[:]...))
 	return log

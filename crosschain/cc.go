@@ -33,15 +33,15 @@ var (
 	/*------selector------*/
 	SelectorRedeem      [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 	SelectorStartRescan [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
-	SelectorHandelUTXOs [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
+	SelectorHandleUTXOs [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 	SelectorPause       [4]byte = [4]byte{0x18, 0x92, 0xa8, 0xb3} // todo: modify it
 
 	HashOfEventNewRedeemable   [32]byte = common.HexToHash("0x4a9f09be1e2df144675144ec10cb5fe6c05504a84262275b62028189c1d410c1")
 	HashOfEventRedeem          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 	HashOfEventNewLostAndFound [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
-	HashOfEvenDeleted          [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
+	HashOfEventDeleted         [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 	HashOfEventConvert         [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
-	HashOfEvenChangeAddr       [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
+	HashOfEventChangeAddr      [32]byte = common.HexToHash("0xeae299b236fc8161793d044c8260b3dc7f8c20b5b3b577eb7f075e4a9c3bf48d")
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
@@ -118,7 +118,7 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 	case SelectorPause:
 		// func pause() onlyMonitor
 		return pause(ctx, tx)
-	case SelectorHandelUTXOs:
+	case SelectorHandleUTXOs:
 		// func handleUTXOs()
 		return handleUTXOs(ctx, c, currBlock, tx)
 	default:
