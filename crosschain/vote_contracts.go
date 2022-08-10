@@ -22,7 +22,7 @@ const (
 	OperatorWords           = 8
 	OperatorsCount          = 10
 	OperatorsMaxChangeCount = 3
-	OperatorMinStakedAmt    = 10000e8
+	OperatorMinStakedAmt    = 10000
 
 	MonitorsGovSeq               = 0 // TODO
 	MonitorsLastElectionTimeSlot = 0
@@ -179,7 +179,8 @@ func sortOperatorInfos(operatorInfos []OperatorInfo) {
 }
 func isEligibleOperator(operatorInfo OperatorInfo) bool {
 	// TODO: check more fields
-	return operatorInfo.SelfStakedAmt.Uint64() >= OperatorMinStakedAmt
+	minStakedAmt := uint256.NewInt(0).Mul(uint256.NewInt(OperatorMinStakedAmt), uint256.NewInt(1e18))
+	return !operatorInfo.SelfStakedAmt.Lt(minStakedAmt)
 }
 func operatorInfoLessFn(a, b OperatorInfo) bool {
 	if a.TotalStakedAmt.Lt(b.TotalStakedAmt) {
@@ -349,16 +350,16 @@ func GetMonitorPubkeySet(ctx *mevmtypes.Context, seq uint64) (pubkeys [][]byte) 
 	return
 }
 
-func GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) [20]byte {
+func GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
 	operatorPubkeys := GetOperatorPubkeySet(ctx, OperatorsGovSeq)
 	monitorsPubkeys := GetMonitorPubkeySet(ctx, MonitorsGovSeq)
 	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorsPubkeys)
 	if err != nil {
-		panic(err)
+		return [20]byte{}, err
 	}
 	addr, err := ccc.GetP2SHAddress20()
 	if err != nil {
-		panic(err)
+		return [20]byte{}, err
 	}
-	return addr
+	return addr, nil
 }

@@ -464,12 +464,18 @@ func isMonitor(ctx *mevmtypes.Context, address common.Address) bool {
 
 // todo: vote contract offer this
 func isOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool {
-	newAddr := GetCCCovenantP2SHAddr(ctx)
-	oldAddr := ccCtx.LastCovenantAddr
+	newAddr, err := GetCCCovenantP2SHAddr(ctx)
+	if err != nil {
+		return false // TODO: panic
+	}
+
+	oldAddr := ccCtx.CurrCovenantAddr
 	return oldAddr != newAddr
 }
 
 // todo: vote contract offer this
 func getNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
-	return GetCCCovenantP2SHAddr(ctx)
+	addr, _ := GetCCCovenantP2SHAddr(ctx)
+	// TODO: panic(err)
+	return addr
 }

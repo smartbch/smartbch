@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	DefaultGasLimit    = 2000000
+	DefaultGasLimit    = 1000000
 	DefaultGasPrice    = 0
 	DefaultInitBalance = uint64(10000000)
 	BlockInterval      = 5 * time.Second
@@ -454,6 +454,13 @@ func (_app *TestApp) CallAtHeight(sender, contractAddr gethcmn.Address, data []b
 func (_app *TestApp) EstimateGas(sender gethcmn.Address, tx *gethtypes.Transaction) (int, string, int64) {
 	runner, estimatedGas := _app.RunTxForRpc(tx, sender, true, -1)
 	return runner.Status, ebp.StatusToStr(runner.Status), estimatedGas
+}
+
+func (_app *TestApp) DeployContractInBlockWithGas(privKey string, data []byte, gasLimit uint64, gasPrice int64) (*gethtypes.Transaction, int64, gethcmn.Address) {
+	tx, addr := _app.MakeAndSignTxWithGas(privKey, nil, 0, data, gasLimit, gasPrice)
+	h := _app.ExecTxInBlock(tx)
+	contractAddr := gethcrypto.CreateAddress(addr, tx.Nonce())
+	return tx, h, contractAddr
 }
 
 func (_app *TestApp) DeployContractInBlock(privKey string, data []byte) (*gethtypes.Transaction, int64, gethcmn.Address) {

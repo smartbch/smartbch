@@ -24,6 +24,16 @@ const (
 	ProposerBaseMintFeePercentage uint64 = 15
 	CollectorMintFeePercentage    uint64 = 15
 
+	// cc params
+	EpochStartHeightForCC         = 10000000
+	EpochStartNumberForCC         = 300
+	EpochNumbersPerCCEpoch        = 100
+	MonitorElectionEpochs         = 12
+	OperatorElectionEpochs        = 4
+	MaxCCAmount            uint64 = 1000
+	MinCCAmount            uint64 = 1
+	MaxMonitorNumber       int    = 3
+
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201
 	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,

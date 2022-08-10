@@ -64,7 +64,7 @@ func TestOperatorsGov(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 
-	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	tx, _, contractAddr := _app.DeployContractInBlockWithGas(key, creationBytecode, testutils.DefaultGasLimit*2, testutils.DefaultGasPrice)
 	_app.EnsureTxSuccess(tx.Hash())
 
 	addOperator1 := _abi.MustPack("addOperator",
@@ -219,7 +219,7 @@ func TestMonitorsGov(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 
-	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+	tx, _, contractAddr := _app.DeployContractInBlockWithGas(key, creationBytecode, testutils.DefaultGasLimit*2, testutils.DefaultGasPrice)
 	_app.EnsureTxSuccess(tx.Hash())
 
 	addMonitor1 := _abi.MustPack("addMonitor",
