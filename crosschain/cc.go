@@ -66,6 +66,7 @@ var (
 
 type CcContractExecutor struct {
 	Infos            []*types.CCTransferInfo
+	Voter            IVoteContract
 	UTXOCollectDone  chan bool
 	StartUTXOCollect chan struct {
 		BeginHeight int64
@@ -77,6 +78,7 @@ type CcContractExecutor struct {
 func NewCcContractExecutor(logger log.Logger) *CcContractExecutor {
 	return &CcContractExecutor{
 		logger:          logger,
+		Voter:           VoteContract{},
 		UTXOCollectDone: make(chan bool),
 		StartUTXOCollect: make(chan struct {
 			BeginHeight int64
@@ -114,13 +116,13 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 		return redeem(ctx, currBlock, tx)
 	case SelectorStartRescan:
 		// func startRescan(uint mainFinalizedBlockHeight) onlyMonitor
-		return startRescan(ctx, c, currBlock, tx)
+		return c.startRescan(ctx, currBlock, tx)
 	case SelectorPause:
 		// func pause() onlyMonitor
-		return pause(ctx, tx)
+		return c.pause(ctx, tx)
 	case SelectorHandleUTXOs:
 		// func handleUTXOs()
-		return handleUTXOs(ctx, c, currBlock, tx)
+		return c.handleUTXOs(ctx, currBlock, tx)
 	default:
 		status = StatusFailed
 		outData = []byte(InvalidSelector.Error())
@@ -184,7 +186,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 }
 
 // startRescan(uint mainFinalizedBlockHeight) onlyMonitor
-func startRescan(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	//todo: add protect scheme to avoid monitor wrong call
 	status = StatusFailed
 	gasUsed = GasOfCCOp
@@ -193,7 +195,7 @@ func startRescan(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
-	if !isMonitor(ctx, tx.From) {
+	if !c.Voter.IsMonitor(ctx, tx.From) {
 		outData = []byte(MustMonitor.Error())
 		return
 	}
@@ -210,7 +212,7 @@ func startRescan(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock
 	context.RescanTime = currBlock.Timestamp
 	context.UTXOAlreadyHandle = false
 	SaveCCContext(ctx, *context)
-	executor.StartUTXOCollect <- struct {
+	c.StartUTXOCollect <- struct {
 		BeginHeight int64
 		EndHeight   int64
 	}{BeginHeight: int64(context.LastRescannedHeight), EndHeight: int64(context.RescanHeight)}
@@ -219,10 +221,10 @@ func startRescan(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock
 }
 
 // pause() onlyMonitor
-func pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
-	if !isMonitor(ctx, tx.From) {
+	if !c.Voter.IsMonitor(ctx, tx.From) {
 		outData = []byte(MustMonitor.Error())
 		return
 	}
@@ -241,7 +243,7 @@ func pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []me
 }
 
 // handleUTXOs()
-func handleUTXOs(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	context := LoadCCContext(ctx)
@@ -260,17 +262,17 @@ func handleUTXOs(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock
 		outData = []byte(UTXOAlreadyHandle.Error())
 		return
 	}
-	logs = append(logs, handleTransferInfos(ctx, context, executor)...)
-	handleOperatorOrMonitorSetChanged(ctx, context, logs)
+	logs = append(logs, c.handleTransferInfos(ctx, context)...)
+	c.handleOperatorOrMonitorSetChanged(ctx, context, logs)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
 }
 
-func handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext, executor *CcContractExecutor) (logs []mevmtypes.EvmLog) {
-	<-executor.UTXOCollectDone
+func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog) {
+	<-c.UTXOCollectDone
 	context.UTXOAlreadyHandle = true
-	for _, info := range executor.Infos {
+	for _, info := range c.Infos {
 		switch info.Type {
 		case types.TransferType:
 			logs = append(logs, handleTransferTypeUTXO(ctx, context, info)...)
@@ -372,11 +374,11 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	}
 }
 
-func handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext, logs []mevmtypes.EvmLog) {
-	if !isOperatorOrMonitorChanged(ctx, context) {
+func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext, logs []mevmtypes.EvmLog) {
+	if !c.Voter.IsOperatorOrMonitorChanged(ctx, context) {
 		return
 	}
-	newAddress := getNewCovenantAddress(ctx)
+	newAddress := c.Voter.GetNewCovenantAddress(ctx)
 	RedeemableUTXOs := ctx.Db.GetRedeemableUtxoIds()
 	for _, utxo := range RedeemableUTXOs {
 		var prevTxid [32]byte
@@ -451,8 +453,15 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 	return nil
 }
 
-// todo: vote contract offer this
-func isMonitor(ctx *mevmtypes.Context, address common.Address) bool {
+type IVoteContract interface {
+	IsMonitor(ctx *mevmtypes.Context, address common.Address) bool
+	IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool
+	GetNewCovenantAddress(ctx *mevmtypes.Context) common.Address
+}
+
+type VoteContract struct{}
+
+func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) bool {
 	monitors := ReadMonitorInfos(ctx, MonitorsGovSeq)
 	for _, monitor := range monitors {
 		if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
@@ -462,19 +471,16 @@ func isMonitor(ctx *mevmtypes.Context, address common.Address) bool {
 	return false
 }
 
-// todo: vote contract offer this
-func isOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool {
+func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool {
 	newAddr, err := GetCCCovenantP2SHAddr(ctx)
 	if err != nil {
 		return false // TODO: panic
 	}
-
-	oldAddr := ccCtx.CurrCovenantAddr
+	oldAddr := ccCtx.LastCovenantAddr
 	return oldAddr != newAddr
 }
 
-// todo: vote contract offer this
-func getNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
+func (v VoteContract) GetNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
 	addr, _ := GetCCCovenantP2SHAddr(ctx)
 	// TODO: panic(err)
 	return addr

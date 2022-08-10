@@ -14,6 +14,26 @@ import (
 	"github.com/smartbch/smartbch/crosschain/types"
 )
 
+type MockVoteContract struct {
+	isMonitor  bool
+	isChanged  bool
+	newAddress common.Address
+}
+
+func (m *MockVoteContract) IsMonitor(ctx *mtypes.Context, address common.Address) bool {
+	return m.isMonitor
+}
+
+func (m *MockVoteContract) IsOperatorOrMonitorChanged(ctx *mtypes.Context, ccCtx *types.CCContext) bool {
+	return m.isChanged
+}
+
+func (m *MockVoteContract) GetNewCovenantAddress(ctx *mtypes.Context) common.Address {
+	return m.newAddress
+}
+
+var _ IVoteContract = &MockVoteContract{}
+
 func TestRedeem(t *testing.T) {
 	r := rabbit.NewRabbitStore(store.NewMockRootStore())
 	ctx := mtypes.NewContext(&r, nil)
@@ -125,6 +145,7 @@ func TestHandleUTXOs(t *testing.T) {
 	amount := uint256.NewInt(10).Bytes32()
 	executor := CcContractExecutor{
 		UTXOCollectDone: make(chan bool),
+		Voter:           &MockVoteContract{},
 	}
 	info := types.CCTransferInfo{
 		Type: types.TransferType,
@@ -139,7 +160,7 @@ func TestHandleUTXOs(t *testing.T) {
 	go func(exe *CcContractExecutor) {
 		exe.UTXOCollectDone <- true
 	}(&executor)
-	status, logs, _, outdata := handleUTXOs(ctx, &executor, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, nil)
+	status, logs, _, outdata := executor.handleUTXOs(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, nil)
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, 1, len(logs))
 	require.Equal(t, 0, len(outdata))
