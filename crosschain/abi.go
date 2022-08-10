@@ -85,11 +85,10 @@ var ABI = ethutils.MustParseABI(`
 				"type": "uint8"
 			}
 		],
-		"name": "Redeem",
+		"name": "Deleted",
 		"type": "event"
 	},
 	{
-		"anonymous": false,
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -97,26 +96,38 @@ var ABI = ethutils.MustParseABI(`
 				"type": "uint256"
 			},
 			{
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
 			},
 			{
 				"internalType": "address",
-				"name": "covenantAddr",
+				"name": "target",
 				"type": "address"
-			},
-			{
-				"internalType": "uint8",
-				"name": "sourceType",
-				"type": "uint8"
 			}
 		],
-		"name": "Deleted",
-		"type": "event"
+		"name": "redeem",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "mainFinalizedBlockHeight",
+				"type": "uint256"
+			}
+		],
+		"name": "startRescan",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	}
 ]
 `)
+
+//startRescan(uint mainFinalizedBlockHeight) onlyMonitor
 
 func PackNewRedeemable(txid *big.Int, vout uint32, covenantAddress gethcmn.Address) []byte {
 	return ABI.MustPack("NewRedeemable", txid, vout, covenantAddress)
@@ -126,6 +137,10 @@ func PackNewLostAndFound(txid *big.Int, vout uint32, covenantAddress gethcmn.Add
 	return ABI.MustPack("NewLostAndFound", txid, vout, covenantAddress)
 }
 
-func PackRedeem(txid *big.Int, vout uint32, covenantAddress gethcmn.Address, sourceType uint8) []byte {
-	return ABI.MustPack("Redeem", txid, vout, covenantAddress, sourceType)
+func PackRedeem(txid *big.Int, vout *big.Int, targetAddress gethcmn.Address) []byte {
+	return ABI.MustPack("redeem", txid, vout, targetAddress)
+}
+
+func PackStartRescan(mainFinalizedBlockHeight *big.Int) []byte {
+	return ABI.MustPack("startRescan", mainFinalizedBlockHeight)
 }

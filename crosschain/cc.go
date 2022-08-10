@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -172,10 +173,12 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 		outData = []byte(err.Error())
 		return
 	}
-	if err, ok := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress, logs); !ok {
+	l, err := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress)
+	if err != nil {
 		outData = []byte(err.Error())
 		return
 	}
+	logs = append(logs, *l)
 	status = StatusSuccess
 	return
 }
@@ -257,30 +260,31 @@ func handleUTXOs(ctx *mevmtypes.Context, executor *CcContractExecutor, currBlock
 		outData = []byte(UTXOAlreadyHandle.Error())
 		return
 	}
-	handleTransferInfos(ctx, context, executor, logs)
+	logs = append(logs, handleTransferInfos(ctx, context, executor)...)
 	handleOperatorOrMonitorSetChanged(ctx, context, logs)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
 }
 
-func handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext, executor *CcContractExecutor, logs []mevmtypes.EvmLog) {
+func handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext, executor *CcContractExecutor) (logs []mevmtypes.EvmLog) {
 	<-executor.UTXOCollectDone
 	context.UTXOAlreadyHandle = true
 	for _, info := range executor.Infos {
 		switch info.Type {
 		case types.TransferType:
-			handleTransferTypeUTXO(ctx, context, info, logs)
+			logs = append(logs, handleTransferTypeUTXO(ctx, context, info)...)
 		case types.ConvertType:
-			handleConvertTypeUTXO(ctx, context, info, logs)
+			logs = append(logs, handleConvertTypeUTXO(ctx, context, info)...)
 		case types.RedeemOrLostAndFoundType:
-			handleRedeemOrLostAndFoundTypeUTXO(ctx, context, info, logs)
+			logs = append(logs, handleRedeemOrLostAndFoundTypeUTXO(ctx, context, info)...)
 		default:
 		}
 	}
+	return logs
 }
 
-func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo, logs []mevmtypes.EvmLog) {
+func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
 	r := types.UTXORecord{
 		Txid:   info.UTXO.TxID,
 		Index:  info.UTXO.Index,
@@ -289,8 +293,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 	if info.CovenantAddress == context.LastCovenantAddr {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
-		logs = append(logs, buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr))
-		return
+		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	}
 	amount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
 	maxAmount := uint256.NewInt(0).Mul(uint256.NewInt(param.MaxCCAmount), uint256.NewInt(1e18))
@@ -298,15 +301,13 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 	if amount.Gt(maxAmount) {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
-		logs = append(logs, buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr))
-		return
+		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
 		pendingBurning := uint256.NewInt(0).SetBytes32(context.PendingBurning[:])
 		if pendingBurning.Lt(uint256.NewInt(1e18)) || amount.Gt(uint256.NewInt(0).Sub(pendingBurning, uint256.NewInt(1e18))) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
-			logs = append(logs, buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr))
-			return
+			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 		}
 		r.IsRedeemed = true
 		r.RedeemTarget = BurnAddressMainChain
@@ -315,26 +316,25 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 		if err != nil {
 			panic(err)
 		}
-		return
+		return nil
 	}
 	SaveUTXORecord(ctx, r)
 	err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
 	if err != nil {
 		panic(err)
 	}
-	logs = append(logs, buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr))
+	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}
 }
 
-func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo, logs []mevmtypes.EvmLog) {
+func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
 	r := LoadUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	if r == nil {
-		return
+		return nil
 	}
-	//todo: overflow, convert info.Amount to uint256
 	originAmount := uint256.NewInt(0).SetBytes(r.Amount[:])
 	newAmount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
 	if originAmount.Lt(newAmount) || originAmount.Eq(newAmount) {
-		return
+		return nil
 	}
 	//deduct gas fee used for utxo convert
 	pendingBurning := uint256.NewInt(0).SetBytes(context.PendingBurning[:])
@@ -352,23 +352,23 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	}
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	logs = append(logs, buildChangeAddrLog(r.Txid, r.Index, newR.CovenantAddr, newR.Txid, newR.Index))
+	return []mevmtypes.EvmLog{buildChangeAddrLog(r.Txid, r.Index, newR.CovenantAddr, newR.Txid, newR.Index)}
 }
 
-func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo, logs []mevmtypes.EvmLog) {
+func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
 	r := LoadUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	if r == nil {
-		return
+		return nil
 	}
 	if !r.IsRedeemed {
 		panic("utxo should be redeemed")
 	}
-	DeleteUTXORecord(ctx, info.UTXO.TxID, info.UTXO.Index)
+	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	//not check if send to correct receiver or not, monitor do this
 	if r.OwnerOfLost != [20]byte{} {
-		logs = append(logs, buildDeletedLog(r.Txid, r.Index, r.CovenantAddr, types.FromLostAndFound))
+		return []mevmtypes.EvmLog{buildDeletedLog(r.Txid, r.Index, r.CovenantAddr, types.FromLostAndFound)}
 	} else {
-		logs = append(logs, buildDeletedLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeeming))
+		return []mevmtypes.EvmLog{buildDeletedLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeeming)}
 	}
 }
 
@@ -386,23 +386,24 @@ func handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CC
 	//todo: lostAndFound tx convert?
 }
 
-func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress [20]byte, logs []mevmtypes.EvmLog) (error, bool) {
+func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress [20]byte) (*mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
-		return UTXONotExist, false
+		return nil, UTXONotExist
 	}
-	if !bytes.Equal(r.Amount[:], amount.Bytes()) {
-		return AmountNotMatch, false
+	fmt.Printf("redeem: txid:%v, vout:%d, target:%v, amount:%s, record amount:%s\n", txid, index, targetAddress, amount.String(), uint256.NewInt(0).SetBytes32(r.Amount[:]).String())
+	if !uint256.NewInt(0).SetBytes32(r.Amount[:]).Eq(amount) {
+		return nil, AmountNotMatch
 	}
 	if r.IsRedeemed {
-		return AlreadyRedeemed, false
+		return nil, AlreadyRedeemed
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
 	r.ExpectedSignTime = block.Timestamp + ExpectedSignTimeDelay
 	SaveUTXORecord(ctx, *r)
-	logs = append(logs, buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable))
-	return nil, true
+	l := buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable)
+	return &l, nil
 }
 
 func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, sender common.Address, targetAddress [20]byte, logs []mevmtypes.EvmLog) (error, bool) {
