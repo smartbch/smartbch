@@ -255,3 +255,73 @@ func TestHandleRedeemOrLostAndFoundTypeUTXO(t *testing.T) {
 	require.Nil(t, loadRecord)
 	require.Equal(t, 1, len(logs))
 }
+
+func TestStartRescan(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := mtypes.NewContext(&r, nil)
+	// prepare cc context
+	context := types.CCContext{
+		RescanHeight: 1,
+	}
+	SaveCCContext(ctx, context)
+	txData := PackStartRescan(big.NewInt(2))
+	// normal
+	executor := CcContractExecutor{
+		Voter:            &MockVoteContract{isMonitor: true},
+		StartUTXOCollect: make(chan types.UTXOCollectParam),
+	}
+	go func(exe *CcContractExecutor) {
+		<-exe.StartUTXOCollect
+	}(&executor)
+	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: 100}, &mtypes.TxToRun{
+		BasicTx: mtypes.BasicTx{
+			Data: txData,
+		},
+	})
+	require.Equal(t, StatusSuccess, status)
+	require.Equal(t, 0, len(outdata))
+	require.Equal(t, 0, len(logs))
+	loadCtx := LoadCCContext(ctx)
+	require.Equal(t, int64(100), loadCtx.RescanTime)
+	require.Equal(t, uint64(1), loadCtx.LastRescannedHeight)
+	require.Equal(t, uint64(2), loadCtx.RescanHeight)
+	require.Equal(t, false, loadCtx.UTXOAlreadyHandle)
+}
+
+func TestPause(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := mtypes.NewContext(&r, nil)
+	// prepare cc context
+	context := types.CCContext{
+		RescanHeight: 1,
+	}
+	SaveCCContext(ctx, context)
+	txData := PackPause()
+	// normal
+	executor := CcContractExecutor{
+		Voter: &MockVoteContract{isMonitor: true},
+	}
+	status, logs, _, outdata := executor.pause(ctx, &mtypes.TxToRun{
+		BasicTx: mtypes.BasicTx{
+			Data: txData,
+		},
+	})
+	require.Equal(t, StatusSuccess, status)
+	require.Equal(t, 0, len(outdata))
+	require.Equal(t, 0, len(logs))
+	loadCtx := LoadCCContext(ctx)
+	require.Equal(t, true, loadCtx.IsPaused)
+}
+
+func TestHandleOperatorOrMonitorSetChanged(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := mtypes.NewContext(&r, nil)
+	// prepare cc context
+	context := types.CCContext{}
+	SaveCCContext(ctx, context)
+	// normal
+	executor := CcContractExecutor{
+		Voter: &MockVoteContract{isMonitor: true},
+	}
+	executor.handleOperatorOrMonitorSetChanged(ctx, &context)
+}

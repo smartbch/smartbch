@@ -73,3 +73,8 @@ type Nomination struct {
 	Pubkey         [33]byte `msgp:"pubkey"` // The monitor's compressed pubkey used in main chain
 	NominatedCount int64    `msgp:"nominated_count"`
 }
+
+type UTXOCollectParam struct {
+	BeginHeight int64
+	EndHeight   int64
+}

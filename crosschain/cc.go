@@ -68,22 +68,16 @@ type CcContractExecutor struct {
 	Infos            []*types.CCTransferInfo
 	Voter            IVoteContract
 	UTXOCollectDone  chan bool
-	StartUTXOCollect chan struct {
-		BeginHeight int64
-		EndHeight   int64
-	}
-	logger log.Logger
+	StartUTXOCollect chan types.UTXOCollectParam
+	logger           log.Logger
 }
 
 func NewCcContractExecutor(logger log.Logger) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger:          logger,
-		Voter:           VoteContract{},
-		UTXOCollectDone: make(chan bool),
-		StartUTXOCollect: make(chan struct {
-			BeginHeight int64
-			EndHeight   int64
-		}),
+		logger:           logger,
+		Voter:            VoteContract{},
+		UTXOCollectDone:  make(chan bool),
+		StartUTXOCollect: make(chan types.UTXOCollectParam),
 	}
 }
 
@@ -263,7 +257,7 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		return
 	}
 	logs = append(logs, c.handleTransferInfos(ctx, context)...)
-	c.handleOperatorOrMonitorSetChanged(ctx, context, logs)
+	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, context)...)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
@@ -374,9 +368,9 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	}
 }
 
-func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext, logs []mevmtypes.EvmLog) {
+func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	if !c.Voter.IsOperatorOrMonitorChanged(ctx, context) {
-		return
+		return nil
 	}
 	newAddress := c.Voter.GetNewCovenantAddress(ctx)
 	RedeemableUTXOs := ctx.Db.GetRedeemableUtxoIds()
@@ -385,6 +379,7 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 		copy(prevTxid[:], utxo[:32])
 		logs = append(logs, buildConvert(prevTxid, binary.BigEndian.Uint32(utxo[32:]), newAddress))
 	}
+	return
 	//todo: lostAndFound tx convert?
 }
 

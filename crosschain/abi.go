@@ -123,6 +123,13 @@ var ABI = ethutils.MustParseABI(`
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pause",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	}
 ]
 `)
@@ -143,4 +150,8 @@ func PackRedeem(txid *big.Int, vout *big.Int, targetAddress gethcmn.Address) []b
 
 func PackStartRescan(mainFinalizedBlockHeight *big.Int) []byte {
 	return ABI.MustPack("startRescan", mainFinalizedBlockHeight)
+}
+
+func PackPause() []byte {
+	return ABI.MustPack("pause")
 }
