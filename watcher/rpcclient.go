@@ -34,7 +34,7 @@ type RpcClient struct {
 	password    string
 	err         error
 	contentType string
-	db          modbtypes.DB
+	parser      types.CcTxParser
 	logger      log.Logger
 }
 
@@ -49,8 +49,10 @@ func NewRpcClient(url, user, password, contentType string, db modbtypes.DB, logg
 		user:        user,
 		password:    password,
 		contentType: contentType,
-		db:          db,
-		logger:      logger,
+		parser: types.CcTxParser{
+			DB: db,
+		},
+		logger: logger,
 	}
 }
 
@@ -164,7 +166,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 			if ccNomination != nil {
 				bchBlock.CCNominations = append(bchBlock.CCNominations, *ccNomination)
 			}
-			bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, bi.GetCCUTXOTransferInfo(client.db.GetAllUtxoIds())...)
+			bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.parser.GetCCUTXOTransferInfo(bi)...)
 		}
 	}
 	return bchBlock, nil

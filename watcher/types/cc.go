@@ -3,7 +3,10 @@ package types
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"github.com/holiman/uint256"
+	"github.com/smartbch/moeingdb/types"
 	"strings"
 
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
@@ -14,8 +17,6 @@ import (
 // cc related op return: 6a(OP_RETURN) + 1c(8 + 20) + 7342434841646472(sBCHAddr) + 20-byte-side-address
 
 var ccIdentifier = "sBCHAddr"
-var currentRedeemScriptAddr = "current_redeem_address"
-var burnAddressLockScript = "76a91404df9d9fede348a5f82337ce87a829be2200aed688ac" //burn address 04df9d9fede348a5f82337ce87a829be2200aed6
 
 type ScriptSig struct {
 	Asm string `json:"asm"`
@@ -32,123 +33,209 @@ type ScriptSig struct {
 	}
 */
 
-// GetCCUTXOTransferInfo todo: refactor
-func (bi *BlockInfo) GetCCUTXOTransferInfo(ids [][36]byte) []*cctypes.CCTransferInfo {
+func (cc *CcTxParser) GetCCUTXOTransferInfo(bi *BlockInfo) (infos []*cctypes.CCTransferInfo) {
+	cc.refresh(bi.Height)
+	infos = append(infos, cc.findRedeemableTx(bi.Tx)...)
+	infos = append(infos, cc.findConvertTx(bi.Tx)...)
+	infos = append(infos, cc.findRedeemOrLostAndFoundTx(bi.Tx)...)
+	return
+}
+
+type CcTxParser struct {
+	DB                     types.DB
+	CurrentCovenantAddress string
+	PrevCovenantAddress    string
+	UtxoSet                map[[32]byte]uint32
+}
+
+func (cc *CcTxParser) refresh(height int64) {
 	var outpointSet map[[32]byte]uint32 /*txid => vout*/
-	for _, id := range ids {
+	//todo: replace with other design
+	for _, id := range cc.DB.GetAllUtxoIds() {
 		var txid [32]byte
 		copy(txid[:], id[:32])
 		index := binary.BigEndian.Uint32(id[32:])
 		outpointSet[txid] = index
 	}
-	var infos []*cctypes.CCTransferInfo
-	hasReceiver := false
-	hasCurrentRedeemAddressInOutput := false
-	hasCCUTXOInInput := false
-	for _, ti := range bi.Tx {
-		var info cctypes.CCTransferInfo
+	cc.getParams(height)
+}
+
+func (cc *CcTxParser) getParams(height int64) {
+	//todo: need modb support
+	// db.getCurrentCovenantAddress(mainBlockHeight int64)
+	// db.getPrevCovenantAddress(mainBlockHeight int64)
+}
+
+func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
+	for _, ti := range txs {
+		var isRedeemableTx bool
+		var info = cctypes.CCTransferInfo{
+			Type: cctypes.TransferType,
+		}
 		for n, vOut := range ti.VoutList {
-			if hasCurrentRedeemAddressInOutput && hasReceiver {
-				break
-			}
-			asm, ok := vOut.ScriptPubKey["asm"]
-			if !ok || asm == nil {
-				continue
-			}
-			script, ok := asm.(string)
+			script, ok := getPubkeyScript(vOut)
 			if !ok {
 				continue
 			}
-			if !hasCurrentRedeemAddressInOutput {
-				if script == "OP_HASH160 "+currentRedeemScriptAddr+" OP_EQUAL" {
-					info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(10e8)).Bytes32()
-					copy(info.UTXO.TxID[:], ti.Hash)
-					info.UTXO.Index = uint32(n)
-					hasCurrentRedeemAddressInOutput = true
-					continue
-				}
-			}
-			if !hasReceiver {
-				var receiver []byte
-				receiver, hasReceiver = findReceiverInOPReturn(script)
-				if hasReceiver {
-					copy(info.Receiver[:], receiver)
-					continue
-				}
+			if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
+				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(10e8)).Bytes32()
+				copy(info.UTXO.TxID[:], ti.Hash)
+				info.UTXO.Index = uint32(n)
+				isRedeemableTx = true
+				break
 			}
 		}
-
-		for _, vIn := range ti.VinList {
-			if !hasReceiver {
-				script, exist := vIn["scriptSig"]
-				if !exist || script == nil {
-					continue
-				}
-				scriptSig, ok := script.(ScriptSig)
-				if !ok {
-					continue
-				}
-				if len(scriptSig.Hex) == 25 && strings.HasPrefix(scriptSig.Hex, "76a914") &&
-					scriptSig.Hex[23] == 0x88 && scriptSig.Hex[24] == 0xa9 {
-					copy(info.Receiver[:], scriptSig.Hex[3:23])
-					hasReceiver = true
-					continue
-				}
+		if isRedeemableTx {
+			receiver := findReceiver(ti)
+			if receiver != nil {
+				copy(info.Receiver[:], receiver)
+				infos = append(infos, &info)
 			}
-			if !hasCCUTXOInInput {
-				txidV, exist := vIn["txid"]
-				if !exist || txidV == nil {
-					continue
-				}
-				txidString, ok := txidV.(string)
-				if !ok {
-					continue
-				}
-				id, err := hex.DecodeString(txidString)
-				if err != nil {
-					continue
-				}
-				if len(id) != 32 {
-					continue
-				}
-				var txid [32]byte
-				copy(txid[:], id)
-				if index, ok := outpointSet[txid]; ok {
-					vout, exist := vIn["vout"]
-					if !exist || vout == nil {
-						continue
-					}
-					v, ok := vout.(uint32)
-					if !ok {
-						continue
-					}
-					if index == v {
-						info.PrevUTXO.TxID = txid
-						info.PrevUTXO.Index = v
-						hasCCUTXOInInput = true
-						break
-					}
-				}
-			}
-		}
-
-		// todo: not allow redeem target address is current redeem address
-		if hasCCUTXOInInput && hasCurrentRedeemAddressInOutput {
-			info.Type = cctypes.ConvertType
-			infos = append(infos, &info)
-			continue
-		}
-		if hasCCUTXOInInput {
-			info.Type = cctypes.RedeemOrLostAndFoundType
-			//todo: find the receiver
-			infos = append(infos, &info)
-			continue
-		}
-		if hasCurrentRedeemAddressInOutput && hasReceiver {
-			info.Type = cctypes.TransferType
 		}
 	}
-	return infos
+	return
+}
+
+func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
+	for _, ti := range txs {
+		var maybeConvertTx bool
+		var info = cctypes.CCTransferInfo{
+			Type: cctypes.ConvertType,
+		}
+		for n, vOut := range ti.VoutList {
+			script, ok := getPubkeyScript(vOut)
+			if !ok {
+				continue
+			}
+			if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
+				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(10e8)).Bytes32()
+				copy(info.UTXO.TxID[:], ti.Hash)
+				info.UTXO.Index = uint32(n)
+				maybeConvertTx = true
+				break
+			}
+		}
+		if maybeConvertTx {
+			for _, vIn := range ti.VinList {
+				txid, vout, err := getSpentTxInfo(vIn)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				if cc.isCcUXTOSpent(txid, vout) {
+					copy(info.PrevUTXO.TxID[:], txid[:])
+					info.PrevUTXO.Index = vout
+					infos = append(infos, &info)
+					break
+				}
+			}
+		}
+	}
+	return
+}
+
+func (cc *CcTxParser) findRedeemOrLostAndFoundTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
+	for _, ti := range txs {
+		var maybeTargetTx bool
+		var info = cctypes.CCTransferInfo{
+			Type: cctypes.RedeemOrLostAndFoundType,
+		}
+		for _, vIn := range ti.VinList {
+			txid, vout, err := getSpentTxInfo(vIn)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			if cc.isCcUXTOSpent(txid, vout) {
+				copy(info.PrevUTXO.TxID[:], txid[:])
+				info.PrevUTXO.Index = vout
+				maybeTargetTx = true
+				break
+			}
+		}
+		if maybeTargetTx {
+			if len(ti.VoutList) != 1 {
+				continue
+			}
+			vOut := ti.VoutList[0]
+			script, ok := getPubkeyScript(vOut)
+			if !ok {
+				continue
+			}
+			// only check prefix
+			if strings.HasPrefix(script, "OP_DUP OP_HASH160") {
+				infos = append(infos, &info)
+				continue
+			}
+		}
+	}
+	return
+}
+
+func (cc *CcTxParser) isCcUXTOSpent(txid [32]byte, vout uint32) bool {
+	index, ok := cc.UtxoSet[txid]
+	if ok {
+		return index == vout
+	}
+	return false
+}
+
+//util functions
+func getSpentTxInfo(vIn map[string]interface{}) (txid [32]byte, index uint32, err error) {
+	txidV, exist := vIn["txid"]
+	if !exist || txidV == nil {
+		return [32]byte{}, 0, errors.New("no txid")
+	}
+	txidString, ok := txidV.(string)
+	if !ok {
+		return [32]byte{}, 0, errors.New("txid not string")
+	}
+	id, err := hex.DecodeString(txidString)
+	if err != nil {
+		return [32]byte{}, 0, errors.New("not hex string")
+	}
+	if len(id) != 32 {
+		return [32]byte{}, 0, errors.New("txid bytes length incorrect")
+	}
+	copy(txid[:], id)
+	vout, exist := vIn["vout"]
+	if !exist || vout == nil {
+		return [32]byte{}, 0, errors.New("no vout")
+	}
+	index, ok = vout.(uint32)
+	if !ok {
+		return [32]byte{}, 0, errors.New("not uint32")
+	}
+	return
+}
+
+func findReceiver(tx TxInfo) []byte {
+	for _, vOut := range tx.VoutList {
+		script, ok := getPubkeyScript(vOut)
+		if !ok {
+			continue
+		}
+		receiver, exist := findReceiverInOPReturn(script)
+		if exist {
+			return receiver
+		}
+	}
+	for _, vIn := range tx.VinList {
+		receiver, exist := getP2PKHAddress(vIn)
+		if exist {
+			return receiver
+		}
+	}
+	return nil
+}
+
+func getPubkeyScript(v Vout) (script string, ok bool) {
+	asm, done := v.ScriptPubKey["asm"]
+	if !done || asm == nil {
+		return "", false
+	}
+	script, ok = asm.(string)
+	return
 }
 
 func findReceiverInOPReturn(script string) ([]byte, bool) {
@@ -165,4 +252,20 @@ func findReceiverInOPReturn(script string) ([]byte, bool) {
 		return nil, false
 	}
 	return bz, true
+}
+
+func getP2PKHAddress(vIn map[string]interface{}) ([]byte, bool) {
+	script, exist := vIn["scriptSig"]
+	if !exist || script == nil {
+		return nil, false
+	}
+	scriptSig, ok := script.(ScriptSig)
+	if !ok {
+		return nil, false
+	}
+	if len(scriptSig.Hex) == 25 && strings.HasPrefix(scriptSig.Hex, "76a914") &&
+		scriptSig.Hex[23] == 0x88 && scriptSig.Hex[24] == 0xac {
+		return []byte(scriptSig.Hex[3:23]), true
+	}
+	return nil, false
 }
