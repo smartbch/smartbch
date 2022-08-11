@@ -32,6 +32,19 @@ const (
 	MonitorsMaxChangeCount       = 1
 )
 
+const (
+	OperatorElectionOK                  = 0
+	OperatorElectionNotEnoughCandidates = 1
+	OperatorElectionNotChanged          = 2
+	OperatorElectionChangedTooMany      = 3
+
+	MonitorElectionOK                      = 0
+	MonitorElectionInvalidNominationsCount = 1
+	MonitorElectionInvalidNominations      = 2
+	MonitorElectionNotChanged              = 2
+	MonitorElectionChangedTooMany          = 3
+)
+
 /*
    struct OperatorInfo {
        address addr;           // address
@@ -99,13 +112,16 @@ func WriteOperatorElectedTime(ctx *mevmtypes.Context, seq uint64, operatorIdx ui
 		uint256.NewInt(val).PaddedBytes(32))
 }
 
-func ElectOperators(ctx *mevmtypes.Context, blockTime int64, logger log.Logger) {
+func ElectOperators(ctx *mevmtypes.Context, blockTime int64, logger log.Logger) int {
+	return ElectOperators_(ctx, OperatorsGovSeq, blockTime, logger)
+}
+func ElectOperators_(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger log.Logger) int {
 	logger.Info("elect operators")
-	operatorInfos := ReadOperatorInfos(ctx, OperatorsGovSeq)
+	operatorInfos := ReadOperatorInfos(ctx, seq)
 	eligibleOperatorInfos := getEligibleOperatorCandidates(operatorInfos)
 	if len(eligibleOperatorInfos) < OperatorsCount {
 		logger.Info("not enough eligible operator candidates!")
-		return
+		return OperatorElectionNotEnoughCandidates
 	}
 
 	sortOperatorInfos(eligibleOperatorInfos)
@@ -121,8 +137,9 @@ func ElectOperators(ctx *mevmtypes.Context, blockTime int64, logger log.Logger) 
 	lastTimeElectedCount := 0
 	thisTimeElectedCount := 0
 	newElectedCount := 0
-	for _, operatorInfo := range operatorInfos {
+	for i, operatorInfo := range operatorInfos {
 		if electedOperatorPubkeyMap[string(operatorInfo.Pubkey)] {
+			operatorInfos[i].electedFlag = true
 			operatorInfo.electedFlag = true
 		}
 
@@ -140,7 +157,7 @@ func ElectOperators(ctx *mevmtypes.Context, blockTime int64, logger log.Logger) 
 
 	if newElectedCount == 0 {
 		logger.Info("operators not changed")
-		return
+		return OperatorElectionNotChanged
 	}
 	if newElectedCount > OperatorsMaxChangeCount {
 		if newElectedCount == OperatorsCount && lastTimeElectedCount == 0 {
@@ -148,20 +165,21 @@ func ElectOperators(ctx *mevmtypes.Context, blockTime int64, logger log.Logger) 
 		} else {
 			logger.Info("too many new operators!",
 				"newElectedCount", newElectedCount)
-			return
+			return OperatorElectionChangedTooMany
 		}
 	}
 
 	// everything is ok
 	for idx, operatorInfo := range operatorInfos {
 		if !operatorInfo.electedFlag {
-			WriteOperatorElectedTime(ctx, OperatorsGovSeq, uint64(idx), 0)
+			WriteOperatorElectedTime(ctx, seq, uint64(idx), 0)
 		} else {
 			if operatorInfo.ElectedTime.Uint64() == 0 {
-				WriteOperatorElectedTime(ctx, OperatorsGovSeq, uint64(idx), uint64(blockTime))
+				WriteOperatorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
 			}
 		}
 	}
+	return OperatorElectionOK
 }
 func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorInfo {
 	eligibleOperatorInfos := make([]OperatorInfo, 0, len(allOperatorInfos))
@@ -172,15 +190,15 @@ func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorIn
 	}
 	return eligibleOperatorInfos
 }
-func sortOperatorInfos(operatorInfos []OperatorInfo) {
-	sort.Slice(operatorInfos, func(i, j int) bool {
-		return operatorInfoLessFn(operatorInfos[i], operatorInfos[j])
-	})
-}
 func isEligibleOperator(operatorInfo OperatorInfo) bool {
 	// TODO: check more fields
 	minStakedAmt := uint256.NewInt(0).Mul(uint256.NewInt(OperatorMinStakedAmt), uint256.NewInt(1e18))
 	return !operatorInfo.SelfStakedAmt.Lt(minStakedAmt)
+}
+func sortOperatorInfos(operatorInfos []OperatorInfo) {
+	sort.Slice(operatorInfos, func(i, j int) bool {
+		return !operatorInfoLessFn(operatorInfos[i], operatorInfos[j])
+	})
 }
 func operatorInfoLessFn(a, b OperatorInfo) bool {
 	if a.TotalStakedAmt.Lt(b.TotalStakedAmt) {
@@ -272,13 +290,13 @@ func WriteMonitorsLastElectionTime(ctx *mevmtypes.Context, seq uint64, val uint6
 	ctx.SetStorageAt(seq, string(slot), uint256.NewInt(val).PaddedBytes(32))
 }
 
-func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, blockTime int64, logger log.Logger) {
+func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, blockTime int64, logger log.Logger) int {
 	nominationsJson, _ := json.Marshal(nominations)
 	logger.Info("elect monitors", "nominationsJson", nominationsJson)
 
 	if len(nominations) != MonitorsCount {
 		logger.Info("invalid nominations count!")
-		return
+		return MonitorElectionInvalidNominationsCount
 	}
 
 	monitorInfos := ReadMonitorInfos(ctx, MonitorsGovSeq)
@@ -288,10 +306,11 @@ func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, bl
 	lastTimeElectedCount := 0
 	thisTimeElectedCount := 0
 	newElectedCount := 0
-	for _, monitorInfo := range monitorInfos {
+	for i, monitorInfo := range monitorInfos {
 		// TODO: check MIN_STAKE ?
 		for _, nomination := range nominations {
 			if bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
+				monitorInfos[i].nominatedCount = nomination.NominatedCount
 				monitorInfo.nominatedCount = nomination.NominatedCount
 				break
 			}
@@ -312,11 +331,11 @@ func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, bl
 	if thisTimeElectedCount != MonitorsCount {
 		logger.Info("invalid nominations",
 			"thisTimeElectedCount", thisTimeElectedCount)
-		return
+		return MonitorElectionInvalidNominations
 	}
 	if newElectedCount == 0 {
 		logger.Info("monitors not changed")
-		return
+		return MonitorElectionNotChanged
 	}
 	if newElectedCount > MonitorsMaxChangeCount {
 		if newElectedCount == MonitorsCount && lastTimeElectedCount == 0 {
@@ -324,7 +343,7 @@ func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, bl
 		} else {
 			logger.Info("too many new monitors!",
 				"newElectedCount", newElectedCount)
-			return
+			return MonitorElectionChangedTooMany
 		}
 	}
 
@@ -338,6 +357,7 @@ func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, bl
 			}
 		}
 	}
+	return MonitorElectionOK
 }
 
 func GetMonitorPubkeySet(ctx *mevmtypes.Context, seq uint64) (pubkeys [][]byte) {
