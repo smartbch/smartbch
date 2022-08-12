@@ -12,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 )
@@ -137,7 +138,8 @@ var (
 
 var (
 	noOpLogger           = log.NewNopLogger()
-	operatorMinStakedAmt = big.NewInt(0).Mul(big.NewInt(crosschain.OperatorMinStakedAmt), big.NewInt(1e18))
+	operatorMinStakedAmt = big.NewInt(0).Mul(big.NewInt(crosschain.OperatorMinStakedBCH), big.NewInt(1e18))
+	monitorMinStakedAmt  = big.NewInt(0).Mul(big.NewInt(crosschain.MonitorMinStakedBCH), big.NewInt(1e18))
 )
 
 func TestOperatorsGovStorageRW(t *testing.T) {
@@ -297,6 +299,11 @@ func TestOperatorsElection(t *testing.T) {
 		testutils.HexToBytes(operatorsGovBytecode), testutils.DefaultGasLimit*2, testutils.DefaultGasPrice)
 	_app.EnsureTxSuccess(tx.Hash())
 
+	ctx := _app.GetRpcContext()
+	accInfo := ctx.GetAccount(contractAddr)
+	seq := accInfo.Sequence()
+	ctx.Close(false)
+
 	// add 9 valid operator candidates
 	for i := 0; i < 9; i++ {
 		stakedAmt := big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(int64(i)))
@@ -309,10 +316,7 @@ func TestOperatorsElection(t *testing.T) {
 	}
 
 	// not enough operator candidates
-	ctx := _app.GetRpcContext()
-	accInfo := ctx.GetAccount(contractAddr)
-	seq := accInfo.Sequence()
-
+	ctx = _app.GetRpcContext()
 	require.Equal(t, crosschain.OperatorElectionNotEnoughCandidates,
 		crosschain.ElectOperators_(ctx, seq, 12345, noOpLogger))
 	ctx.Close(false)
@@ -409,7 +413,114 @@ func TestOperatorsElection(t *testing.T) {
 }
 
 func TestMonitorsElection(t *testing.T) {
-	// TODO
+	key, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key)
+	defer _app.Destroy()
+
+	tx, _, contractAddr := _app.DeployContractInBlockWithGas(key,
+		testutils.HexToBytes(monitorsGovBytecode), testutils.DefaultGasLimit*2, testutils.DefaultGasPrice)
+	_app.EnsureTxSuccess(tx.Hash())
+
+	ctx := _app.GetRpcContext()
+	accInfo := ctx.GetAccount(contractAddr)
+	seq := accInfo.Sequence()
+	ctx.Close(false)
+
+	// add 5 valid monitor candidates
+	for i := 0; i < 5; i++ {
+		stakedAmt := big.NewInt(0).Add(monitorMinStakedAmt, big.NewInt(int64(i)))
+		data := packAddMonitorData(02, fmt.Sprintf("pk#%d", i), fmt.Sprintf("op#%d", i), stakedAmt)
+		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
+		_app.EnsureTxSuccess(tx.Hash())
+	}
+	// add 2 invalid monitor candidates
+	for i := 5; i < 7; i++ {
+		stakedAmt := big.NewInt(123)
+		data := packAddMonitorData(02, fmt.Sprintf("pk#%d", i), fmt.Sprintf("op#%d", i), stakedAmt)
+		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
+		_app.EnsureTxSuccess(tx.Hash())
+	}
+
+	// invalid nomination count
+	ctx = _app.GetRunTxContext()
+	require.Equal(t, crosschain.MonitorElectionInvalidNominationCount,
+		crosschain.ElectMonitors_(ctx, seq, make([]*cctypes.Nomination, 2), 123, noOpLogger))
+	require.Equal(t, crosschain.MonitorElectionInvalidNominationCount,
+		crosschain.ElectMonitors_(ctx, seq, make([]*cctypes.Nomination, 4), 123, noOpLogger))
+	ctx.Close(false)
+
+	// invalid nominations
+	ctx = _app.GetRunTxContext()
+	nominations := []*cctypes.Nomination{
+		{Pubkey: toBytes33(02, "pk#1"), NominatedCount: 1},
+		{Pubkey: toBytes33(02, "pk#2"), NominatedCount: 1},
+		{Pubkey: toBytes33(02, "pk#5"), NominatedCount: 1}, // invalid
+	}
+	require.Equal(t, crosschain.MonitorElectionInvalidNominations,
+		crosschain.ElectMonitors_(ctx, seq, nominations, 123, noOpLogger))
+	nominations = []*cctypes.Nomination{
+		{Pubkey: toBytes33(02, "pk#2"), NominatedCount: 1},
+		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 0}, // invalid
+		{Pubkey: toBytes33(02, "pk#4"), NominatedCount: 1},
+	}
+	require.Equal(t, crosschain.MonitorElectionInvalidNominations,
+		crosschain.ElectMonitors_(ctx, seq, nominations, 123, noOpLogger))
+	ctx.Close(false)
+
+	// first election
+	ctx = _app.GetRunTxContext()
+	nominations = []*cctypes.Nomination{
+		{Pubkey: toBytes33(02, "pk#2"), NominatedCount: 100},
+		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 200},
+		{Pubkey: toBytes33(02, "pk#4"), NominatedCount: 300},
+	}
+	require.Equal(t, crosschain.MonitorElectionOK,
+		crosschain.ElectMonitors_(ctx, seq, nominations, 0x12345, noOpLogger))
+	monitorInfos := crosschain.ReadMonitorInfos(ctx, seq)
+	lastElectionTime := crosschain.ReadMonitorsLastElectionTime(ctx, seq)
+	ctx.Close(true)
+	require.Len(t, monitorInfos, 7)
+	require.Equal(t, uint64(0), monitorInfos[0].ElectedTime.Uint64())
+	require.Equal(t, uint64(0), monitorInfos[1].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x12345), monitorInfos[2].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x12345), monitorInfos[3].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x12345), monitorInfos[4].ElectedTime.Uint64())
+	require.Equal(t, uint64(0), monitorInfos[5].ElectedTime.Uint64())
+	require.Equal(t, uint64(0), monitorInfos[6].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x12345), lastElectionTime.Uint64())
+
+	// changed too many
+	ctx = _app.GetRunTxContext()
+	nominations = []*cctypes.Nomination{
+		{Pubkey: toBytes33(02, "pk#0"), NominatedCount: 100},
+		{Pubkey: toBytes33(02, "pk#1"), NominatedCount: 200},
+		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 300},
+	}
+	require.Equal(t, crosschain.MonitorElectionChangedTooMany,
+		crosschain.ElectMonitors_(ctx, seq, nominations, 0x12345, noOpLogger))
+	ctx.Close(false)
+
+	// election ok
+	ctx = _app.GetRunTxContext()
+	nominations = []*cctypes.Nomination{
+		{Pubkey: toBytes33(02, "pk#1"), NominatedCount: 100},
+		{Pubkey: toBytes33(02, "pk#2"), NominatedCount: 200},
+		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 300},
+	}
+	require.Equal(t, crosschain.MonitorElectionOK,
+		crosschain.ElectMonitors_(ctx, seq, nominations, 0x123456, noOpLogger))
+	monitorInfos = crosschain.ReadMonitorInfos(ctx, seq)
+	lastElectionTime = crosschain.ReadMonitorsLastElectionTime(ctx, seq)
+	ctx.Close(true)
+	require.Len(t, monitorInfos, 7)
+	require.Equal(t, uint64(0), monitorInfos[0].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x123456), monitorInfos[1].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x12345), monitorInfos[2].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x12345), monitorInfos[3].ElectedTime.Uint64())
+	require.Equal(t, uint64(0), monitorInfos[4].ElectedTime.Uint64())
+	require.Equal(t, uint64(0), monitorInfos[5].ElectedTime.Uint64())
+	require.Equal(t, uint64(0), monitorInfos[6].ElectedTime.Uint64())
+	require.Equal(t, uint64(0x123456), lastElectionTime.Uint64())
 }
 
 func packAddOperatorData(pubkeyPrefix int64, pubkeyX, rpcURL, intro string,
@@ -436,5 +547,10 @@ func packAddMonitorData(pubkeyPrefix int64, pubkeyX, intro string, stakedAmt *bi
 func toBytes32(s string) [32]byte {
 	out := [32]byte{}
 	copy(out[:], s)
+	return out
+}
+func toBytes33(pubkeyPrefix uint8, pubkeyX string) [33]byte {
+	out := [33]byte{pubkeyPrefix}
+	copy(out[1:], pubkeyX)
 	return out
 }

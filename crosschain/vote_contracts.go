@@ -22,7 +22,7 @@ const (
 	OperatorWords           = 8
 	OperatorsCount          = 10
 	OperatorsMaxChangeCount = 3
-	OperatorMinStakedAmt    = 10000
+	OperatorMinStakedBCH    = 10000
 
 	MonitorsGovSeq               = 0 // TODO
 	MonitorsLastElectionTimeSlot = 0
@@ -30,6 +30,7 @@ const (
 	MonitorWords                 = 6
 	MonitorsCount                = 3
 	MonitorsMaxChangeCount       = 1
+	MonitorMinStakedBCH          = 100000
 )
 
 const (
@@ -38,11 +39,16 @@ const (
 	OperatorElectionNotChanged          = 2
 	OperatorElectionChangedTooMany      = 3
 
-	MonitorElectionOK                      = 0
-	MonitorElectionInvalidNominationsCount = 1
-	MonitorElectionInvalidNominations      = 2
-	MonitorElectionNotChanged              = 2
-	MonitorElectionChangedTooMany          = 3
+	MonitorElectionOK                     = 0
+	MonitorElectionInvalidNominationCount = 1
+	MonitorElectionInvalidNominations     = 2
+	MonitorElectionNotChanged             = 2
+	MonitorElectionChangedTooMany         = 3
+)
+
+var (
+	operatorMinStakedAmt = uint256.NewInt(0).Mul(uint256.NewInt(OperatorMinStakedBCH), uint256.NewInt(1e18))
+	monitorMinStakedAmt  = uint256.NewInt(0).Mul(uint256.NewInt(MonitorMinStakedBCH), uint256.NewInt(1e18))
 )
 
 /*
@@ -192,8 +198,7 @@ func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorIn
 }
 func isEligibleOperator(operatorInfo OperatorInfo) bool {
 	// TODO: check more fields
-	minStakedAmt := uint256.NewInt(0).Mul(uint256.NewInt(OperatorMinStakedAmt), uint256.NewInt(1e18))
-	return !operatorInfo.SelfStakedAmt.Lt(minStakedAmt)
+	return !operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt)
 }
 func sortOperatorInfos(operatorInfos []OperatorInfo) {
 	sort.Slice(operatorInfos, func(i, j int) bool {
@@ -291,15 +296,20 @@ func WriteMonitorsLastElectionTime(ctx *mevmtypes.Context, seq uint64, val uint6
 }
 
 func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, blockTime int64, logger log.Logger) int {
+	return ElectMonitors_(ctx, MonitorsGovSeq, nominations, blockTime, logger)
+}
+func ElectMonitors_(ctx *mevmtypes.Context, seq uint64,
+	nominations []*cctypes.Nomination, blockTime int64, logger log.Logger,
+) int {
 	nominationsJson, _ := json.Marshal(nominations)
 	logger.Info("elect monitors", "nominationsJson", nominationsJson)
 
 	if len(nominations) != MonitorsCount {
-		logger.Info("invalid nominations count!")
-		return MonitorElectionInvalidNominationsCount
+		logger.Info("invalid nomination count!")
+		return MonitorElectionInvalidNominationCount
 	}
 
-	monitorInfos := ReadMonitorInfos(ctx, MonitorsGovSeq)
+	monitorInfos := ReadMonitorInfos(ctx, seq)
 	monitorInfosJson, _ := json.Marshal(monitorInfos)
 	logger.Info("monitorInfos", "json", monitorInfosJson)
 
@@ -307,12 +317,13 @@ func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, bl
 	thisTimeElectedCount := 0
 	newElectedCount := 0
 	for i, monitorInfo := range monitorInfos {
-		// TODO: check MIN_STAKE ?
-		for _, nomination := range nominations {
-			if bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
-				monitorInfos[i].nominatedCount = nomination.NominatedCount
-				monitorInfo.nominatedCount = nomination.NominatedCount
-				break
+		if !monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) {
+			for _, nomination := range nominations {
+				if bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
+					monitorInfos[i].nominatedCount = nomination.NominatedCount
+					monitorInfo.nominatedCount = nomination.NominatedCount
+					break
+				}
 			}
 		}
 
@@ -350,13 +361,14 @@ func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, bl
 	// everything is ok
 	for idx, monitorInfo := range monitorInfos {
 		if monitorInfo.nominatedCount == 0 {
-			WriteMonitorElectedTime(ctx, MonitorsGovSeq, uint64(idx), 0)
+			WriteMonitorElectedTime(ctx, seq, uint64(idx), 0)
 		} else {
 			if monitorInfo.ElectedTime.Uint64() == 0 {
-				WriteMonitorElectedTime(ctx, MonitorsGovSeq, uint64(idx), uint64(blockTime))
+				WriteMonitorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
 			}
 		}
 	}
+	WriteMonitorsLastElectionTime(ctx, seq, uint64(blockTime))
 	return MonitorElectionOK
 }
 
