@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
@@ -34,13 +33,12 @@ type RpcClient struct {
 	password    string
 	err         error
 	contentType string
-	parser      types.CcTxParser
 	logger      log.Logger
 }
 
 var _ types.RpcClient = (*RpcClient)(nil)
 
-func NewRpcClient(url, user, password, contentType string, db modbtypes.DB, logger log.Logger) *RpcClient {
+func NewRpcClient(url, user, password, contentType string, logger log.Logger) *RpcClient {
 	if url == "" {
 		return nil
 	}
@@ -49,10 +47,7 @@ func NewRpcClient(url, user, password, contentType string, db modbtypes.DB, logg
 		user:        user,
 		password:    password,
 		contentType: contentType,
-		parser: types.CcTxParser{
-			DB: db,
-		},
-		logger: logger,
+		logger:      logger,
 	}
 }
 
@@ -98,6 +93,37 @@ func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBl
 			continue
 		}
 		fmt.Printf("get bch block: %d\n", height)
+	}
+	return blk
+}
+
+func (client *RpcClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
+	var hash string
+	var err error
+	var blk *types.BlockInfo
+	for hash == "" {
+		hash, err = client.getBlockHashOfHeight(height)
+		if err != nil {
+			if !retry {
+				return nil
+			}
+			client.logger.Debug(fmt.Sprintf("GetBlockInfoByHeight %d failed", height), err.Error())
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		fmt.Printf("get bch block info hash\n")
+	}
+	for blk == nil {
+		blk, err = client.getBlock(hash)
+		if !retry {
+			return blk
+		}
+		if err != nil {
+			client.logger.Debug(fmt.Sprintf("getBCHBlockInfo %d failed", height), err.Error())
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		fmt.Printf("get bch block info: %d\n", height)
 	}
 	return blk
 }
@@ -166,7 +192,6 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 			if ccNomination != nil {
 				bchBlock.CCNominations = append(bchBlock.CCNominations, *ccNomination)
 			}
-			bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.parser.GetCCUTXOTransferInfo(bi)...)
 		}
 	}
 	return bchBlock, nil

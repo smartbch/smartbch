@@ -205,6 +205,7 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	context.RescanHeight = uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
 	context.RescanTime = currBlock.Timestamp
 	context.UTXOAlreadyHandle = false
+	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, context)...)
 	SaveCCContext(ctx, *context)
 	c.StartUTXOCollect <- struct {
 		BeginHeight int64
@@ -257,7 +258,6 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		return
 	}
 	logs = append(logs, c.handleTransferInfos(ctx, context)...)
-	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, context)...)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return

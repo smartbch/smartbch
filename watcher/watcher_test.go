@@ -85,6 +85,10 @@ func (m MockRpcClient) Close() {}
 
 func (m MockRpcClient) GetLatestHeight(retry bool) int64 { return m.node.height }
 
+func (m MockRpcClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
+	return nil
+}
+
 func (m MockRpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
 	if height > m.node.height {
 		return nil

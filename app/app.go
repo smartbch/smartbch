@@ -239,9 +239,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
 
 	/*------set watcher------*/
-	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), app.historyStore, 0, stakingInfo.CurrEpochNum, app.config)
-	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), speedUp(%v)\n",
-		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, config.AppConfig.Speedup))
+	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), app.historyStore, lastEpochEndHeight, stakingInfo.CurrEpochNum, app.config)
+	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight:(%d), speedUp(%v)\n",
+		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.SetCCExecutor(ccExecutor)
 	app.watcher.CheckSanity(skipSanityCheck)
 	catchupChan := make(chan bool, 1)

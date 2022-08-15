@@ -21,6 +21,7 @@ type RpcClient interface {
 	GetLatestHeight(retry bool) int64
 	GetBlockByHeight(height int64, retry bool) *BCHBlock
 	GetVoteInfoByEpochNumber(start, end uint64) []*VoteInfo
+	GetBlockInfoByHeight(height int64, retry bool) *BlockInfo
 }
 
 type VoteInfo struct {
@@ -30,13 +31,12 @@ type VoteInfo struct {
 
 // This struct contains the useful information of a BCH block
 type BCHBlock struct {
-	Height          int64
-	Timestamp       int64
-	HashId          [32]byte
-	ParentBlk       [32]byte
-	CCNominations   []cctypes.Nomination
-	Nominations     []stakingtypes.Nomination
-	CCTransferInfos []*cctypes.CCTransferInfo
+	Height        int64
+	Timestamp     int64
+	HashId        [32]byte
+	ParentBlk     [32]byte
+	CCNominations []cctypes.Nomination
+	Nominations   []stakingtypes.Nomination
 }
 
 //not check Nominations

@@ -58,14 +58,15 @@ type Watcher struct {
 
 	//executors
 	ccContractExecutor *crosschain.CcContractExecutor
+	txParser           types.CcTxParser
 }
 
 func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
 	return &Watcher{
 		logger: logger,
 
-		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", historyDB, logger),
-		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", nil, logger),
+		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", logger),
+		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", logger),
 
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
@@ -87,6 +88,9 @@ func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnown
 		chainConfig: chainConfig,
 		// set big enough for single node startup when no BCH node connected. it will be updated when mainnet block finalize.
 		currentMainnetBlockTimestamp: math.MaxInt64 - 14*24*3600,
+		txParser: types.CcTxParser{
+			DB: historyDB,
+		},
 	}
 }
 
@@ -375,20 +379,40 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		heightInfo := <-watcher.ccContractExecutor.StartUTXOCollect
 		beginBlockHeight = heightInfo.BeginHeight
 		endBlockHeight = heightInfo.EndHeight
-		for {
-			//todo: add lock
-			endBlock := watcher.heightToFinalizedBlock[endBlockHeight]
-			if endBlock == nil {
-				watcher.suspended(15 * time.Second)
-				continue
+		watcher.ccContractExecutor.Infos = nil
+		blocks := watcher.getBCHBlocks(beginBlockHeight, endBlockHeight)
+		for _, bi := range blocks {
+			watcher.ccContractExecutor.Infos = append(watcher.ccContractExecutor.Infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
+		}
+		watcher.ccContractExecutor.UTXOCollectDone <- true
+	}
+}
+
+func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
+	num := endHeight - startHeight
+	blkMap := make(map[int64]*types.BlockInfo, num)
+	step := num / 10
+	start := startHeight
+	end := start + step
+	wg := sync.WaitGroup{}
+	wg.Add(10)
+	for i := 0; i < 10; i++ {
+		go func(s, e int64) {
+			for i := s + 1; i <= end; i++ {
+				blkMap[i] = watcher.rpcClient.GetBlockInfoByHeight(startHeight, true)
 			}
-			watcher.ccContractExecutor.Infos = nil
-			for h := beginBlockHeight; h <= endBlockHeight; h++ {
-				blk := watcher.heightToFinalizedBlock[h]
-				watcher.ccContractExecutor.Infos = append(watcher.ccContractExecutor.Infos, blk.CCTransferInfos...)
-			}
-			watcher.ccContractExecutor.UTXOCollectDone <- true
-			break
+			wg.Done()
+		}(start, end)
+		start = end
+		end = start + step
+		if i == 9 {
+			end = endHeight
 		}
 	}
+	wg.Wait()
+	blocks = make([]*types.BlockInfo, num)
+	for i := startHeight + 1; i <= endHeight; i++ {
+		blocks = append(blocks, blkMap[i])
+	}
+	return
 }
