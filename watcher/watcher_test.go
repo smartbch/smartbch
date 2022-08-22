@@ -68,7 +68,12 @@ func buildMockBCHNodeWithReorg() *MockBCHNode {
 }
 
 type MockRpcClient struct {
-	node *MockBCHNode
+	node       *MockBCHNode
+	BlockInfos map[int64]*types.BlockInfo
+}
+
+func NewMockRpcClient() MockRpcClient {
+	return MockRpcClient{BlockInfos: make(map[int64]*types.BlockInfo)}
 }
 
 //nolint
@@ -86,7 +91,14 @@ func (m MockRpcClient) Close() {}
 func (m MockRpcClient) GetLatestHeight(retry bool) int64 { return m.node.height }
 
 func (m MockRpcClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
-	return nil
+	if info, ok := m.BlockInfos[height]; ok {
+		return info
+	}
+	return &types.BlockInfo{}
+}
+
+func (m *MockRpcClient) SetBlockInfoByHeight(height int64, info *types.BlockInfo) {
+	m.BlockInfos[height] = info
 }
 
 func (m MockRpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {

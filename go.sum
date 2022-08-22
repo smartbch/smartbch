@@ -929,8 +929,8 @@ github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic
 github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/smartbch/moeingads v0.4.2 h1:M9Qc/Gx9ZzL6yFYroRvpd1qTu95SmmbqWnKlQrIGJ/4=
 github.com/smartbch/moeingads v0.4.2/go.mod h1:ItNDsGpUoDo/lNxd+EfQ0FbcoT/QsZ+T06kPdFlCm9g=
-github.com/smartbch/moeingdb v0.4.3-0.20220720075909-9fc6aad83264 h1:ODVdHXRGqUE160p2IM3wrw2RAAn/mOzOMmN5t9PUrpk=
-github.com/smartbch/moeingdb v0.4.3-0.20220720075909-9fc6aad83264/go.mod h1:qKlNffkyJ2+vDJPH1p4KyvrqFAdiWTnjQZdf6vmsoiM=
+github.com/smartbch/moeingdb v0.4.3-0.20220822023518-20fc32f488e2 h1:veUvJ5Itaim22qoYZFTV0inzNnduJxulLijyHSvYYe8=
+github.com/smartbch/moeingdb v0.4.3-0.20220822023518-20fc32f488e2/go.mod h1:qKlNffkyJ2+vDJPH1p4KyvrqFAdiWTnjQZdf6vmsoiM=
 github.com/smartbch/moeingevm v0.4.2-0.20220509120345-27a3d288346f h1:x2JIU3+f4qYEYHdL3FjG6TMCBj8sn3XgXPQW67wH/6I=
 github.com/smartbch/moeingevm v0.4.2-0.20220509120345-27a3d288346f/go.mod h1:mJ9rEQeg5yRAYlTo7/7gVZ1HEic9oXyVnfksn40gF1c=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d h1:zE9ykElWQ6/NYmHa3jpm/yHnI4xSofP+UP6SpjHcSeM=

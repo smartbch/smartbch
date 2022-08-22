@@ -235,7 +235,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set cc------*/
-	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"))
+	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
 
 	/*------set watcher------*/
@@ -785,6 +785,9 @@ func (app *App) refresh() (appHash []byte) {
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
+		//if ctx.IsShaGateFork() {
+		app.historyStore.SetOpListsForCcUtxo(crosschain.CollectOpList(&prevBlk4MoDB))
+		//}
 		if app.config.AppConfig.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.AppConfig.NumKeptBlocksInMoDB {
 			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB, app.txid2sigMap)
 		} else {

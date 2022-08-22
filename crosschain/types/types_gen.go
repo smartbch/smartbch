@@ -48,10 +48,10 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "LastRescannedHeight")
 				return
 			}
-		case "UTXOAlreadyHandle":
-			z.UTXOAlreadyHandle, err = dc.ReadBool()
+		case "UTXOAlreadyHandled":
+			z.UTXOAlreadyHandled, err = dc.ReadBool()
 			if err != nil {
-				err = msgp.WrapError(err, "UTXOAlreadyHandle")
+				err = msgp.WrapError(err, "UTXOAlreadyHandled")
 				return
 			}
 		case "TotalBurntOnMainChain":
@@ -132,14 +132,14 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "LastRescannedHeight")
 		return
 	}
-	// write "UTXOAlreadyHandle"
+	// write "UTXOAlreadyHandled"
 	err = en.Append(0xb1, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65)
 	if err != nil {
 		return
 	}
-	err = en.WriteBool(z.UTXOAlreadyHandle)
+	err = en.WriteBool(z.UTXOAlreadyHandled)
 	if err != nil {
-		err = msgp.WrapError(err, "UTXOAlreadyHandle")
+		err = msgp.WrapError(err, "UTXOAlreadyHandled")
 		return
 	}
 	// write "TotalBurntOnMainChain"
@@ -201,9 +201,9 @@ func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "LastRescannedHeight"
 	o = append(o, 0xb3, 0x4c, 0x61, 0x73, 0x74, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x6e, 0x65, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	o = msgp.AppendUint64(o, z.LastRescannedHeight)
-	// string "UTXOAlreadyHandle"
+	// string "UTXOAlreadyHandled"
 	o = append(o, 0xb1, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65)
-	o = msgp.AppendBool(o, z.UTXOAlreadyHandle)
+	o = msgp.AppendBool(o, z.UTXOAlreadyHandled)
 	// string "TotalBurntOnMainChain"
 	o = append(o, 0xb5, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x42, 0x75, 0x72, 0x6e, 0x74, 0x4f, 0x6e, 0x4d, 0x61, 0x69, 0x6e, 0x43, 0x68, 0x61, 0x69, 0x6e)
 	o = msgp.AppendBytes(o, (z.TotalBurntOnMainChain)[:])
@@ -261,10 +261,10 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "LastRescannedHeight")
 				return
 			}
-		case "UTXOAlreadyHandle":
-			z.UTXOAlreadyHandle, bts, err = msgp.ReadBoolBytes(bts)
+		case "UTXOAlreadyHandled":
+			z.UTXOAlreadyHandled, bts, err = msgp.ReadBoolBytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "UTXOAlreadyHandle")
+				err = msgp.WrapError(err, "UTXOAlreadyHandled")
 				return
 			}
 		case "TotalBurntOnMainChain":
@@ -1197,54 +1197,130 @@ func (z *UTXO) Msgsize() (s int) {
 }
 
 // DecodeMsg implements msgp.Decodable
-func (z *UTXOParam) DecodeMsg(dc *msgp.Reader) (err error) {
-	{
-		var zb0001 byte
-		zb0001, err = dc.ReadByte()
+func (z *UTXOCollectParam) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
 		if err != nil {
 			err = msgp.WrapError(err)
 			return
 		}
-		(*z) = UTXOParam(zb0001)
+		switch msgp.UnsafeString(field) {
+		case "BeginHeight":
+			z.BeginHeight, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "BeginHeight")
+				return
+			}
+		case "EndHeight":
+			z.EndHeight, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "EndHeight")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
 	}
 	return
 }
 
 // EncodeMsg implements msgp.Encodable
-func (z UTXOParam) EncodeMsg(en *msgp.Writer) (err error) {
-	err = en.WriteByte(byte(z))
+func (z UTXOCollectParam) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "BeginHeight"
+	err = en.Append(0x82, 0xab, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	if err != nil {
-		err = msgp.WrapError(err)
+		return
+	}
+	err = en.WriteInt64(z.BeginHeight)
+	if err != nil {
+		err = msgp.WrapError(err, "BeginHeight")
+		return
+	}
+	// write "EndHeight"
+	err = en.Append(0xa9, 0x45, 0x6e, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.EndHeight)
+	if err != nil {
+		err = msgp.WrapError(err, "EndHeight")
 		return
 	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
-func (z UTXOParam) MarshalMsg(b []byte) (o []byte, err error) {
+func (z UTXOCollectParam) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	o = msgp.AppendByte(o, byte(z))
+	// map header, size 2
+	// string "BeginHeight"
+	o = append(o, 0x82, 0xab, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendInt64(o, z.BeginHeight)
+	// string "EndHeight"
+	o = append(o, 0xa9, 0x45, 0x6e, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = msgp.AppendInt64(o, z.EndHeight)
 	return
 }
 
 // UnmarshalMsg implements msgp.Unmarshaler
-func (z *UTXOParam) UnmarshalMsg(bts []byte) (o []byte, err error) {
-	{
-		var zb0001 byte
-		zb0001, bts, err = msgp.ReadByteBytes(bts)
+func (z *UTXOCollectParam) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
 		if err != nil {
 			err = msgp.WrapError(err)
 			return
 		}
-		(*z) = UTXOParam(zb0001)
+		switch msgp.UnsafeString(field) {
+		case "BeginHeight":
+			z.BeginHeight, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "BeginHeight")
+				return
+			}
+		case "EndHeight":
+			z.EndHeight, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "EndHeight")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
 	}
 	o = bts
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z UTXOParam) Msgsize() (s int) {
-	s = msgp.ByteSize
+func (z UTXOCollectParam) Msgsize() (s int) {
+	s = 1 + 12 + msgp.Int64Size + 10 + msgp.Int64Size
 	return
 }
 

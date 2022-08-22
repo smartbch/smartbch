@@ -22,7 +22,6 @@ type CCTransferInfo struct {
 }
 
 type UTXOType byte
-type UTXOParam byte
 
 var (
 	TransferType             = UTXOType(0)
@@ -43,14 +42,14 @@ type UTXORecord struct {
 
 type CCContext struct {
 	IsPaused              bool     `msgp:"is_paused"`
-	RescanTime            int64    `msgp:"rescan_time"`
-	RescanHeight          uint64   `msgp:"rescan_hint"`
-	LastRescannedHeight   uint64   `msgp:"last_rescanned_hint"`
-	UTXOAlreadyHandle     bool     `msgp:"utxo_already_handle"`
-	TotalBurntOnMainChain [32]byte `msgp:"total_burnt_on_main_chain"`
-	PendingBurning        [32]byte `msgp:"pending_burning"`
-	LastCovenantAddr      [20]byte `msgp:"last_covenant_addr"`
-	CurrCovenantAddr      [20]byte `msgp:"curr_covenant_addr"`
+	RescanTime            int64    `msgp:"rescan_time"`               // last startRescan block timestamp, init is max int64
+	RescanHeight          uint64   `msgp:"rescan_hint"`               // main chain block height used as rescan end height, init is shaGate enabling height
+	LastRescannedHeight   uint64   `msgp:"last_rescanned_hint"`       // main chain block height used as rescan start height, init is 0
+	UTXOAlreadyHandled    bool     `msgp:"utxo_already_handle"`       // set when call handleUtxo, unset when call startRescan, init is true
+	TotalBurntOnMainChain [32]byte `msgp:"total_burnt_on_main_chain"` // init is totalBurnt BCH when shaGate enabling
+	PendingBurning        [32]byte `msgp:"pending_burning"`           // init is set: total burnt on side chain - TotalBurntOnMainChain
+	LastCovenantAddr      [20]byte `msgp:"last_covenant_addr"`        //init is zero address
+	CurrCovenantAddr      [20]byte `msgp:"curr_covenant_addr"`        //init is genesis covenant address
 }
 
 type SourceType uint8

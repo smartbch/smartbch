@@ -57,7 +57,7 @@ type Watcher struct {
 	currentMainnetBlockTimestamp int64
 
 	//executors
-	ccContractExecutor *crosschain.CcContractExecutor
+	CcContractExecutor *crosschain.CcContractExecutor
 	txParser           types.CcTxParser
 }
 
@@ -94,8 +94,12 @@ func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnown
 	}
 }
 
+func (watcher *Watcher) SetRpcClient(client types.RpcClient) {
+	watcher.rpcClient = client
+}
+
 func (watcher *Watcher) SetCCExecutor(exe *crosschain.CcContractExecutor) {
-	watcher.ccContractExecutor = exe
+	watcher.CcContractExecutor = exe
 }
 
 func (watcher *Watcher) SetNumBlocksInEpoch(n int64) {
@@ -376,15 +380,15 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		heightInfo := <-watcher.ccContractExecutor.StartUTXOCollect
+		heightInfo := <-watcher.CcContractExecutor.StartUTXOCollect
 		beginBlockHeight = heightInfo.BeginHeight
 		endBlockHeight = heightInfo.EndHeight
-		watcher.ccContractExecutor.Infos = nil
+		var infos []*cctypes.CCTransferInfo
 		blocks := watcher.getBCHBlocks(beginBlockHeight, endBlockHeight)
 		for _, bi := range blocks {
-			watcher.ccContractExecutor.Infos = append(watcher.ccContractExecutor.Infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
+			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
 		}
-		watcher.ccContractExecutor.UTXOCollectDone <- true
+		watcher.CcContractExecutor.UTXOCollectDone <- infos
 	}
 }
 

@@ -8,12 +8,25 @@ import (
 	"github.com/smartbch/smartbch/internal/ethutils"
 )
 
-//event NewRedeemable(uint256 txid, uint32 vout, address covenantAddr);
-//event NewLostAndFound(uint256 txid, uint32 vout, address covenantAddr);
-//event Redeem(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType);
-//event Convert(uint256 txid, uint32 vout, address newCovenantAddr);
-//event ChangeAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout);
-//event Deleted(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType);
+/*
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity >=0.8.0;
+
+
+contract CC {
+    event NewRedeemable(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr);
+    event NewLostAndFound(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr);
+    event Redeem(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr, uint8 sourceType);
+    event Convert(uint256 indexed txid, uint32 indexed vout, address indexed newCovenantAddr);
+    event ChangeAddr(uint256 indexed prevTxid, uint32 indexed prevVout, address indexed newCovenantAddr, uint256 txid, uint32 vout);
+    event Deleted(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr, uint8 sourceType);
+
+    function redeem(uint256 txid, uint256 index, address targetAddress) external {}
+    function startRescan(uint256 mainFinalizedBlockHeight) external {}
+    function pause() external {}
+    function handleUTXOs() external {}
+}
+*/
 
 var ABI = ethutils.MustParseABI(`
 [

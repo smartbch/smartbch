@@ -17,7 +17,7 @@ func HandleMonitorVoteInfo(ctx *mevmtypes.Context, info *types.MonitorVoteInfo, 
 		return
 	}
 	var pubkeyVoteMap = make(map[[33]byte]int64)
-	for i := info.Number - param.EpochStartHeightForCC; i < info.Number; i++ {
+	for i := info.Number - param.EpochStartNumberForCC; i < info.Number; i++ {
 		voteInfo := LoadMonitorVoteInfo(ctx, i)
 		if voteInfo == nil {
 			panic("should have vote info here")

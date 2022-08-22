@@ -14,26 +14,6 @@ import (
 	"github.com/smartbch/smartbch/crosschain/types"
 )
 
-type MockVoteContract struct {
-	isMonitor  bool
-	isChanged  bool
-	newAddress common.Address
-}
-
-func (m *MockVoteContract) IsMonitor(ctx *mtypes.Context, address common.Address) bool {
-	return m.isMonitor
-}
-
-func (m *MockVoteContract) IsOperatorOrMonitorChanged(ctx *mtypes.Context, ccCtx *types.CCContext) bool {
-	return m.isChanged
-}
-
-func (m *MockVoteContract) GetNewCovenantAddress(ctx *mtypes.Context) common.Address {
-	return m.newAddress
-}
-
-var _ IVoteContract = &MockVoteContract{}
-
 func TestRedeem(t *testing.T) {
 	r := rabbit.NewRabbitStore(store.NewMockRootStore())
 	ctx := mtypes.NewContext(&r, nil)
@@ -144,7 +124,7 @@ func TestHandleUTXOs(t *testing.T) {
 	vout := uint32(1)
 	amount := uint256.NewInt(10).Bytes32()
 	executor := CcContractExecutor{
-		UTXOCollectDone: make(chan bool),
+		UTXOCollectDone: make(chan []*types.CCTransferInfo),
 		Voter:           &MockVoteContract{},
 	}
 	info := types.CCTransferInfo{
@@ -156,9 +136,10 @@ func TestHandleUTXOs(t *testing.T) {
 		},
 		Receiver: alice,
 	}
-	executor.Infos = append(executor.Infos, &info)
+	var infos []*types.CCTransferInfo
+	infos = append(infos, &info)
 	go func(exe *CcContractExecutor) {
-		exe.UTXOCollectDone <- true
+		exe.UTXOCollectDone <- infos
 	}(&executor)
 	status, logs, _, outdata := executor.handleUTXOs(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, nil)
 	require.Equal(t, StatusSuccess, status)
@@ -167,7 +148,7 @@ func TestHandleUTXOs(t *testing.T) {
 	record := LoadUTXORecord(ctx, txid, vout)
 	require.Equal(t, [20]byte(alice), record.OwnerOfLost)
 	loadCtx := LoadCCContext(ctx)
-	require.Equal(t, true, loadCtx.UTXOAlreadyHandle)
+	require.Equal(t, true, loadCtx.UTXOAlreadyHandled)
 }
 
 func TestHandleConvertTypeUTXO(t *testing.T) {
@@ -192,12 +173,6 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 		Amount: prevAmount,
 	}
 	SaveUTXORecord(ctx, record)
-	executor := CcContractExecutor{
-		Infos:            nil,
-		UTXOCollectDone:  make(chan bool),
-		StartUTXOCollect: nil,
-		logger:           nil,
-	}
 	info := types.CCTransferInfo{
 		Type: types.ConvertType,
 		PrevUTXO: types.UTXO{
@@ -211,7 +186,6 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 			Amount: amount,
 		},
 	}
-	executor.Infos = append(executor.Infos, &info)
 	logs := handleConvertTypeUTXO(ctx, &context, &info)
 	require.Equal(t, uint64(1), uint256.NewInt(0).SetBytes32(context.PendingBurning[:]).Uint64())
 	loadRecord := LoadUTXORecord(ctx, txid, vout)
@@ -240,7 +214,6 @@ func TestHandleRedeemOrLostAndFoundTypeUTXO(t *testing.T) {
 		Amount:     prevAmount,
 	}
 	SaveUTXORecord(ctx, record)
-	executor := CcContractExecutor{}
 	info := types.CCTransferInfo{
 		Type: types.ConvertType,
 		PrevUTXO: types.UTXO{
@@ -249,7 +222,6 @@ func TestHandleRedeemOrLostAndFoundTypeUTXO(t *testing.T) {
 			Amount: prevAmount,
 		},
 	}
-	executor.Infos = append(executor.Infos, &info)
 	logs := handleRedeemOrLostAndFoundTypeUTXO(ctx, &context, &info)
 	loadRecord := LoadUTXORecord(ctx, prevTxid, prevVout)
 	require.Nil(t, loadRecord)
@@ -267,7 +239,7 @@ func TestStartRescan(t *testing.T) {
 	txData := PackStartRescan(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
-		Voter:            &MockVoteContract{isMonitor: true},
+		Voter:            &MockVoteContract{IsM: true},
 		StartUTXOCollect: make(chan types.UTXOCollectParam),
 	}
 	go func(exe *CcContractExecutor) {
@@ -285,7 +257,7 @@ func TestStartRescan(t *testing.T) {
 	require.Equal(t, int64(100), loadCtx.RescanTime)
 	require.Equal(t, uint64(1), loadCtx.LastRescannedHeight)
 	require.Equal(t, uint64(2), loadCtx.RescanHeight)
-	require.Equal(t, false, loadCtx.UTXOAlreadyHandle)
+	require.Equal(t, false, loadCtx.UTXOAlreadyHandled)
 }
 
 func TestPause(t *testing.T) {
@@ -299,7 +271,7 @@ func TestPause(t *testing.T) {
 	txData := PackPause()
 	// normal
 	executor := CcContractExecutor{
-		Voter: &MockVoteContract{isMonitor: true},
+		Voter: &MockVoteContract{IsM: true},
 	}
 	status, logs, _, outdata := executor.pause(ctx, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
@@ -321,7 +293,7 @@ func TestHandleOperatorOrMonitorSetChanged(t *testing.T) {
 	SaveCCContext(ctx, context)
 	// normal
 	executor := CcContractExecutor{
-		Voter: &MockVoteContract{isMonitor: true},
+		Voter: &MockVoteContract{IsM: true},
 	}
 	executor.handleOperatorOrMonitorSetChanged(ctx, &context)
 }
