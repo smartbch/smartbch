@@ -19,6 +19,8 @@ const (
 	monitorCount     = 3
 	monitorSigCount  = 2
 	minerFeeMainnet  = 2000
+
+	monitorTransferTimeOutBlocks = 16 * 2016
 )
 
 // TODO
@@ -314,6 +316,7 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 	if err = builder.addInput(txid, vout); err != nil {
 		return nil, err
 	}
+	builder.msgTx.TxIn[0].Sequence = monitorTransferTimeOutBlocks
 	if err = builder.addOutput(toAddr, inAmt); err != nil {
 		return nil, err
 	}
