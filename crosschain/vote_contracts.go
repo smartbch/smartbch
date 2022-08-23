@@ -216,8 +216,8 @@ func operatorInfoLessFn(a, b OperatorInfo) bool {
 	return false
 }
 
-func GetOperatorPubkeySet(ctx *mevmtypes.Context, seq uint64) (pubkeys [][]byte) {
-	operatorInfos := ReadOperatorInfos(ctx, seq)
+func GetOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
+	operatorInfos := ReadOperatorInfos(ctx, OperatorsGovSeq)
 	for _, operatorInfo := range operatorInfos {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
 			pubkeys = append(pubkeys, operatorInfo.Pubkey[:])
@@ -372,8 +372,8 @@ func ElectMonitors_(ctx *mevmtypes.Context, seq uint64,
 	return MonitorElectionOK
 }
 
-func GetMonitorPubkeySet(ctx *mevmtypes.Context, seq uint64) (pubkeys [][]byte) {
-	monitorInfos := ReadMonitorInfos(ctx, seq)
+func GetMonitorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
+	monitorInfos := ReadMonitorInfos(ctx, MonitorsGovSeq)
 	for _, monitorInfo := range monitorInfos {
 		if monitorInfo.ElectedTime.Uint64() > 0 {
 			pubkeys = append(pubkeys, monitorInfo.Pubkey[:])
@@ -383,8 +383,8 @@ func GetMonitorPubkeySet(ctx *mevmtypes.Context, seq uint64) (pubkeys [][]byte) 
 }
 
 func GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
-	operatorPubkeys := GetOperatorPubkeySet(ctx, OperatorsGovSeq)
-	monitorsPubkeys := GetMonitorPubkeySet(ctx, MonitorsGovSeq)
+	operatorPubkeys := GetOperatorPubkeySet(ctx)
+	monitorsPubkeys := GetMonitorPubkeySet(ctx)
 	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorsPubkeys)
 	if err != nil {
 		return [20]byte{}, err

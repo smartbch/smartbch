@@ -1,6 +1,8 @@
 package api
 
 import (
+	"math/big"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
@@ -248,4 +250,38 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 		}
 	}
 	return callLogs
+}
+
+// Cross Chain
+
+type UtxoInfo struct {
+	OwnerOfLost      gethcmn.Address `json:"owner_of_lost"`
+	CovenantAddr     gethcmn.Address `json:"covenant_addr"`
+	IsRedeemed       bool            `json:"is_redeemed"`
+	RedeemTarget     gethcmn.Address `json:"redeem_target"`
+	ExpectedSignTime int64           `json:"expected_sign_time"`
+	Txid             gethcmn.Hash    `json:"txid"`
+	Index            uint32          `json:"index"`
+	Amount           *hexutil.Big    `json:"amount"`
+}
+
+func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*UtxoInfo {
+	infos := make([]*UtxoInfo, len(utxoRecords))
+	for i, record := range utxoRecords {
+		infos[i] = castUtxoRecord(record)
+	}
+	return infos
+}
+
+func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
+	return &UtxoInfo{
+		OwnerOfLost:      utxoRecord.OwnerOfLost,
+		CovenantAddr:     utxoRecord.CovenantAddr,
+		IsRedeemed:       utxoRecord.IsRedeemed,
+		RedeemTarget:     utxoRecord.RedeemTarget,
+		ExpectedSignTime: utxoRecord.ExpectedSignTime,
+		Txid:             utxoRecord.Txid,
+		Index:            utxoRecord.Index,
+		Amount:           (*hexutil.Big)(big.NewInt(0).SetBytes(utxoRecord.Amount[:])),
+	}
 }

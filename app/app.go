@@ -86,6 +86,7 @@ type IApp interface {
 	GetValidatorsInfo() ValidatorsInfo
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
+	GetRedeemingUtxoIds() [][36]byte
 }
 
 type App struct {
@@ -1009,6 +1010,10 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 		err = errNoSyncBlock
 	}
 	return
+}
+
+func (app *App) GetRedeemingUtxoIds() [][36]byte {
+	return app.historyStore.GetRedeemingUtxoIds()
 }
 
 //nolint

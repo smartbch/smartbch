@@ -26,8 +26,8 @@ func newMsgTxBuilder(net *chaincfg.Params) *msgTxBuilder {
 	}
 }
 
-func (builder *msgTxBuilder) addInput(txid string, vout uint32) error {
-	utxoHash, err := chainhash.NewHashFromStr(txid)
+func (builder *msgTxBuilder) addInput(txid []byte, vout uint32) error {
+	utxoHash, err := chainhash.NewHash(txid)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"math"
 	"math/big"
@@ -17,6 +18,7 @@ import (
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
@@ -449,4 +451,33 @@ func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
 
 func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
 	return backend.app.GetBlockForSync(height)
+}
+
+func (backend *apiBackend) GetRedeemingUTXOs() []*cctypes.UTXORecord {
+	utxoIds := backend.app.GetRedeemingUtxoIds()
+
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	utxoRecords := make([]*cctypes.UTXORecord, 0, len(utxoIds))
+	for _, utxoId := range utxoIds {
+		var txId [32]byte
+		copy(txId[:], utxoId[:32])
+		idx := binary.BigEndian.Uint32(utxoId[32:])
+
+		utxoRecord := crosschain.LoadUTXORecord(ctx, txId, idx)
+		if !utxoRecord.IsRedeemed {
+			utxoRecords = append(utxoRecords, utxoRecord)
+		}
+	}
+	return utxoRecords
+}
+
+func (backend *apiBackend) GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte) {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	operatorPubkeys = crosschain.GetOperatorPubkeySet(ctx)
+	monitorPubkeys = crosschain.GetMonitorPubkeySet(ctx)
+	return
 }

@@ -10,10 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/gcash/bchd/chaincfg"
+	"github.com/gcash/bchutil"
 	"github.com/tendermint/tendermint/libs/log"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/crosschain/covenant"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	"github.com/smartbch/smartbch/staking"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
@@ -39,6 +42,7 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
+	GetRedeemingUtxosForMonitors() []*UtxoInfo
 }
 
 type sbchAPI struct {
@@ -300,4 +304,44 @@ func (sbch sbchAPI) ValidatorsInfo() json.RawMessage {
 func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	sbch.logger.Debug("sbch_getSyncBlock")
 	return sbch.backend.GetSyncBlock(int64(height))
+}
+
+func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
+	utxoRecords := sbch.backend.GetRedeemingUTXOs()
+	utxoInfos := castUtxoRecords(utxoRecords)
+	return utxoInfos
+}
+
+func (sbch sbchAPI) GetRedeemingTxSigHashsForOperators() ([]hexutil.Bytes, error) {
+	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
+	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorPubkeys)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigHashes []hexutil.Bytes
+
+	utxoRecords := sbch.backend.GetRedeemingUTXOs()
+	for _, utxoRecord := range utxoRecords {
+		// TODO: check utxoRecord.ExpectedSignTime
+
+		txid := utxoRecord.Txid[:]
+		vout := utxoRecord.Index
+		amt := big.NewInt(0).SetBytes(utxoRecord.Amount[:]).Int64() // TODO: div by 10^10 ?
+		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], &chaincfg.MainNetParams)
+		if err != nil {
+			sbch.logger.Error("failed to derive BCH address", "err", err)
+			continue
+		}
+		toAddr := addr.EncodeAddress()
+
+		_, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, amt, toAddr)
+		if err != nil {
+			sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+			continue
+		}
+
+		sigHashes = append(sigHashes, sigHash)
+	}
+	return sigHashes, err
 }

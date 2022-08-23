@@ -13,6 +13,7 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
@@ -123,6 +124,8 @@ type BackendService interface {
 	GetSeq(address common.Address) uint64
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
+	GetRedeemingUTXOs() []*cctypes.UTXORecord
+	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 
 	//tendermint info
 	NodeInfo() Info

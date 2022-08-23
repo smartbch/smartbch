@@ -131,7 +131,7 @@ func (c CcCovenant) GetP2SHAddressNew(newOperatorPks, newMonitorPks [][]byte) (s
 /* redeem by user */
 
 func (c CcCovenant) BuildRedeemByUserUnsignedTx(
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	toAddr string, // output info
 ) (*wire.MsgTx, error) {
 
@@ -147,7 +147,7 @@ func (c CcCovenant) BuildRedeemByUserUnsignedTx(
 }
 
 func (c CcCovenant) GetRedeemByUserTxSigHash(
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	toAddr string, // output info
 ) (*wire.MsgTx, []byte, error) {
 
@@ -222,7 +222,7 @@ func (c *CcCovenant) BuildRedeemOrConvertUnlockingScript(
 /* convert by operators */
 
 func (c CcCovenant) BuildConvertByOperatorsUnsignedTx(
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
 ) (*wire.MsgTx, error) {
@@ -245,7 +245,7 @@ func (c CcCovenant) BuildConvertByOperatorsUnsignedTx(
 }
 
 func (c CcCovenant) GetConvertByOperatorsTxSigHash(
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
 ) (*wire.MsgTx, []byte, error) {
@@ -302,7 +302,7 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
 /* convert by monitors */
 
 func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	newOperatorPks [][]byte,
 ) (*wire.MsgTx, error) {
 
@@ -325,7 +325,7 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 }
 
 func (c CcCovenant) GetConvertByMonitorsTxSigHash(
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	newOperatorPks [][]byte,
 ) (*wire.MsgTx, []byte, error) {
 
@@ -394,7 +394,7 @@ func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
 
 func (c CcCovenant) AddConvertByMonitorsTxMinerFee(
 	signedTx *wire.MsgTx,
-	txid string, vout uint32, inAmt int64, // input info
+	txid []byte, vout uint32, inAmt int64, // input info
 	minerFee int64, changeAddr string, // miner fee
 ) (*wire.MsgTx, error) {
 
