@@ -14,7 +14,7 @@ type CCTransferInfo struct {
 	UTXO     UTXO     `msgp:"utxo"`
 	/*
 		when Type is TransferType: receiver is side chain address to receive sBCH;
-		when Type is ConvertType:  receiver is covenant address in empty;
+		when Type is ConvertType:  receiver and covenant address in empty;
 		when Type is RedeemOrLostAndFoundType:  receiver is locking address used when redeem or pubkey hash address used for lostAndFound;
 	*/
 	Receiver        [20]byte `msgp:"receiver"`
@@ -47,7 +47,6 @@ type CCContext struct {
 	LastRescannedHeight   uint64   `msgp:"last_rescanned_hint"`       // main chain block height used as rescan start height, init is 0
 	UTXOAlreadyHandled    bool     `msgp:"utxo_already_handle"`       // set when call handleUtxo, unset when call startRescan, init is true
 	TotalBurntOnMainChain [32]byte `msgp:"total_burnt_on_main_chain"` // init is totalBurnt BCH when shaGate enabling
-	PendingBurning        [32]byte `msgp:"pending_burning"`           // init is set: total burnt on side chain - TotalBurntOnMainChain
 	LastCovenantAddr      [20]byte `msgp:"last_covenant_addr"`        //init is zero address
 	CurrCovenantAddr      [20]byte `msgp:"curr_covenant_addr"`        //init is genesis covenant address
 }

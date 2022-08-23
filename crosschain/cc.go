@@ -11,6 +11,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	modbtypes "github.com/smartbch/moeingdb/types"
+	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
@@ -52,10 +53,10 @@ var (
 	HashOfEventNewLostAndFound [32]byte = common.HexToHash("0x5097ba403df8e5415e49ecafe3a1610dce19fdae7df003d29d07d4f0833542ee")
 	//event Deleted(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType);
 	HashOfEventDeleted [32]byte = common.HexToHash("0x88efadfda2430f2d2ac267ce7158a19f80c4faef7beef319a98ba853e3ebed6f")
-	//event Convert(uint256 txid, uint32 vout, address newCovenantAddr);
-	HashOfEventConvert [32]byte = common.HexToHash("0x9d062d86209040513cb80a4071c19510b6fb00df67e754aafef1043fc1070089")
-	//event ChangeAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
-	HashOfEventChangeAddr [32]byte = common.HexToHash("0xdf48139e0f57d30ef830b711d6c698b54486b9b3566e0d5281202220cd999057")
+	//event ChangeAddr(address oldCovenantAddr, address newCovenantAddr);
+	HashOfEventChangeAddr [32]byte = common.HexToHash("0x5029ef2b1891e99a0ef410ffbd2219535c135111c548ab27c4db353800fc6df6")
+	//event Convert(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
+	HashOfEventConvert [32]byte = common.HexToHash("0xb6e0dd42526bc069e197a4c86eceb9fd67d88b8c7100f1d7be12acd9b780a5fa")
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
@@ -64,18 +65,19 @@ var (
 	UTXOHandleDelay       int64 = 20 * 60
 	ExpectedSignTimeDelay int64 = 5 * 60 // 5min
 
-	InvalidCallData    = errors.New("invalid call data")
-	InvalidSelector    = errors.New("invalid selector")
-	BalanceNotEnough   = errors.New("balance is not enough")
-	MustMonitor        = errors.New("only monitor")
-	RescanNotFinish    = errors.New("rescan not finish ")
-	UTXOAlreadyHandled = errors.New("utxos in rescan already handled")
-	UTXONotExist       = errors.New("utxo not exist")
-	AmountNotMatch     = errors.New("redeem amount not match")
-	AlreadyRedeemed    = errors.New("already redeemed")
-	NotLostAndFound    = errors.New("not lost and found utxo")
-	NotLoser           = errors.New("not loser")
-	CCPaused           = errors.New("cc paused now")
+	InvalidCallData         = errors.New("invalid call data")
+	InvalidSelector         = errors.New("invalid selector")
+	BalanceNotEnough        = errors.New("balance is not enough")
+	MustMonitor             = errors.New("only monitor")
+	RescanNotFinish         = errors.New("rescan not finish ")
+	UTXOAlreadyHandled      = errors.New("utxos in rescan already handled")
+	UTXONotExist            = errors.New("utxo not exist")
+	AmountNotMatch          = errors.New("redeem amount not match")
+	AlreadyRedeemed         = errors.New("already redeemed")
+	NotLostAndFound         = errors.New("not lost and found utxo")
+	NotLoser                = errors.New("not loser")
+	CCPaused                = errors.New("cc paused now")
+	PendingBurningNotEnough = errors.New("pending burning not enough")
 )
 
 type CcContractExecutor struct {
@@ -112,7 +114,6 @@ func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 			LastRescannedHeight:   uint64(0),
 			UTXOAlreadyHandled:    true,
 			TotalBurntOnMainChain: uint256.NewInt(uint64(param.GenesisBCHAlreadyMintedInMainChain)).Bytes32(),
-			PendingBurning:        [32]byte{}, // init in commit which block shaGate enabling, not here
 			LastCovenantAddr:      [20]byte{},
 			CurrCovenantAddr:      common.HexToAddress(param.GenesisCovenantAddress),
 		}
@@ -285,29 +286,42 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		outData = []byte(UTXOAlreadyHandled.Error())
 		return
 	}
-	logs = append(logs, c.handleTransferInfos(ctx, context)...)
+	newLogs, err := c.handleTransferInfos(ctx, context)
+	if err != nil {
+		outData = []byte(err.Error())
+		return
+	}
+	logs = append(logs, newLogs...)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
 }
 
-func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog) {
+func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog, err error) {
 	context.UTXOAlreadyHandled = true
 	for _, info := range <-c.UTXOCollectDone {
 		switch info.Type {
 		case types.TransferType:
-			logs = append(logs, handleTransferTypeUTXO(ctx, context, info)...)
+			transferLogs, err := handleTransferTypeUTXO(ctx, context, info)
+			if err != nil {
+				return nil, err
+			}
+			logs = append(logs, transferLogs...)
 		case types.ConvertType:
-			logs = append(logs, handleConvertTypeUTXO(ctx, context, info)...)
+			convertLogs, err := handleConvertTypeUTXO(ctx, context, info)
+			if err != nil {
+				return nil, err
+			}
+			logs = append(logs, convertLogs...)
 		case types.RedeemOrLostAndFoundType:
 			logs = append(logs, handleRedeemOrLostAndFoundTypeUTXO(ctx, context, info)...)
 		default:
 		}
 	}
-	return logs
+	return logs, nil
 }
 
-func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
+func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
 	r := types.UTXORecord{
 		Txid:   info.UTXO.TxID,
 		Index:  info.UTXO.Index,
@@ -316,7 +330,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 	if info.CovenantAddress == context.LastCovenantAddr {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
-		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
+		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}, nil
 	}
 	amount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
 	maxAmount := uint256.NewInt(0).Mul(uint256.NewInt(MaxCCAmount), uint256.NewInt(E18))
@@ -324,15 +338,25 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 	if amount.Gt(maxAmount) {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
-		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
+		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}, nil
 	} else if amount.Lt(minAmount) {
-		pendingBurning := uint256.NewInt(0).SetBytes32(context.PendingBurning[:])
+		blackHoleBalance := ebp.GetBlackHoleBalance(ctx)
+		totalBurntOnMain := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
+		if !blackHoleBalance.Gt(totalBurntOnMain) {
+			return nil, PendingBurningNotEnough
+		}
+		pendingBurning := blackHoleBalance.Sub(blackHoleBalance, totalBurntOnMain)
 		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E18))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
-			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
+			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}, nil
 		}
+		// add total burnt on main chain here, not waiting tx minted on main chain
+		totalBurnt := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
+		totalBurnt.Add(totalBurnt, amount)
+		context.TotalBurntOnMainChain = totalBurnt.Bytes32()
+
 		r.IsRedeemed = true
 		r.RedeemTarget = BurnAddressMainChain
 		SaveUTXORecord(ctx, r)
@@ -340,35 +364,40 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 		if err != nil {
 			panic(err)
 		}
-		return nil
+		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}, nil
 	}
 	SaveUTXORecord(ctx, r)
 	err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
 	if err != nil {
 		panic(err)
 	}
-	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}
+	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}, nil
 }
 
-func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
+func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	if r == nil {
-		return nil
+		return nil, nil
 	}
 	originAmount := uint256.NewInt(0).SetBytes(r.Amount[:])
 	newAmount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
 	if originAmount.Lt(newAmount) || originAmount.Eq(newAmount) {
-		return nil
+		return nil, nil
 	}
 	//deduct gas fee used for utxo convert
-	pendingBurning := uint256.NewInt(0).SetBytes(context.PendingBurning[:])
+	blockHoleBalance := ebp.GetBlackHoleBalance(ctx)
+	totalBurntOnMainChain := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
+	if !blockHoleBalance.Gt(totalBurntOnMainChain) {
+		return nil, PendingBurningNotEnough
+	}
+	pendingBurning := blockHoleBalance.Sub(blockHoleBalance, totalBurntOnMainChain)
 	gasFee := originAmount.Sub(originAmount, newAmount)
 	if pendingBurning.Lt(gasFee) {
-		//todo:
-		panic("not cover gas fee used for utxo convert")
+		return nil, PendingBurningNotEnough
 	}
-	pendingBurning.Sub(pendingBurning, gasFee)
-	context.PendingBurning = pendingBurning.Bytes32()
+	// add gas fee on totalBurntOnMainChain, maybe should record this on specific field
+	totalBurntOnMainChain.Add(totalBurntOnMainChain, gasFee)
+	context.TotalBurntOnMainChain = totalBurntOnMainChain.Bytes32()
 	newR := types.UTXORecord{
 		Txid:   info.UTXO.TxID,
 		Index:  info.UTXO.Index,
@@ -376,7 +405,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	}
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	return []mevmtypes.EvmLog{buildChangeAddrLog(r.Txid, r.Index, newR.CovenantAddr, newR.Txid, newR.Index)}
+	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, newR.CovenantAddr, newR.Txid, newR.Index)}, nil
 }
 
 func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
@@ -401,12 +430,9 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 		return nil
 	}
 	newAddress := c.Voter.GetNewCovenantAddress(ctx)
-	RedeemableUTXOs := ctx.Db.GetRedeemableUtxoIds()
-	for _, utxo := range RedeemableUTXOs {
-		var prevTxid [32]byte
-		copy(prevTxid[:], utxo[:32])
-		logs = append(logs, buildConvert(prevTxid, binary.BigEndian.Uint32(utxo[32:]), newAddress))
-	}
+	context.LastCovenantAddr = context.CurrCovenantAddr
+	context.CurrCovenantAddr = newAddress
+	logs = append(logs, buildChangeAddrLog(context.LastCovenantAddr, context.CurrCovenantAddr))
 	return
 }
 
@@ -504,9 +530,30 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 			newRedeemableOp.CovenantAddr = common.BytesToAddress(l.Topics[2][:])
 			opList.NewRedeemableOps = append(opList.NewRedeemableOps, newRedeemableOp)
 		case HashOfEventNewLostAndFound:
-		case HashOfEventChangeAddr:
+			newLostAndFoundOp := modbtypes.NewLostAndFoundOp{
+				UtxoId:       [36]byte{},
+				CovenantAddr: [20]byte{},
+			}
+			copy(newLostAndFoundOp.UtxoId[:32], l.Topics[1][:])
+			binary.BigEndian.PutUint32(newLostAndFoundOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
+			newLostAndFoundOp.CovenantAddr = common.BytesToAddress(l.Topics[2][:])
+			opList.NewLostAndFoundOps = append(opList.NewLostAndFoundOps, newLostAndFoundOp)
 		case HashOfEventConvert:
+		case HashOfEventChangeAddr:
+			newChangeAddrOp := modbtypes.ChangeAddrOp{
+				PrevUtxoId:      [36]byte{},
+				UtxoId:          [36]byte{},
+				OldCovenantAddr: [20]byte{},
+				NewCovenantAddr: [20]byte{},
+			}
+			opList.ChangeAddrOps = append(opList.ChangeAddrOps, newChangeAddrOp)
 		case HashOfEventDeleted:
+			newDeleteOp := modbtypes.DeletedOp{
+				UtxoId:       [36]byte{},
+				CovenantAddr: [20]byte{},
+				SourceType:   0,
+			}
+			opList.DeletedOps = append(opList.DeletedOps, newDeleteOp)
 		default:
 			continue
 		}

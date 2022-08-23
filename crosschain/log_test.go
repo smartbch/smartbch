@@ -42,9 +42,9 @@ func TestBuildChangeAddrLog(t *testing.T) {
 	address := common.Address{0x1}
 	txid := [32]byte{0x1}
 	vout := uint32(1)
-	log := buildChangeAddrLog(prevTxid, prevVout, address, txid, vout)
+	log := buildConvertLog(prevTxid, prevVout, address, txid, vout)
 	require.Equal(t, 4, len(log.Topics))
-	require.Equal(t, HashOfEventChangeAddr, [32]byte(log.Topics[0]))
+	require.Equal(t, HashOfEventConvert, [32]byte(log.Topics[0]))
 	require.Equal(t, prevTxid, [32]byte(log.Topics[1]))
 	require.Equal(t, prevVout, uint32(uint256.NewInt(0).SetBytes32(log.Topics[2].Bytes()).Uint64()))
 	require.Equal(t, address.Hash(), log.Topics[3])

@@ -17,12 +17,10 @@ func TestCCStore(t *testing.T) {
 	ctx := mtypes.NewContext(&r, nil)
 	context := types.CCContext{
 		LastRescannedHeight: 1,
-		PendingBurning:      [32]byte{0x1},
 	}
 	SaveCCContext(ctx, context)
 	loaded := LoadCCContext(ctx)
 	require.Equal(t, context.LastRescannedHeight, loaded.LastRescannedHeight)
-	require.Equal(t, context.PendingBurning, loaded.PendingBurning)
 
 	record := types.UTXORecord{
 		Txid:   [32]byte{0x1},

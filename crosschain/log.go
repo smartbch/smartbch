@@ -33,8 +33,15 @@ func buildNewLostAndFound(txid [32]byte, vout uint32, covenantAddress common.Add
 	return buildEvmLogWithTxidVoutAndAddress(HashOfEventNewLostAndFound, txid, vout, covenantAddress)
 }
 
-func buildConvert(prevTxid [32]byte, prevVout uint32, newCovenantAddress common.Address) mevmtypes.EvmLog {
-	return buildEvmLogWithTxidVoutAndAddress(HashOfEventConvert, prevTxid, prevVout, newCovenantAddress)
+func buildChangeAddrLog(oldCovenantAddress, newCovenantAddress common.Address) mevmtypes.EvmLog {
+	evmLog := mevmtypes.EvmLog{
+		Address: CCContractAddress,
+		Topics:  make([]common.Hash, 0, 4),
+	}
+	evmLog.Topics = append(evmLog.Topics, HashOfEventChangeAddr)
+	evmLog.Topics = append(evmLog.Topics, oldCovenantAddress.Hash())
+	evmLog.Topics = append(evmLog.Topics, newCovenantAddress.Hash())
+	return evmLog
 }
 
 func buildRedeemLog(txid [32]byte, vout uint32, covenantAddress common.Address, sourceType types.SourceType) mevmtypes.EvmLog {
@@ -51,9 +58,9 @@ func buildDeletedLog(txid [32]byte, vout uint32, covenantAddress common.Address,
 	return log
 }
 
-//event ChangeAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
-func buildChangeAddrLog(prevTxid [32]byte, prevVout uint32, newCovenantAddr common.Address, txid [32]byte, vout uint32) mevmtypes.EvmLog {
-	log := buildEvmLogWithTxidVoutAndAddress(HashOfEventChangeAddr, prevTxid, prevVout, newCovenantAddr)
+//event ConvertAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
+func buildConvertLog(prevTxid [32]byte, prevVout uint32, newCovenantAddr common.Address, txid [32]byte, vout uint32) mevmtypes.EvmLog {
+	log := buildEvmLogWithTxidVoutAndAddress(HashOfEventConvert, prevTxid, prevVout, newCovenantAddr)
 	o := uint256.NewInt(uint64(vout)).Bytes32()
 	AddDataToEvmLog(&log, append(txid[:], o[:]...))
 	return log

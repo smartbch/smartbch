@@ -20,7 +20,6 @@ func TestRedeem(t *testing.T) {
 	// prepare cc context
 	context := types.CCContext{
 		LastRescannedHeight: 1,
-		PendingBurning:      [32]byte{0x1},
 	}
 	SaveCCContext(ctx, context)
 	// prepare alice account
@@ -114,7 +113,7 @@ func TestHandleUTXOs(t *testing.T) {
 	// prepare cc context
 	context := types.CCContext{
 		LastRescannedHeight: 1,
-		PendingBurning:      [32]byte{0x1},
+		//PendingBurning:      [32]byte{0x1},
 	}
 	SaveCCContext(ctx, context)
 	// prepare alice account
@@ -157,7 +156,7 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 	// prepare cc context
 	context := types.CCContext{
 		LastRescannedHeight: 1,
-		PendingBurning:      uint256.NewInt(2).Bytes32(),
+		//PendingBurning:      uint256.NewInt(2).Bytes32(),
 	}
 	SaveCCContext(ctx, context)
 	// prepare utxo
@@ -186,8 +185,7 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 			Amount: amount,
 		},
 	}
-	logs := handleConvertTypeUTXO(ctx, &context, &info)
-	require.Equal(t, uint64(1), uint256.NewInt(0).SetBytes32(context.PendingBurning[:]).Uint64())
+	logs, _ := handleConvertTypeUTXO(ctx, &context, &info)
 	loadRecord := LoadUTXORecord(ctx, txid, vout)
 	require.Equal(t, vout, loadRecord.Index)
 	loadRecord = LoadUTXORecord(ctx, prevTxid, prevVout)

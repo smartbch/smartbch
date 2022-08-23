@@ -60,12 +60,6 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "TotalBurntOnMainChain")
 				return
 			}
-		case "PendingBurning":
-			err = dc.ReadExactBytes((z.PendingBurning)[:])
-			if err != nil {
-				err = msgp.WrapError(err, "PendingBurning")
-				return
-			}
 		case "LastCovenantAddr":
 			err = dc.ReadExactBytes((z.LastCovenantAddr)[:])
 			if err != nil {
@@ -91,9 +85,9 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 9
+	// map header, size 8
 	// write "IsPaused"
-	err = en.Append(0x89, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
+	err = en.Append(0x88, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
 	if err != nil {
 		return
 	}
@@ -133,7 +127,7 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 		return
 	}
 	// write "UTXOAlreadyHandled"
-	err = en.Append(0xb1, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65)
+	err = en.Append(0xb2, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65, 0x64)
 	if err != nil {
 		return
 	}
@@ -150,16 +144,6 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 	err = en.WriteBytes((z.TotalBurntOnMainChain)[:])
 	if err != nil {
 		err = msgp.WrapError(err, "TotalBurntOnMainChain")
-		return
-	}
-	// write "PendingBurning"
-	err = en.Append(0xae, 0x50, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x42, 0x75, 0x72, 0x6e, 0x69, 0x6e, 0x67)
-	if err != nil {
-		return
-	}
-	err = en.WriteBytes((z.PendingBurning)[:])
-	if err != nil {
-		err = msgp.WrapError(err, "PendingBurning")
 		return
 	}
 	// write "LastCovenantAddr"
@@ -188,9 +172,9 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 // MarshalMsg implements msgp.Marshaler
 func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 9
+	// map header, size 8
 	// string "IsPaused"
-	o = append(o, 0x89, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
+	o = append(o, 0x88, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
 	o = msgp.AppendBool(o, z.IsPaused)
 	// string "RescanTime"
 	o = append(o, 0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x54, 0x69, 0x6d, 0x65)
@@ -202,14 +186,11 @@ func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	o = append(o, 0xb3, 0x4c, 0x61, 0x73, 0x74, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x6e, 0x65, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	o = msgp.AppendUint64(o, z.LastRescannedHeight)
 	// string "UTXOAlreadyHandled"
-	o = append(o, 0xb1, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65)
+	o = append(o, 0xb2, 0x55, 0x54, 0x58, 0x4f, 0x41, 0x6c, 0x72, 0x65, 0x61, 0x64, 0x79, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65, 0x64)
 	o = msgp.AppendBool(o, z.UTXOAlreadyHandled)
 	// string "TotalBurntOnMainChain"
 	o = append(o, 0xb5, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x42, 0x75, 0x72, 0x6e, 0x74, 0x4f, 0x6e, 0x4d, 0x61, 0x69, 0x6e, 0x43, 0x68, 0x61, 0x69, 0x6e)
 	o = msgp.AppendBytes(o, (z.TotalBurntOnMainChain)[:])
-	// string "PendingBurning"
-	o = append(o, 0xae, 0x50, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x42, 0x75, 0x72, 0x6e, 0x69, 0x6e, 0x67)
-	o = msgp.AppendBytes(o, (z.PendingBurning)[:])
 	// string "LastCovenantAddr"
 	o = append(o, 0xb0, 0x4c, 0x61, 0x73, 0x74, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72)
 	o = msgp.AppendBytes(o, (z.LastCovenantAddr)[:])
@@ -273,12 +254,6 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "TotalBurntOnMainChain")
 				return
 			}
-		case "PendingBurning":
-			bts, err = msgp.ReadExactBytes(bts, (z.PendingBurning)[:])
-			if err != nil {
-				err = msgp.WrapError(err, "PendingBurning")
-				return
-			}
 		case "LastCovenantAddr":
 			bts, err = msgp.ReadExactBytes(bts, (z.LastCovenantAddr)[:])
 			if err != nil {
@@ -305,7 +280,7 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CCContext) Msgsize() (s int) {
-	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 18 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 15 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
+	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 19 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize))
 	return
 }
 
