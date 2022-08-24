@@ -43,6 +43,7 @@ type SbchAPI interface {
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
+	GetRedeemingTxSigHashesForOperators() ([]hexutil.Bytes, error)
 }
 
 type sbchAPI struct {
@@ -312,18 +313,26 @@ func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
 	return utxoInfos
 }
 
-func (sbch sbchAPI) GetRedeemingTxSigHashsForOperators() ([]hexutil.Bytes, error) {
+func (sbch sbchAPI) GetRedeemingTxSigHashesForOperators() ([]hexutil.Bytes, error) {
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
 	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorPubkeys)
 	if err != nil {
 		return nil, err
 	}
 
-	var sigHashes []hexutil.Bytes
+	currBlock, err := sbch.backend.CurrentBlock()
+	if err != nil {
+		return nil, err
+	}
 
+	currTS := currBlock.Timestamp
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
+
+	var sigHashes []hexutil.Bytes
 	for _, utxoRecord := range utxoRecords {
-		// TODO: check utxoRecord.ExpectedSignTime
+		if utxoRecord.ExpectedSignTime > currTS {
+			continue
+		}
 
 		txid := utxoRecord.Txid[:]
 		vout := utxoRecord.Index
@@ -333,8 +342,8 @@ func (sbch sbchAPI) GetRedeemingTxSigHashsForOperators() ([]hexutil.Bytes, error
 			sbch.logger.Error("failed to derive BCH address", "err", err)
 			continue
 		}
-		toAddr := addr.EncodeAddress()
 
+		toAddr := addr.EncodeAddress()
 		_, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, amt, toAddr)
 		if err != nil {
 			sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)

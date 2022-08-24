@@ -33,19 +33,19 @@ type ScriptSig struct {
 	}
 */
 
+type CcTxParser struct {
+	DB                     types.DB
+	CurrentCovenantAddress string
+	PrevCovenantAddress    string
+	UtxoSet                map[[32]byte]uint32
+}
+
 func (cc *CcTxParser) GetCCUTXOTransferInfo(bi *BlockInfo) (infos []*cctypes.CCTransferInfo) {
 	cc.refresh(bi.Height)
 	infos = append(infos, cc.findRedeemableTx(bi.Tx)...)
 	infos = append(infos, cc.findConvertTx(bi.Tx)...)
 	infos = append(infos, cc.findRedeemOrLostAndFoundTx(bi.Tx)...)
 	return
-}
-
-type CcTxParser struct {
-	DB                     types.DB
-	CurrentCovenantAddress string
-	PrevCovenantAddress    string
-	UtxoSet                map[[32]byte]uint32
 }
 
 func (cc *CcTxParser) refresh(height int64) {

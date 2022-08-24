@@ -60,7 +60,7 @@ var (
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
-	FixedMainnetFee                = int64(10)
+	FixedMainnetFee         int64  = 10
 
 	UTXOHandleDelay       int64 = 20 * 60
 	ExpectedSignTimeDelay int64 = 5 * 60 // 5min

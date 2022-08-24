@@ -3,10 +3,11 @@ package covenant
 import (
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	gethcmn "github.com/ethereum/go-ethereum/common"
 
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/txscript"
@@ -236,13 +237,5 @@ func Test_ConvertByMonitors(t *testing.T) {
 }
 
 func HexToBytes(s string) []byte {
-	s = strings.TrimSpace(s)
-	s = strings.TrimPrefix(s, "0x")
-	s = strings.ReplaceAll(s, "\n", "")
-
-	bytes, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return bytes
+	return gethcmn.FromHex(s)
 }

@@ -23,7 +23,7 @@ type CCTransferInfo struct {
 
 type UTXOType byte
 
-var (
+const (
 	TransferType             = UTXOType(0)
 	ConvertType              = UTXOType(1)
 	RedeemOrLostAndFoundType = UTXOType(2)
@@ -53,7 +53,7 @@ type CCContext struct {
 
 type SourceType uint8
 
-var (
+const (
 	FromRedeemable   = SourceType(0)
 	FromLostAndFound = SourceType(1)
 	FromRedeeming    = SourceType(2)
