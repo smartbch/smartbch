@@ -123,8 +123,7 @@ func TestHandleUTXOs(t *testing.T) {
 	vout := uint32(1)
 	amount := uint256.NewInt(10).Bytes32()
 	executor := CcContractExecutor{
-		UTXOCollectDone: make(chan []*types.CCTransferInfo),
-		Voter:           &MockVoteContract{},
+		Voter: &MockVoteContract{},
 	}
 	info := types.CCTransferInfo{
 		Type: types.TransferType,
@@ -137,9 +136,7 @@ func TestHandleUTXOs(t *testing.T) {
 	}
 	var infos []*types.CCTransferInfo
 	infos = append(infos, &info)
-	go func(exe *CcContractExecutor) {
-		exe.UTXOCollectDone <- infos
-	}(&executor)
+	executor.Infos = infos
 	status, logs, _, outdata := executor.handleUTXOs(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, nil)
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, 1, len(logs))

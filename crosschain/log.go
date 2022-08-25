@@ -58,10 +58,12 @@ func buildDeletedLog(txid [32]byte, vout uint32, covenantAddress common.Address,
 	return log
 }
 
-//event ConvertAddr(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
-func buildConvertLog(prevTxid [32]byte, prevVout uint32, newCovenantAddr common.Address, txid [32]byte, vout uint32) mevmtypes.EvmLog {
-	log := buildEvmLogWithTxidVoutAndAddress(HashOfEventConvert, prevTxid, prevVout, newCovenantAddr)
+//event ConvertAddr(uint256 prevTxid, uint32 prevVout, address oldCovenantAddr, uint256 txid, uint32 vout, address newCovenantAddr)
+func buildConvertLog(prevTxid [32]byte, prevVout uint32, oldCovenantAddr common.Address, txid [32]byte, vout uint32, newCovenantAddr common.Address) mevmtypes.EvmLog {
+	log := buildEvmLogWithTxidVoutAndAddress(HashOfEventConvert, prevTxid, prevVout, oldCovenantAddr)
 	o := uint256.NewInt(uint64(vout)).Bytes32()
-	AddDataToEvmLog(&log, append(txid[:], o[:]...))
+	data := append(txid[:], o[:]...)
+	data = append(data, newCovenantAddr.Hash().Bytes()...)
+	AddDataToEvmLog(&log, data)
 	return log
 }

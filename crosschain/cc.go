@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -55,8 +56,8 @@ var (
 	HashOfEventDeleted [32]byte = common.HexToHash("0x88efadfda2430f2d2ac267ce7158a19f80c4faef7beef319a98ba853e3ebed6f")
 	//event ChangeAddr(address oldCovenantAddr, address newCovenantAddr);
 	HashOfEventChangeAddr [32]byte = common.HexToHash("0x5029ef2b1891e99a0ef410ffbd2219535c135111c548ab27c4db353800fc6df6")
-	//event Convert(uint256 prevTxid, uint32 prevVout, address newCovenantAddr, uint256 txid, uint32 vout)
-	HashOfEventConvert [32]byte = common.HexToHash("0xb6e0dd42526bc069e197a4c86eceb9fd67d88b8c7100f1d7be12acd9b780a5fa")
+	//event Convert(uint256 prevTxid, uint32 prevVout, address oldCovenantAddr, uint256 txid, uint32 vout, address newCovenantAddr)
+	HashOfEventConvert [32]byte = common.HexToHash("0x5c0caa320907ad2fb85323d152c52b05f7b683c6105991ceaed961d03410a499")
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
@@ -81,18 +82,19 @@ var (
 )
 
 type CcContractExecutor struct {
-	Voter            IVoteContract
-	UTXOCollectDone  chan []*types.CCTransferInfo
+	Voter IVoteContract
+
+	Lock  sync.RWMutex
+	Infos []*types.CCTransferInfo
+
 	StartUTXOCollect chan types.UTXOCollectParam
 	logger           log.Logger
 }
 
 func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger:           logger,
-		Voter:            voter,
-		UTXOCollectDone:  make(chan []*types.CCTransferInfo),
-		StartUTXOCollect: make(chan types.UTXOCollectParam),
+		logger: logger,
+		Voter:  voter,
 	}
 }
 
@@ -186,10 +188,12 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 	amount := uint256.NewInt(0).SetBytes32(tx.Value[:])
 	if amount.IsZero() {
 		gasUsed = GasOfLostAndFoundRedeem
-		if err, ok := checkAndUpdateLostAndFoundTX(ctx, block, txid, uint32(index.Uint64()), tx.From, targetAddress, logs); !ok {
+		l, err := checkAndUpdateLostAndFoundTX(ctx, block, txid, uint32(index.Uint64()), tx.From, targetAddress)
+		if err != nil {
 			outData = []byte(err.Error())
 			return
 		}
+		logs = append(logs, *l)
 		status = StatusSuccess
 		return
 	}
@@ -299,7 +303,9 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 
 func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog, err error) {
 	context.UTXOAlreadyHandled = true
-	for _, info := range <-c.UTXOCollectDone {
+	c.Lock.RLock()
+	defer c.Lock.RUnlock()
+	for _, info := range c.Infos {
 		switch info.Type {
 		case types.TransferType:
 			transferLogs, err := handleTransferTypeUTXO(ctx, context, info)
@@ -399,13 +405,14 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	totalBurntOnMainChain.Add(totalBurntOnMainChain, gasFee)
 	context.TotalBurntOnMainChain = totalBurntOnMainChain.Bytes32()
 	newR := types.UTXORecord{
-		Txid:   info.UTXO.TxID,
-		Index:  info.UTXO.Index,
-		Amount: newAmount.Bytes32(),
+		Txid:         info.UTXO.TxID,
+		Index:        info.UTXO.Index,
+		Amount:       newAmount.Bytes32(),
+		CovenantAddr: info.CovenantAddress,
 	}
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, newR.CovenantAddr, newR.Txid, newR.Index)}, nil
+	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}, nil
 }
 
 func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
@@ -455,26 +462,26 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	return &l, nil
 }
 
-func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, sender common.Address, targetAddress [20]byte, logs []mevmtypes.EvmLog) (error, bool) {
+func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, sender common.Address, targetAddress [20]byte) (*mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
-		return UTXONotExist, false
+		return nil, UTXONotExist
 	}
 	if r.OwnerOfLost == [20]byte{} {
-		return NotLostAndFound, false
+		return nil, NotLostAndFound
 	}
 	if sender != r.OwnerOfLost {
-		return NotLoser, false
+		return nil, NotLoser
 	}
 	if r.IsRedeemed {
-		return AlreadyRedeemed, false
+		return nil, AlreadyRedeemed
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
 	r.ExpectedSignTime = block.Timestamp + ExpectedSignTimeDelay
 	SaveUTXORecord(ctx, *r)
-	logs = append(logs, buildRedeemLog(r.Txid, index, r.CovenantAddr, types.FromLostAndFound))
-	return nil, true
+	l := buildRedeemLog(r.Txid, index, r.CovenantAddr, types.FromLostAndFound)
+	return &l, nil
 }
 
 func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value *uint256.Int) error {
@@ -511,48 +518,41 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 		copy(eventHash[:], l.Topics[0].Bytes())
 		switch eventHash {
 		case HashOfEventRedeem:
-			redeemOp := modbtypes.RedeemOp{
-				CovenantAddr: [20]byte{},
-				SourceType:   0,
-			}
+			redeemOp := modbtypes.RedeemOp{}
 			copy(redeemOp.UtxoId[:32], l.Topics[1][:])
 			binary.BigEndian.PutUint32(redeemOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
-			redeemOp.CovenantAddr = common.BytesToAddress(l.Topics[2][:])
+			redeemOp.CovenantAddr = common.BytesToAddress(l.Topics[3][:])
 			redeemOp.SourceType = byte(uint256.NewInt(0).SetBytes32(l.Data).Uint64())
 			opList.RedeemOps = append(opList.RedeemOps, redeemOp)
 		case HashOfEventNewRedeemable:
-			newRedeemableOp := modbtypes.NewRedeemableOp{
-				UtxoId:       [36]byte{},
-				CovenantAddr: [20]byte{},
-			}
+			newRedeemableOp := modbtypes.NewRedeemableOp{}
 			copy(newRedeemableOp.UtxoId[:32], l.Topics[1][:])
 			binary.BigEndian.PutUint32(newRedeemableOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
-			newRedeemableOp.CovenantAddr = common.BytesToAddress(l.Topics[2][:])
+			newRedeemableOp.CovenantAddr = common.BytesToAddress(l.Topics[3][:])
 			opList.NewRedeemableOps = append(opList.NewRedeemableOps, newRedeemableOp)
 		case HashOfEventNewLostAndFound:
-			newLostAndFoundOp := modbtypes.NewLostAndFoundOp{
-				UtxoId:       [36]byte{},
-				CovenantAddr: [20]byte{},
-			}
+			newLostAndFoundOp := modbtypes.NewLostAndFoundOp{}
 			copy(newLostAndFoundOp.UtxoId[:32], l.Topics[1][:])
 			binary.BigEndian.PutUint32(newLostAndFoundOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
-			newLostAndFoundOp.CovenantAddr = common.BytesToAddress(l.Topics[2][:])
+			newLostAndFoundOp.CovenantAddr = common.BytesToAddress(l.Topics[3][:])
 			opList.NewLostAndFoundOps = append(opList.NewLostAndFoundOps, newLostAndFoundOp)
 		case HashOfEventConvert:
+			newConvertOp := modbtypes.ConvertOp{}
+			copy(newConvertOp.PrevUtxoId[:32], l.Topics[1][:])
+			binary.BigEndian.PutUint32(newConvertOp.PrevUtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
+			newConvertOp.OldCovenantAddr = common.BytesToAddress(l.Topics[3][:])
+			copy(newConvertOp.UtxoId[:32], l.Data[:32])
+			binary.BigEndian.PutUint32(newConvertOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Data[32:64]).Uint64()))
+			newConvertOp.NewCovenantAddr = common.BytesToAddress(l.Data[64:])
+			opList.ConvertOps = append(opList.ConvertOps, newConvertOp)
 		case HashOfEventChangeAddr:
-			newChangeAddrOp := modbtypes.ChangeAddrOp{
-				PrevUtxoId:      [36]byte{},
-				UtxoId:          [36]byte{},
-				OldCovenantAddr: [20]byte{},
-				NewCovenantAddr: [20]byte{},
-			}
-			opList.ChangeAddrOps = append(opList.ChangeAddrOps, newChangeAddrOp)
+			// todo: need to notify modb to handover all redeemable tx
 		case HashOfEventDeleted:
-			newDeleteOp := modbtypes.DeletedOp{
-				UtxoId:       [36]byte{},
-				CovenantAddr: [20]byte{},
-				SourceType:   0,
-			}
+			newDeleteOp := modbtypes.DeletedOp{}
+			copy(newDeleteOp.UtxoId[:32], l.Topics[1][:])
+			binary.BigEndian.PutUint32(newDeleteOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
+			newDeleteOp.CovenantAddr = common.BytesToAddress(l.Topics[3][:])
+			newDeleteOp.SourceType = byte(uint256.NewInt(0).SetBytes32(l.Data).Uint64())
 			opList.DeletedOps = append(opList.DeletedOps, newDeleteOp)
 		default:
 			continue

@@ -381,14 +381,17 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 			continue
 		}
 		heightInfo := <-watcher.CcContractExecutor.StartUTXOCollect
+		watcher.CcContractExecutor.Lock.Lock()
 		beginBlockHeight = heightInfo.BeginHeight
 		endBlockHeight = heightInfo.EndHeight
+		watcher.CcContractExecutor.Infos = nil
 		var infos []*cctypes.CCTransferInfo
 		blocks := watcher.getBCHBlocks(beginBlockHeight, endBlockHeight)
 		for _, bi := range blocks {
 			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
 		}
-		watcher.CcContractExecutor.UTXOCollectDone <- infos
+		watcher.CcContractExecutor.Infos = infos
+		watcher.CcContractExecutor.Lock.Unlock()
 	}
 }
 
@@ -414,7 +417,7 @@ func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*ty
 		}
 	}
 	wg.Wait()
-	blocks = make([]*types.BlockInfo, num)
+	blocks = make([]*types.BlockInfo, 0, num)
 	for i := startHeight + 1; i <= endHeight; i++ {
 		blocks = append(blocks, blkMap[i])
 	}

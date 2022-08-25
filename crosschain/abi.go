@@ -18,7 +18,7 @@ contract CC {
     event NewLostAndFound(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr);
     event Redeem(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr, uint8 sourceType);
     event ChangeAddr(address indexed oldCovenantAddr, address indexed newCovenantAddr);
-    event Convert(uint256 indexed prevTxid, uint32 indexed prevVout, address indexed newCovenantAddr, uint256 txid, uint32 vout);
+    event Convert(uint256 indexed prevTxid, uint32 indexed prevVout, address indexed oldCovenantAddr, uint256 txid, uint32 vout, address newCovenantAddr);
     event Deleted(uint256 indexed txid, uint32 indexed vout, address indexed covenantAddr, uint8 sourceType);
 
     function redeem(uint256 txid, uint256 index, address targetAddress) external {}

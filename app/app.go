@@ -236,9 +236,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set cc------*/
-	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
-	ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
-
+	var ccExecutor *crosschain.CcContractExecutor
+	if ctx.IsShaGateFork() {
+		ccExecutor = crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
+		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+	}
 	/*------set watcher------*/
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
 	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), app.historyStore, lastEpochEndHeight, stakingInfo.CurrEpochNum, app.config)
@@ -757,6 +759,13 @@ func (app *App) refresh() (appHash []byte) {
 	mGP := staking.LoadMinGasPrice(ctx, false) // load current block's gas price
 	staking.SaveMinGasPrice(ctx, mGP, true)    // save it as last block's gas price
 	app.lastMinGasPrice = mGP
+	if ctx.IsShaGateFork() {
+		ccExecutor := ebp.PredefinedContractManager[crosschain.CCContractAddress]
+		if ccExecutor == nil {
+			ccExecutor = crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
+			ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+		}
+	}
 	ctx.Close(true)
 
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
