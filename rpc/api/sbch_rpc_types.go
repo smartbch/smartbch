@@ -1,8 +1,6 @@
 package api
 
 import (
-	"math/big"
-
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
@@ -262,7 +260,8 @@ type UtxoInfo struct {
 	ExpectedSignTime int64           `json:"expected_sign_time"`
 	Txid             gethcmn.Hash    `json:"txid"`
 	Index            uint32          `json:"index"`
-	Amount           *hexutil.Big    `json:"amount"`
+	Amount           hexutil.Uint64  `json:"amount"` // in satoshi
+	TxSigHash        hexutil.Bytes   `json:"tx_sig_hash"`
 }
 
 func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*UtxoInfo {
@@ -282,6 +281,11 @@ func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
 		ExpectedSignTime: utxoRecord.ExpectedSignTime,
 		Txid:             utxoRecord.Txid,
 		Index:            utxoRecord.Index,
-		Amount:           (*hexutil.Big)(big.NewInt(0).SetBytes(utxoRecord.Amount[:])),
+		Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
 	}
+}
+
+func getUtxoAmtInSatoshi(utxoRecord *cctypes.UTXORecord) uint64 {
+	amtWei := uint256.NewInt(0).SetBytes32(utxoRecord.Amount[:])
+	return amtWei.Div(amtWei, uint256.NewInt(1e10)).Uint64()
 }

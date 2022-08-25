@@ -96,6 +96,21 @@ func Test_BuildRedeemByUserUnlockingScript(t *testing.T) {
 		sigScript)
 }
 
+func Test_RedeemByUserTxSigHash(t *testing.T) {
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	require.NoError(t, err)
+
+	txid := HexToBytes("c70ae4cd69afad7ac025c719055e2eefe18e3942259c2882d7afb0c39ae339ef")
+	vout := uint32(0)
+	inAmt := int64(10000)
+	toAddr := "bchtest:qzvu0c953gzu6cpykgkdfy8uacc255wcvgmp7ekj7y"
+
+	_, sigHash, err := c.GetRedeemByUserTxSigHash(txid, vout, inAmt, toAddr)
+	require.NoError(t, err)
+	require.Equal(t, "6815f65e27fed6a5a948d534d068fcdb9cf10e0f7d027f420d2afb15aacd2d04",
+		hex.EncodeToString(sigHash))
+}
+
 func Test_RedeemByUserTx(t *testing.T) {
 	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
@@ -104,7 +119,6 @@ func Test_RedeemByUserTx(t *testing.T) {
 	vout := uint32(0)
 	inAmt := int64(10000)
 	toAddr := "bchtest:qzvu0c953gzu6cpykgkdfy8uacc255wcvgmp7ekj7y"
-	//outAmt := int64(8000) // gasFee = 2000
 
 	unsignedTx, sigHash, err := c.GetRedeemByUserTxSigHash(txid, vout, inAmt, toAddr)
 	require.NoError(t, err)
@@ -117,7 +131,6 @@ func Test_RedeemByUserTx(t *testing.T) {
 		sigs = append(sigs, sig)
 	}
 
-	//pkh := HexToBytes("99c7e0b48a05cd6024b22cd490fcee30aa51d862")
 	rawTx, err := c.FinishRedeemByUserTx(unsignedTx, sigs)
 	require.NoError(t, err)
 	println("rawTx:", rawTx)

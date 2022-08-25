@@ -43,7 +43,7 @@ type SbchAPI interface {
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
-	GetRedeemingTxSigHashesForOperators() ([]hexutil.Bytes, error)
+	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
 }
 
 type sbchAPI struct {
@@ -313,7 +313,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
 	return utxoInfos
 }
 
-func (sbch sbchAPI) GetRedeemingTxSigHashesForOperators() ([]hexutil.Bytes, error) {
+func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
 	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorPubkeys)
 	if err != nil {
@@ -328,15 +328,17 @@ func (sbch sbchAPI) GetRedeemingTxSigHashesForOperators() ([]hexutil.Bytes, erro
 	currTS := currBlock.Timestamp
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 
-	var sigHashes []hexutil.Bytes
+	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		if utxoRecord.ExpectedSignTime > currTS {
 			continue
 		}
 
+		utxoInfo := castUtxoRecord(utxoRecord)
+		amt := utxoInfo.Amount
 		txid := utxoRecord.Txid[:]
 		vout := utxoRecord.Index
-		amt := big.NewInt(0).SetBytes(utxoRecord.Amount[:]).Int64() // TODO: div by 10^10 ?
+
 		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], &chaincfg.MainNetParams)
 		if err != nil {
 			sbch.logger.Error("failed to derive BCH address", "err", err)
@@ -344,13 +346,15 @@ func (sbch sbchAPI) GetRedeemingTxSigHashesForOperators() ([]hexutil.Bytes, erro
 		}
 
 		toAddr := addr.EncodeAddress()
-		_, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, amt, toAddr)
+		_, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
 		if err != nil {
 			sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
 			continue
 		}
 
-		sigHashes = append(sigHashes, sigHash)
+		utxoInfo.TxSigHash = sigHash
+		utxoInfos = append(utxoInfos, utxoInfo)
 	}
-	return sigHashes, err
+
+	return utxoInfos, err
 }
