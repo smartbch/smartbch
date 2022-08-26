@@ -453,6 +453,14 @@ func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
 	return backend.app.GetBlockForSync(height)
 }
 
+func (backend *apiBackend) IsCrossChainPaused() bool {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	ccCtx := crosschain.LoadCCContext(ctx)
+	return ccCtx == nil || ccCtx.IsPaused
+}
+
 func (backend *apiBackend) GetRedeemingUTXOs() []*cctypes.UTXORecord {
 	utxoIds := backend.app.GetRedeemingUtxoIds()
 

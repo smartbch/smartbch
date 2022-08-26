@@ -308,20 +308,28 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 }
 
 func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
+	sbch.logger.Debug("sbch_getRedeemingUtxosForMonitors")
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	return utxoInfos
 }
 
 func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
+	sbch.logger.Debug("sbch_getRedeemingUtxosForOperators")
+	if sbch.backend.IsCrossChainPaused() {
+		return nil, nil
+	}
+
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
 	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorPubkeys)
 	if err != nil {
+		sbch.logger.Error("failed to create CcCovenant", "err", err.Error())
 		return nil, err
 	}
 
 	currBlock, err := sbch.backend.CurrentBlock()
 	if err != nil {
+		sbch.logger.Info("failed to get current block", "err", err.Error())
 		return nil, err
 	}
 
