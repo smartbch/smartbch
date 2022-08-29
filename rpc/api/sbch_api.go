@@ -42,6 +42,7 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
+	GetCcCovenantInfo() CcCovenantInfo
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
 }
@@ -305,6 +306,23 @@ func (sbch sbchAPI) ValidatorsInfo() json.RawMessage {
 func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	sbch.logger.Debug("sbch_getSyncBlock")
 	return sbch.backend.GetSyncBlock(int64(height))
+}
+
+func (sbch sbchAPI) GetCcCovenantInfo() CcCovenantInfo {
+	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
+	cccInfo := CcCovenantInfo{
+		OperatorPubkeys: make([]hexutil.Bytes, len(operatorPubkeys)),
+		MonitorPubkeys:  make([]hexutil.Bytes, len(monitorPubkeys)),
+	}
+
+	for i, operatorPubkey := range operatorPubkeys {
+		cccInfo.OperatorPubkeys[i] = operatorPubkey
+	}
+	for i, monitorPubkey := range monitorPubkeys {
+		cccInfo.MonitorPubkeys[i] = monitorPubkey
+	}
+
+	return cccInfo
 }
 
 func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {

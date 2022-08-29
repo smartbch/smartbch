@@ -252,6 +252,11 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 
 // Cross Chain
 
+type CcCovenantInfo struct {
+	OperatorPubkeys []hexutil.Bytes `json:"operator_pubkeys"`
+	MonitorPubkeys  []hexutil.Bytes `json:"monitor_pubkeys"`
+}
+
 type UtxoInfo struct {
 	OwnerOfLost      gethcmn.Address `json:"owner_of_lost"`
 	CovenantAddr     gethcmn.Address `json:"covenant_addr"`
