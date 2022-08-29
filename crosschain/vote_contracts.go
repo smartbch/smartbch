@@ -77,6 +77,9 @@ type OperatorInfo struct {
 	electedFlag bool
 }
 
+func GetOperatorInfos(ctx *mevmtypes.Context) (result []OperatorInfo) {
+	return ReadOperatorInfos(ctx, OperatorsGovSeq)
+}
 func ReadOperatorInfos(ctx *mevmtypes.Context, seq uint64) (result []OperatorInfo) {
 	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
@@ -248,6 +251,9 @@ type MonitorInfo struct {
 	nominatedCount int64
 }
 
+func GetMonitorInfos(ctx *mevmtypes.Context) []MonitorInfo {
+	return ReadMonitorInfos(ctx, MonitorsGovSeq)
+}
 func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo) {
 	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))

@@ -461,6 +461,19 @@ func (backend *apiBackend) IsCrossChainPaused() bool {
 	return ccCtx == nil || ccCtx.IsPaused
 }
 
+func (backend *apiBackend) GetAllOperatorsInfo() []crosschain.OperatorInfo {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	return crosschain.GetOperatorInfos(ctx)
+}
+func (backend *apiBackend) GetAllMonitorsInfo() []crosschain.MonitorInfo {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	return crosschain.GetMonitorInfos(ctx)
+}
+
 func (backend *apiBackend) GetRedeemingUTXOs() []*cctypes.UTXORecord {
 	utxoIds := backend.app.GetRedeemingUtxoIds()
 

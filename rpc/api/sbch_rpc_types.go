@@ -252,6 +252,19 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 
 // Cross Chain
 
+type OperatorInfo struct {
+	Address gethcmn.Address `json:"address"`
+	Pubkey  hexutil.Bytes   `json:"pubkey"`
+	RpcUrl  string          `json:"rpc_url"`
+	Intro   string          `json:"intro"`
+}
+
+type MonitorInfo struct {
+	Address gethcmn.Address `json:"address"`
+	Pubkey  hexutil.Bytes   `json:"pubkey"`
+	Intro   string          `json:"intro"`
+}
+
 type CcCovenantInfo struct {
 	OperatorPubkeys []hexutil.Bytes `json:"operator_pubkeys"`
 	MonitorPubkeys  []hexutil.Bytes `json:"monitor_pubkeys"`

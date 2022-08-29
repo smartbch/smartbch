@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -42,6 +43,8 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
+	GetOperators() []OperatorInfo
+	GetMonitors() []MonitorInfo
 	GetCcCovenantInfo() CcCovenantInfo
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
@@ -309,6 +312,7 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 }
 
 func (sbch sbchAPI) GetCcCovenantInfo() CcCovenantInfo {
+	sbch.logger.Debug("sbch_getCcCovenantInfo")
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
 	cccInfo := CcCovenantInfo{
 		OperatorPubkeys: make([]hexutil.Bytes, len(operatorPubkeys)),
@@ -323,6 +327,43 @@ func (sbch sbchAPI) GetCcCovenantInfo() CcCovenantInfo {
 	}
 
 	return cccInfo
+}
+
+func (sbch sbchAPI) GetOperators() []OperatorInfo {
+	sbch.logger.Debug("sbch_getOperators")
+	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
+
+	var operators []OperatorInfo
+	for _, operatorInfo := range allOperatorsInfo {
+		if operatorInfo.ElectedTime.Uint64() > 0 {
+			operators = append(operators, OperatorInfo{
+				Address: operatorInfo.Addr,
+				Pubkey:  operatorInfo.Pubkey,
+				RpcUrl:  string(bytes.TrimLeft(operatorInfo.RpcUrl, string([]byte{0}))),
+				Intro:   string(bytes.TrimLeft(operatorInfo.Intro, string([]byte{0}))),
+			})
+		}
+	}
+
+	return operators
+}
+
+func (sbch sbchAPI) GetMonitors() []MonitorInfo {
+	sbch.logger.Debug("sbch_getMonitors")
+	allMonitorsInfo := sbch.backend.GetAllMonitorsInfo()
+
+	var monitors []MonitorInfo
+	for _, monitorInfo := range allMonitorsInfo {
+		if monitorInfo.ElectedTime.Uint64() > 0 {
+			monitors = append(monitors, MonitorInfo{
+				Address: monitorInfo.Addr,
+				Pubkey:  monitorInfo.Pubkey,
+				Intro:   string(bytes.TrimLeft(monitorInfo.Intro, string([]byte{0}))),
+			})
+		}
+	}
+
+	return monitors
 }
 
 func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
