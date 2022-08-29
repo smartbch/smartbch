@@ -31,12 +31,13 @@ var (
 	MaxCCAmount           uint64 = 1000
 	MinCCAmount           uint64 = 1
 	MinPendingBurningLeft uint64 = 10
+	RedeemDelay           int64  = 24 * 60 * 60
 )
 
 var (
-	//contract address, 9999
+	//contract address, 10004
 	//todo: transfer remain BCH to this address before working
-	CCContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x09}
+	CCContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x14}
 
 	BurnAddressMainChain = common.HexToAddress("04df9d9fede348a5f82337ce87a829be2200aed6")
 
@@ -75,6 +76,7 @@ var (
 	UTXONotExist            = errors.New("utxo not exist")
 	AmountNotMatch          = errors.New("redeem amount not match")
 	AlreadyRedeemed         = errors.New("already redeemed")
+	NotTimeToRedeem         = errors.New("not time to redeem")
 	NotLostAndFound         = errors.New("not lost and found utxo")
 	NotLoser                = errors.New("not loser")
 	CCPaused                = errors.New("cc paused now")
@@ -290,7 +292,7 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		outData = []byte(UTXOAlreadyHandled.Error())
 		return
 	}
-	newLogs, err := c.handleTransferInfos(ctx, context)
+	newLogs, err := c.handleTransferInfos(ctx, currBlock, context)
 	if err != nil {
 		outData = []byte(err.Error())
 		return
@@ -301,20 +303,20 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 	return
 }
 
-func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog, err error) {
+func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog, err error) {
 	context.UTXOAlreadyHandled = true
 	c.Lock.RLock()
 	defer c.Lock.RUnlock()
 	for _, info := range c.Infos {
 		switch info.Type {
 		case types.TransferType:
-			transferLogs, err := handleTransferTypeUTXO(ctx, context, info)
+			transferLogs, err := handleTransferTypeUTXO(ctx, context, block, info)
 			if err != nil {
 				return nil, err
 			}
 			logs = append(logs, transferLogs...)
 		case types.ConvertType:
-			convertLogs, err := handleConvertTypeUTXO(ctx, context, info)
+			convertLogs, err := handleConvertTypeUTXO(ctx, context, block, info)
 			if err != nil {
 				return nil, err
 			}
@@ -327,7 +329,7 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, context
 	return logs, nil
 }
 
-func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
+func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
 	r := types.UTXORecord{
 		Txid:   info.UTXO.TxID,
 		Index:  info.UTXO.Index,
@@ -372,6 +374,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 		}
 		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}, nil
 	}
+	r.BornTime = block.Timestamp
 	SaveUTXORecord(ctx, r)
 	err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
 	if err != nil {
@@ -380,7 +383,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, in
 	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}, nil
 }
 
-func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
+func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	if r == nil {
 		return nil, nil
@@ -410,6 +413,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 		Amount:       newAmount.Bytes32(),
 		CovenantAddr: info.CovenantAddress,
 	}
+	newR.BornTime = block.Timestamp
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}, nil
@@ -453,6 +457,9 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	}
 	if r.IsRedeemed {
 		return nil, AlreadyRedeemed
+	}
+	if r.BornTime == 0 || r.BornTime+RedeemDelay >= block.Timestamp {
+		return nil, NotTimeToRedeem
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress

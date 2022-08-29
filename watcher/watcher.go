@@ -395,9 +395,11 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 	}
 }
 
+// (startHeight, endHeight]
 func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
 	num := endHeight - startHeight
 	blkMap := make(map[int64]*types.BlockInfo, num)
+	var lock sync.Mutex
 	step := num / 10
 	start := startHeight
 	end := start + step
@@ -406,7 +408,10 @@ func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*ty
 	for i := 0; i < 10; i++ {
 		go func(s, e int64) {
 			for i := s + 1; i <= end; i++ {
-				blkMap[i] = watcher.rpcClient.GetBlockInfoByHeight(startHeight, true)
+				blk := watcher.rpcClient.GetBlockInfoByHeight(i, true)
+				lock.Lock()
+				blkMap[i] = blk
+				lock.Unlock()
 			}
 			wg.Done()
 		}(start, end)

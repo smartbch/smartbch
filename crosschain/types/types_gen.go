@@ -1365,6 +1365,12 @@ func (z *UTXORecord) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "Amount")
 				return
 			}
+		case "BornTime":
+			z.BornTime, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "BornTime")
+				return
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -1378,9 +1384,9 @@ func (z *UTXORecord) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *UTXORecord) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 8
+	// map header, size 9
 	// write "OwnerOfLost"
-	err = en.Append(0x88, 0xab, 0x4f, 0x77, 0x6e, 0x65, 0x72, 0x4f, 0x66, 0x4c, 0x6f, 0x73, 0x74)
+	err = en.Append(0x89, 0xab, 0x4f, 0x77, 0x6e, 0x65, 0x72, 0x4f, 0x66, 0x4c, 0x6f, 0x73, 0x74)
 	if err != nil {
 		return
 	}
@@ -1459,15 +1465,25 @@ func (z *UTXORecord) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "Amount")
 		return
 	}
+	// write "BornTime"
+	err = en.Append(0xa8, 0x42, 0x6f, 0x72, 0x6e, 0x54, 0x69, 0x6d, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.BornTime)
+	if err != nil {
+		err = msgp.WrapError(err, "BornTime")
+		return
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *UTXORecord) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 8
+	// map header, size 9
 	// string "OwnerOfLost"
-	o = append(o, 0x88, 0xab, 0x4f, 0x77, 0x6e, 0x65, 0x72, 0x4f, 0x66, 0x4c, 0x6f, 0x73, 0x74)
+	o = append(o, 0x89, 0xab, 0x4f, 0x77, 0x6e, 0x65, 0x72, 0x4f, 0x66, 0x4c, 0x6f, 0x73, 0x74)
 	o = msgp.AppendBytes(o, (z.OwnerOfLost)[:])
 	// string "CovenantAddr"
 	o = append(o, 0xac, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72)
@@ -1490,6 +1506,9 @@ func (z *UTXORecord) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "Amount"
 	o = append(o, 0xa6, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
 	o = msgp.AppendBytes(o, (z.Amount)[:])
+	// string "BornTime"
+	o = append(o, 0xa8, 0x42, 0x6f, 0x72, 0x6e, 0x54, 0x69, 0x6d, 0x65)
+	o = msgp.AppendInt64(o, z.BornTime)
 	return
 }
 
@@ -1559,6 +1578,12 @@ func (z *UTXORecord) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "Amount")
 				return
 			}
+		case "BornTime":
+			z.BornTime, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "BornTime")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -1573,7 +1598,7 @@ func (z *UTXORecord) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *UTXORecord) Msgsize() (s int) {
-	s = 1 + 12 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 11 + msgp.BoolSize + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.Int64Size + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint32Size + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize))
+	s = 1 + 12 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 11 + msgp.BoolSize + 13 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.Int64Size + 5 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 6 + msgp.Uint32Size + 7 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 9 + msgp.Int64Size
 	return
 }
 

@@ -209,3 +209,17 @@ func TestEpochSort(t *testing.T) {
 		i++
 	}
 }
+
+func TestGetBCHBlocks(t *testing.T) {
+	w := Watcher{}
+	c := MockClient{BlockInfos: make(map[int64]*types.BlockInfo)}
+	w.rpcClient = c
+	for i := int64(0); i < 100; i++ {
+		c.SetBlockInfoByHeight(i, &types.BlockInfo{Height: i})
+	}
+	blks := w.getBCHBlocks(0, 30)
+	require.Equal(t, 30, len(blks))
+	for k, blk := range blks {
+		require.Equal(t, int64(k+1), blk.Height)
+	}
+}

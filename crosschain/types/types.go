@@ -38,6 +38,7 @@ type UTXORecord struct {
 	Txid             [32]byte `msgp:"txid"`
 	Index            uint32   `msgp:"index"`
 	Amount           [32]byte `msgp:"amount"`
+	BornTime         int64    `msgp:"born_time"`
 }
 
 type CCContext struct {

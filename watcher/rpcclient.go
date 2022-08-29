@@ -346,3 +346,30 @@ func (client *RpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
 func (client *RpcClient) GetTxInfo(hash string, blockhash string) (*types.TxInfo, error) {
 	return client.getTx(hash, blockhash)
 }
+
+type MockClient struct {
+	BlockInfos map[int64]*types.BlockInfo
+}
+
+func (m MockClient) GetLatestHeight(retry bool) int64 {
+	return 0
+}
+
+func (m MockClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
+	return nil
+}
+
+func (m MockClient) GetVoteInfoByEpochNumber(start, end uint64) []*types.VoteInfo {
+	return nil
+}
+
+func (m MockClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
+	if info, ok := m.BlockInfos[height]; ok {
+		return info
+	}
+	return &types.BlockInfo{}
+}
+
+func (m *MockClient) SetBlockInfoByHeight(height int64, info *types.BlockInfo) {
+	m.BlockInfos[height] = info
+}

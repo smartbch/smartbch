@@ -24,7 +24,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.4.2
-	github.com/smartbch/moeingdb v0.4.4-0.20220825040913-e9ad2db4114c
+	github.com/smartbch/moeingdb v0.4.4-0.20220829014150-b40b1c47846a
 	github.com/smartbch/moeingevm v0.4.2-0.20220509120345-27a3d288346f
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect

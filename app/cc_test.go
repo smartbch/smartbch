@@ -17,33 +17,6 @@ import (
 	"testing"
 )
 
-type MockClient struct {
-	BlockInfos map[int64]*watchertypes.BlockInfo
-}
-
-func (m MockClient) GetLatestHeight(retry bool) int64 {
-	return 0
-}
-
-func (m MockClient) GetBlockByHeight(height int64, retry bool) *watchertypes.BCHBlock {
-	return nil
-}
-
-func (m MockClient) GetVoteInfoByEpochNumber(start, end uint64) []*watchertypes.VoteInfo {
-	return nil
-}
-
-func (m MockClient) GetBlockInfoByHeight(height int64, retry bool) *watchertypes.BlockInfo {
-	if info, ok := m.BlockInfos[height]; ok {
-		return info
-	}
-	return &watchertypes.BlockInfo{}
-}
-
-func (m *MockClient) SetBlockInfoByHeight(height int64, info *watchertypes.BlockInfo) {
-	m.BlockInfos[height] = info
-}
-
 var ABI = ethutils.MustParseABI(`
 [
 	{
@@ -314,7 +287,7 @@ func TestCC(t *testing.T) {
 	// self define watcher
 	w := watcher.NewWatcher(log.NewNopLogger(), _app.HistoryStore(), param.EpochStartHeightForCC+1, 0, param.DefaultConfig())
 	w.SetCCExecutor(executor)
-	mockRpc := MockClient{make(map[int64]*watchertypes.BlockInfo)}
+	mockRpc := watcher.MockClient{BlockInfos: make(map[int64]*watchertypes.BlockInfo)}
 	w.SetRpcClient(mockRpc)
 	// tx params
 	txid := uint256.NewInt(100)
@@ -365,9 +338,6 @@ func TestCC(t *testing.T) {
 	// call handleUTXO
 	txData := PackHandleUTXOsFunc()
 	tx, _ := _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
-	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.PendingBurningNotEnough.Error())
-
-	txData = PackHandleUTXOsFunc()
 	_app.EnsureTxSuccess(tx.Hash())
 
 	ids := _app.HistoryStore().GetAllUtxoIds()
@@ -427,7 +397,7 @@ func TestCC(t *testing.T) {
 		},
 		{
 			Type: types.RedeemOrLostAndFoundType,
-			UTXO: types.UTXO{
+			PrevUTXO: types.UTXO{
 				TxID:   txid.Bytes32(),
 				Index:  uint32(index.Uint64()),
 				Amount: value.Bytes32(),
@@ -452,20 +422,25 @@ func TestCC(t *testing.T) {
 	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.PendingBurningNotEnough.Error())
 
 	// increase enough pending burning
+	ctx = _app.GetRunTxContext()
+	blackHoleContractAddress := [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		byte('b'), byte('l'), byte('a'), byte('c'), byte('k'), byte('h'), byte('o'), byte('l'), byte('e')}
+	blackAcc := ctx.GetAccount(blackHoleContractAddress)
+	blackBalance := uint256.NewInt(1000)
+	blackAcc.UpdateBalance(blackBalance)
+	ctx.SetAccount(blackHoleContractAddress, blackAcc)
+	ctx.Close(true)
+	// test convert and delete redeeming
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxSuccess(tx.Hash())
 	ids = _app.HistoryStore().GetAllUtxoIds()
-	require.Equal(t, 2, len(ids))
-	require.Equal(t, txid.Uint64(), uint256.NewInt(0).SetBytes(ids[0][:32]).Uint64())
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, txid2.Uint64(), uint256.NewInt(0).SetBytes(ids[0][:32]).Uint64())
 	redeemableUtxos = _app.HistoryStore().GetRedeemableUtxoIds()
-	require.Equal(t, 1, len(redeemableUtxos))
-	//require.Equal(t, txid2.Uint64(), uint256.NewInt(0).SetBytes(redeemableUtxos[0][:32]).Uint64())
-	redeemingU = _app.HistoryStore().GetRedeemingUtxoIds()
-	require.Equal(t, 1, len(redeemingU))
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, txid2.Uint64(), uint256.NewInt(0).SetBytes(redeemableUtxos[0][:32]).Uint64())
 	ctx = _app.GetRunTxContext()
-	aliceBalance, _ = ctx.GetBalance(alice)
-	require.Equal(t, value1.Uint64(), aliceBalance.Uint64())
-	ccBalance, _ = ctx.GetBalance(crosschain.CCContractAddress)
-	require.Equal(t, ccOriginValue.Uint64()-value1.Uint64(), ccBalance.Uint64())
+	ccC := crosschain.LoadCCContext(ctx)
+	require.Equal(t, value1.Uint64()-value2.Uint64(), uint256.NewInt(0).SetBytes32(ccC.TotalBurntOnMainChain[:]).Uint64())
 	ctx.Close(false)
 }

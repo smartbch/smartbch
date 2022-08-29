@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingdb/types"
 	"strings"
@@ -111,6 +112,7 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(1e10)).Bytes32()
 				copy(info.UTXO.TxID[:], ti.Hash)
 				info.UTXO.Index = uint32(n)
+				info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
 				maybeConvertTx = true
 				break
 			}
