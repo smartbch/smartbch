@@ -1,6 +1,7 @@
 package crosschain
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -182,7 +183,7 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 			Amount: amount,
 		},
 	}
-	logs, _ := handleConvertTypeUTXO(ctx, &context, &info)
+	logs, _ := handleConvertTypeUTXO(ctx, &context, nil, &info)
 	loadRecord := LoadUTXORecord(ctx, txid, vout)
 	require.Equal(t, vout, loadRecord.Index)
 	loadRecord = LoadUTXORecord(ctx, prevTxid, prevVout)
@@ -290,5 +291,13 @@ func TestHandleOperatorOrMonitorSetChanged(t *testing.T) {
 	executor := CcContractExecutor{
 		Voter: &MockVoteContract{IsM: true},
 	}
-	executor.handleOperatorOrMonitorSetChanged(ctx, &context)
+	executor.handleOperatorOrMonitorSetChanged(ctx, nil, &context)
+}
+
+func TestT(t *testing.T) {
+	sig := "483045022100cef2839f3d9b9a22615d38dd5d762e7d7b770336730e03ec68e363236769099e02206706b893477e324d1f23e73cfd373f27a5699a43dc20ccb784ceb598563277264121"
+	pubkey := "023427fa5ba55fb541c76ff5d20b9d637bd7fcb08327735ce230d614df43c9c36f"
+
+	fmt.Println(len(sig))
+	fmt.Println(len(pubkey))
 }

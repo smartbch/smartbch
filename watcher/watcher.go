@@ -374,19 +374,17 @@ func (watcher *Watcher) ClearOldData() {
 }
 
 func (watcher *Watcher) CollectCCTransferInfos() {
-	var beginBlockHeight, endBlockHeight int64
 	for {
 		if watcher.latestFinalizedHeight < param.EpochStartHeightForCC {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		heightInfo := <-watcher.CcContractExecutor.StartUTXOCollect
+		collectInfo := <-watcher.CcContractExecutor.StartUTXOCollect
 		watcher.CcContractExecutor.Lock.Lock()
-		beginBlockHeight = heightInfo.BeginHeight
-		endBlockHeight = heightInfo.EndHeight
 		watcher.CcContractExecutor.Infos = nil
 		var infos []*cctypes.CCTransferInfo
-		blocks := watcher.getBCHBlocks(beginBlockHeight, endBlockHeight)
+		blocks := watcher.getBCHBlocks(collectInfo.BeginHeight, collectInfo.EndHeight)
+		watcher.txParser.Refresh(collectInfo.PrevCovenantAddress, collectInfo.CurrentCovenantAddress)
 		for _, bi := range blocks {
 			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
 		}

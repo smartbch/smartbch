@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/smartbch/smartbch/staking"
 	"math"
 	"sync"
 
@@ -240,11 +241,15 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	context.RescanHeight = uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
 	context.RescanTime = currBlock.Timestamp
 	context.UTXOAlreadyHandled = false
-	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, context)...)
+	oldPrevCovenantAddr := context.LastCovenantAddr
+	oldCurrCovenantAddr := context.CurrCovenantAddr
+	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, currBlock, context)...)
 	SaveCCContext(ctx, *context)
 	c.StartUTXOCollect <- types.UTXOCollectParam{
-		BeginHeight: int64(context.LastRescannedHeight),
-		EndHeight:   int64(context.RescanHeight),
+		BeginHeight:            int64(context.LastRescannedHeight),
+		EndHeight:              int64(context.RescanHeight),
+		CurrentCovenantAddress: oldCurrCovenantAddr,
+		PrevCovenantAddress:    oldPrevCovenantAddr,
 	}
 	status = StatusSuccess
 	return
@@ -436,7 +441,13 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	}
 }
 
-func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, context *types.CCContext) (logs []mevmtypes.EvmLog) {
+func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
+	// todo
+	stakingInfo := staking.LoadStakingInfo(ctx)
+	currEpochNum := stakingInfo.CurrEpochNum
+	if (currEpochNum-param.EpochStartNumberForCC)%param.OperatorElectionEpochs == 0 {
+		ElectOperators(ctx, currBlock.Timestamp, c.logger)
+	}
 	if !c.Voter.IsOperatorOrMonitorChanged(ctx, context) {
 		return nil
 	}

@@ -1,5 +1,7 @@
 package types
 
+import "github.com/ethereum/go-ethereum/common"
+
 //go:generate msgp
 
 type UTXO struct {
@@ -74,6 +76,8 @@ type Nomination struct {
 }
 
 type UTXOCollectParam struct {
-	BeginHeight int64
-	EndHeight   int64
+	BeginHeight            int64
+	EndHeight              int64
+	CurrentCovenantAddress common.Address
+	PrevCovenantAddress    common.Address
 }

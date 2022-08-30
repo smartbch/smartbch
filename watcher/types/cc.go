@@ -5,11 +5,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/holiman/uint256"
-	"github.com/smartbch/moeingdb/types"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/gcash/bchd/bchec"
+	"github.com/holiman/uint256"
+	"github.com/smartbch/moeingdb/types"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 )
 
@@ -42,29 +44,23 @@ type CcTxParser struct {
 }
 
 func (cc *CcTxParser) GetCCUTXOTransferInfo(bi *BlockInfo) (infos []*cctypes.CCTransferInfo) {
-	cc.refresh(bi.Height)
 	infos = append(infos, cc.findRedeemableTx(bi.Tx)...)
 	infos = append(infos, cc.findConvertTx(bi.Tx)...)
 	infos = append(infos, cc.findRedeemOrLostAndFoundTx(bi.Tx)...)
 	return
 }
 
-func (cc *CcTxParser) refresh(height int64) {
-	var outpointSet map[[32]byte]uint32 /*txid => vout*/
-	//todo: replace with other design
+func (cc *CcTxParser) Refresh(prevCovenantAddr, currCovenantAddr common.Address) {
+	var outpointSet = make(map[[32]byte]uint32 /*txid => vout*/)
 	for _, id := range cc.DB.GetAllUtxoIds() {
 		var txid [32]byte
 		copy(txid[:], id[:32])
 		index := binary.BigEndian.Uint32(id[32:])
 		outpointSet[txid] = index
 	}
-	cc.getParams(height)
-}
-
-func (cc *CcTxParser) getParams(height int64) {
-	//todo: need modb support
-	// db.getCurrentCovenantAddress(mainBlockHeight int64)
-	// db.getPrevCovenantAddress(mainBlockHeight int64)
+	cc.UtxoSet = outpointSet
+	cc.PrevCovenantAddress = prevCovenantAddr.String()
+	cc.CurrentCovenantAddress = currCovenantAddr.String()
 }
 
 func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
@@ -79,7 +75,7 @@ func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransfe
 				continue
 			}
 			if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
-				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(10e8)).Bytes32()
+				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(1e10)).Bytes32()
 				copy(info.UTXO.TxID[:], ti.Hash)
 				info.UTXO.Index = uint32(n)
 				isRedeemableTx = true
@@ -99,37 +95,37 @@ func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransfe
 
 func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
 	for _, ti := range txs {
+		if len(ti.VoutList) != 1 || len(ti.VinList) != 1 {
+			continue
+		}
 		var maybeConvertTx bool
 		var info = cctypes.CCTransferInfo{
 			Type: cctypes.ConvertType,
 		}
-		for n, vOut := range ti.VoutList {
-			script, ok := getPubkeyScript(vOut)
-			if !ok {
-				continue
-			}
-			if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
-				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(1e10)).Bytes32()
-				copy(info.UTXO.TxID[:], ti.Hash)
-				info.UTXO.Index = uint32(n)
-				info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
-				maybeConvertTx = true
-				break
-			}
+		vOut := ti.VoutList[0]
+		script, ok := getPubkeyScript(vOut)
+		if !ok {
+			continue
+		}
+		if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
+			info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(1e10)).Bytes32()
+			copy(info.UTXO.TxID[:], ti.Hash)
+			info.UTXO.Index = uint32(0)
+			info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
+			maybeConvertTx = true
+			break
 		}
 		if maybeConvertTx {
-			for _, vIn := range ti.VinList {
-				txid, vout, err := getSpentTxInfo(vIn)
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				if cc.isCcUXTOSpent(txid, vout) {
-					copy(info.PrevUTXO.TxID[:], txid[:])
-					info.PrevUTXO.Index = vout
-					infos = append(infos, &info)
-					break
-				}
+			txid, vout, err := getSpentTxInfo(ti.VinList[0])
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			if cc.isCcUXTOSpent(txid, vout) {
+				copy(info.PrevUTXO.TxID[:], txid[:])
+				info.PrevUTXO.Index = vout
+				infos = append(infos, &info)
+				break
 			}
 		}
 	}
@@ -138,29 +134,26 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 
 func (cc *CcTxParser) findRedeemOrLostAndFoundTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
 	for _, ti := range txs {
+		if len(ti.VoutList) != 1 || len(ti.VinList) != 1 {
+			continue
+		}
 		var maybeTargetTx bool
 		var info = cctypes.CCTransferInfo{
 			Type: cctypes.RedeemOrLostAndFoundType,
 		}
-		for _, vIn := range ti.VinList {
-			txid, vout, err := getSpentTxInfo(vIn)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			if cc.isCcUXTOSpent(txid, vout) {
-				copy(info.PrevUTXO.TxID[:], txid[:])
-				info.PrevUTXO.Index = vout
-				maybeTargetTx = true
-				break
-			}
+		txid, vout, err := getSpentTxInfo(ti.VinList[0])
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		if cc.isCcUXTOSpent(txid, vout) {
+			copy(info.PrevUTXO.TxID[:], txid[:])
+			info.PrevUTXO.Index = vout
+			maybeTargetTx = true
+			break
 		}
 		if maybeTargetTx {
-			if len(ti.VoutList) != 1 {
-				continue
-			}
-			vOut := ti.VoutList[0]
-			script, ok := getPubkeyScript(vOut)
+			script, ok := getPubkeyScript(ti.VoutList[0])
 			if !ok {
 				continue
 			}
@@ -246,6 +239,9 @@ func findReceiverInOPReturn(script string) ([]byte, bool) {
 		return nil, false
 	}
 	script = script[len(prefix):]
+	if len(script) >= 2 && script[0] == '0' && (script[1] == 'x' || script[1] == 'X') {
+		script = script[2:]
+	}
 	if len(script) != 40 {
 		return nil, false
 	}
@@ -265,9 +261,25 @@ func getP2PKHAddress(vIn map[string]interface{}) ([]byte, bool) {
 	if !ok {
 		return nil, false
 	}
-	if len(scriptSig.Hex) == 25 && strings.HasPrefix(scriptSig.Hex, "76a914") &&
-		scriptSig.Hex[23] == 0x88 && scriptSig.Hex[24] == 0xac {
-		return []byte(scriptSig.Hex[3:23]), true
+	bs, err := hex.DecodeString(scriptSig.Hex)
+	if err != nil {
+		return nil, false
 	}
-	return nil, false
+	// todo: length check first
+	sigLen := bs[0]
+	_, err = bchec.ParseDERSignature(bs[1:sigLen], bchec.S256())
+	if err != nil {
+		return nil, false
+	}
+	pubkeyLen := bs[sigLen]
+	if pubkeyLen != 33 && pubkeyLen != 65 {
+		return nil, false
+	}
+	pubkey := bs[sigLen+1:]
+	// change uncompressed pubkey to compressed
+	if pubkeyLen == 65 {
+		pubkey = bs[:33]
+		pubkey[0] = 0x2
+	}
+	return secp256k1.PubKey(pubkey[:]).Address(), true
 }
