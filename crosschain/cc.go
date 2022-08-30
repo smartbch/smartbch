@@ -3,7 +3,6 @@ package crosschain
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"github.com/smartbch/smartbch/staking"
 	"math"
@@ -24,7 +23,7 @@ const (
 	StatusSuccess int = 0
 	StatusFailed  int = 1
 
-	ccContractSequence uint64 = math.MaxUint64 - 4 /*uint64(-4)*/
+	ccContractSequence uint64 = math.MaxUint64 - 3 /*uint64(-4)*/
 
 	E18 uint64 = 1000_000_000_000_000_000
 )
@@ -41,7 +40,7 @@ var (
 	//todo: transfer remain BCH to this address before working
 	CCContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x14}
 	// main chain burn address legacy format: 1SmartBCHBurnAddressxxxxxxy31qJGb
-	BurnAddressMainChain = "04df9d9fede348a5f82337ce87a829be2200aed6"
+	BurnAddressMainChain = []byte("\x04\xdf\x9d\x9f\xed\xe3\x48\xa5\xf8\x23\x37\xce\x87\xa8\x29\xbe\x22\x00\xae\xd6")
 
 	/*------selector------*/
 	SelectorRedeem      [4]byte = [4]byte{0x04, 0x91, 0x04, 0xe5}
@@ -383,13 +382,9 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		context.TotalBurntOnMainChain = totalBurnt.Bytes32()
 
 		r.IsRedeemed = true
-		burnAddressMainChain, err := hex.DecodeString(BurnAddressMainChain)
-		if err != nil || len(burnAddressMainChain) != 20 {
-			panic("burn address on main chain parse failed")
-		}
-		copy(r.RedeemTarget[:], burnAddressMainChain)
+		copy(r.RedeemTarget[:], BurnAddressMainChain)
 		SaveUTXORecord(ctx, r)
-		err = transferBch(ctx, CCContractAddress, info.Receiver, amount)
+		err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
 		if err != nil {
 			panic(err)
 		}
