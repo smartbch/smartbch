@@ -12,8 +12,6 @@ const (
 	Identifier = "73424348" // ascii code for 'sBCH'
 	Validator  = "00"
 	Monitor    = "01"
-
-	ShaGateAddress = "14f8c7e99fd4e867c34cbd5968e35575fd5919a4"
 )
 
 // These functions must be provided by a client connecting to a Bitcoin Cash's fullnode

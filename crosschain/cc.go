@@ -3,6 +3,7 @@ package crosschain
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"github.com/smartbch/smartbch/staking"
 	"math"
@@ -39,8 +40,8 @@ var (
 	//contract address, 10004
 	//todo: transfer remain BCH to this address before working
 	CCContractAddress [20]byte = [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x27, 0x14}
-
-	BurnAddressMainChain = common.HexToAddress("04df9d9fede348a5f82337ce87a829be2200aed6")
+	// main chain burn address legacy format: 1SmartBCHBurnAddressxxxxxxy31qJGb
+	BurnAddressMainChain = "04df9d9fede348a5f82337ce87a829be2200aed6"
 
 	/*------selector------*/
 	SelectorRedeem      [4]byte = [4]byte{0x04, 0x91, 0x04, 0xe5}
@@ -217,7 +218,6 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 
 // startRescan(uint mainFinalizedBlockHeight) onlyMonitor
 func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
-	//todo: add protect scheme to avoid monitor wrong call
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	callData := tx.Data[4:]
@@ -236,6 +236,18 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	if context.IsPaused {
 		outData = []byte(CCPaused.Error())
 		return
+	}
+	if context.RescanTime+UTXOHandleDelay > currBlock.Timestamp {
+		outData = []byte(RescanNotFinish.Error())
+		return
+	}
+	if !context.UTXOAlreadyHandled {
+		newLogs, err := c.handleTransferInfos(ctx, currBlock, context)
+		if err != nil {
+			outData = []byte(err.Error())
+			return
+		}
+		logs = append(logs, newLogs...)
 	}
 	context.LastRescannedHeight = context.RescanHeight
 	context.RescanHeight = uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
@@ -278,7 +290,7 @@ func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun
 }
 
 // handleUTXOs()
-func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, _ *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	context := LoadCCContext(ctx)
@@ -371,9 +383,13 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		context.TotalBurntOnMainChain = totalBurnt.Bytes32()
 
 		r.IsRedeemed = true
-		r.RedeemTarget = BurnAddressMainChain
+		burnAddressMainChain, err := hex.DecodeString(BurnAddressMainChain)
+		if err != nil || len(burnAddressMainChain) != 20 {
+			panic("burn address on main chain parse failed")
+		}
+		copy(r.RedeemTarget[:], burnAddressMainChain)
 		SaveUTXORecord(ctx, r)
-		err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
+		err = transferBch(ctx, CCContractAddress, info.Receiver, amount)
 		if err != nil {
 			panic(err)
 		}
