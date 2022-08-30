@@ -1,7 +1,6 @@
 package crosschain
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -13,6 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartbch/smartbch/crosschain/types"
+	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 func TestRedeem(t *testing.T) {
@@ -38,6 +40,7 @@ func TestRedeem(t *testing.T) {
 		IsRedeemed:       false,
 		RedeemTarget:     [20]byte{},
 		ExpectedSignTime: 0,
+		BornTime:         1,
 		Txid:             txid,
 		Index:            vout,
 		Amount:           amount,
@@ -45,7 +48,7 @@ func TestRedeem(t *testing.T) {
 	SaveUTXORecord(ctx, record)
 	txData := PackRedeemFunc(big.NewInt(0).SetBytes(txid[:]), big.NewInt(int64(vout)), alice)
 	// normal
-	status, logs, _, outdata := redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
+	status, logs, _, outdata := redeem(ctx, &mtypes.BlockInfo{Timestamp: RedeemDelay + 2}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			From:  alice,
 			Value: amount,
@@ -160,10 +163,12 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 	// prepare utxo
 	prevTxid := [32]byte{0x1}
 	prevVout := uint32(1)
+	prevAmount := uint256.NewInt(10).Bytes32()
+
 	txid := [32]byte{0x02}
 	vout := uint32(2)
-	prevAmount := uint256.NewInt(10).Bytes32()
 	amount := uint256.NewInt(9).Bytes32()
+
 	record := types.UTXORecord{
 		Txid:   prevTxid,
 		Index:  prevVout,
@@ -183,7 +188,14 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 			Amount: amount,
 		},
 	}
-	logs, _ := handleConvertTypeUTXO(ctx, &context, nil, &info)
+	blackHoleContractAddress := [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		byte('b'), byte('l'), byte('a'), byte('c'), byte('k'), byte('h'), byte('o'), byte('l'), byte('e')}
+	blackAcc := mtypes.ZeroAccountInfo()
+	blackBalance := uint256.NewInt(1000)
+	blackAcc.UpdateBalance(blackBalance)
+	ctx.SetAccount(blackHoleContractAddress, blackAcc)
+
+	logs, _ := handleConvertTypeUTXO(ctx, &context, &mtypes.BlockInfo{Timestamp: 1}, &info)
 	loadRecord := LoadUTXORecord(ctx, txid, vout)
 	require.Equal(t, vout, loadRecord.Index)
 	loadRecord = LoadUTXORecord(ctx, prevTxid, prevVout)
@@ -232,6 +244,9 @@ func TestStartRescan(t *testing.T) {
 		RescanHeight: 1,
 	}
 	SaveCCContext(ctx, context)
+	staking.SaveStakingInfo(ctx, stakingtypes.StakingInfo{
+		CurrEpochNum: param.StartEpochNumberForCC,
+	})
 	txData := PackStartRescanFunc(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
@@ -241,7 +256,7 @@ func TestStartRescan(t *testing.T) {
 	go func(exe *CcContractExecutor) {
 		<-exe.StartUTXOCollect
 	}(&executor)
-	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: 100}, &mtypes.TxToRun{
+	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			Data: txData,
 		},
@@ -250,7 +265,7 @@ func TestStartRescan(t *testing.T) {
 	require.Equal(t, 0, len(outdata))
 	require.Equal(t, 0, len(logs))
 	loadCtx := LoadCCContext(ctx)
-	require.Equal(t, int64(100), loadCtx.RescanTime)
+	require.Equal(t, int64(UTXOHandleDelay+1), loadCtx.RescanTime)
 	require.Equal(t, uint64(1), loadCtx.LastRescannedHeight)
 	require.Equal(t, uint64(2), loadCtx.RescanHeight)
 	require.Equal(t, false, loadCtx.UTXOAlreadyHandled)
@@ -292,12 +307,4 @@ func TestHandleOperatorOrMonitorSetChanged(t *testing.T) {
 		Voter: &MockVoteContract{IsM: true},
 	}
 	executor.handleOperatorOrMonitorSetChanged(ctx, nil, &context)
-}
-
-func TestT(t *testing.T) {
-	sig := "483045022100cef2839f3d9b9a22615d38dd5d762e7d7b770336730e03ec68e363236769099e02206706b893477e324d1f23e73cfd373f27a5699a43dc20ccb784ceb598563277264121"
-	pubkey := "023427fa5ba55fb541c76ff5d20b9d637bd7fcb08327735ce230d614df43c9c36f"
-
-	fmt.Println(len(sig))
-	fmt.Println(len(pubkey))
 }

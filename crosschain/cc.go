@@ -410,7 +410,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, blo
 	if !blockHoleBalance.Gt(totalBurntOnMainChain) {
 		return nil, PendingBurningNotEnough
 	}
-	pendingBurning := blockHoleBalance.Sub(blockHoleBalance, totalBurntOnMainChain)
+	pendingBurning := uint256.NewInt(0).Sub(blockHoleBalance, totalBurntOnMainChain)
 	gasFee := originAmount.Sub(originAmount, newAmount)
 	if pendingBurning.Lt(gasFee) {
 		return nil, PendingBurningNotEnough
@@ -450,11 +450,11 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currEpochNum := stakingInfo.CurrEpochNum
-	if (currEpochNum-param.StartEpochNumberForCC)%param.OperatorElectionEpochs == 0 {
+	if (currEpochNum-param.StartEpochNumberForCC+1)%param.OperatorElectionEpochs == 0 {
 		ElectOperators(ctx, currBlock.Timestamp, c.logger)
 	}
 	// todo: monitor should call startRescan at least once in every epoch to trigger this
-	if (currEpochNum-param.StartEpochNumberForCC)%param.MonitorElectionEpochs == 0 {
+	if (currEpochNum-param.StartEpochNumberForCC+1)%param.MonitorElectionEpochs == 0 {
 		var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
 		for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
 			infos = append(infos, LoadMonitorVoteInfo(ctx, i))

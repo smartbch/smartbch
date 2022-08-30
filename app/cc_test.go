@@ -104,6 +104,7 @@ func TestCC(t *testing.T) {
 	ctx.Close(false)
 
 	// call redeem
+	crosschain.RedeemDelay = 1
 	txData = crosschain.PackRedeemFunc(txid.ToBig(), index, targetAddress)
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxSuccess(tx.Hash())
