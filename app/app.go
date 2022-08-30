@@ -676,7 +676,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		if ctx.IsShaGateFork() {
 			if len(app.monitorVoteInfoList) != 0 {
 				info := app.monitorVoteInfoList[0]
-				crosschain.HandleMonitorVoteInfo(ctx, info, app.block.Timestamp, app.logger)
+				crosschain.SaveMonitorVoteInfo(ctx, *info)
 				app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
 			}
 		}

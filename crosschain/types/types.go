@@ -64,7 +64,7 @@ const (
 )
 
 type MonitorVoteInfo struct {
-	Number      int64         `msgp:"number"`
+	Number      int64         `msgp:"number"` // same with epoch number, start from param.StartEpochNumberForCC
 	StartHeight int64         `msgp:"start_height"`
 	EndTime     int64         `msgp:"end_time"`
 	Nominations []*Nomination `msgp:"nominations"`

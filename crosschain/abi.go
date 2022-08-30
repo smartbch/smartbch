@@ -34,38 +34,126 @@ var ABI = ethutils.MustParseABI(`
 		"anonymous": false,
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
+				"indexed": true,
 				"internalType": "address",
-				"name": "covenantAddr",
+				"name": "oldCovenantAddr",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newCovenantAddr",
 				"type": "address"
 			}
 		],
-		"name": "NewRedeemable",
+		"name": "ChangeAddr",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "prevTxid",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint32",
+				"name": "prevVout",
+				"type": "uint32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "oldCovenantAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
 				"internalType": "uint256",
 				"name": "txid",
 				"type": "uint256"
 			},
 			{
+				"indexed": false,
 				"internalType": "uint32",
 				"name": "vout",
 				"type": "uint32"
 			},
 			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "newCovenantAddr",
+				"type": "address"
+			}
+		],
+		"name": "Convert",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "txid",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint32",
+				"name": "vout",
+				"type": "uint32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "covenantAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "sourceType",
+				"type": "uint8"
+			}
+		],
+		"name": "Deleted",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "events",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "handleUTXOs",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "txid",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint32",
+				"name": "vout",
+				"type": "uint32"
+			},
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "covenantAddr",
 				"type": "address"
@@ -78,28 +166,33 @@ var ABI = ethutils.MustParseABI(`
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": true,
 				"internalType": "uint256",
 				"name": "txid",
 				"type": "uint256"
 			},
 			{
+				"indexed": true,
 				"internalType": "uint32",
 				"name": "vout",
 				"type": "uint32"
 			},
 			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "covenantAddr",
 				"type": "address"
-			},
-			{
-				"internalType": "uint8",
-				"name": "sourceType",
-				"type": "uint8"
 			}
 		],
-		"name": "Deleted",
+		"name": "NewRedeemable",
 		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "pause",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	},
 	{
 		"inputs": [
@@ -115,14 +208,45 @@ var ABI = ethutils.MustParseABI(`
 			},
 			{
 				"internalType": "address",
-				"name": "target",
+				"name": "targetAddress",
 				"type": "address"
 			}
 		],
 		"name": "redeem",
 		"outputs": [],
-		"stateMutability": "payable",
+		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "txid",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint32",
+				"name": "vout",
+				"type": "uint32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "covenantAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "sourceType",
+				"type": "uint8"
+			}
+		],
+		"name": "Redeem",
+		"type": "event"
 	},
 	{
 		"inputs": [
@@ -136,35 +260,22 @@ var ABI = ethutils.MustParseABI(`
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "pause",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	}
 ]
 `)
 
-//startRescan(uint mainFinalizedBlockHeight) onlyMonitor
-
-func PackNewRedeemable(txid *big.Int, vout uint32, covenantAddress gethcmn.Address) []byte {
-	return ABI.MustPack("NewRedeemable", txid, vout, covenantAddress)
+func PackRedeemFunc(txid, index *big.Int, targetAddress gethcmn.Address) []byte {
+	return ABI.MustPack("redeem", txid, index, targetAddress)
 }
 
-func PackNewLostAndFound(txid *big.Int, vout uint32, covenantAddress gethcmn.Address) []byte {
-	return ABI.MustPack("NewLostAndFound", txid, vout, covenantAddress)
-}
-
-func PackRedeem(txid *big.Int, vout *big.Int, targetAddress gethcmn.Address) []byte {
-	return ABI.MustPack("redeem", txid, vout, targetAddress)
-}
-
-func PackStartRescan(mainFinalizedBlockHeight *big.Int) []byte {
+func PackStartRescanFunc(mainFinalizedBlockHeight *big.Int) []byte {
 	return ABI.MustPack("startRescan", mainFinalizedBlockHeight)
 }
 
-func PackPause() []byte {
+func PackPauseFunc() []byte {
 	return ABI.MustPack("pause")
+}
+
+func PackHandleUTXOsFunc() []byte {
+	return ABI.MustPack("handleUTXOs")
 }

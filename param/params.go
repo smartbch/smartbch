@@ -25,14 +25,14 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	EpochStartHeightForCC                  = 10000000
-	EpochStartNumberForCC                  = 300
-	EpochNumbersPerCCEpoch                 = 100
-	GenesisBCHAlreadyMintedInMainChain     = 100
-	GenesisCovenantAddress                 = "0x1234"
-	MonitorElectionEpochs                  = 12
-	OperatorElectionEpochs                 = 4
-	MaxMonitorNumber                   int = 3
+	StartMainnetHeightForCC             = 10000000 // mainnet height which cc tx collected from
+	StartEpochNumberForCC               = 300      // epoch number which cc enabled from
+	EpochNumbersPerMonitorVoteCycle     = 100      // epoch number contains in every monitor pow vote cycle
+	AlreadyBurntOnMainChain             = 100      // BCH already burnt on main chain when cc enabled
+	GenesisCovenantAddress              = "0x1234"
+	MonitorElectionEpochs               = 12
+	OperatorElectionEpochs              = 4
+	MaxMonitorNumber                int = 3
 
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201

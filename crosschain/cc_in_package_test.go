@@ -7,11 +7,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
-	"github.com/stretchr/testify/require"
-
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	mtypes "github.com/smartbch/moeingevm/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartbch/smartbch/crosschain/types"
 )
 
@@ -43,7 +43,7 @@ func TestRedeem(t *testing.T) {
 		Amount:           amount,
 	}
 	SaveUTXORecord(ctx, record)
-	txData := PackRedeem(big.NewInt(0).SetBytes(txid[:]), big.NewInt(int64(vout)), alice)
+	txData := PackRedeemFunc(big.NewInt(0).SetBytes(txid[:]), big.NewInt(int64(vout)), alice)
 	// normal
 	status, logs, _, outdata := redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
@@ -232,7 +232,7 @@ func TestStartRescan(t *testing.T) {
 		RescanHeight: 1,
 	}
 	SaveCCContext(ctx, context)
-	txData := PackStartRescan(big.NewInt(2))
+	txData := PackStartRescanFunc(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
 		Voter:            &MockVoteContract{IsM: true},
@@ -264,7 +264,7 @@ func TestPause(t *testing.T) {
 		RescanHeight: 1,
 	}
 	SaveCCContext(ctx, context)
-	txData := PackPause()
+	txData := PackPauseFunc()
 	// normal
 	executor := CcContractExecutor{
 		Voter: &MockVoteContract{IsM: true},

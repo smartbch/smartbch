@@ -187,7 +187,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 		if nomination != nil {
 			bchBlock.Nominations = append(bchBlock.Nominations, *nomination)
 		}
-		if bi.Height >= param.EpochStartHeightForCC {
+		if bi.Height >= param.StartMainnetHeightForCC {
 			ccNomination := getCCNomination(bi.Tx[0])
 			if ccNomination != nil {
 				bchBlock.CCNominations = append(bchBlock.CCNominations, *ccNomination)

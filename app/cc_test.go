@@ -1,273 +1,22 @@
 package app_test
 
 import (
+	"math/big"
+	"testing"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingevm/ebp"
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/log"
+
 	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/types"
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/watcher"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/log"
-	"math/big"
-	"testing"
 )
-
-var ABI = ethutils.MustParseABI(`
-[
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "oldCovenantAddr",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newCovenantAddr",
-				"type": "address"
-			}
-		],
-		"name": "ChangeAddr",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "prevTxid",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint32",
-				"name": "prevVout",
-				"type": "uint32"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "oldCovenantAddr",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "newCovenantAddr",
-				"type": "address"
-			}
-		],
-		"name": "Convert",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "covenantAddr",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint8",
-				"name": "sourceType",
-				"type": "uint8"
-			}
-		],
-		"name": "Deleted",
-		"type": "event"
-	},
-	{
-		"inputs": [],
-		"name": "events",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "handleUTXOs",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "covenantAddr",
-				"type": "address"
-			}
-		],
-		"name": "NewLostAndFound",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "covenantAddr",
-				"type": "address"
-			}
-		],
-		"name": "NewRedeemable",
-		"type": "event"
-	},
-	{
-		"inputs": [],
-		"name": "pause",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "index",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "targetAddress",
-				"type": "address"
-			}
-		],
-		"name": "redeem",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "covenantAddr",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint8",
-				"name": "sourceType",
-				"type": "uint8"
-			}
-		],
-		"name": "Redeem",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "mainFinalizedBlockHeight",
-				"type": "uint256"
-			}
-		],
-		"name": "startRescan",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	}
-]
-`)
-
-func PackRedeemFunc(txid, index *big.Int, targetAddress gethcmn.Address) []byte {
-	return ABI.MustPack("redeem", txid, index, targetAddress)
-}
-
-func PackStartRescanFunc(mainFinalizedBlockHeight *big.Int) []byte {
-	return ABI.MustPack("startRescan", mainFinalizedBlockHeight)
-}
-
-func PackPauseFunc() []byte {
-	return ABI.MustPack("pause")
-}
-
-func PackHandleUTXOsFunc() []byte {
-	return ABI.MustPack("handleUTXOs")
-}
 
 func TestCC(t *testing.T) {
 	// init test app with shagate fork enabled
@@ -285,7 +34,7 @@ func TestCC(t *testing.T) {
 	executor := crosschain.NewCcContractExecutor(log.NewNopLogger(), &crosschain.MockVoteContract{IsM: true})
 	ebp.PredefinedContractManager[crosschain.CCContractAddress] = executor
 	// self define watcher
-	w := watcher.NewWatcher(log.NewNopLogger(), _app.HistoryStore(), param.EpochStartHeightForCC+1, 0, param.DefaultConfig())
+	w := watcher.NewWatcher(log.NewNopLogger(), _app.HistoryStore(), param.StartMainnetHeightForCC+1, 0, param.DefaultConfig())
 	w.SetCCExecutor(executor)
 	mockRpc := watcher.MockClient{BlockInfos: make(map[int64]*watchertypes.BlockInfo)}
 	w.SetRpcClient(mockRpc)
@@ -336,7 +85,7 @@ func TestCC(t *testing.T) {
 	ctx.SetAccount(crosschain.CCContractAddress, acc)
 	ctx.Close(true)
 	// call handleUTXO
-	txData := PackHandleUTXOsFunc()
+	txData := crosschain.PackHandleUTXOsFunc()
 	tx, _ := _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxSuccess(tx.Hash())
 
@@ -355,7 +104,7 @@ func TestCC(t *testing.T) {
 	ctx.Close(false)
 
 	// call redeem
-	txData = PackRedeemFunc(txid.ToBig(), index, targetAddress)
+	txData = crosschain.PackRedeemFunc(txid.ToBig(), index, targetAddress)
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxSuccess(tx.Hash())
 
@@ -404,7 +153,7 @@ func TestCC(t *testing.T) {
 			},
 		},
 	}
-	txData = PackHandleUTXOsFunc()
+	txData = crosschain.PackHandleUTXOsFunc()
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.UTXOAlreadyHandled.Error())
 

@@ -4,19 +4,20 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/smartbch/smartbch/staking"
 	"math"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
-	"github.com/tendermint/tendermint/libs/log"
-
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/smartbch/moeingevm/ebp"
 	mevmtypes "github.com/smartbch/moeingevm/types"
+	"github.com/tendermint/tendermint/libs/log"
+
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
+	"github.com/smartbch/smartbch/staking"
 )
 
 const (
@@ -48,18 +49,12 @@ var (
 	SelectorHandleUTXOs [4]byte = [4]byte{0x9c, 0x44, 0x8e, 0xfe}
 	SelectorPause       [4]byte = [4]byte{0x84, 0x56, 0xcb, 0x59}
 
-	//event NewRedeemable(uint256 txid, uint32 vout, address covenantAddr);
-	HashOfEventNewRedeemable [32]byte = common.HexToHash("0x15bab6fd59710de61ff75fa11875274a47fc2179068400add57ba8fb8bb4c5f1")
-	//event Redeem(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType)
-	HashOfEventRedeem [32]byte = common.HexToHash("0x8a9c454bba797fa0dfd6fb9d59687e2e0d5e4828de1f91ffdcf4719e1163aec0")
-	//event NewLostAndFound(uint256 txid, uint32 vout, address covenantAddr);
-	HashOfEventNewLostAndFound [32]byte = common.HexToHash("0x5097ba403df8e5415e49ecafe3a1610dce19fdae7df003d29d07d4f0833542ee")
-	//event Deleted(uint256 txid, uint32 vout, address covenantAddr, uint8 sourceType);
-	HashOfEventDeleted [32]byte = common.HexToHash("0x88efadfda2430f2d2ac267ce7158a19f80c4faef7beef319a98ba853e3ebed6f")
-	//event ChangeAddr(address oldCovenantAddr, address newCovenantAddr);
-	HashOfEventChangeAddr [32]byte = common.HexToHash("0x5029ef2b1891e99a0ef410ffbd2219535c135111c548ab27c4db353800fc6df6")
-	//event Convert(uint256 prevTxid, uint32 prevVout, address oldCovenantAddr, uint256 txid, uint32 vout, address newCovenantAddr)
-	HashOfEventConvert [32]byte = common.HexToHash("0x5c0caa320907ad2fb85323d152c52b05f7b683c6105991ceaed961d03410a499")
+	HashOfEventNewRedeemable   = crypto.Keccak256Hash([]byte("NewRedeemable(uint256,uint32,address)"))
+	HashOfEventNewLostAndFound = crypto.Keccak256Hash([]byte("NewLostAndFound(uint256,uint32,address)"))
+	HashOfEventRedeem          = crypto.Keccak256Hash([]byte("Redeem(uint256,uint32,address,uint8)"))
+	HashOfEventChangeAddr      = crypto.Keccak256Hash([]byte("ChangeAddr(address,address)"))
+	HashOfEventConvert         = crypto.Keccak256Hash([]byte("Convert(uint256,uint32,address,uint256,uint32,address)"))
+	HashOfEventDeleted         = crypto.Keccak256Hash([]byte("Deleted(uint256,uint32,address,uint8)"))
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
@@ -115,10 +110,10 @@ func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 		context := types.CCContext{
 			IsPaused:              false,
 			RescanTime:            math.MaxInt64,
-			RescanHeight:          uint64(param.EpochStartHeightForCC),
+			RescanHeight:          uint64(param.StartMainnetHeightForCC),
 			LastRescannedHeight:   uint64(0),
 			UTXOAlreadyHandled:    true,
-			TotalBurntOnMainChain: uint256.NewInt(uint64(param.GenesisBCHAlreadyMintedInMainChain)).Bytes32(),
+			TotalBurntOnMainChain: uint256.NewInt(uint64(param.AlreadyBurntOnMainChain)).Bytes32(),
 			LastCovenantAddr:      [20]byte{},
 			CurrCovenantAddr:      common.HexToAddress(param.GenesisCovenantAddress),
 		}
@@ -453,11 +448,18 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 }
 
 func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
-	// todo
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currEpochNum := stakingInfo.CurrEpochNum
-	if (currEpochNum-param.EpochStartNumberForCC)%param.OperatorElectionEpochs == 0 {
+	if (currEpochNum-param.StartEpochNumberForCC)%param.OperatorElectionEpochs == 0 {
 		ElectOperators(ctx, currBlock.Timestamp, c.logger)
+	}
+	// todo: monitor should call startRescan at least once in every epoch to trigger this
+	if (currEpochNum-param.StartEpochNumberForCC)%param.MonitorElectionEpochs == 0 {
+		var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
+		for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
+			infos = append(infos, LoadMonitorVoteInfo(ctx, i))
+		}
+		HandleMonitorVoteInfos(ctx, currBlock.Timestamp, infos, c.logger)
 	}
 	if !c.Voter.IsOperatorOrMonitorChanged(ctx, context) {
 		return nil
@@ -545,7 +547,7 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 		}
 		var eventHash [32]byte
 		copy(eventHash[:], l.Topics[0].Bytes())
-		switch eventHash {
+		switch common.Hash(eventHash) {
 		case HashOfEventRedeem:
 			redeemOp := modbtypes.RedeemOp{}
 			copy(redeemOp.UtxoId[:32], l.Topics[1][:])

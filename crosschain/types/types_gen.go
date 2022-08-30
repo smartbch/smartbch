@@ -1201,6 +1201,18 @@ func (z *UTXOCollectParam) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "EndHeight")
 				return
 			}
+		case "CurrentCovenantAddress":
+			err = z.CurrentCovenantAddress.DecodeMsg(dc)
+			if err != nil {
+				err = msgp.WrapError(err, "CurrentCovenantAddress")
+				return
+			}
+		case "PrevCovenantAddress":
+			err = z.PrevCovenantAddress.DecodeMsg(dc)
+			if err != nil {
+				err = msgp.WrapError(err, "PrevCovenantAddress")
+				return
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -1213,10 +1225,10 @@ func (z *UTXOCollectParam) DecodeMsg(dc *msgp.Reader) (err error) {
 }
 
 // EncodeMsg implements msgp.Encodable
-func (z UTXOCollectParam) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 2
+func (z *UTXOCollectParam) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 4
 	// write "BeginHeight"
-	err = en.Append(0x82, 0xab, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	err = en.Append(0x84, 0xab, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	if err != nil {
 		return
 	}
@@ -1235,19 +1247,53 @@ func (z UTXOCollectParam) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "EndHeight")
 		return
 	}
+	// write "CurrentCovenantAddress"
+	err = en.Append(0xb6, 0x43, 0x75, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	if err != nil {
+		return
+	}
+	err = z.CurrentCovenantAddress.EncodeMsg(en)
+	if err != nil {
+		err = msgp.WrapError(err, "CurrentCovenantAddress")
+		return
+	}
+	// write "PrevCovenantAddress"
+	err = en.Append(0xb3, 0x50, 0x72, 0x65, 0x76, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	if err != nil {
+		return
+	}
+	err = z.PrevCovenantAddress.EncodeMsg(en)
+	if err != nil {
+		err = msgp.WrapError(err, "PrevCovenantAddress")
+		return
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
-func (z UTXOCollectParam) MarshalMsg(b []byte) (o []byte, err error) {
+func (z *UTXOCollectParam) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 2
+	// map header, size 4
 	// string "BeginHeight"
-	o = append(o, 0x82, 0xab, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
+	o = append(o, 0x84, 0xab, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	o = msgp.AppendInt64(o, z.BeginHeight)
 	// string "EndHeight"
 	o = append(o, 0xa9, 0x45, 0x6e, 0x64, 0x48, 0x65, 0x69, 0x67, 0x68, 0x74)
 	o = msgp.AppendInt64(o, z.EndHeight)
+	// string "CurrentCovenantAddress"
+	o = append(o, 0xb6, 0x43, 0x75, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	o, err = z.CurrentCovenantAddress.MarshalMsg(o)
+	if err != nil {
+		err = msgp.WrapError(err, "CurrentCovenantAddress")
+		return
+	}
+	// string "PrevCovenantAddress"
+	o = append(o, 0xb3, 0x50, 0x72, 0x65, 0x76, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73)
+	o, err = z.PrevCovenantAddress.MarshalMsg(o)
+	if err != nil {
+		err = msgp.WrapError(err, "PrevCovenantAddress")
+		return
+	}
 	return
 }
 
@@ -1281,6 +1327,18 @@ func (z *UTXOCollectParam) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "EndHeight")
 				return
 			}
+		case "CurrentCovenantAddress":
+			bts, err = z.CurrentCovenantAddress.UnmarshalMsg(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "CurrentCovenantAddress")
+				return
+			}
+		case "PrevCovenantAddress":
+			bts, err = z.PrevCovenantAddress.UnmarshalMsg(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "PrevCovenantAddress")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -1294,8 +1352,8 @@ func (z *UTXOCollectParam) UnmarshalMsg(bts []byte) (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z UTXOCollectParam) Msgsize() (s int) {
-	s = 1 + 12 + msgp.Int64Size + 10 + msgp.Int64Size
+func (z *UTXOCollectParam) Msgsize() (s int) {
+	s = 1 + 12 + msgp.Int64Size + 10 + msgp.Int64Size + 23 + z.CurrentCovenantAddress.Msgsize() + 20 + z.PrevCovenantAddress.Msgsize()
 	return
 }
 

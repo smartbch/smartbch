@@ -7,22 +7,15 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	mevmtypes "github.com/smartbch/moeingevm/types"
+
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 )
 
-func HandleMonitorVoteInfo(ctx *mevmtypes.Context, info *types.MonitorVoteInfo, blockTime int64, logger log.Logger) {
-	SaveMonitorVoteInfo(ctx, *info)
-	if info.Number%param.EpochNumbersPerCCEpoch != 0 {
-		return
-	}
+func HandleMonitorVoteInfos(ctx *mevmtypes.Context, blockTime int64, infos []*types.MonitorVoteInfo, logger log.Logger) {
 	var pubkeyVoteMap = make(map[[33]byte]int64)
-	for i := info.Number - param.EpochStartNumberForCC; i < info.Number; i++ {
-		voteInfo := LoadMonitorVoteInfo(ctx, i)
-		if voteInfo == nil {
-			panic("should have vote info here")
-		}
-		for _, n := range voteInfo.Nominations {
+	for _, info := range infos {
+		for _, n := range info.Nominations {
 			if _, ok := pubkeyVoteMap[n.Pubkey]; !ok {
 				pubkeyVoteMap[n.Pubkey] = n.NominatedCount
 				continue

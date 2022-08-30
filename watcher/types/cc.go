@@ -5,15 +5,16 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gcash/bchd/chaincfg"
-	"github.com/gcash/bchutil"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gcash/bchd/bchec"
+	"github.com/gcash/bchd/chaincfg"
+	"github.com/gcash/bchutil"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingdb/types"
+
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 )
 

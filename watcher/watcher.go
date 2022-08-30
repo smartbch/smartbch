@@ -262,7 +262,7 @@ func (watcher *Watcher) generateNewEpoch() {
 
 func (watcher *Watcher) buildMonitorVoteInfo() *cctypes.MonitorVoteInfo {
 	startHeight := watcher.lastEpochEndHeight + 1
-	if startHeight < param.EpochStartHeightForCC {
+	if startHeight < param.StartMainnetHeightForCC {
 		return nil
 	}
 	var info cctypes.MonitorVoteInfo
@@ -375,7 +375,7 @@ func (watcher *Watcher) ClearOldData() {
 
 func (watcher *Watcher) CollectCCTransferInfos() {
 	for {
-		if watcher.latestFinalizedHeight < param.EpochStartHeightForCC {
+		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
 			time.Sleep(5 * time.Second)
 			continue
 		}
