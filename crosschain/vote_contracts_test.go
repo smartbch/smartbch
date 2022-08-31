@@ -15,6 +15,7 @@ import (
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 )
 
 const (
@@ -138,8 +139,8 @@ var (
 
 var (
 	noOpLogger           = log.NewNopLogger()
-	operatorMinStakedAmt = big.NewInt(0).Mul(big.NewInt(crosschain.OperatorMinStakedBCH), big.NewInt(1e18))
-	monitorMinStakedAmt  = big.NewInt(0).Mul(big.NewInt(crosschain.MonitorMinStakedBCH), big.NewInt(1e18))
+	operatorMinStakedAmt = big.NewInt(0).Mul(big.NewInt(param.OperatorMinStakedBCH), big.NewInt(1e18))
+	monitorMinStakedAmt  = big.NewInt(0).Mul(big.NewInt(param.MonitorMinStakedBCH), big.NewInt(1e18))
 )
 
 func TestOperatorsGovStorageRW(t *testing.T) {

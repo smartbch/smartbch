@@ -2,29 +2,19 @@ package covenant
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/txscript"
 	"github.com/gcash/bchd/wire"
 	"github.com/gcash/bchutil"
+
+	"github.com/smartbch/smartbch/param"
 )
-
-// TODO: move to params.go
-const (
-	operatorCount    = 10
-	operatorSigCount = 7
-	monitorCount     = 3
-	monitorSigCount  = 2
-	minerFeeMainnet  = 2000
-
-	monitorTransferTimeOutBlocks = 16 * 2016
-)
-
-// TODO
-var redeemScriptWithoutConstructorArgsMainnet []byte
 
 type CcCovenant struct {
 	redeemScriptWithoutConstructorArgs []byte
@@ -34,9 +24,24 @@ type CcCovenant struct {
 	net                                *chaincfg.Params
 }
 
-func NewCcCovenantMainnet(operatorPks, monitorPks [][]byte) (*CcCovenant, error) {
-	return NewCcCovenant(redeemScriptWithoutConstructorArgsMainnet,
-		operatorPks, monitorPks, minerFeeMainnet, &chaincfg.MainNetParams)
+func NewDefaultCcCovenant(operatorPks, monitorPks [][]byte) (*CcCovenant, error) {
+	hexStr := strings.TrimPrefix(param.RedeemScriptWithoutConstructorArgs, "0x")
+	hexBytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var bchNet *chaincfg.Params
+	if param.CcBchNetwork == chaincfg.MainNetParams.Name {
+		bchNet = &chaincfg.MainNetParams
+	} else if param.CcBchNetwork == chaincfg.TestNet3Params.Name {
+		bchNet = &chaincfg.TestNet3Params
+	} else {
+		return nil, errors.New("unknown BCH network: " + param.CcBchNetwork)
+	}
+
+	return NewCcCovenant(hexBytes, operatorPks, monitorPks,
+		param.RedeemOrCovertMinerFee, bchNet)
 }
 
 func NewCcCovenant(
@@ -61,10 +66,10 @@ func NewCcCovenant(
 }
 
 func checkPks(operatorPks [][]byte, monitorPks [][]byte) error {
-	if len(operatorPks) != operatorCount {
+	if len(operatorPks) != param.OperatorsCount {
 		return errors.New("invalid operatorPks count")
 	}
-	if len(monitorPks) != monitorCount {
+	if len(monitorPks) != param.MonitorsCount {
 		return errors.New("invalid monitorsPks count")
 	}
 
@@ -192,7 +197,7 @@ func (c *CcCovenant) BuildRedeemOrConvertUnlockingScript(
 	newMonitorPks [][]byte,
 ) ([]byte, error) {
 
-	if len(sigs) != operatorSigCount {
+	if len(sigs) != param.MinOperatorSigCount {
 		return nil, errors.New("invalid operator signature count")
 	}
 	err := checkPks(newOperatorPks, newMonitorPks)
@@ -316,7 +321,7 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 	if err = builder.addInput(txid, vout); err != nil {
 		return nil, err
 	}
-	builder.msgTx.TxIn[0].Sequence = monitorTransferTimeOutBlocks
+	builder.msgTx.TxIn[0].Sequence = param.MonitorTransferWaitBlocks
 	if err = builder.addOutput(toAddr, inAmt); err != nil {
 		return nil, err
 	}
@@ -366,7 +371,7 @@ func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
 	newOperatorPks [][]byte,
 ) ([]byte, error) {
 
-	if len(sigs) != monitorSigCount {
+	if len(sigs) != param.MinMonitorSigCount {
 		return nil, errors.New("invalid monitor signature count")
 	}
 	err := checkPks(newOperatorPks, c.monitorPks)

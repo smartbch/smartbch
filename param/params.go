@@ -32,6 +32,22 @@ const (
 	MonitorElectionEpochs       = 12
 	OperatorElectionEpochs      = 4
 	MaxMonitorNumber        int = 3
+	OperatorsGovSequence        = 0 // TODO
+	MonitorsGovSequence         = 0 // TODO
+	OperatorMinStakedBCH        = 10000
+	MonitorMinStakedBCH         = 100000
+	OperatorsCount              = 10
+	OperatorsMaxChangeCount     = 3
+	MonitorsCount               = 3
+	MonitorsMaxChangeCount      = 1
+
+	// cc covenant params
+	RedeemScriptWithoutConstructorArgs = `0x` // TODO
+	MinOperatorSigCount                = 7
+	MinMonitorSigCount                 = 2
+	RedeemOrCovertMinerFee             = 2000
+	MonitorTransferWaitBlocks          = 16 * 2016
+	CcBchNetwork                       = "mainnet"
 
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201

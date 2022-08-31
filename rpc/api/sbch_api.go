@@ -380,7 +380,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	}
 
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
-	ccc, err := covenant.NewCcCovenantMainnet(operatorPubkeys, monitorPubkeys)
+	ccc, err := covenant.NewDefaultCcCovenant(operatorPubkeys, monitorPubkeys)
 	if err != nil {
 		sbch.logger.Error("failed to create CcCovenant", "err", err.Error())
 		return nil, err

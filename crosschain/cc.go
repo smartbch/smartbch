@@ -600,7 +600,7 @@ type IVoteContract interface {
 type VoteContract struct{}
 
 func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) bool {
-	monitors := ReadMonitorInfos(ctx, MonitorsGovSeq)
+	monitors := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
 	for _, monitor := range monitors {
 		if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
 			return true
