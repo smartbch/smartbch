@@ -461,10 +461,10 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 		}
 		HandleMonitorVoteInfos(ctx, currBlock.Timestamp, infos, c.logger)
 	}
-	if !c.Voter.IsOperatorOrMonitorChanged(ctx, context) {
+	changed, newAddress := c.Voter.IsOperatorOrMonitorChanged(ctx, context.CurrCovenantAddr)
+	if !changed {
 		return nil
 	}
-	newAddress := c.Voter.GetNewCovenantAddress(ctx)
 	context.LastCovenantAddr = context.CurrCovenantAddr
 	context.CurrCovenantAddr = newAddress
 	logs = append(logs, buildChangeAddrLog(context.LastCovenantAddr, context.CurrCovenantAddr))
@@ -594,8 +594,7 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 
 type IVoteContract interface {
 	IsMonitor(ctx *mevmtypes.Context, address common.Address) bool
-	IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool
-	GetNewCovenantAddress(ctx *mevmtypes.Context) common.Address
+	IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currentAddress [20]byte) (bool, common.Address)
 }
 
 type VoteContract struct{}
@@ -610,19 +609,12 @@ func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) 
 	return false
 }
 
-func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool {
+func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
 	newAddr, err := GetCCCovenantP2SHAddr(ctx)
 	if err != nil {
-		return false // TODO: panic
+		panic(err)
 	}
-	oldAddr := ccCtx.LastCovenantAddr
-	return oldAddr != newAddr
-}
-
-func (v VoteContract) GetNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
-	addr, _ := GetCCCovenantP2SHAddr(ctx)
-	// TODO: panic(err)
-	return addr
+	return currAddress != newAddr, newAddr
 }
 
 type MockVoteContract struct {
@@ -635,12 +627,8 @@ func (m *MockVoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Addr
 	return m.IsM
 }
 
-func (m *MockVoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, ccCtx *types.CCContext) bool {
-	return m.IsChanged
-}
-
-func (m *MockVoteContract) GetNewCovenantAddress(ctx *mevmtypes.Context) common.Address {
-	return m.NewAddress
+func (m *MockVoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
+	return m.IsChanged, m.NewAddress
 }
 
 var _ IVoteContract = &MockVoteContract{}
