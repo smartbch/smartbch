@@ -17,6 +17,7 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/covenant"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	"github.com/smartbch/smartbch/staking"
@@ -49,7 +50,7 @@ type SbchAPI interface {
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
 	GetToBeConvertedUTXOsForMonitors() []*UtxoInfo
-	GetToBeConvertedUTXOsForOperators() []*UtxoInfo
+	GetToBeConvertedUTXOsForOperators() ([]*UtxoInfo, error)
 }
 
 type sbchAPI struct {
@@ -430,17 +431,25 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 
 func (sbch sbchAPI) GetToBeConvertedUTXOsForMonitors() []*UtxoInfo {
 	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForMonitors")
-	utxoRecords := sbch.backend.GetToBeConvertedUTXOs()
+	utxoRecords, _ := sbch.backend.GetToBeConvertedUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	return utxoInfos
 }
 
-func (sbch sbchAPI) GetToBeConvertedUTXOsForOperators() []*UtxoInfo {
+func (sbch sbchAPI) GetToBeConvertedUTXOsForOperators() ([]*UtxoInfo, error) {
 	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForOperators")
 
-	// TODO
-	//utxoRecords := sbch.backend.GetToBeConvertedUTXOs()
-	//utxoInfos := castUtxoRecords(utxoRecords)
-	//return utxoInfos
-	return nil
+	currBlock, err := sbch.backend.CurrentBlock()
+	if err != nil {
+		sbch.logger.Info("failed to get current block", "err", err.Error())
+		return nil, err
+	}
+
+	currTS := currBlock.Timestamp
+	utxoRecords, lastCovenantAddrChangeTime := sbch.backend.GetToBeConvertedUTXOs()
+	if lastCovenantAddrChangeTime+crosschain.ExpectedConvertSignTimeDelay > currTS {
+		return nil, nil
+	}
+
+	return castUtxoRecords(utxoRecords), nil
 }

@@ -129,7 +129,7 @@ type BackendService interface {
 	GetAllOperatorsInfo() []crosschain.OperatorInfo
 	GetAllMonitorsInfo() []crosschain.MonitorInfo
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
-	GetToBeConvertedUTXOs() []*cctypes.UTXORecord
+	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
 	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 
 	//tendermint info

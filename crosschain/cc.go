@@ -58,10 +58,10 @@ var (
 
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
-	FixedMainnetFee         int64  = 10
 
-	UTXOHandleDelay       int64 = 20 * 60
-	ExpectedSignTimeDelay int64 = 5 * 60 // 5min
+	UTXOHandleDelay              int64 = 20 * 60
+	ExpectedRedeemSignTimeDelay  int64 = 5 * 60 // 5min
+	ExpectedConvertSignTimeDelay       = ExpectedRedeemSignTimeDelay * 4
 
 	ErrInvalidCallData         = errors.New("invalid call data")
 	ErrInvalidSelector         = errors.New("invalid selector")
@@ -512,7 +512,7 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
-	r.ExpectedSignTime = block.Timestamp + ExpectedSignTimeDelay
+	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable)
 	return &l, nil
@@ -534,7 +534,7 @@ func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.Block
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
-	r.ExpectedSignTime = block.Timestamp + ExpectedSignTimeDelay
+	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, index, r.CovenantAddr, types.FromLostAndFound)
 	return &l, nil
