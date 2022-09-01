@@ -48,6 +48,8 @@ type SbchAPI interface {
 	GetCcCovenantInfo() CcCovenantInfo
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
+	GetToBeConvertedUTXOsForMonitors() []*UtxoInfo
+	GetToBeConvertedUTXOsForOperators() []*UtxoInfo
 }
 
 type sbchAPI struct {
@@ -424,4 +426,21 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	}
 
 	return utxoInfos, err
+}
+
+func (sbch sbchAPI) GetToBeConvertedUTXOsForMonitors() []*UtxoInfo {
+	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForMonitors")
+	utxoRecords := sbch.backend.GetToBeConvertedUTXOs()
+	utxoInfos := castUtxoRecords(utxoRecords)
+	return utxoInfos
+}
+
+func (sbch sbchAPI) GetToBeConvertedUTXOsForOperators() []*UtxoInfo {
+	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForOperators")
+
+	// TODO
+	//utxoRecords := sbch.backend.GetToBeConvertedUTXOs()
+	//utxoInfos := castUtxoRecords(utxoRecords)
+	//return utxoInfos
+	return nil
 }

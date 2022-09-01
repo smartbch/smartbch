@@ -87,6 +87,7 @@ type IApp interface {
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
 	GetRedeemingUtxoIds() [][36]byte
+	GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte
 }
 
 type App struct {
@@ -1019,6 +1020,9 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 
 func (app *App) GetRedeemingUtxoIds() [][36]byte {
 	return app.historyStore.GetRedeemingUtxoIds()
+}
+func (app *App) GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte {
+	return app.historyStore.GetRedeemableUtxoIdsByCovenantAddr(addr)
 }
 
 //nolint

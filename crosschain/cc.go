@@ -568,14 +568,14 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 			newLostAndFoundOp.CovenantAddr = common.BytesToAddress(l.Topics[3][:])
 			opList.NewLostAndFoundOps = append(opList.NewLostAndFoundOps, newLostAndFoundOp)
 		case HashOfEventConvert:
-			newConvertOp := modbtypes.ConvertOp{}
-			copy(newConvertOp.PrevUtxoId[:32], l.Topics[1][:])
-			binary.BigEndian.PutUint32(newConvertOp.PrevUtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
-			newConvertOp.OldCovenantAddr = common.BytesToAddress(l.Topics[3][:])
-			copy(newConvertOp.UtxoId[:32], l.Data[:32])
-			binary.BigEndian.PutUint32(newConvertOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Data[32:64]).Uint64()))
-			newConvertOp.NewCovenantAddr = common.BytesToAddress(l.Data[64:])
-			opList.ConvertOps = append(opList.ConvertOps, newConvertOp)
+			newConvertedOp := modbtypes.ConvertedOp{}
+			copy(newConvertedOp.PrevUtxoId[:32], l.Topics[1][:])
+			binary.BigEndian.PutUint32(newConvertedOp.PrevUtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Topics[2][:]).Uint64()))
+			newConvertedOp.OldCovenantAddr = common.BytesToAddress(l.Topics[3][:])
+			copy(newConvertedOp.UtxoId[:32], l.Data[:32])
+			binary.BigEndian.PutUint32(newConvertedOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Data[32:64]).Uint64()))
+			newConvertedOp.NewCovenantAddr = common.BytesToAddress(l.Data[64:])
+			opList.ConvertedOps = append(opList.ConvertedOps, newConvertedOp)
 		case HashOfEventChangeAddr:
 			// todo: need to notify modb to handover all redeemable tx
 		case HashOfEventDeleted:

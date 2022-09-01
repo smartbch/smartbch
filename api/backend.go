@@ -475,11 +475,23 @@ func (backend *apiBackend) GetAllMonitorsInfo() []crosschain.MonitorInfo {
 }
 
 func (backend *apiBackend) GetRedeemingUTXOs() []*cctypes.UTXORecord {
-	utxoIds := backend.app.GetRedeemingUtxoIds()
-
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
+	utxoIds := backend.app.GetRedeemingUtxoIds()
+	return loadUtxoRecords(ctx, utxoIds)
+}
+
+func (backend *apiBackend) GetToBeConvertedUTXOs() []*cctypes.UTXORecord {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	ccCtx := crosschain.LoadCCContext(ctx)
+	utxoIds := backend.app.GetRedeemableUtxoIdsByCovenantAddr(ccCtx.LastCovenantAddr)
+	return loadUtxoRecords(ctx, utxoIds)
+}
+
+func loadUtxoRecords(ctx *types.Context, utxoIds [][36]byte) []*cctypes.UTXORecord {
 	utxoRecords := make([]*cctypes.UTXORecord, 0, len(utxoIds))
 	for _, utxoId := range utxoIds {
 		var txId [32]byte
