@@ -22,7 +22,7 @@ import (
 // p2sh lock script:  a9(OP_HASH160) + 14 + 20-byte-redeem-script-hash + 87(OP_EQUAL)
 // cc related op return: 6a(OP_RETURN) + 1c(8 + 20) + 7342434841646472(sBCHAddr) + 20-byte-side-address
 
-var ccIdentifier = "sBCHAddr"
+const ccIdentifier = "7342434841646472" // hex("sBCHAddr")
 
 type ScriptSig struct {
 	Asm string `json:"asm"`
@@ -78,9 +78,10 @@ func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransfe
 				continue
 			}
 			if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
-				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(1e10)).Bytes32()
-				copy(info.UTXO.TxID[:], ti.Hash)
+				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value*1e8)), uint256.NewInt(1e10)).Bytes32()
+				info.UTXO.TxID = common.HexToHash(ti.Hash)
 				info.UTXO.Index = uint32(n)
+				info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
 				isRedeemableTx = true
 				break
 			}
