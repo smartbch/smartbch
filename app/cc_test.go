@@ -104,7 +104,7 @@ func TestCC(t *testing.T) {
 	ctx.Close(false)
 
 	// call redeem
-	crosschain.RedeemDelay = 1
+	crosschain.MatureTime = 1
 	txData = crosschain.PackRedeemFunc(txid.ToBig(), index, targetAddress)
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxSuccess(tx.Hash())
@@ -156,7 +156,7 @@ func TestCC(t *testing.T) {
 	}
 	txData = crosschain.PackHandleUTXOsFunc()
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
-	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.UTXOAlreadyHandled.Error())
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.ErrUTXOAlreadyHandled.Error())
 
 	// reset context
 	// set cc context
@@ -169,7 +169,7 @@ func TestCC(t *testing.T) {
 	crosschain.SaveCCContext(ctx, ccCtx)
 	ctx.Close(true)
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
-	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.PendingBurningNotEnough.Error())
+	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.ErrPendingBurningNotEnough.Error())
 
 	// increase enough pending burning
 	ctx = _app.GetRunTxContext()

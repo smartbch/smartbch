@@ -2,13 +2,14 @@ package watcher
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/smartbch/moeingads/datatree"
 	modbtypes "github.com/smartbch/moeingdb/types"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -20,8 +21,8 @@ import (
 )
 
 const (
-	NumBlocksToClearMemory = 1000
-	WaitingBlockDelayTime  = 2
+	waitingBlockDelayTime     = 2
+	monitorInfoCleanThreshold = 5
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
@@ -48,9 +49,8 @@ type Watcher struct {
 	lastEpochEndHeight int64
 	lastKnownEpochNum  int64
 
-	numBlocksToClearMemory int
-	waitingBlockDelayTime  int
-	parallelNum            int
+	waitingBlockDelayTime int
+	parallelNum           int
 
 	chainConfig *param.ChainConfig
 
@@ -80,9 +80,8 @@ func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnown
 
 		voteInfoList: make([]*types.VoteInfo, 0, 10),
 
-		numBlocksInEpoch:       param.StakingNumBlocksInEpoch,
-		numBlocksToClearMemory: NumBlocksToClearMemory,
-		waitingBlockDelayTime:  WaitingBlockDelayTime,
+		numBlocksInEpoch:      param.StakingNumBlocksInEpoch,
+		waitingBlockDelayTime: waitingBlockDelayTime,
 
 		parallelNum: 10,
 		chainConfig: chainConfig,
@@ -104,10 +103,6 @@ func (watcher *Watcher) SetCCExecutor(exe *crosschain.CcContractExecutor) {
 
 func (watcher *Watcher) SetNumBlocksInEpoch(n int64) {
 	watcher.numBlocksInEpoch = n
-}
-
-func (watcher *Watcher) SetNumBlocksToClearMemory(n int) {
-	watcher.numBlocksToClearMemory = n
 }
 
 func (watcher *Watcher) SetWaitingBlockDelayTime(n int) {
@@ -197,7 +192,6 @@ func (watcher *Watcher) speedup(latestFinalizedHeight, latestMainnetHeight int64
 			if len(infos) == 0 {
 				break
 			}
-			debugVoteInfo(infos)
 			watcher.voteInfoList = append(watcher.voteInfoList, infos...)
 			for _, in := range infos {
 				if in.Epoch.EndTime != 0 {
@@ -215,15 +209,6 @@ func (watcher *Watcher) speedup(latestFinalizedHeight, latestMainnetHeight int64
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
 	return latestFinalizedHeight
-}
-
-func debugVoteInfo(infos []*types.VoteInfo) {
-	for _, e := range infos {
-		out, _ := json.Marshal(e.Epoch)
-		fmt.Println(string(out))
-		out, _ = json.Marshal(e.MonitorVote)
-		fmt.Println(string(out))
-	}
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {
@@ -368,18 +353,25 @@ func (watcher *Watcher) ClearOldData() {
 		delete(watcher.heightToFinalizedBlock, height)
 		height--
 	}
-	if vLen > 5 /*param it*/ {
-		watcher.voteInfoList = watcher.voteInfoList[vLen-5:]
+	if vLen > monitorInfoCleanThreshold /*param it*/ {
+		var newList = make([]*types.VoteInfo, 0, 5)
+		copy(newList, watcher.voteInfoList[vLen-5:])
+		watcher.voteInfoList = newList
 	}
 }
 
 func (watcher *Watcher) CollectCCTransferInfos() {
+	var latestEndHeight int64
 	for {
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		collectInfo := <-watcher.CcContractExecutor.StartUTXOCollect
+		if collectInfo.EndHeight == latestEndHeight {
+			continue
+		}
+		latestEndHeight = collectInfo.EndHeight
 		watcher.CcContractExecutor.Lock.Lock()
 		watcher.CcContractExecutor.Infos = nil
 		var infos []*cctypes.CCTransferInfo
@@ -395,34 +387,17 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 
 // (startHeight, endHeight]
 func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
-	num := endHeight - startHeight
-	blkMap := make(map[int64]*types.BlockInfo, num)
-	var lock sync.Mutex
-	step := num / 10
-	start := startHeight
-	end := start + step
-	wg := sync.WaitGroup{}
-	wg.Add(10)
-	for i := 0; i < 10; i++ {
-		go func(s, e int64) {
-			for i := s + 1; i <= end; i++ {
-				blk := watcher.rpcClient.GetBlockInfoByHeight(i, true)
-				lock.Lock()
-				blkMap[i] = blk
-				lock.Unlock()
+	blocks = make([]*types.BlockInfo, endHeight-startHeight)
+	sharedIdx := startHeight
+	datatree.ParallelRun(10, func(_ int) {
+		for {
+			myIdx := atomic.AddInt64(&sharedIdx, 1)
+			fmt.Println(myIdx)
+			if myIdx > endHeight {
+				break
 			}
-			wg.Done()
-		}(start, end)
-		start = end
-		end = start + step
-		if i == 9 {
-			end = endHeight
+			blocks[myIdx-startHeight-1] = watcher.rpcClient.GetBlockInfoByHeight(myIdx, true)
 		}
-	}
-	wg.Wait()
-	blocks = make([]*types.BlockInfo, 0, num)
-	for i := startHeight + 1; i <= endHeight; i++ {
-		blocks = append(blocks, blkMap[i])
-	}
+	})
 	return
 }

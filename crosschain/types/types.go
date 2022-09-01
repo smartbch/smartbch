@@ -1,24 +1,20 @@
 package types
 
 //go:generate msgp
+//msgp:ignore typename UTXO CCTransferInfo
 
 type UTXO struct {
-	TxID   [32]byte `msgp:"txid"`
-	Index  uint32   `msgp:"index"`
-	Amount [32]byte `msgp:"amount"`
+	TxID   [32]byte
+	Index  uint32
+	Amount [32]byte
 }
 
 type CCTransferInfo struct {
-	Type     UTXOType `msgp:"type"`
-	PrevUTXO UTXO     `msgp:"prev_utxo"`
-	UTXO     UTXO     `msgp:"utxo"`
-	/*
-		when Type is TransferType: receiver is side chain address to receive sBCH;
-		when Type is ConvertType:  receiver and covenant address in empty;
-		when Type is RedeemOrLostAndFoundType:  receiver is locking address used when redeem or pubkey hash address used for lostAndFound;
-	*/
-	Receiver        [20]byte `msgp:"receiver"`
-	CovenantAddress [20]byte `msgp:"covenant_address"`
+	Type            UTXOType
+	PrevUTXO        UTXO
+	UTXO            UTXO
+	Receiver        [20]byte
+	CovenantAddress [20]byte
 }
 
 type UTXOType byte
@@ -42,14 +38,16 @@ type UTXORecord struct {
 }
 
 type CCContext struct {
-	IsPaused              bool     `msgp:"is_paused"`
-	RescanTime            int64    `msgp:"rescan_time"`               // last startRescan block timestamp, init is max int64
-	RescanHeight          uint64   `msgp:"rescan_hint"`               // main chain block height used as rescan end height, init is shaGate enabling height
-	LastRescannedHeight   uint64   `msgp:"last_rescanned_hint"`       // main chain block height used as rescan start height, init is 0
-	UTXOAlreadyHandled    bool     `msgp:"utxo_already_handle"`       // set when call handleUtxo, unset when call startRescan, init is true
-	TotalBurntOnMainChain [32]byte `msgp:"total_burnt_on_main_chain"` // init is totalBurnt BCH when shaGate enabling
-	LastCovenantAddr      [20]byte `msgp:"last_covenant_addr"`        //init is zero address
-	CurrCovenantAddr      [20]byte `msgp:"curr_covenant_addr"`        //init is genesis covenant address
+	IsPaused                   bool     `msgp:"is_paused"`
+	RescanTime                 int64    `msgp:"rescan_time"`                    // last startRescan block timestamp, init is max int64
+	RescanHeight               uint64   `msgp:"rescan_height"`                  // main chain block height used as rescan end height, init is shaGate enabling height
+	LastRescannedHeight        uint64   `msgp:"last_rescanned_height"`          // main chain block height used as rescan start height, init is 0
+	UTXOAlreadyHandled         bool     `msgp:"utxo_already_handled"`           // set when call handleUtxo, unset when call startRescan, init is true
+	TotalBurntOnMainChain      [32]byte `msgp:"total_burnt_on_main_chain"`      // init is totalBurnt BCH when shaGate enabling
+	LastCovenantAddr           [20]byte `msgp:"last_covenant_addr"`             //init is zero address
+	CurrCovenantAddr           [20]byte `msgp:"curr_covenant_addr"`             //init is genesis covenant address
+	LatestEpochHandled         int64    `msgp:"latest_epoch_handled"`           //init is zero, the latest epoch number handled for operator or monitor election
+	CovenantAddrLastChangeTime int64    `msgp:"covenant_addr_last_change_time"` //init is zero, the latest covenant addr change side chain block timestamp
 }
 
 type SourceType uint8

@@ -218,10 +218,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 
 	app.root.SetHeight(app.currHeight)
 	app.txEngine.SetContext(app.GetRunTxContext())
-	if app.currHeight != 0 { // restart postCommit
-		app.mtx.Lock()
-		app.postCommit(app.syncBlockInfo())
-	}
 
 	/*------set stakingInfo------*/
 	stakingInfo := staking.LoadStakingInfo(ctx)
@@ -251,9 +247,13 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.watcher.CheckSanity(skipSanityCheck)
 	catchupChan := make(chan bool, 1)
 	go app.watcher.Run(catchupChan)
+	crosschain.RestartUTXOCollect(ctx, app.watcher.CcContractExecutor.StartUTXOCollect)
 	<-catchupChan
-
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
+	if app.currHeight != 0 { // restart postCommit
+		app.mtx.Lock()
+		app.postCommit(app.syncBlockInfo())
+	}
 	ctx.Close(true)
 	return app
 }

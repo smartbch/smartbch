@@ -48,7 +48,7 @@ func TestRedeem(t *testing.T) {
 	SaveUTXORecord(ctx, record)
 	txData := PackRedeemFunc(big.NewInt(0).SetBytes(txid[:]), big.NewInt(int64(vout)), alice)
 	// normal
-	status, logs, _, outdata := redeem(ctx, &mtypes.BlockInfo{Timestamp: RedeemDelay + 2}, &mtypes.TxToRun{
+	status, logs, _, outdata := redeem(ctx, &mtypes.BlockInfo{Timestamp: MatureTime + 2}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			From:  alice,
 			Value: amount,
@@ -69,7 +69,7 @@ func TestRedeem(t *testing.T) {
 		},
 	})
 	require.Equal(t, StatusFailed, status)
-	require.Equal(t, AlreadyRedeemed.Error(), string(outdata))
+	require.Equal(t, ErrAlreadyRedeemed.Error(), string(outdata))
 	// refresh record
 	DeleteUTXORecord(ctx, txid, vout)
 	SaveUTXORecord(ctx, record)
@@ -82,7 +82,7 @@ func TestRedeem(t *testing.T) {
 		},
 	})
 	require.Equal(t, StatusFailed, status)
-	require.Equal(t, NotLostAndFound.Error(), string(outdata))
+	require.Equal(t, ErrNotLostAndFound.Error(), string(outdata))
 	// test redeem amount not match
 	status, logs, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
@@ -92,7 +92,7 @@ func TestRedeem(t *testing.T) {
 		},
 	})
 	require.Equal(t, StatusFailed, status)
-	require.Equal(t, AmountNotMatch.Error(), string(outdata))
+	require.Equal(t, ErrAmountNotMatch.Error(), string(outdata))
 	// test lost and found
 	// refresh record
 	DeleteUTXORecord(ctx, txid, vout)
@@ -170,9 +170,10 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 	amount := uint256.NewInt(9).Bytes32()
 
 	record := types.UTXORecord{
-		Txid:   prevTxid,
-		Index:  prevVout,
-		Amount: prevAmount,
+		Txid:     prevTxid,
+		Index:    prevVout,
+		Amount:   prevAmount,
+		BornTime: 1,
 	}
 	SaveUTXORecord(ctx, record)
 	info := types.CCTransferInfo{
@@ -195,7 +196,7 @@ func TestHandleConvertTypeUTXO(t *testing.T) {
 	blackAcc.UpdateBalance(blackBalance)
 	ctx.SetAccount(blackHoleContractAddress, blackAcc)
 
-	logs, _ := handleConvertTypeUTXO(ctx, &context, &mtypes.BlockInfo{Timestamp: 1}, &info)
+	logs := handleConvertTypeUTXO(ctx, &context, &info)
 	loadRecord := LoadUTXORecord(ctx, txid, vout)
 	require.Equal(t, vout, loadRecord.Index)
 	loadRecord = LoadUTXORecord(ctx, prevTxid, prevVout)

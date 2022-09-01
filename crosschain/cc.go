@@ -33,7 +33,7 @@ var (
 	MaxCCAmount           uint64 = 1000
 	MinCCAmount           uint64 = 1
 	MinPendingBurningLeft uint64 = 10
-	RedeemDelay           int64  = 24 * 60 * 60
+	MatureTime            int64  = 24 * 60 * 60
 )
 
 var (
@@ -63,20 +63,22 @@ var (
 	UTXOHandleDelay       int64 = 20 * 60
 	ExpectedSignTimeDelay int64 = 5 * 60 // 5min
 
-	InvalidCallData         = errors.New("invalid call data")
-	InvalidSelector         = errors.New("invalid selector")
-	BalanceNotEnough        = errors.New("balance is not enough")
-	MustMonitor             = errors.New("only monitor")
-	RescanNotFinish         = errors.New("rescan not finish ")
-	UTXOAlreadyHandled      = errors.New("utxos in rescan already handled")
-	UTXONotExist            = errors.New("utxo not exist")
-	AmountNotMatch          = errors.New("redeem amount not match")
-	AlreadyRedeemed         = errors.New("already redeemed")
-	NotTimeToRedeem         = errors.New("not time to redeem")
-	NotLostAndFound         = errors.New("not lost and found utxo")
-	NotLoser                = errors.New("not loser")
-	CCPaused                = errors.New("cc paused now")
-	PendingBurningNotEnough = errors.New("pending burning not enough")
+	ErrInvalidCallData         = errors.New("invalid call data")
+	ErrInvalidSelector         = errors.New("invalid selector")
+	ErrBalanceNotEnough        = errors.New("balance is not enough")
+	ErrMustMonitor             = errors.New("only monitor")
+	ErrRescanNotFinish         = errors.New("rescan not finish ")
+	ErrUTXOAlreadyHandled      = errors.New("utxos in rescan already handled")
+	ErrUTXONotExist            = errors.New("utxo not exist")
+	ErrAmountNotMatch          = errors.New("redeem amount not match")
+	ErrAlreadyRedeemed         = errors.New("already redeemed")
+	ErrNotTimeToRedeem         = errors.New("not time to redeem")
+	ErrNotLostAndFound         = errors.New("not lost and found utxo")
+	ErrNotLoser                = errors.New("not loser")
+	ErrCCPaused                = errors.New("cc paused now")
+	ErrPendingBurningNotEnough = errors.New("pending burning not enough")
+	ErrOutOfGas                = errors.New("out of gas")
+	ErrNotCurrCovenantAddress  = errors.New("not match current covenant address")
 )
 
 type CcContractExecutor struct {
@@ -128,7 +130,7 @@ func (_ *CcContractExecutor) IsSystemContract(addr common.Address) bool {
 func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = StatusFailed
-		outData = []byte(InvalidCallData.Error())
+		outData = []byte(ErrInvalidCallData.Error())
 		return
 	}
 	var selector [4]byte
@@ -148,7 +150,7 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 		return c.handleUTXOs(ctx, currBlock, tx)
 	default:
 		status = StatusFailed
-		outData = []byte(InvalidSelector.Error())
+		outData = []byte(ErrInvalidSelector.Error())
 		return
 	}
 }
@@ -165,9 +167,13 @@ func (_ *CcContractExecutor) Run(_ []byte) ([]byte, error) {
 func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
+	if tx.Gas < GasOfCCOp {
+		outData = []byte(ErrOutOfGas.Error())
+		return
+	}
 	callData := tx.Data[4:]
 	if len(callData) < 32+32+32 {
-		outData = []byte(InvalidCallData.Error())
+		outData = []byte(ErrInvalidCallData.Error())
 		return
 	}
 	context := LoadCCContext(ctx)
@@ -175,7 +181,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 		panic("cc context is nil")
 	}
 	if context.IsPaused {
-		outData = []byte(CCPaused.Error())
+		outData = []byte(ErrCCPaused.Error())
 		return
 	}
 	var txid [32]byte
@@ -200,7 +206,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 		outData = []byte(err.Error())
 		return
 	}
-	l, err := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress)
+	l, err := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress, context.CurrCovenantAddr)
 	if err != nil {
 		outData = []byte(err.Error())
 		return
@@ -214,13 +220,17 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
+	if tx.Gas < GasOfCCOp {
+		outData = []byte(ErrOutOfGas.Error())
+		return
+	}
 	callData := tx.Data[4:]
 	if len(callData) < 32 {
-		outData = []byte(InvalidCallData.Error())
+		outData = []byte(ErrInvalidCallData.Error())
 		return
 	}
 	if !c.Voter.IsMonitor(ctx, tx.From) {
-		outData = []byte(MustMonitor.Error())
+		outData = []byte(ErrMustMonitor.Error())
 		return
 	}
 	context := LoadCCContext(ctx)
@@ -228,20 +238,15 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 		panic("cc context is nil")
 	}
 	if context.IsPaused {
-		outData = []byte(CCPaused.Error())
+		outData = []byte(ErrCCPaused.Error())
 		return
 	}
 	if context.RescanTime+UTXOHandleDelay > currBlock.Timestamp {
-		outData = []byte(RescanNotFinish.Error())
+		outData = []byte(ErrRescanNotFinish.Error())
 		return
 	}
 	if !context.UTXOAlreadyHandled {
-		newLogs, err := c.handleTransferInfos(ctx, currBlock, context)
-		if err != nil {
-			outData = []byte(err.Error())
-			return
-		}
-		logs = append(logs, newLogs...)
+		logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
 	}
 	context.LastRescannedHeight = context.RescanHeight
 	context.RescanHeight = uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
@@ -261,12 +266,33 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	return
 }
 
+func RestartUTXOCollect(ctx *mevmtypes.Context, collectChannel chan types.UTXOCollectParam) {
+	if !ctx.IsShaGateFork() {
+		return
+	}
+	ccCTx := LoadCCContext(ctx)
+	if ccCTx.UTXOAlreadyHandled {
+		return
+	}
+	p := types.UTXOCollectParam{
+		BeginHeight:            int64(ccCTx.LastRescannedHeight),
+		EndHeight:              int64(ccCTx.RescanHeight),
+		CurrentCovenantAddress: ccCTx.CurrCovenantAddr,
+		PrevCovenantAddress:    ccCTx.LastCovenantAddr,
+	}
+	collectChannel <- p
+}
+
 // pause() onlyMonitor
 func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
+	if tx.Gas < GasOfCCOp {
+		outData = []byte(ErrOutOfGas.Error())
+		return
+	}
 	if !c.Voter.IsMonitor(ctx, tx.From) {
-		outData = []byte(MustMonitor.Error())
+		outData = []byte(ErrMustMonitor.Error())
 		return
 	}
 	context := LoadCCContext(ctx)
@@ -274,7 +300,7 @@ func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun
 		panic("cc context is nil")
 	}
 	if context.IsPaused {
-		outData = []byte(CCPaused.Error())
+		outData = []byte(ErrCCPaused.Error())
 		return
 	}
 	context.IsPaused = true
@@ -284,63 +310,54 @@ func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun
 }
 
 // handleUTXOs()
-func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, _ *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
+	if tx.Gas < GasOfCCOp {
+		outData = []byte(ErrOutOfGas.Error())
+		return
+	}
 	context := LoadCCContext(ctx)
 	if context == nil {
 		panic("cc context is nil")
 	}
 	if context.IsPaused {
-		outData = []byte(CCPaused.Error())
+		outData = []byte(ErrCCPaused.Error())
 		return
 	}
 	if context.RescanTime+UTXOHandleDelay > currBlock.Timestamp {
-		outData = []byte(RescanNotFinish.Error())
+		outData = []byte(ErrRescanNotFinish.Error())
 		return
 	}
 	if context.UTXOAlreadyHandled {
-		outData = []byte(UTXOAlreadyHandled.Error())
+		outData = []byte(ErrUTXOAlreadyHandled.Error())
 		return
 	}
-	newLogs, err := c.handleTransferInfos(ctx, currBlock, context)
-	if err != nil {
-		outData = []byte(err.Error())
-		return
-	}
-	logs = append(logs, newLogs...)
+	logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
 }
 
-func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog, err error) {
+func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	context.UTXOAlreadyHandled = true
 	c.Lock.RLock()
 	defer c.Lock.RUnlock()
 	for _, info := range c.Infos {
 		switch info.Type {
 		case types.TransferType:
-			transferLogs, err := handleTransferTypeUTXO(ctx, context, block, info)
-			if err != nil {
-				return nil, err
-			}
-			logs = append(logs, transferLogs...)
+			logs = append(logs, handleTransferTypeUTXO(ctx, context, block, info)...)
 		case types.ConvertType:
-			convertLogs, err := handleConvertTypeUTXO(ctx, context, block, info)
-			if err != nil {
-				return nil, err
-			}
-			logs = append(logs, convertLogs...)
+			logs = append(logs, handleConvertTypeUTXO(ctx, context, info)...)
 		case types.RedeemOrLostAndFoundType:
 			logs = append(logs, handleRedeemOrLostAndFoundTypeUTXO(ctx, context, info)...)
 		default:
 		}
 	}
-	return logs, nil
+	return logs
 }
 
-func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
+func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) []mevmtypes.EvmLog {
 	r := types.UTXORecord{
 		Txid:   info.UTXO.TxID,
 		Index:  info.UTXO.Index,
@@ -349,7 +366,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 	if info.CovenantAddress == context.LastCovenantAddr {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
-		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}, nil
+		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	}
 	amount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
 	maxAmount := uint256.NewInt(0).Mul(uint256.NewInt(MaxCCAmount), uint256.NewInt(E18))
@@ -357,19 +374,19 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 	if amount.Gt(maxAmount) {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
-		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}, nil
+		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
 		blackHoleBalance := ebp.GetBlackHoleBalance(ctx)
 		totalBurntOnMain := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
 		if !blackHoleBalance.Gt(totalBurntOnMain) {
-			return nil, PendingBurningNotEnough
+			panic(ErrPendingBurningNotEnough.Error())
 		}
 		pendingBurning := blackHoleBalance.Sub(blackHoleBalance, totalBurntOnMain)
 		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E18))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
-			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}, nil
+			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 		}
 		// add total burnt on main chain here, not waiting tx minted on main chain
 		totalBurnt := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
@@ -383,7 +400,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		if err != nil {
 			panic(err)
 		}
-		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}, nil
+		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}
 	}
 	r.BornTime = block.Timestamp
 	SaveUTXORecord(ctx, r)
@@ -391,32 +408,32 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 	if err != nil {
 		panic(err)
 	}
-	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}, nil
+	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}
 }
 
-func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) ([]mevmtypes.EvmLog, error) {
+func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
 	r := LoadUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	if r == nil {
-		return nil, nil
+		return nil
 	}
 	originAmount := uint256.NewInt(0).SetBytes(r.Amount[:])
 	newAmount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
 	if originAmount.Lt(newAmount) || originAmount.Eq(newAmount) {
-		return nil, nil
+		panic("wrong amount in convert utxo")
 	}
 	//deduct gas fee used for utxo convert
 	blockHoleBalance := ebp.GetBlackHoleBalance(ctx)
 	totalBurntOnMainChain := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
 	if !blockHoleBalance.Gt(totalBurntOnMainChain) {
-		return nil, PendingBurningNotEnough
+		panic(ErrPendingBurningNotEnough.Error())
 	}
 	pendingBurning := uint256.NewInt(0).Sub(blockHoleBalance, totalBurntOnMainChain)
-	gasFee := originAmount.Sub(originAmount, newAmount)
-	if pendingBurning.Lt(gasFee) {
-		return nil, PendingBurningNotEnough
+	minerFee := originAmount.Sub(originAmount, newAmount)
+	if pendingBurning.Lt(minerFee) {
+		panic(ErrPendingBurningNotEnough.Error())
 	}
 	// add gas fee on totalBurntOnMainChain, maybe should record this on specific field
-	totalBurntOnMainChain.Add(totalBurntOnMainChain, gasFee)
+	totalBurntOnMainChain.Add(totalBurntOnMainChain, minerFee)
 	context.TotalBurntOnMainChain = totalBurntOnMainChain.Bytes32()
 	newR := types.UTXORecord{
 		Txid:         info.UTXO.TxID,
@@ -424,10 +441,10 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, blo
 		Amount:       newAmount.Bytes32(),
 		CovenantAddr: info.CovenantAddress,
 	}
-	newR.BornTime = block.Timestamp
+	newR.BornTime = r.BornTime
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}, nil
+	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}
 }
 
 func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
@@ -450,8 +467,12 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currEpochNum := stakingInfo.CurrEpochNum
+	if currEpochNum == context.LatestEpochHandled {
+		return nil
+	}
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.OperatorElectionEpochs == 0 {
 		ElectOperators(ctx, currBlock.Timestamp, c.logger)
+		context.LatestEpochHandled = currEpochNum
 	}
 	// todo: monitor should call startRescan at least once in every epoch to trigger this
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.MonitorElectionEpochs == 0 {
@@ -465,25 +486,29 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 	if !changed {
 		return nil
 	}
+	context.CovenantAddrLastChangeTime = currBlock.Timestamp
 	context.LastCovenantAddr = context.CurrCovenantAddr
 	context.CurrCovenantAddr = newAddress
 	logs = append(logs, buildChangeAddrLog(context.LastCovenantAddr, context.CurrCovenantAddr))
 	return
 }
 
-func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress [20]byte) (*mevmtypes.EvmLog, error) {
+func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress, currCovenantAddr [20]byte) (*mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
-		return nil, UTXONotExist
+		return nil, ErrUTXONotExist
 	}
 	if !uint256.NewInt(0).SetBytes32(r.Amount[:]).Eq(amount) {
-		return nil, AmountNotMatch
+		return nil, ErrAmountNotMatch
 	}
 	if r.IsRedeemed {
-		return nil, AlreadyRedeemed
+		return nil, ErrAlreadyRedeemed
 	}
-	if r.BornTime == 0 || r.BornTime+RedeemDelay >= block.Timestamp {
-		return nil, NotTimeToRedeem
+	if r.CovenantAddr != currCovenantAddr {
+		return nil, ErrNotCurrCovenantAddress
+	}
+	if r.BornTime == 0 || r.BornTime+MatureTime >= block.Timestamp {
+		return nil, ErrNotTimeToRedeem
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
@@ -496,16 +521,16 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, sender common.Address, targetAddress [20]byte) (*mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
-		return nil, UTXONotExist
+		return nil, ErrUTXONotExist
 	}
 	if r.OwnerOfLost == [20]byte{} {
-		return nil, NotLostAndFound
+		return nil, ErrNotLostAndFound
 	}
 	if sender != r.OwnerOfLost {
-		return nil, NotLoser
+		return nil, ErrNotLoser
 	}
 	if r.IsRedeemed {
-		return nil, AlreadyRedeemed
+		return nil, ErrAlreadyRedeemed
 	}
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
@@ -519,7 +544,7 @@ func transferBch(ctx *mevmtypes.Context, sender, receiver common.Address, value 
 	senderAcc := ctx.GetAccount(sender)
 	balance := senderAcc.Balance()
 	if balance.Lt(value) {
-		return BalanceNotEnough
+		return ErrBalanceNotEnough
 	}
 	if !value.IsZero() {
 		balance.Sub(balance, value)
@@ -576,8 +601,6 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 			binary.BigEndian.PutUint32(newConvertedOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Data[32:64]).Uint64()))
 			newConvertedOp.NewCovenantAddr = common.BytesToAddress(l.Data[64:])
 			opList.ConvertedOps = append(opList.ConvertedOps, newConvertedOp)
-		case HashOfEventChangeAddr:
-			// todo: need to notify modb to handover all redeemable tx
 		case HashOfEventDeleted:
 			newDeleteOp := modbtypes.DeletedOp{}
 			copy(newDeleteOp.UtxoId[:32], l.Topics[1][:])

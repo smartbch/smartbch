@@ -178,7 +178,6 @@ func TestRunWithNewEpoch(t *testing.T) {
 func TestRunWithFork(t *testing.T) {
 	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)
 	catchupChan := make(chan bool, 1)
 	go w.Run(catchupChan)
