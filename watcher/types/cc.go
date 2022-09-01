@@ -243,9 +243,6 @@ func findReceiverInOPReturn(script string) ([]byte, bool) {
 		return nil, false
 	}
 	script = script[len(prefix):]
-	if len(script) >= 2 && script[0] == '0' && (script[1] == 'x' || script[1] == 'X') {
-		script = script[2:]
-	}
 	if len(script) != 40 {
 		return nil, false
 	}

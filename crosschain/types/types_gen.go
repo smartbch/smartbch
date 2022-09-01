@@ -60,6 +60,12 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "TotalBurntOnMainChain")
 				return
 			}
+		case "TotalMinerFeeForConvertTx":
+			err = dc.ReadExactBytes((z.TotalMinerFeeForConvertTx)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalMinerFeeForConvertTx")
+				return
+			}
 		case "LastCovenantAddr":
 			err = dc.ReadExactBytes((z.LastCovenantAddr)[:])
 			if err != nil {
@@ -78,6 +84,12 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "LatestEpochHandled")
 				return
 			}
+		case "CovenantAddrLastChangeTime":
+			z.CovenantAddrLastChangeTime, err = dc.ReadInt64()
+			if err != nil {
+				err = msgp.WrapError(err, "CovenantAddrLastChangeTime")
+				return
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -91,9 +103,9 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 9
+	// map header, size 11
 	// write "IsPaused"
-	err = en.Append(0x89, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
+	err = en.Append(0x8b, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
 	if err != nil {
 		return
 	}
@@ -152,6 +164,16 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "TotalBurntOnMainChain")
 		return
 	}
+	// write "TotalMinerFeeForConvertTx"
+	err = en.Append(0xb9, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x4d, 0x69, 0x6e, 0x65, 0x72, 0x46, 0x65, 0x65, 0x46, 0x6f, 0x72, 0x43, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x74, 0x54, 0x78)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.TotalMinerFeeForConvertTx)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "TotalMinerFeeForConvertTx")
+		return
+	}
 	// write "LastCovenantAddr"
 	err = en.Append(0xb0, 0x4c, 0x61, 0x73, 0x74, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72)
 	if err != nil {
@@ -182,15 +204,25 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "LatestEpochHandled")
 		return
 	}
+	// write "CovenantAddrLastChangeTime"
+	err = en.Append(0xba, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x4c, 0x61, 0x73, 0x74, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x54, 0x69, 0x6d, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteInt64(z.CovenantAddrLastChangeTime)
+	if err != nil {
+		err = msgp.WrapError(err, "CovenantAddrLastChangeTime")
+		return
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 9
+	// map header, size 11
 	// string "IsPaused"
-	o = append(o, 0x89, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
+	o = append(o, 0x8b, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
 	o = msgp.AppendBool(o, z.IsPaused)
 	// string "RescanTime"
 	o = append(o, 0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x54, 0x69, 0x6d, 0x65)
@@ -207,6 +239,9 @@ func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "TotalBurntOnMainChain"
 	o = append(o, 0xb5, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x42, 0x75, 0x72, 0x6e, 0x74, 0x4f, 0x6e, 0x4d, 0x61, 0x69, 0x6e, 0x43, 0x68, 0x61, 0x69, 0x6e)
 	o = msgp.AppendBytes(o, (z.TotalBurntOnMainChain)[:])
+	// string "TotalMinerFeeForConvertTx"
+	o = append(o, 0xb9, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x4d, 0x69, 0x6e, 0x65, 0x72, 0x46, 0x65, 0x65, 0x46, 0x6f, 0x72, 0x43, 0x6f, 0x6e, 0x76, 0x65, 0x72, 0x74, 0x54, 0x78)
+	o = msgp.AppendBytes(o, (z.TotalMinerFeeForConvertTx)[:])
 	// string "LastCovenantAddr"
 	o = append(o, 0xb0, 0x4c, 0x61, 0x73, 0x74, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72)
 	o = msgp.AppendBytes(o, (z.LastCovenantAddr)[:])
@@ -216,6 +251,9 @@ func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "LatestEpochHandled"
 	o = append(o, 0xb2, 0x4c, 0x61, 0x74, 0x65, 0x73, 0x74, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65, 0x64)
 	o = msgp.AppendInt64(o, z.LatestEpochHandled)
+	// string "CovenantAddrLastChangeTime"
+	o = append(o, 0xba, 0x43, 0x6f, 0x76, 0x65, 0x6e, 0x61, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x4c, 0x61, 0x73, 0x74, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x54, 0x69, 0x6d, 0x65)
+	o = msgp.AppendInt64(o, z.CovenantAddrLastChangeTime)
 	return
 }
 
@@ -273,6 +311,12 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "TotalBurntOnMainChain")
 				return
 			}
+		case "TotalMinerFeeForConvertTx":
+			bts, err = msgp.ReadExactBytes(bts, (z.TotalMinerFeeForConvertTx)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalMinerFeeForConvertTx")
+				return
+			}
 		case "LastCovenantAddr":
 			bts, err = msgp.ReadExactBytes(bts, (z.LastCovenantAddr)[:])
 			if err != nil {
@@ -291,6 +335,12 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "LatestEpochHandled")
 				return
 			}
+		case "CovenantAddrLastChangeTime":
+			z.CovenantAddrLastChangeTime, bts, err = msgp.ReadInt64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "CovenantAddrLastChangeTime")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -305,7 +355,7 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CCContext) Msgsize() (s int) {
-	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 19 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 19 + msgp.Int64Size
+	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 19 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 26 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 19 + msgp.Int64Size + 27 + msgp.Int64Size
 	return
 }
 

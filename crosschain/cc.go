@@ -376,12 +376,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		SaveUTXORecord(ctx, r)
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
-		blackHoleBalance := ebp.GetBlackHoleBalance(ctx)
-		totalBurntOnMain := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
-		if !blackHoleBalance.Gt(totalBurntOnMain) {
-			panic(ErrPendingBurningNotEnough.Error())
-		}
-		pendingBurning := blackHoleBalance.Sub(blackHoleBalance, totalBurntOnMain)
+		pendingBurning, _, totalBurntOnMain := getBurningRelativeData(ctx, context)
 		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E18))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
@@ -389,10 +384,8 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 		}
 		// add total burnt on main chain here, not waiting tx minted on main chain
-		totalBurnt := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
-		totalBurnt.Add(totalBurnt, amount)
-		context.TotalBurntOnMainChain = totalBurnt.Bytes32()
-
+		totalBurntOnMain.Add(totalBurntOnMain, amount)
+		context.TotalBurntOnMainChain = totalBurntOnMain.Bytes32()
 		r.IsRedeemed = true
 		copy(r.RedeemTarget[:], BurnAddressMainChain)
 		SaveUTXORecord(ctx, r)
@@ -421,20 +414,15 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	if originAmount.Lt(newAmount) || originAmount.Eq(newAmount) {
 		panic("wrong amount in convert utxo")
 	}
-	//deduct gas fee used for utxo convert
-	blockHoleBalance := ebp.GetBlackHoleBalance(ctx)
-	totalBurntOnMainChain := uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
-	if !blockHoleBalance.Gt(totalBurntOnMainChain) {
-		panic(ErrPendingBurningNotEnough.Error())
-	}
-	pendingBurning := uint256.NewInt(0).Sub(blockHoleBalance, totalBurntOnMainChain)
+	//deduct miner fee used for utxo convert
+	pendingBurning, totalMinerFeeForConvertTx, _ := getBurningRelativeData(ctx, context)
 	minerFee := originAmount.Sub(originAmount, newAmount)
 	if pendingBurning.Lt(minerFee) {
 		panic(ErrPendingBurningNotEnough.Error())
 	}
-	// add gas fee on totalBurntOnMainChain, maybe should record this on specific field
-	totalBurntOnMainChain.Add(totalBurntOnMainChain, minerFee)
-	context.TotalBurntOnMainChain = totalBurntOnMainChain.Bytes32()
+	// add miner fee on TotalMinerFeeForConvertTx
+	totalMinerFeeForConvertTx.Add(totalMinerFeeForConvertTx, minerFee)
+	context.TotalMinerFeeForConvertTx = totalMinerFeeForConvertTx.Bytes32()
 	newR := types.UTXORecord{
 		Txid:         info.UTXO.TxID,
 		Index:        info.UTXO.Index,
@@ -462,6 +450,18 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	} else {
 		return []mevmtypes.EvmLog{buildDeletedLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeeming)}
 	}
+}
+
+func getBurningRelativeData(ctx *mevmtypes.Context, context *types.CCContext) (pendingBurning *uint256.Int, totalMinerFeeForConvertTx *uint256.Int, totalBurntOnMainChain *uint256.Int) {
+	blockHoleBalance := ebp.GetBlackHoleBalance(ctx)
+	totalBurntOnMainChain = uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
+	totalMinerFeeForConvertTx = uint256.NewInt(0).SetBytes32(context.TotalMinerFeeForConvertTx[:])
+	totalConsumedOnMainChain := uint256.NewInt(0).Add(totalMinerFeeForConvertTx, totalBurntOnMainChain)
+	if !blockHoleBalance.Gt(totalConsumedOnMainChain) {
+		panic(ErrPendingBurningNotEnough.Error())
+	}
+	pendingBurning = uint256.NewInt(0).Sub(blockHoleBalance, totalConsumedOnMainChain)
+	return
 }
 
 func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {

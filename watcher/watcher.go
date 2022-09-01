@@ -354,9 +354,7 @@ func (watcher *Watcher) ClearOldData() {
 		height--
 	}
 	if vLen > monitorInfoCleanThreshold /*param it*/ {
-		var newList = make([]*types.VoteInfo, 0, 5)
-		copy(newList, watcher.voteInfoList[vLen-5:])
-		watcher.voteInfoList = newList
+		watcher.voteInfoList = append([]*types.VoteInfo{}, watcher.voteInfoList[vLen-monitorInfoCleanThreshold:]...)
 	}
 }
 
