@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/gcash/bchd/chaincfg"
@@ -188,21 +187,17 @@ func (c CcCovenant) FinishRedeemByUserTx(
 }
 
 func (c *CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
-	return c.BuildRedeemOrConvertUnlockingScript(sigs, c.operatorPks, c.monitorPks)
+	return c.buildRedeemOrConvertUnlockingScript(sigs, nil, nil)
 }
 
-func (c *CcCovenant) BuildRedeemOrConvertUnlockingScript(
+func (c *CcCovenant) buildRedeemOrConvertUnlockingScript(
 	sigs [][]byte,
-	newOperatorPks [][]byte,
-	newMonitorPks [][]byte,
+	newOperatorPubkeysHash []byte,
+	newMonitorPubkeysHash []byte,
 ) ([]byte, error) {
 
 	if len(sigs) != param.MinOperatorSigCount {
 		return nil, errors.New("invalid operator signature count")
-	}
-	err := checkPks(newOperatorPks, newMonitorPks)
-	if err != nil {
-		return nil, err
 	}
 
 	redeemScript, err := c.BuildFullRedeemScript()
@@ -211,8 +206,8 @@ func (c *CcCovenant) BuildRedeemOrConvertUnlockingScript(
 	}
 
 	builder := txscript.NewScriptBuilder()
-	builder.AddData(bchutil.Hash160(bytes.Join(newOperatorPks, nil)))
-	builder.AddData(bchutil.Hash160(bytes.Join(newMonitorPks, nil)))
+	builder.AddData(newOperatorPubkeysHash)
+	builder.AddData(newMonitorPubkeysHash)
 	for i := len(c.operatorPks) - 1; i >= 0; i-- {
 		builder.AddData(c.operatorPks[i])
 	}
@@ -295,13 +290,20 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
 	newMonitorPks [][]byte,
 ) ([]byte, error) {
 	// TODO: check newOperatorPks & newMonitorPks
-	if reflect.DeepEqual(newOperatorPks, c.operatorPks) &&
-		reflect.DeepEqual(newMonitorPks, c.monitorPks) {
+	//if reflect.DeepEqual(newOperatorPks, c.operatorPks) &&
+	//	reflect.DeepEqual(newMonitorPks, c.monitorPks) {
+	//
+	//	return nil, fmt.Errorf("operators and monitors not changed")
+	//}
 
-		return nil, fmt.Errorf("operators and monitors not changed")
+	err := checkPks(newOperatorPks, newMonitorPks)
+	if err != nil {
+		return nil, err
 	}
 
-	return c.BuildRedeemOrConvertUnlockingScript(sigs, newOperatorPks, newMonitorPks)
+	newOperatorPubkeysHash := bchutil.Hash160(bytes.Join(newOperatorPks, nil))
+	newMonitorPubkeysHash := bchutil.Hash160(bytes.Join(newMonitorPks, nil))
+	return c.buildRedeemOrConvertUnlockingScript(sigs, newOperatorPubkeysHash, newMonitorPubkeysHash)
 }
 
 /* convert by monitors */

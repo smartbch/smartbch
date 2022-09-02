@@ -46,7 +46,7 @@ const (
 	MinOperatorSigCount                = 7
 	MinMonitorSigCount                 = 2
 	RedeemOrCovertMinerFee             = 2000
-	MonitorTransferWaitBlocks          = 16 * 2016
+	MonitorTransferWaitBlocks          = 34560 // 6 * 24 * 30 * 8 ~= 8 months
 	CcBchNetwork                       = "mainnet"
 
 	// epoch params
