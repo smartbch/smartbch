@@ -154,7 +154,7 @@ func (cc *CcTxParser) findRedeemOrLostAndFoundTx(txs []TxInfo) (infos []*cctypes
 			copy(info.PrevUTXO.TxID[:], txid[:])
 			info.PrevUTXO.Index = vout
 			maybeTargetTx = true
-			break
+			//break
 		}
 		if maybeTargetTx {
 			script, ok := getPubkeyScript(ti.VoutList[0])
@@ -201,10 +201,11 @@ func getSpentTxInfo(vIn map[string]interface{}) (txid [32]byte, index uint32, er
 	if !exist || vout == nil {
 		return [32]byte{}, 0, errors.New("no vout")
 	}
-	index, ok = vout.(uint32)
+	nVout, ok := vout.(float64)
 	if !ok {
-		return [32]byte{}, 0, errors.New("not uint32")
+		return [32]byte{}, 0, errors.New("not float64")
 	}
+	index = uint32(nVout)
 	return
 }
 
