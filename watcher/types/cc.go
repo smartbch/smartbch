@@ -112,12 +112,12 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 			continue
 		}
 		if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
-			info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value)), uint256.NewInt(1e10)).Bytes32()
-			copy(info.UTXO.TxID[:], ti.Hash)
+			info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value*1e8)), uint256.NewInt(1e10)).Bytes32()
+			info.UTXO.TxID = common.HexToHash(ti.Hash)
 			info.UTXO.Index = uint32(0)
 			info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
 			maybeConvertTx = true
-			break
+			//break
 		}
 		if maybeConvertTx {
 			txid, vout, err := getSpentTxInfo(ti.VinList[0])
