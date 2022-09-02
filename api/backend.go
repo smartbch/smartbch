@@ -458,7 +458,7 @@ func (backend *apiBackend) IsCrossChainPaused() bool {
 	defer ctx.Close(false)
 
 	ccCtx := crosschain.LoadCCContext(ctx)
-	return ccCtx == nil || ccCtx.IsPaused
+	return ccCtx == nil || len(ccCtx.MonitorsWithPauseCommand) != 0
 }
 
 func (backend *apiBackend) GetAllOperatorsInfo() []crosschain.OperatorInfo {

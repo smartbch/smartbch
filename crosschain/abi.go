@@ -24,6 +24,7 @@ contract CC {
     function redeem(uint256 txid, uint256 index, address targetAddress) external {}
     function startRescan(uint256 mainFinalizedBlockHeight) external {}
     function pause() external {}
+    function resume() external {}
     function handleUTXOs() external {}
 }
 */
@@ -124,20 +125,6 @@ var ABI = ethutils.MustParseABI(`
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "events",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "handleUTXOs",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -188,6 +175,44 @@ var ABI = ethutils.MustParseABI(`
 		"type": "event"
 	},
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "txid",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint32",
+				"name": "vout",
+				"type": "uint32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "covenantAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "sourceType",
+				"type": "uint8"
+			}
+		],
+		"name": "Redeem",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "handleUTXOs",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "pause",
 		"outputs": [],
@@ -218,35 +243,11 @@ var ABI = ethutils.MustParseABI(`
 		"type": "function"
 	},
 	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "uint256",
-				"name": "txid",
-				"type": "uint256"
-			},
-			{
-				"indexed": true,
-				"internalType": "uint32",
-				"name": "vout",
-				"type": "uint32"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "covenantAddr",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint8",
-				"name": "sourceType",
-				"type": "uint8"
-			}
-		],
-		"name": "Redeem",
-		"type": "event"
+		"inputs": [],
+		"name": "resume",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	},
 	{
 		"inputs": [

@@ -33,7 +33,8 @@ var (
 	MaxCCAmount           uint64 = 1000
 	MinCCAmount           uint64 = 1
 	MinPendingBurningLeft uint64 = 10
-	MatureTime            int64  = 24 * 60 * 60
+	MatureTime            int64  = 24 * 60 * 60       // 24h
+	ForceTransferTime     int64  = 6 * 30 * 24 * 3600 // 6m
 )
 
 var (
@@ -48,6 +49,7 @@ var (
 	SelectorStartRescan [4]byte = [4]byte{0x81, 0x3b, 0xf8, 0x3d}
 	SelectorHandleUTXOs [4]byte = [4]byte{0x9c, 0x44, 0x8e, 0xfe}
 	SelectorPause       [4]byte = [4]byte{0x84, 0x56, 0xcb, 0x59}
+	SelectorResume      [4]byte = [4]byte{0x04, 0x6f, 0x7d, 0xa2}
 
 	HashOfEventNewRedeemable   = crypto.Keccak256Hash([]byte("NewRedeemable(uint256,uint32,address)"))
 	HashOfEventNewLostAndFound = crypto.Keccak256Hash([]byte("NewLostAndFound(uint256,uint32,address)"))
@@ -79,6 +81,9 @@ var (
 	ErrPendingBurningNotEnough = errors.New("pending burning not enough")
 	ErrOutOfGas                = errors.New("out of gas")
 	ErrNotCurrCovenantAddress  = errors.New("not match current covenant address")
+	ErrNonPayable              = errors.New("not payable")
+	ErrAlreadyPaused           = errors.New("already paused")
+	ErrMustPauseFirst          = errors.New("must pause first")
 )
 
 type CcContractExecutor struct {
@@ -110,7 +115,6 @@ func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	ccCtx := LoadCCContext(ctx)
 	if ccCtx == nil {
 		context := types.CCContext{
-			IsPaused:              false,
 			RescanTime:            math.MaxInt64,
 			RescanHeight:          uint64(param.StartMainnetHeightForCC),
 			LastRescannedHeight:   uint64(0),
@@ -145,6 +149,9 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 	case SelectorPause:
 		// func pause() onlyMonitor
 		return c.pause(ctx, tx)
+	case SelectorResume:
+		// func resume() onlyMonitor
+		return c.resume(ctx, tx)
 	case SelectorHandleUTXOs:
 		// func handleUTXOs()
 		return c.handleUTXOs(ctx, currBlock, tx)
@@ -180,7 +187,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 	if context == nil {
 		panic("cc context is nil")
 	}
-	if context.IsPaused {
+	if isPaused(context) {
 		outData = []byte(ErrCCPaused.Error())
 		return
 	}
@@ -224,6 +231,10 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 		outData = []byte(ErrOutOfGas.Error())
 		return
 	}
+	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
+		outData = []byte(ErrNonPayable.Error())
+		return
+	}
 	callData := tx.Data[4:]
 	if len(callData) < 32 {
 		outData = []byte(ErrInvalidCallData.Error())
@@ -237,7 +248,7 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	if context == nil {
 		panic("cc context is nil")
 	}
-	if context.IsPaused {
+	if isPaused(context) {
 		outData = []byte(ErrCCPaused.Error())
 		return
 	}
@@ -291,6 +302,10 @@ func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun
 		outData = []byte(ErrOutOfGas.Error())
 		return
 	}
+	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
+		outData = []byte(ErrNonPayable.Error())
+		return
+	}
 	if !c.Voter.IsMonitor(ctx, tx.From) {
 		outData = []byte(ErrMustMonitor.Error())
 		return
@@ -299,11 +314,52 @@ func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun
 	if context == nil {
 		panic("cc context is nil")
 	}
-	if context.IsPaused {
-		outData = []byte(ErrCCPaused.Error())
+	for _, m := range context.MonitorsWithPauseCommand {
+		if m == tx.From {
+			outData = []byte(ErrAlreadyPaused.Error())
+			return
+		}
+	}
+	context.MonitorsWithPauseCommand = append(context.MonitorsWithPauseCommand, tx.From)
+	SaveCCContext(ctx, *context)
+	status = StatusSuccess
+	return
+}
+
+// resume() onlyMonitor
+func (c *CcContractExecutor) resume(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	status = StatusFailed
+	gasUsed = GasOfCCOp
+	if tx.Gas < GasOfCCOp {
+		outData = []byte(ErrOutOfGas.Error())
 		return
 	}
-	context.IsPaused = true
+	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
+		outData = []byte(ErrNonPayable.Error())
+		return
+	}
+	if !c.Voter.IsMonitor(ctx, tx.From) {
+		outData = []byte(ErrMustMonitor.Error())
+		return
+	}
+	context := LoadCCContext(ctx)
+	if context == nil {
+		panic("cc context is nil")
+	}
+	var newMonitors [][20]byte
+	var pauseBefore bool
+	for _, m := range context.MonitorsWithPauseCommand {
+		if m == tx.From {
+			pauseBefore = true
+		} else {
+			newMonitors = append(newMonitors, tx.From)
+		}
+	}
+	if !pauseBefore {
+		outData = []byte(ErrMustPauseFirst.Error())
+		return
+	}
+	context.MonitorsWithPauseCommand = newMonitors
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
@@ -317,11 +373,15 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		outData = []byte(ErrOutOfGas.Error())
 		return
 	}
+	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
+		outData = []byte(ErrNonPayable.Error())
+		return
+	}
 	context := LoadCCContext(ctx)
 	if context == nil {
 		panic("cc context is nil")
 	}
-	if context.IsPaused {
+	if isPaused(context) {
 		outData = []byte(ErrCCPaused.Error())
 		return
 	}
@@ -337,6 +397,10 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
+}
+
+func isPaused(context *types.CCContext) bool {
+	return len(context.MonitorsWithPauseCommand) != 0
 }
 
 func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
@@ -483,7 +547,7 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 		HandleMonitorVoteInfos(ctx, currBlock.Timestamp, infos, c.logger)
 	}
 	changed, newAddress := c.Voter.IsOperatorOrMonitorChanged(ctx, context.CurrCovenantAddr)
-	if !changed {
+	if !changed && !(context.CovenantAddrLastChangeTime != 0 && currBlock.Timestamp > context.CovenantAddrLastChangeTime+ForceTransferTime) {
 		return nil
 	}
 	context.CovenantAddrLastChangeTime = currBlock.Timestamp

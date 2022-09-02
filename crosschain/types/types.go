@@ -38,17 +38,17 @@ type UTXORecord struct {
 }
 
 type CCContext struct {
-	IsPaused                   bool     `msgp:"is_paused"`
-	RescanTime                 int64    `msgp:"rescan_time"`                    // last startRescan block timestamp, init is max int64
-	RescanHeight               uint64   `msgp:"rescan_height"`                  // main chain block height used as rescan end height, init is shaGate enabling height
-	LastRescannedHeight        uint64   `msgp:"last_rescanned_height"`          // main chain block height used as rescan start height, init is 0
-	UTXOAlreadyHandled         bool     `msgp:"utxo_already_handled"`           // set when call handleUtxo, unset when call startRescan, init is true
-	TotalBurntOnMainChain      [32]byte `msgp:"total_burnt_on_main_chain"`      // init is totalBurnt BCH when shaGate enabling
-	TotalMinerFeeForConvertTx  [32]byte `msgp:"total_miner_fee_for_convert_tx"` // init is zero, the accumulative miner fee used to utxo convert tx, which is covered by side chain black hole balance
-	LastCovenantAddr           [20]byte `msgp:"last_covenant_addr"`             // init is zero address
-	CurrCovenantAddr           [20]byte `msgp:"curr_covenant_addr"`             // init is genesis covenant address
-	LatestEpochHandled         int64    `msgp:"latest_epoch_handled"`           // init is zero, the latest epoch number handled for operator or monitor election
-	CovenantAddrLastChangeTime int64    `msgp:"covenant_addr_last_change_time"` // init is zero, the latest covenant addr change side chain block timestamp
+	MonitorsWithPauseCommand   [][20]byte `msgp:"monitor_with_pause_command"`
+	RescanTime                 int64      `msgp:"rescan_time"`                    // last startRescan block timestamp, init is max int64
+	RescanHeight               uint64     `msgp:"rescan_height"`                  // main chain block height used as rescan end height, init is shaGate enabling height
+	LastRescannedHeight        uint64     `msgp:"last_rescanned_height"`          // main chain block height used as rescan start height, init is 0
+	UTXOAlreadyHandled         bool       `msgp:"utxo_already_handled"`           // set when call handleUtxo, unset when call startRescan, init is true
+	TotalBurntOnMainChain      [32]byte   `msgp:"total_burnt_on_main_chain"`      // init is totalBurnt BCH when shaGate enabling
+	TotalMinerFeeForConvertTx  [32]byte   `msgp:"total_miner_fee_for_convert_tx"` // init is zero, the accumulative miner fee used to utxo convert tx, which is covered by side chain black hole balance
+	LastCovenantAddr           [20]byte   `msgp:"last_covenant_addr"`             // init is zero address
+	CurrCovenantAddr           [20]byte   `msgp:"curr_covenant_addr"`             // init is genesis covenant address
+	LatestEpochHandled         int64      `msgp:"latest_epoch_handled"`           // init is zero, the latest epoch number handled for operator or monitor election
+	CovenantAddrLastChangeTime int64      `msgp:"covenant_addr_last_change_time"` // init is zero, the latest covenant addr change side chain block timestamp
 }
 
 type SourceType uint8

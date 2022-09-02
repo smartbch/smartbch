@@ -24,11 +24,24 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 			return
 		}
 		switch msgp.UnsafeString(field) {
-		case "IsPaused":
-			z.IsPaused, err = dc.ReadBool()
+		case "MonitorsWithPauseCommand":
+			var zb0002 uint32
+			zb0002, err = dc.ReadArrayHeader()
 			if err != nil {
-				err = msgp.WrapError(err, "IsPaused")
+				err = msgp.WrapError(err, "MonitorsWithPauseCommand")
 				return
+			}
+			if cap(z.MonitorsWithPauseCommand) >= int(zb0002) {
+				z.MonitorsWithPauseCommand = (z.MonitorsWithPauseCommand)[:zb0002]
+			} else {
+				z.MonitorsWithPauseCommand = make([][20]byte, zb0002)
+			}
+			for za0001 := range z.MonitorsWithPauseCommand {
+				err = dc.ReadExactBytes((z.MonitorsWithPauseCommand[za0001])[:])
+				if err != nil {
+					err = msgp.WrapError(err, "MonitorsWithPauseCommand", za0001)
+					return
+				}
 			}
 		case "RescanTime":
 			z.RescanTime, err = dc.ReadInt64()
@@ -104,15 +117,22 @@ func (z *CCContext) DecodeMsg(dc *msgp.Reader) (err error) {
 // EncodeMsg implements msgp.Encodable
 func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 	// map header, size 11
-	// write "IsPaused"
-	err = en.Append(0x8b, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
+	// write "MonitorsWithPauseCommand"
+	err = en.Append(0x8b, 0xb8, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x73, 0x57, 0x69, 0x74, 0x68, 0x50, 0x61, 0x75, 0x73, 0x65, 0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64)
 	if err != nil {
 		return
 	}
-	err = en.WriteBool(z.IsPaused)
+	err = en.WriteArrayHeader(uint32(len(z.MonitorsWithPauseCommand)))
 	if err != nil {
-		err = msgp.WrapError(err, "IsPaused")
+		err = msgp.WrapError(err, "MonitorsWithPauseCommand")
 		return
+	}
+	for za0001 := range z.MonitorsWithPauseCommand {
+		err = en.WriteBytes((z.MonitorsWithPauseCommand[za0001])[:])
+		if err != nil {
+			err = msgp.WrapError(err, "MonitorsWithPauseCommand", za0001)
+			return
+		}
 	}
 	// write "RescanTime"
 	err = en.Append(0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x54, 0x69, 0x6d, 0x65)
@@ -221,9 +241,12 @@ func (z *CCContext) EncodeMsg(en *msgp.Writer) (err error) {
 func (z *CCContext) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// map header, size 11
-	// string "IsPaused"
-	o = append(o, 0x8b, 0xa8, 0x49, 0x73, 0x50, 0x61, 0x75, 0x73, 0x65, 0x64)
-	o = msgp.AppendBool(o, z.IsPaused)
+	// string "MonitorsWithPauseCommand"
+	o = append(o, 0x8b, 0xb8, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x73, 0x57, 0x69, 0x74, 0x68, 0x50, 0x61, 0x75, 0x73, 0x65, 0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.MonitorsWithPauseCommand)))
+	for za0001 := range z.MonitorsWithPauseCommand {
+		o = msgp.AppendBytes(o, (z.MonitorsWithPauseCommand[za0001])[:])
+	}
 	// string "RescanTime"
 	o = append(o, 0xaa, 0x52, 0x65, 0x73, 0x63, 0x61, 0x6e, 0x54, 0x69, 0x6d, 0x65)
 	o = msgp.AppendInt64(o, z.RescanTime)
@@ -275,11 +298,24 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			return
 		}
 		switch msgp.UnsafeString(field) {
-		case "IsPaused":
-			z.IsPaused, bts, err = msgp.ReadBoolBytes(bts)
+		case "MonitorsWithPauseCommand":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
-				err = msgp.WrapError(err, "IsPaused")
+				err = msgp.WrapError(err, "MonitorsWithPauseCommand")
 				return
+			}
+			if cap(z.MonitorsWithPauseCommand) >= int(zb0002) {
+				z.MonitorsWithPauseCommand = (z.MonitorsWithPauseCommand)[:zb0002]
+			} else {
+				z.MonitorsWithPauseCommand = make([][20]byte, zb0002)
+			}
+			for za0001 := range z.MonitorsWithPauseCommand {
+				bts, err = msgp.ReadExactBytes(bts, (z.MonitorsWithPauseCommand[za0001])[:])
+				if err != nil {
+					err = msgp.WrapError(err, "MonitorsWithPauseCommand", za0001)
+					return
+				}
 			}
 		case "RescanTime":
 			z.RescanTime, bts, err = msgp.ReadInt64Bytes(bts)
@@ -355,7 +391,7 @@ func (z *CCContext) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CCContext) Msgsize() (s int) {
-	s = 1 + 9 + msgp.BoolSize + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 19 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 26 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 19 + msgp.Int64Size + 27 + msgp.Int64Size
+	s = 1 + 25 + msgp.ArrayHeaderSize + (len(z.MonitorsWithPauseCommand) * (20 * (msgp.ByteSize))) + 11 + msgp.Int64Size + 13 + msgp.Uint64Size + 20 + msgp.Uint64Size + 19 + msgp.BoolSize + 22 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 26 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 17 + msgp.ArrayHeaderSize + (20 * (msgp.ByteSize)) + 19 + msgp.Int64Size + 27 + msgp.Int64Size
 	return
 }
 

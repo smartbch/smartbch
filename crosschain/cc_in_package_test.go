@@ -294,7 +294,7 @@ func TestPause(t *testing.T) {
 	require.Equal(t, 0, len(outdata))
 	require.Equal(t, 0, len(logs))
 	loadCtx := LoadCCContext(ctx)
-	require.Equal(t, true, loadCtx.IsPaused)
+	require.Equal(t, true, loadCtx.MonitorsWithPauseCommand)
 }
 
 func TestHandleOperatorOrMonitorSetChanged(t *testing.T) {
