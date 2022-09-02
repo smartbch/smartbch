@@ -24,10 +24,10 @@ import (
 
 const ccIdentifier = "7342434841646472" // hex("sBCHAddr")
 
-type ScriptSig struct {
-	Asm string `json:"asm"`
-	Hex string `json:"hex"`
-}
+//type ScriptSig struct {
+//	Asm string `json:"asm"`
+//	Hex string `json:"hex"`
+//}
 
 /*
 	type Vin struct {
@@ -259,11 +259,15 @@ func getP2PKHAddress(vIn map[string]interface{}) ([]byte, bool) {
 	if !exist || script == nil {
 		return nil, false
 	}
-	scriptSig, ok := script.(ScriptSig)
+	scriptSig, ok := script.(map[string]interface{})
 	if !ok {
 		return nil, false
 	}
-	bs, err := hex.DecodeString(scriptSig.Hex)
+	scriptSigHex, ok := scriptSig["hex"].(string)
+	if !ok {
+		return nil, false
+	}
+	bs, err := hex.DecodeString(scriptSigHex)
 	if err != nil {
 		return nil, false
 	}
