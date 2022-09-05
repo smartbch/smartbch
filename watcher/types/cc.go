@@ -23,8 +23,6 @@ import (
 // p2sh lock script:  a9(OP_HASH160) + 14 + 20-byte-redeem-script-hash + 87(OP_EQUAL)
 // cc related op return: 6a(OP_RETURN) + 1c(8 + 20) + 7342434841646472(sBCHAddr) + 20-byte-side-address
 
-const ccIdentifier = "7342434841646472" // hex("sBCHAddr")
-
 //type ScriptSig struct {
 //	Asm string `json:"asm"`
 //	Hex string `json:"hex"`
@@ -240,19 +238,19 @@ func getPubkeyScript(v Vout) (script string, ok bool) {
 }
 
 func findReceiverInOPReturn(script string) ([]byte, bool) {
-	prefix := "OP_RETURN " + ccIdentifier
+	prefix := "OP_RETURN "
 	if !strings.HasPrefix(script, prefix) {
 		return nil, false
 	}
 	script = script[len(prefix):]
-	if len(script) != 40 {
-		return nil, false
-	}
 	bz, err := hex.DecodeString(script)
 	if err != nil {
 		return nil, false
 	}
-	return bz, true
+	if !common.IsHexAddress(string(bz)) {
+		return nil, false
+	}
+	return common.HexToAddress(string(bz)).Bytes(), true
 }
 
 // todo: not support Schnorr Signature now
