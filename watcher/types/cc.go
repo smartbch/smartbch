@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/gcash/bchd/txscript"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -304,6 +305,51 @@ func getP2PKHAddress(vIn map[string]interface{}) ([]byte, bool) {
 	// remove push op code
 	bs = bs[1:]
 	pubkey, err := bchutil.NewAddressPubKey(bs, &chaincfg.MainNetParams)
+	if err != nil {
+		return nil, false
+	}
+	return crypto.PubkeyToAddress(*pubkey.PubKey().ToECDSA()).Bytes(), true
+}
+
+func getP2PKHAddressNew(vIn map[string]interface{}) ([]byte, bool) {
+	script, exist := vIn["scriptSig"]
+	if !exist || script == nil {
+		return nil, false
+	}
+	scriptSig, ok := script.(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+	scriptSigHex, ok := scriptSig["hex"].(string)
+	if !ok {
+		return nil, false
+	}
+	bs, err := hex.DecodeString(scriptSigHex)
+	if err != nil {
+		return nil, false
+	}
+	//https://github.com/gcash/bchd/blob/master/txscript/engine.go#L580
+	minSigLen := 8
+	//https://github.com/gcash/bchd/blob/master/txscript/engine.go#L588
+	maxSigLen := 72
+	minP2PKHSigScriptLen := 1 + minSigLen + 1 + 33
+	maxP2PKHSigScriptLen := 1 + maxSigLen + 1 + 65
+	// Schnorr Signature length is 64byte, in the [minSigLen, maxSigLen]
+	if len(bs) < minP2PKHSigScriptLen || len(bs) > maxP2PKHSigScriptLen {
+		return nil, false
+	}
+	elements, err := txscript.ExtractDataElements(bs)
+	if err != nil {
+		return nil, false
+	}
+	if len(elements) != 2 {
+		return nil, false
+	}
+	pubkeyBytes := elements[1]
+	if len(pubkeyBytes) != 65 && len(pubkeyBytes) != 33 {
+		return nil, false
+	}
+	pubkey, err := bchutil.NewAddressPubKey(pubkeyBytes, &chaincfg.MainNetParams)
 	if err != nil {
 		return nil, false
 	}
