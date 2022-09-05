@@ -390,7 +390,6 @@ func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*ty
 	datatree.ParallelRun(10, func(_ int) {
 		for {
 			myIdx := atomic.AddInt64(&sharedIdx, 1)
-			fmt.Println(myIdx)
 			if myIdx > endHeight {
 				break
 			}

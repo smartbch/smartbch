@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gcash/bchd/bchec"
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchutil"
 	"github.com/holiman/uint256"
@@ -253,63 +252,7 @@ func findReceiverInOPReturn(script string) ([]byte, bool) {
 	return common.HexToAddress(string(bz)).Bytes(), true
 }
 
-// todo: not support Schnorr Signature now
 func getP2PKHAddress(vIn map[string]interface{}) ([]byte, bool) {
-	script, exist := vIn["scriptSig"]
-	if !exist || script == nil {
-		return nil, false
-	}
-	scriptSig, ok := script.(map[string]interface{})
-	if !ok {
-		return nil, false
-	}
-	scriptSigHex, ok := scriptSig["hex"].(string)
-	if !ok {
-		return nil, false
-	}
-	bs, err := hex.DecodeString(scriptSigHex)
-	if err != nil {
-		return nil, false
-	}
-	//https://github.com/gcash/bchd/blob/master/txscript/engine.go#L580
-	minSigLen := 8
-	//https://github.com/gcash/bchd/blob/master/txscript/engine.go#L588
-	maxSigLen := 72
-	minP2PKHSigScriptLen := 1 + minSigLen + 1 + 33
-	maxP2PKHSigScriptLen := 1 + maxSigLen + 1 + 65
-	if len(bs) < minP2PKHSigScriptLen || len(bs) > maxP2PKHSigScriptLen {
-		return nil, false
-	}
-	sigLen := bs[0]
-	if int(sigLen) < minSigLen || int(sigLen) > maxSigLen {
-		return nil, false
-	}
-	leftLength := len(bs) - 1 - int(sigLen)
-	if leftLength != 33+1 && leftLength != 65+1 {
-		return nil, false
-	}
-	pubkeyLengthPos := sigLen + 1
-	if bs[pubkeyLengthPos] != 33 && bs[pubkeyLengthPos] != 65 {
-		return nil, false
-	}
-	// remove push op
-	bs = bs[1:]
-	_, err = bchec.ParseDERSignature(bs[:sigLen], bchec.S256())
-	if err != nil {
-		return nil, false
-	}
-	// remove sig
-	bs = bs[sigLen:]
-	// remove push op code
-	bs = bs[1:]
-	pubkey, err := bchutil.NewAddressPubKey(bs, &chaincfg.MainNetParams)
-	if err != nil {
-		return nil, false
-	}
-	return crypto.PubkeyToAddress(*pubkey.PubKey().ToECDSA()).Bytes(), true
-}
-
-func getP2PKHAddressNew(vIn map[string]interface{}) ([]byte, bool) {
 	script, exist := vIn["scriptSig"]
 	if !exist || script == nil {
 		return nil, false

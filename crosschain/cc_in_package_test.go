@@ -53,6 +53,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: amount,
 			Data:  txData,
+			Gas:   GasOfCCOp,
 		},
 	})
 	require.Equal(t, StatusSuccess, status)
@@ -66,6 +67,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: amount,
 			Data:  txData,
+			Gas:   GasOfCCOp,
 		},
 	})
 	require.Equal(t, StatusFailed, status)
@@ -79,6 +81,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: uint256.NewInt(0).Bytes32(),
 			Data:  txData,
+			Gas:   GasOfCCOp,
 		},
 	})
 	require.Equal(t, StatusFailed, status)
@@ -89,6 +92,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: uint256.NewInt(1).Bytes32(),
 			Data:  txData,
+			Gas:   GasOfCCOp,
 		},
 	})
 	require.Equal(t, StatusFailed, status)
@@ -104,6 +108,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: uint256.NewInt(0).Bytes32(),
 			Data:  txData,
+			Gas:   GasOfCCOp,
 		},
 	})
 	require.Equal(t, StatusSuccess, status)
@@ -141,7 +146,11 @@ func TestHandleUTXOs(t *testing.T) {
 	var infos []*types.CCTransferInfo
 	infos = append(infos, &info)
 	executor.Infos = infos
-	status, logs, _, outdata := executor.handleUTXOs(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, nil)
+	status, logs, _, outdata := executor.handleUTXOs(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, &mtypes.TxToRun{
+		BasicTx: mtypes.BasicTx{
+			Gas: GasOfCCOp,
+		},
+	})
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, 1, len(logs))
 	require.Equal(t, 0, len(outdata))
@@ -260,6 +269,7 @@ func TestStartRescan(t *testing.T) {
 	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			Data: txData,
+			Gas:  GasOfCCOp,
 		},
 	})
 	require.Equal(t, StatusSuccess, status)
@@ -285,16 +295,60 @@ func TestPause(t *testing.T) {
 	executor := CcContractExecutor{
 		Voter: &MockVoteContract{IsM: true},
 	}
+	from := [20]byte{0x01}
 	status, logs, _, outdata := executor.pause(ctx, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			Data: txData,
+			Gas:  GasOfCCOp,
+			From: from,
 		},
 	})
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, 0, len(outdata))
 	require.Equal(t, 0, len(logs))
 	loadCtx := LoadCCContext(ctx)
-	require.Equal(t, true, loadCtx.MonitorsWithPauseCommand)
+	require.Equal(t, 1, len(loadCtx.MonitorsWithPauseCommand))
+	require.Equal(t, from, loadCtx.MonitorsWithPauseCommand[0])
+}
+
+func TestResume(t *testing.T) {
+	r := rabbit.NewRabbitStore(store.NewMockRootStore())
+	ctx := mtypes.NewContext(&r, nil)
+
+	from := [20]byte{0x01}
+
+	// prepare cc context
+	context := types.CCContext{
+		RescanHeight:             1,
+		MonitorsWithPauseCommand: [][20]byte{from},
+	}
+	SaveCCContext(ctx, context)
+	txData := PackResumeFunc()
+	// normal
+	executor := CcContractExecutor{
+		Voter: &MockVoteContract{IsM: true},
+	}
+	status, logs, _, outdata := executor.resume(ctx, &mtypes.TxToRun{
+		BasicTx: mtypes.BasicTx{
+			Data: txData,
+			Gas:  GasOfCCOp,
+		},
+	})
+	require.Equal(t, StatusFailed, status)
+	require.Equal(t, ErrMustPauseFirst.Error(), string(outdata))
+
+	status, logs, _, outdata = executor.resume(ctx, &mtypes.TxToRun{
+		BasicTx: mtypes.BasicTx{
+			Data: txData,
+			From: from,
+			Gas:  GasOfCCOp,
+		},
+	})
+	require.Equal(t, StatusSuccess, status)
+	require.Equal(t, 0, len(outdata))
+	require.Equal(t, 0, len(logs))
+	loadCtx := LoadCCContext(ctx)
+	require.Equal(t, 0, len(loadCtx.MonitorsWithPauseCommand))
 }
 
 func TestHandleOperatorOrMonitorSetChanged(t *testing.T) {

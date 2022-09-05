@@ -277,6 +277,10 @@ func PackPauseFunc() []byte {
 	return ABI.MustPack("pause")
 }
 
+func PackResumeFunc() []byte {
+	return ABI.MustPack("resume")
+}
+
 func PackHandleUTXOsFunc() []byte {
 	return ABI.MustPack("handleUTXOs")
 }

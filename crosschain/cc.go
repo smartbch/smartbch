@@ -105,7 +105,7 @@ func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractEx
 
 var _ mevmtypes.SystemContractExecutor = &CcContractExecutor{}
 
-func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
+func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	ccAcc := ctx.GetAccount(CCContractAddress)
 	if ccAcc == nil { // only executed at genesis
 		ccAcc = mevmtypes.ZeroAccountInfo()
@@ -114,6 +114,10 @@ func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	}
 	ccCtx := LoadCCContext(ctx)
 	if ccCtx == nil {
+		address, err := c.Voter.GetCCCovenantP2SHAddr(ctx)
+		if err != nil {
+			panic(err)
+		}
 		context := types.CCContext{
 			RescanTime:            math.MaxInt64,
 			RescanHeight:          uint64(param.StartMainnetHeightForCC),
@@ -121,7 +125,7 @@ func (_ *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 			UTXOAlreadyHandled:    true,
 			TotalBurntOnMainChain: uint256.NewInt(uint64(param.AlreadyBurntOnMainChain)).Bytes32(),
 			LastCovenantAddr:      [20]byte{},
-			CurrCovenantAddr:      common.HexToAddress(param.GenesisCovenantAddress),
+			CurrCovenantAddr:      address,
 		}
 		SaveCCContext(ctx, context)
 	}
@@ -278,9 +282,6 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 }
 
 func RestartUTXOCollect(ctx *mevmtypes.Context, collectChannel chan types.UTXOCollectParam) {
-	if !ctx.IsShaGateFork() {
-		return
-	}
 	ccCTx := LoadCCContext(ctx)
 	if ccCTx.UTXOAlreadyHandled {
 		return
@@ -423,9 +424,10 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 
 func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) []mevmtypes.EvmLog {
 	r := types.UTXORecord{
-		Txid:   info.UTXO.TxID,
-		Index:  info.UTXO.Index,
-		Amount: info.UTXO.Amount,
+		Txid:         info.UTXO.TxID,
+		Index:        info.UTXO.Index,
+		Amount:       info.UTXO.Amount,
+		CovenantAddr: info.CovenantAddress,
 	}
 	if info.CovenantAddress == context.LastCovenantAddr {
 		r.OwnerOfLost = info.Receiver
@@ -452,6 +454,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		context.TotalBurntOnMainChain = totalBurntOnMain.Bytes32()
 		r.IsRedeemed = true
 		copy(r.RedeemTarget[:], BurnAddressMainChain)
+		r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 		SaveUTXORecord(ctx, r)
 		err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
 		if err != nil {
@@ -682,6 +685,7 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 type IVoteContract interface {
 	IsMonitor(ctx *mevmtypes.Context, address common.Address) bool
 	IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currentAddress [20]byte) (bool, common.Address)
+	GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error)
 }
 
 type VoteContract struct{}
@@ -704,6 +708,10 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 	return currAddress != newAddr, newAddr
 }
 
+func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
+	return GetCCCovenantP2SHAddr(ctx)
+}
+
 type MockVoteContract struct {
 	IsM        bool
 	IsChanged  bool
@@ -716,6 +724,10 @@ func (m *MockVoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Addr
 
 func (m *MockVoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
 	return m.IsChanged, m.NewAddress
+}
+
+func (m *MockVoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
+	return m.NewAddress, nil
 }
 
 var _ IVoteContract = &MockVoteContract{}

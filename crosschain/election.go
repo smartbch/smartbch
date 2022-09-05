@@ -256,6 +256,7 @@ func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo)
 	}
 	return
 }
+
 func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) MonitorInfo {
 	addr := gethcmn.BytesToAddress(ctx.GetStorageAt(seq, string(loc.PaddedBytes(32))))
 	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))

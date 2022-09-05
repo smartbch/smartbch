@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	types2 "github.com/smartbch/moeingevm/types"
 	"math/big"
 	"testing"
 
@@ -21,11 +22,9 @@ import (
 func TestCC(t *testing.T) {
 	// init test app with shagate fork enabled
 	key, alice := testutils.GenKeyAndAddr()
-	initHeight := param.ShaGateForkBlock + 1
 	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
-		StartHeight: &initHeight,
-		InitAmt:     uint256.NewInt(0),
-		PrivKeys:    []string{key},
+		InitAmt:  uint256.NewInt(0),
+		PrivKeys: []string{key},
 	})
 	defer _app.Destroy()
 	// reset param
@@ -78,7 +77,7 @@ func TestCC(t *testing.T) {
 	}
 	crosschain.SaveCCContext(ctx, ccCtx)
 	// set cc account
-	acc := ctx.GetAccount(crosschain.CCContractAddress)
+	acc := types2.ZeroAccountInfo()
 	ccOriginValue := uint256.NewInt(100)
 	ccBalance := ccOriginValue
 	acc.UpdateBalance(ccBalance)
@@ -86,7 +85,7 @@ func TestCC(t *testing.T) {
 	ctx.Close(true)
 	// call handleUTXO
 	txData := crosschain.PackHandleUTXOsFunc()
-	tx, _ := _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
+	tx, _ := _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(0), txData)
 	_app.EnsureTxSuccess(tx.Hash())
 
 	ids := _app.HistoryStore().GetAllUtxoIds()
@@ -101,6 +100,9 @@ func TestCC(t *testing.T) {
 	require.Equal(t, value.Uint64()+value1.Uint64(), aliceBalance.Uint64())
 	ccBalance, _ = ctx.GetBalance(crosschain.CCContractAddress)
 	require.Equal(t, ccOriginValue.Uint64()-value1.Uint64()-value.Uint64(), ccBalance.Uint64())
+
+	record := crosschain.LoadUTXORecord(ctx, txid.Bytes32(), uint32(index.Uint64()))
+	require.Equal(t, covenantAddress, record.CovenantAddr)
 	ctx.Close(false)
 
 	// call redeem
@@ -155,7 +157,7 @@ func TestCC(t *testing.T) {
 		},
 	}
 	txData = crosschain.PackHandleUTXOsFunc()
-	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
+	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, 0, txData)
 	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.ErrUTXOAlreadyHandled.Error())
 
 	// reset context
@@ -168,8 +170,6 @@ func TestCC(t *testing.T) {
 	}
 	crosschain.SaveCCContext(ctx, ccCtx)
 	ctx.Close(true)
-	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
-	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.ErrPendingBurningNotEnough.Error())
 
 	// increase enough pending burning
 	ctx = _app.GetRunTxContext()
@@ -181,7 +181,7 @@ func TestCC(t *testing.T) {
 	ctx.SetAccount(blackHoleContractAddress, blackAcc)
 	ctx.Close(true)
 	// test convert and delete redeeming
-	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
+	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, 0, txData)
 	_app.EnsureTxSuccess(tx.Hash())
 	ids = _app.HistoryStore().GetAllUtxoIds()
 	require.Equal(t, 1, len(ids))
@@ -191,6 +191,6 @@ func TestCC(t *testing.T) {
 	require.Equal(t, txid2.Uint64(), uint256.NewInt(0).SetBytes(redeemableUtxos[0][:32]).Uint64())
 	ctx = _app.GetRunTxContext()
 	ccC := crosschain.LoadCCContext(ctx)
-	require.Equal(t, value1.Uint64()-value2.Uint64(), uint256.NewInt(0).SetBytes32(ccC.TotalBurntOnMainChain[:]).Uint64())
+	require.Equal(t, value1.Uint64()-value2.Uint64(), uint256.NewInt(0).SetBytes32(ccC.TotalMinerFeeForConvertTx[:]).Uint64())
 	ctx.Close(false)
 }

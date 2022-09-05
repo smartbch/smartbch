@@ -47,6 +47,24 @@ func newCCTransferInfoForTest(info *cctypes.CCTransferInfo) CCTransferInfoForTes
 	}
 }
 
+func TestOpReturnReceiverParse(t *testing.T) {
+	address := "c370743331b37d3c6d0ee798b3918f6561af2c92"
+	bz := gethcmn.HexToAddress(address)
+	receiver := hex.EncodeToString([]byte(address))
+	r, ok := findReceiverInOPReturn("OP_RETURN " + receiver)
+	require.True(t, ok)
+	require.Equal(t, bz.Bytes(), r)
+
+	receiver = hex.EncodeToString([]byte("0x" + address))
+	r, ok = findReceiverInOPReturn("OP_RETURN " + receiver)
+	require.True(t, ok)
+	require.Equal(t, bz.Bytes(), r)
+
+	receiver = hex.EncodeToString([]byte("01" + address))
+	r, ok = findReceiverInOPReturn("OP_RETURN " + receiver)
+	require.False(t, ok)
+}
+
 func TestGetAddrFromOpReturn(t *testing.T) {
 	// https://www.blockchain.com/bch-testnet/block/1508978
 	blockJson := `
@@ -149,8 +167,8 @@ func TestGetAddrFromOpReturn(t *testing.T) {
             "value": 0,
             "n": 2,
             "scriptPubKey": {
-              "asm": "OP_RETURN 7342434841646472c370743331b37d3c6d0ee798b3918f6561af2c92",
-              "hex": "6a1c7342434841646472c370743331b37d3c6d0ee798b3918f6561af2c92",
+              "asm": "OP_RETURN 63333730373433333331623337643363366430656537393862333931386636353631616632633932",
+              "hex": "6a1c63333730373433333331623337643363366430656537393862333931386636353631616632633932",
               "type": "nulldata"
             }
           }
