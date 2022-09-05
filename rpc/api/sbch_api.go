@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -52,6 +53,10 @@ type SbchAPI interface {
 	GetToBeConvertedUTXOsForMonitors() []*UtxoInfo
 	GetToBeConvertedUTXOsForOperators() ([]*UtxoInfo, error)
 }
+
+var (
+	errCrossChainPaused = errors.New("cross chain paused")
+)
 
 type sbchAPI struct {
 	backend sbchapi.BackendService
@@ -379,7 +384,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
 func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForOperators")
 	if sbch.backend.IsCrossChainPaused() {
-		return nil, nil
+		return nil, errCrossChainPaused
 	}
 
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
@@ -426,7 +431,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 		utxoInfos = append(utxoInfos, utxoInfo)
 	}
 
-	return utxoInfos, err
+	return utxoInfos, nil
 }
 
 func (sbch sbchAPI) GetToBeConvertedUTXOsForMonitors() []*UtxoInfo {
@@ -438,6 +443,9 @@ func (sbch sbchAPI) GetToBeConvertedUTXOsForMonitors() []*UtxoInfo {
 
 func (sbch sbchAPI) GetToBeConvertedUTXOsForOperators() ([]*UtxoInfo, error) {
 	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForOperators")
+	if sbch.backend.IsCrossChainPaused() {
+		return nil, errCrossChainPaused
+	}
 
 	currBlock, err := sbch.backend.CurrentBlock()
 	if err != nil {
