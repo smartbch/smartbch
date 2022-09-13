@@ -132,6 +132,13 @@ func (c CcCovenant) GetP2SHAddressNew(newOperatorPks, newMonitorPks [][]byte) (s
 	return c2.GetP2SHAddress()
 }
 
+func (c CcCovenant) GetOperatorPubkeysHash() string {
+	return "0x" + hex.EncodeToString(bchutil.Hash160(bytes.Join(c.operatorPks, nil)))
+}
+func (c CcCovenant) GetMonitorPubkeysHash() string {
+	return "0x" + hex.EncodeToString(bchutil.Hash160(bytes.Join(c.monitorPks, nil)))
+}
+
 /* redeem by user */
 
 func (c CcCovenant) BuildRedeemByUserUnsignedTx(
@@ -175,15 +182,16 @@ func (c CcCovenant) GetRedeemByUserTxSigHash(
 func (c CcCovenant) FinishRedeemByUserTx(
 	unsignedTx *wire.MsgTx,
 	sigs [][]byte,
-) (string, error) {
+) (*wire.MsgTx, []byte, error) {
 	sigScript, err := c.BuildRedeemByUserUnlockingScript(sigs)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-	return msgTxToHex(unsignedTx), nil
+	signedTx := unsignedTx
+	return signedTx, MsgTxToBytes(signedTx), nil
 }
 
 func (c *CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
@@ -272,16 +280,16 @@ func (c CcCovenant) FinishConvertByOperatorsTx(
 	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
-) (string, error) {
+) ([]byte, error) {
 
 	sigScript, err := c.BuildConvertByOperatorsUnlockingScript(sigs, newOperatorPks, newMonitorPks)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-	return msgTxToHex(unsignedTx), nil
+	return MsgTxToBytes(unsignedTx), nil
 }
 
 func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(

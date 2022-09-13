@@ -1,6 +1,7 @@
 package covenant
 
 import (
+	"encoding/hex"
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/chaincfg/chainhash"
 	"github.com/gcash/bchd/txscript"
@@ -27,7 +28,8 @@ func newMsgTxBuilder(net *chaincfg.Params) *msgTxBuilder {
 }
 
 func (builder *msgTxBuilder) addInput(txid []byte, vout uint32) error {
-	utxoHash, err := chainhash.NewHash(txid)
+	// use NewHashFromStr() to byte-reverse txid !!!
+	utxoHash, err := chainhash.NewHashFromStr(hex.EncodeToString(txid))
 	if err != nil {
 		return err
 	}

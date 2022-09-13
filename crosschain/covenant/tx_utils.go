@@ -2,7 +2,6 @@ package covenant
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/gcash/bchd/txscript"
@@ -10,10 +9,10 @@ import (
 	"github.com/gcash/bchutil"
 )
 
-func msgTxToHex(tx *wire.MsgTx) string {
+func MsgTxToBytes(tx *wire.MsgTx) []byte {
 	var buf bytes.Buffer
 	_ = tx.Serialize(&buf)
-	return hex.EncodeToString(buf.Bytes())
+	return buf.Bytes()
 }
 
 func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
