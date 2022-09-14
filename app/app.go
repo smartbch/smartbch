@@ -670,17 +670,20 @@ func (app *App) updateValidatorsAndStakingInfo() {
 				//deploy xHedge contract before fork
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger)
+			newEpoch := app.epochList[0]
+			newValidators = staking.SwitchEpoch(ctx, newEpoch, posVotes, app.logger)
 			app.epochList = app.epochList[1:] // possible memory leak here, but the length would not be very large
 			if ctx.IsXHedgeFork() {
 				staking.CreateInitVotes(ctx, xHedgeSequence, newValidators)
 			}
-		}
-		if ctx.IsShaGateFork() {
-			if len(app.monitorVoteInfoList) != 0 {
-				info := app.monitorVoteInfoList[0]
-				crosschain.SaveMonitorVoteInfo(ctx, *info)
-				app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
+			if ctx.IsShaGateFork() {
+				if len(app.monitorVoteInfoList) != 0 {
+					info := app.monitorVoteInfoList[0]
+					info.Number = newEpoch.Number
+					app.logger.Debug("save new monitor info")
+					crosschain.SaveMonitorVoteInfo(ctx, *info)
+					app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
+				}
 			}
 		}
 	}
