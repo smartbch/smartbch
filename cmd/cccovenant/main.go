@@ -18,18 +18,20 @@ import (
 )
 
 const (
-	flagBytecodes       = "bytecodes"
-	flagOperatorPubkeys = "operator-pubkeys"
-	flagMonitorPubkeys  = "monitor-pubkeys"
-	flagMinerFee        = "miner-fee"
-	flagNet             = "net"
-	flagTxid            = "txid"
-	flagVout            = "vout"
-	flagInAmt           = "in-amt"
-	flagToAddr          = "to-addr"
-	flagWifs            = "wifs"
-	flagSigHash         = "sig-hash"
-	flagSigs            = "sigs"
+	flagBytecodes          = "bytecodes"
+	flagOperatorPubkeys    = "operator-pubkeys"
+	flagNewOperatorPubkeys = "new-operator-pubkeys"
+	flagMonitorPubkeys     = "monitor-pubkeys"
+	flagNewMonitorPubkeys  = "new-monitor-pubkeys"
+	flagMinerFee           = "miner-fee"
+	flagNet                = "net"
+	flagTxid               = "txid"
+	flagVout               = "vout"
+	flagInAmt              = "in-amt"
+	flagToAddr             = "to-addr"
+	flagWifs               = "wifs"
+	flagSigHash            = "sig-hash"
+	flagSigs               = "sigs"
 )
 
 func main() {
@@ -49,7 +51,8 @@ func createCccCmd() *cobra.Command {
 	}
 	rootCmd.AddCommand(printAddrCmd())
 	rootCmd.AddCommand(redeemByUserCmd())
-	rootCmd.AddCommand(signTxByOperatorCmd())
+	rootCmd.AddCommand(convertByOperatorsCmd())
+	rootCmd.AddCommand(signTxByOperatorsCmd())
 
 	return rootCmd
 }
@@ -106,27 +109,31 @@ func redeemByUserCmd() *cobra.Command {
 				return err
 			}
 
+			addr, err := ccc.GetP2SHAddress()
+			if err != nil {
+				return err
+			}
+			fmt.Println("address:", addr)
+
 			txid := gethcmn.FromHex(viper.GetString(flagTxid))
 			vout := viper.GetUint32(flagVout)
 			inAmt := int64(viper.GetUint64(flagInAmt))
 			toAddr := viper.GetString(flagToAddr)
+			sigs := getBytesSliceArg(flagSigs)
+
+			if nSigs := len(sigs); nSigs > 0 && nSigs < param.MinOperatorSigCount {
+				return fmt.Errorf("not enough sigs: %d < %d", nSigs, param.MinOperatorSigCount)
+			}
 
 			tx, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, inAmt, toAddr)
 			if err != nil {
 				return err
 			}
 
-			argSigs := viper.GetStringSlice(flagSigs)
-			if nSigs := len(argSigs); nSigs == 0 {
+			if len(sigs) == 0 {
 				fmt.Println("unsigned tx:", "0x"+hex.EncodeToString(covenant.MsgTxToBytes(tx)))
 				fmt.Println("tx sig hash:", "0x"+hex.EncodeToString(sigHash))
-			} else if nSigs < param.MinOperatorSigCount {
-				return fmt.Errorf("not enough sigs: %d < %d", nSigs, param.MinOperatorSigCount)
 			} else {
-				var sigs [][]byte
-				for _, argSig := range argSigs {
-					sigs = append(sigs, gethcmn.FromHex(argSig))
-				}
 				signedTx, _, err := ccc.FinishRedeemByUserTx(tx, sigs)
 				if err != nil {
 					return err
@@ -151,7 +158,86 @@ func redeemByUserCmd() *cobra.Command {
 	return cmd
 }
 
-func signTxByOperatorCmd() *cobra.Command {
+func convertByOperatorsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "convert-by-operators",
+		Short: "make (unsigned|signed) convert-by-operators tx",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := viper.BindPFlags(cmd.Flags())
+			if err != nil {
+				return err
+			}
+
+			ccc, err := createCcCovenant()
+			if err != nil {
+				return err
+			}
+			addr, err := ccc.GetP2SHAddress()
+			if err != nil {
+				return err
+			}
+			fmt.Println("address:", addr)
+
+			txid := gethcmn.FromHex(viper.GetString(flagTxid))
+			vout := viper.GetUint32(flagVout)
+			inAmt := int64(viper.GetUint64(flagInAmt))
+			newOperatorPubkeys := getBytesSliceArg(flagNewOperatorPubkeys)
+			newMonitorPubkeys := getBytesSliceArg(flagNewMonitorPubkeys)
+			sigs := getBytesSliceArg(flagSigs)
+
+			if len(newOperatorPubkeys) != param.OperatorsCount {
+				return fmt.Errorf("length of new operator pubkeys must be %d", param.OperatorsCount)
+			}
+			if len(newMonitorPubkeys) != param.MonitorsCount {
+				return fmt.Errorf("length of new monitor pubkeys must be %d", param.MonitorsCount)
+			}
+			if nSigs := len(sigs); nSigs > 0 && nSigs < param.MinOperatorSigCount {
+				return fmt.Errorf("not enough sigs: %d < %d", nSigs, param.MinOperatorSigCount)
+			}
+
+			newAddr, err := ccc.GetP2SHAddressNew(newOperatorPubkeys, newMonitorPubkeys)
+			if err != nil {
+				return err
+			}
+			fmt.Println("new address:", newAddr)
+
+			tx, sigHash, err := ccc.GetConvertByOperatorsTxSigHash(txid, vout, inAmt, newOperatorPubkeys, newMonitorPubkeys)
+			if err != nil {
+				return err
+			}
+
+			if len(sigs) == 0 {
+				fmt.Println("unsigned tx:", "0x"+hex.EncodeToString(covenant.MsgTxToBytes(tx)))
+				fmt.Println("tx sig hash:", "0x"+hex.EncodeToString(sigHash))
+			} else {
+				signedTx, _, err := ccc.FinishConvertByOperatorsTx(tx, newOperatorPubkeys, newMonitorPubkeys, sigs)
+				if err != nil {
+					return err
+				}
+				fmt.Println("signed tx:", "0x"+hex.EncodeToString(covenant.MsgTxToBytes(signedTx)))
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().SortFlags = false
+	addCcBasicFlags(cmd)
+	cmd.Flags().String(flagTxid, "", "txid of UTXO")
+	cmd.Flags().Uint32(flagVout, 0, "output index of UTXO")
+	cmd.Flags().Uint64(flagInAmt, 0, "amount of UTXO")
+	cmd.Flags().StringSlice(flagNewOperatorPubkeys, nil, "new operator pubkeys")
+	cmd.Flags().StringSlice(flagNewMonitorPubkeys, nil, "new monitor pubkeys")
+	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx")
+	_ = cmd.MarkFlagRequired(flagTxid)
+	_ = cmd.MarkFlagRequired(flagVout)
+	_ = cmd.MarkFlagRequired(flagInAmt)
+	_ = cmd.MarkFlagRequired(flagToAddr)
+	_ = cmd.MarkFlagRequired(flagNewOperatorPubkeys)
+	_ = cmd.MarkFlagRequired(flagNewMonitorPubkeys)
+	return cmd
+}
+
+func signTxByOperatorsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sign-by-operators",
 		Short: "sign redeem-by-user or convert tx",
@@ -200,18 +286,12 @@ func addCcBasicFlags(cmd *cobra.Command) {
 func createCcCovenant() (*covenant.CcCovenant, error) {
 	bytecodes := gethcmn.FromHex(viper.GetString(flagBytecodes))
 
-	var operatorPubkeys [][]byte
-	for _, s := range viper.GetStringSlice(flagOperatorPubkeys) {
-		operatorPubkeys = append(operatorPubkeys, gethcmn.FromHex(s))
-	}
+	operatorPubkeys := getBytesSliceArg(flagOperatorPubkeys)
 	if len(operatorPubkeys) != param.OperatorsCount {
 		return nil, fmt.Errorf("length of operator pubkeys must be %d", param.OperatorsCount)
 	}
 
-	var monitorPubkeys [][]byte
-	for _, s := range viper.GetStringSlice(flagMonitorPubkeys) {
-		monitorPubkeys = append(monitorPubkeys, gethcmn.FromHex(s))
-	}
+	monitorPubkeys := getBytesSliceArg(flagMonitorPubkeys)
 	if len(monitorPubkeys) != param.MonitorsCount {
 		return nil, fmt.Errorf("length of monitor pubkeys must be %d", param.MonitorsCount)
 	}
@@ -229,4 +309,12 @@ func createCcCovenant() (*covenant.CcCovenant, error) {
 	}
 
 	return covenant.NewCcCovenant(bytecodes, operatorPubkeys, monitorPubkeys, minerFee, net)
+}
+
+func getBytesSliceArg(flagName string) [][]byte {
+	var result [][]byte
+	for _, s := range viper.GetStringSlice(flagName) {
+		result = append(result, gethcmn.FromHex(s))
+	}
+	return result
 }

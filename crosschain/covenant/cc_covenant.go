@@ -195,13 +195,13 @@ func (c CcCovenant) FinishRedeemByUserTx(
 }
 
 func (c *CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
-	return c.buildRedeemOrConvertUnlockingScript(sigs, nil, nil)
+	return c.buildRedeemOrConvertUnlockingScript(nil, nil, sigs)
 }
 
 func (c *CcCovenant) buildRedeemOrConvertUnlockingScript(
-	sigs [][]byte,
 	newOperatorPubkeysHash []byte,
 	newMonitorPubkeysHash []byte,
+	sigs [][]byte,
 ) ([]byte, error) {
 
 	if len(sigs) != param.MinOperatorSigCount {
@@ -277,32 +277,27 @@ func (c CcCovenant) GetConvertByOperatorsTxSigHash(
 
 func (c CcCovenant) FinishConvertByOperatorsTx(
 	unsignedTx *wire.MsgTx,
-	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
-) ([]byte, error) {
+	sigs [][]byte,
+) (*wire.MsgTx, []byte, error) {
 
-	sigScript, err := c.BuildConvertByOperatorsUnlockingScript(sigs, newOperatorPks, newMonitorPks)
+	sigScript, err := c.BuildConvertByOperatorsUnlockingScript(newOperatorPks, newMonitorPks, sigs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-	return MsgTxToBytes(unsignedTx), nil
+	signedTx := unsignedTx
+	return signedTx, MsgTxToBytes(signedTx), nil
 }
 
 func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
-	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
+	sigs [][]byte,
 ) ([]byte, error) {
-	// TODO: check newOperatorPks & newMonitorPks
-	//if reflect.DeepEqual(newOperatorPks, c.operatorPks) &&
-	//	reflect.DeepEqual(newMonitorPks, c.monitorPks) {
-	//
-	//	return nil, fmt.Errorf("operators and monitors not changed")
-	//}
 
 	err := checkPks(newOperatorPks, newMonitorPks)
 	if err != nil {
@@ -311,7 +306,7 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
 
 	newOperatorPubkeysHash := bchutil.Hash160(bytes.Join(newOperatorPks, nil))
 	newMonitorPubkeysHash := bchutil.Hash160(bytes.Join(newMonitorPks, nil))
-	return c.buildRedeemOrConvertUnlockingScript(sigs, newOperatorPubkeysHash, newMonitorPubkeysHash)
+	return c.buildRedeemOrConvertUnlockingScript(newOperatorPubkeysHash, newMonitorPubkeysHash, sigs)
 }
 
 /* convert by monitors */
@@ -363,10 +358,11 @@ func (c CcCovenant) GetConvertByMonitorsTxSigHash(
 
 func (c CcCovenant) AddConvertByMonitorsTxMonitorSigs(
 	unsignedTx *wire.MsgTx,
-	sigs [][]byte, newOperatorPks [][]byte,
+	newOperatorPks [][]byte,
+	sigs [][]byte,
 ) (*wire.MsgTx, error) {
 
-	sigScript, err := c.BuildConvertByMonitorsUnlockingScript(sigs, newOperatorPks)
+	sigScript, err := c.BuildConvertByMonitorsUnlockingScript(newOperatorPks, sigs)
 	if err != nil {
 		return unsignedTx, err
 	}
@@ -377,8 +373,9 @@ func (c CcCovenant) AddConvertByMonitorsTxMonitorSigs(
 	return unsignedTx, nil
 }
 
-func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
+func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(
 	newOperatorPks [][]byte,
+	sigs [][]byte,
 ) ([]byte, error) {
 
 	if len(sigs) != param.MinMonitorSigCount {
