@@ -190,6 +190,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 		if bi.Height >= param.StartMainnetHeightForCC {
 			ccNomination := getCCNomination(bi.Tx[0])
 			if ccNomination != nil {
+				client.logger.Debug("get new cc nomination", "pubkey", hex.EncodeToString(ccNomination.Pubkey[:]))
 				bchBlock.CCNominations = append(bchBlock.CCNominations, *ccNomination)
 			}
 		}

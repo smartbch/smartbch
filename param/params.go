@@ -25,12 +25,12 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	StartMainnetHeightForCC = 10000000 // mainnet height which cc tx collected from
-	StartEpochNumberForCC   = 300      // epoch number which cc enabled from
-	AlreadyBurntOnMainChain = 100      // BCH already burnt on main chain when cc enabled
+	StartMainnetHeightForCC = 1   // mainnet height which cc tx collected from
+	StartEpochNumberForCC   = 1   // epoch number which cc enabled from
+	AlreadyBurntOnMainChain = 100 // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x1234"
-	MonitorElectionEpochs   = 12 //must be divisible by OperatorElectionEpochs
-	OperatorElectionEpochs  = 4
+	MonitorElectionEpochs   = 1 //must be divisible by OperatorElectionEpochs
+	OperatorElectionEpochs  = 1
 	MaxMonitorNumber        = 3
 	OperatorsGovSequence    = 0 // TODO
 	MonitorsGovSequence     = 0 // TODO
@@ -52,8 +52,8 @@ const (
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201
 	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,
-	StakingNumBlocksInEpoch                int64 = 2016
-	StakingEpochSwitchDelay                int64 = 600 * 2016 / 20 // 5% time of an epoch
+	StakingNumBlocksInEpoch                int64 = 100
+	StakingEpochSwitchDelay                int64 = 30 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
 
 	// network params
@@ -63,6 +63,6 @@ const (
 	// fork params
 	XHedgeContractSequence uint64 = 0x13311
 	XHedgeForkBlock        int64  = 4106000
-	ShaGateForkBlock       int64  = 80000000
+	ShaGateForkBlock       int64  = 5
 	ShaGateSwitch          bool   = false
 )

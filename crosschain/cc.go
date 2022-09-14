@@ -128,6 +128,7 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 			CurrCovenantAddr:      address,
 		}
 		SaveCCContext(ctx, context)
+		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", address, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
 	}
 }
 
@@ -709,7 +710,8 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 }
 
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
-	return GetCCCovenantP2SHAddr(ctx)
+	return [20]byte{0x01}, nil
+	//return GetCCCovenantP2SHAddr(ctx)
 }
 
 type MockVoteContract struct {
