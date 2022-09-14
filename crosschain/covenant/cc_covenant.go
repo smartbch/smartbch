@@ -404,13 +404,14 @@ func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(
 	return builder.Script()
 }
 
-func (c CcCovenant) AddConvertByMonitorsTxMinerFee(
+func AddConvertByMonitorsTxMinerFee(
 	signedTx *wire.MsgTx,
 	txid []byte, vout uint32, inAmt int64, // input info
 	minerFee int64, changeAddr string, // miner fee
+	net *chaincfg.Params,
 ) (*wire.MsgTx, error) {
 
-	builder := wrapMsgTx(signedTx, c.net)
+	builder := wrapMsgTx(signedTx, net)
 	if err := builder.addInput(txid, vout); err != nil {
 		return signedTx, err
 	}
@@ -423,12 +424,13 @@ func (c CcCovenant) AddConvertByMonitorsTxMinerFee(
 	return signedTx, nil
 }
 
-func (c CcCovenant) GetConvertByMonitorsTxSigHash2(
+func GetConvertByMonitorsTxSigHash2(
 	txWithMinerFee *wire.MsgTx,
 	inAmt int64,
 	addr string,
+	net *chaincfg.Params,
 ) ([]byte, error) {
-	decodedAddr, err := bchutil.DecodeAddress(addr, c.net)
+	decodedAddr, err := bchutil.DecodeAddress(addr, net)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +447,7 @@ func (c CcCovenant) GetConvertByMonitorsTxSigHash2(
 	return hash, err
 }
 
-func (c CcCovenant) AddConvertByMonitorsTxMinerFeeSig(
+func AddConvertByMonitorsTxMinerFeeSig(
 	txWithMinerFee *wire.MsgTx,
 	sig, pkData []byte,
 ) (*wire.MsgTx, error) {

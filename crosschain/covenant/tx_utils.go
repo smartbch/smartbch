@@ -14,6 +14,11 @@ func MsgTxToBytes(tx *wire.MsgTx) []byte {
 	_ = tx.Serialize(&buf)
 	return buf.Bytes()
 }
+func MsgTxFromBytes(data []byte) (*wire.MsgTx, error) {
+	msg := &wire.MsgTx{}
+	err := msg.Deserialize(bytes.NewReader(data))
+	return msg, err
+}
 
 func SignCcCovenantTxSigHashECDSA(wifStr string, hash []byte, hashType txscript.SigHashType) ([]byte, error) {
 	wif, err := bchutil.DecodeWIF(wifStr)

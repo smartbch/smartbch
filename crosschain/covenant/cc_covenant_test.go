@@ -217,7 +217,7 @@ func Test_ConvertByMonitors(t *testing.T) {
 		sigs = append(sigs, sig)
 	}
 
-	signedTx, err := c.AddConvertByMonitorsTxMonitorSigs(unsignedTx, operatorPks, sigs)
+	signedTx, err := c.AddConvertByMonitorsTxMonitorSigs(unsignedTx, operatorPks2, sigs)
 	require.NoError(t, err)
 	//println("signedTx:", signedTx)
 
@@ -226,11 +226,11 @@ func Test_ConvertByMonitors(t *testing.T) {
 	inAmt2 := int64(10001)
 	minerFee := int64(3001)
 	alice := "bchtest:qp5vev8yjxzyf0wmqhwvkvfa3jtear397gwsfxg7sa"
-	txWithGasFee, err := c.AddConvertByMonitorsTxMinerFee(signedTx, txid2, vout2, inAmt2, minerFee, alice)
+	txWithGasFee, err := AddConvertByMonitorsTxMinerFee(signedTx, txid2, vout2, inAmt2, minerFee, alice, c.net)
 	require.NoError(t, err)
 	println("txWithGasFee:", txWithGasFee)
 
-	sigHash2, err := c.GetConvertByMonitorsTxSigHash2(txWithGasFee, inAmt2, alice)
+	sigHash2, err := GetConvertByMonitorsTxSigHash2(txWithGasFee, inAmt2, alice, c.net)
 	require.NoError(t, err)
 
 	aliceWIF := "KxKVXkyiUGH4m8nL6cgovXdxmhG2VSsukVnBWjJPSPbwVEkSfXfu"
@@ -238,7 +238,7 @@ func Test_ConvertByMonitors(t *testing.T) {
 	hashType2 := txscript.SigHashAll | txscript.SigHashForkID
 	sig, err := SignCcCovenantTxSigHashECDSA(aliceWIF, sigHash2, hashType2)
 	require.NoError(t, err)
-	txWithGasFeeSig, err := c.AddConvertByMonitorsTxMinerFeeSig(txWithGasFee, sig, HexToBytes(alicePK))
+	txWithGasFeeSig, err := AddConvertByMonitorsTxMinerFeeSig(txWithGasFee, sig, HexToBytes(alicePK))
 	require.NoError(t, err)
 	println("txWithGasFeeSig:", txWithGasFeeSig)
 
