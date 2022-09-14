@@ -128,6 +128,7 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 			CurrCovenantAddr:      address,
 		}
 		SaveCCContext(ctx, context)
+		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", address, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
 	}
 }
 

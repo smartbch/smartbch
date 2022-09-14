@@ -251,6 +251,7 @@ func (watcher *Watcher) buildMonitorVoteInfo() *cctypes.MonitorVoteInfo {
 		return nil
 	}
 	var info cctypes.MonitorVoteInfo
+	info.StartHeight = startHeight
 	var monitorMapByPubkey = make(map[[33]byte]*cctypes.Nomination)
 
 	for i := startHeight; i <= watcher.latestFinalizedHeight; i++ {
@@ -363,6 +364,10 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 	for {
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
 			time.Sleep(5 * time.Second)
+			continue
+		}
+		if watcher.CcContractExecutor == nil {
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		collectInfo := <-watcher.CcContractExecutor.StartUTXOCollect
