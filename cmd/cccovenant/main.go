@@ -425,6 +425,10 @@ func addConvertByMonitorsTxMinerFeeCmd() *cobra.Command {
 			}
 
 			txWithMinerFeeSig, err := covenant.AddConvertByMonitorsTxMinerFeeSig(txWithMinerFee, sig, signerPubkey)
+			if err != nil {
+				return err
+			}
+
 			txData := covenant.MsgTxToBytes(txWithMinerFeeSig)
 			fmt.Println("txWithMinerFeeSig:", hex.EncodeToString(txData))
 

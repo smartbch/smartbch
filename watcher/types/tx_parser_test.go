@@ -61,7 +61,7 @@ func TestOpReturnReceiverParse(t *testing.T) {
 	require.Equal(t, bz.Bytes(), r)
 
 	receiver = hex.EncodeToString([]byte("01" + address))
-	r, ok = findReceiverInOPReturn("OP_RETURN " + receiver)
+	_, ok = findReceiverInOPReturn("OP_RETURN " + receiver)
 	require.False(t, ok)
 }
 

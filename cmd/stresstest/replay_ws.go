@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -346,7 +346,7 @@ func genChartsHTML(blocks []BlockInfo) {
 	bzGPS, _ := json.Marshal(dataGPS)
 	html = bytes.Replace(html, []byte("{{ data_TPS }}"), bzTPS, 1)
 	html = bytes.Replace(html, []byte("{{ data_gas_per_sec }}"), bzGPS, 1)
-	_ = ioutil.WriteFile("./charts.html", html, 0644)
+	_ = os.WriteFile("./charts.html", html, 0644)
 }
 
 func getTxCountData(blocks []BlockInfo) (bz []byte, txCountList []int) {
