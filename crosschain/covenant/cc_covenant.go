@@ -20,6 +20,7 @@ type CcCovenant struct {
 	operatorPks                        [][]byte
 	monitorPks                         [][]byte
 	minerFee                           int64
+	monitorLockBlocks                  uint32
 	net                                *chaincfg.Params
 }
 
@@ -40,7 +41,7 @@ func NewDefaultCcCovenant(operatorPks, monitorPks [][]byte) (*CcCovenant, error)
 	}
 
 	return NewCcCovenant(hexBytes, operatorPks, monitorPks,
-		param.RedeemOrCovertMinerFee, bchNet)
+		param.RedeemOrCovertMinerFee, param.MonitorTransferWaitBlocks, bchNet)
 }
 
 func NewCcCovenant(
@@ -48,6 +49,7 @@ func NewCcCovenant(
 	operatorPks [][]byte,
 	monitorPks [][]byte,
 	minerFee int64,
+	monitorLockBlocks uint32,
 	net *chaincfg.Params,
 ) (*CcCovenant, error) {
 
@@ -59,6 +61,7 @@ func NewCcCovenant(
 		operatorPks:                        operatorPks,
 		monitorPks:                         monitorPks,
 		minerFee:                           minerFee,
+		monitorLockBlocks:                  monitorLockBlocks,
 		net:                                net,
 	}
 	return ccc, nil
@@ -125,7 +128,7 @@ func (c CcCovenant) GetP2SHAddress() (string, error) {
 
 func (c CcCovenant) GetP2SHAddressNew(newOperatorPks, newMonitorPks [][]byte) (string, error) {
 	c2, err := NewCcCovenant(c.redeemScriptWithoutConstructorArgs,
-		newOperatorPks, newMonitorPks, c.minerFee, c.net)
+		newOperatorPks, newMonitorPks, c.minerFee, c.monitorLockBlocks, c.net)
 	if err != nil {
 		return "", err
 	}
@@ -326,7 +329,7 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 	if err = builder.addInput(txid, vout); err != nil {
 		return nil, err
 	}
-	builder.msgTx.TxIn[0].Sequence = param.MonitorTransferWaitBlocks
+	builder.msgTx.TxIn[0].Sequence = c.monitorLockBlocks
 	if err = builder.addOutput(toAddr, inAmt); err != nil {
 		return nil, err
 	}

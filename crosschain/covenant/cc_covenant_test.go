@@ -70,7 +70,7 @@ var (
 )
 
 func Test_GetP2SHAddr(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 	addr, err := c.GetP2SHAddress()
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func Test_GetP2SHAddr(t *testing.T) {
 }
 
 func Test_BuildRedeemByUserUnlockingScript(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
 	sigScript, err := c.BuildRedeemByUserUnlockingScript([][]byte{
@@ -97,7 +97,7 @@ func Test_BuildRedeemByUserUnlockingScript(t *testing.T) {
 }
 
 func Test_RedeemByUserTxSigHash(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
 	txid := HexToBytes("0xafdbc7038bc97c737dc24fe28b50495505810a2e7d0a3950610877f198f8b765")
@@ -112,7 +112,7 @@ func Test_RedeemByUserTxSigHash(t *testing.T) {
 }
 
 func Test_RedeemByUserTx(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
 	txid := HexToBytes("0xc01ab2bfa4a7f64cf781e886844de836e7b45f2c6150de380cb891045e8353c9")
@@ -140,7 +140,7 @@ func Test_RedeemByUserTx(t *testing.T) {
 }
 
 func Test_GetP2SHAddrNew(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 	newAddr, err := c.GetP2SHAddressNew(operatorPks2, monitorPks)
 	require.NoError(t, err)
@@ -148,7 +148,7 @@ func Test_GetP2SHAddrNew(t *testing.T) {
 }
 
 func Test_BuildConvertByOperatorsUnlockingScript(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
 	sigScript, err := c.BuildConvertByOperatorsUnlockingScript(
@@ -171,7 +171,7 @@ func Test_BuildConvertByOperatorsUnlockingScript(t *testing.T) {
 }
 
 func Test_ConvertByOperatorsTx(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
 	txid := HexToBytes("f7aed2149ab8eeb18c315273865370008ccaa78924736dbb2a407709c97e2a85")
@@ -199,7 +199,7 @@ func Test_ConvertByOperatorsTx(t *testing.T) {
 }
 
 func Test_ConvertByMonitors(t *testing.T) {
-	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, &chaincfg.TestNet3Params)
+	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
 
 	txid := HexToBytes("d025ad9428530ef952822d769fc1078dca2e0b51dd6998faedd6ae83c3b4cc76")

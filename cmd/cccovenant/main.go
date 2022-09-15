@@ -24,6 +24,7 @@ const (
 	flagMonitorPubkeys     = "monitor-pubkeys"
 	flagNewMonitorPubkeys  = "new-monitor-pubkeys"
 	flagMinerFee           = "miner-fee"
+	flagMonitorsLock       = "monitors-lock"
 	flagNet                = "net"
 	flagTxid               = "txid"
 	flagVout               = "vout"
@@ -48,7 +49,7 @@ func main() {
 }
 
 func createCccCmd() *cobra.Command {
-	//cobra.EnableCommandSorting = false
+	cobra.EnableCommandSorting = false
 	rootCmd := &cobra.Command{
 		Use:   "cccovenant",
 		Short: "SmartBCH cc-covenants CLI",
@@ -58,7 +59,6 @@ func createCccCmd() *cobra.Command {
 	rootCmd.AddCommand(redeemByUserCmd())
 	rootCmd.AddCommand(convertByOperatorsCmd())
 	rootCmd.AddCommand(signTxByOperatorsCmd())
-
 	rootCmd.AddCommand(convertByMonitorsCmd())
 	rootCmd.AddCommand(signTxByMonitorsCmd())
 	rootCmd.AddCommand(addConvertByMonitorsTxMinerFeeCmd())
@@ -159,7 +159,7 @@ func redeemByUserCmd() *cobra.Command {
 	cmd.Flags().Uint32(flagVout, 0, "output index of UTXO")
 	cmd.Flags().Uint64(flagInAmt, 0, "amount of UTXO")
 	cmd.Flags().String(flagToAddr, "", "receipt address")
-	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx")
+	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx, CSV")
 	_ = cmd.MarkFlagRequired(flagTxid)
 	_ = cmd.MarkFlagRequired(flagVout)
 	_ = cmd.MarkFlagRequired(flagInAmt)
@@ -234,9 +234,9 @@ func convertByOperatorsCmd() *cobra.Command {
 	cmd.Flags().String(flagTxid, "", "txid of UTXO")
 	cmd.Flags().Uint32(flagVout, 0, "output index of UTXO")
 	cmd.Flags().Uint64(flagInAmt, 0, "amount of UTXO")
-	cmd.Flags().StringSlice(flagNewOperatorPubkeys, nil, "new operator pubkeys")
-	cmd.Flags().StringSlice(flagNewMonitorPubkeys, nil, "new monitor pubkeys")
-	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx")
+	cmd.Flags().StringSlice(flagNewOperatorPubkeys, nil, "new operator pubkeys, CSV")
+	cmd.Flags().StringSlice(flagNewMonitorPubkeys, nil, "new monitor pubkeys, CSV")
+	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx, CSV")
 	_ = cmd.MarkFlagRequired(flagTxid)
 	_ = cmd.MarkFlagRequired(flagVout)
 	_ = cmd.MarkFlagRequired(flagInAmt)
@@ -274,7 +274,7 @@ func signTxByOperatorsCmd() *cobra.Command {
 
 	cmd.Flags().SortFlags = false
 	cmd.Flags().String(flagSigHash, "", "tx-sig-hash to be signed")
-	cmd.Flags().StringSlice(flagWifs, nil, "key of signer in WIF format")
+	cmd.Flags().StringSlice(flagWifs, nil, "key of signer in WIF format, CSV")
 	_ = cmd.MarkFlagRequired(flagWifs)
 	_ = cmd.MarkFlagRequired(flagSigHash)
 
@@ -335,8 +335,8 @@ func convertByMonitorsCmd() *cobra.Command {
 	cmd.Flags().String(flagTxid, "", "txid of UTXO")
 	cmd.Flags().Uint32(flagVout, 0, "output index of UTXO")
 	cmd.Flags().Uint64(flagInAmt, 0, "amount of UTXO")
-	cmd.Flags().StringSlice(flagNewOperatorPubkeys, nil, "new operator pubkeys")
-	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx")
+	cmd.Flags().StringSlice(flagNewOperatorPubkeys, nil, "new operator pubkeys, CSV")
+	cmd.Flags().StringSlice(flagSigs, nil, "signatures to make signed tx, CSV")
 	_ = cmd.MarkFlagRequired(flagTxid)
 	_ = cmd.MarkFlagRequired(flagVout)
 	_ = cmd.MarkFlagRequired(flagInAmt)
@@ -373,7 +373,7 @@ func signTxByMonitorsCmd() *cobra.Command {
 
 	cmd.Flags().SortFlags = false
 	cmd.Flags().String(flagSigHash, "", "tx-sig-hash to be signed")
-	cmd.Flags().StringSlice(flagWifs, nil, "key of signer in WIF format")
+	cmd.Flags().StringSlice(flagWifs, nil, "key of signer in WIF format, CSV")
 	_ = cmd.MarkFlagRequired(flagWifs)
 	_ = cmd.MarkFlagRequired(flagSigHash)
 
@@ -459,9 +459,10 @@ func addConvertByMonitorsTxMinerFeeCmd() *cobra.Command {
 
 func addCcBasicFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagBytecodes, "", "cc-covenant redeem script without constructor args")
-	cmd.Flags().StringSlice(flagOperatorPubkeys, nil, "operator pubkeys")
-	cmd.Flags().StringSlice(flagMonitorPubkeys, nil, "monitor pubkeys")
+	cmd.Flags().StringSlice(flagOperatorPubkeys, nil, "operator pubkeys, CSV")
+	cmd.Flags().StringSlice(flagMonitorPubkeys, nil, "monitor pubkeys, CSV")
 	cmd.Flags().Uint64(flagMinerFee, 2000, "miner fee in Satoshi")
+	cmd.Flags().Uint32(flagMonitorsLock, param.MonitorTransferWaitBlocks, "monitors transfer lock in blocks")
 	cmd.Flags().String(flagNet, "testnet3", "BCH network, mainnet|testnet3")
 	_ = cmd.MarkFlagRequired(flagBytecodes)
 	_ = cmd.MarkFlagRequired(flagOperatorPubkeys)
@@ -482,12 +483,13 @@ func createCcCovenant() (*covenant.CcCovenant, error) {
 	}
 
 	minerFee := int64(viper.GetUint64(flagMinerFee))
+	monitorsLock := viper.GetUint32(flagMonitorsLock)
 	net, err := getBchNetArg()
 	if err != nil {
 		return nil, err
 	}
 
-	return covenant.NewCcCovenant(bytecodes, operatorPubkeys, monitorPubkeys, minerFee, net)
+	return covenant.NewCcCovenant(bytecodes, operatorPubkeys, monitorPubkeys, minerFee, monitorsLock, net)
 }
 
 func getBytesSliceArg(flagName string) [][]byte {
