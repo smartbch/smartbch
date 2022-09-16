@@ -47,8 +47,8 @@ echo 'adding genesis validator ...'
 #export NOINSTLOG=1
 echo 'starting node ...'
 cp ./app.toml ~/.smartbchd/config/app.toml
-nohup ./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
+./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
   --http.api='eth,web3,net,txpool,sbch,debug' \
   --log_level='json-rpc:debug,watcher:debug,app:debug' \
   --skip-sanity-check=true \
-  --with-syncdb=true &
+  --with-syncdb=true
