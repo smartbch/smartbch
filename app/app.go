@@ -196,9 +196,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.CheckSanity(skipSanityCheck)
-	catchupChan := make(chan bool, 1)
-	go app.watcher.Run(catchupChan)
-	<-catchupChan
+	//catchupChan := make(chan bool, 1)
+	//go app.watcher.Run(catchupChan)
+	//<-catchupChan
 
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
