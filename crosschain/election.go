@@ -50,8 +50,8 @@ var (
        bytes32 pubkeyX;        // x
        bytes32 rpcUrl;         // ip:port
        bytes32 intro;          // introduction
-       uint    totalStakedAmt; // in BCH
-       uint    selfStakedAmt;  // in BCH
+       uint    totalStakedAmt; // total staked BCH
+       uint    selfStakedAmt;  // self staked BCH
        uint    electedTime;    // 0 means not elected, set by Golang
    }
 */
@@ -77,30 +77,29 @@ func ReadOperatorInfos(ctx *mevmtypes.Context, seq uint64) (result []OperatorInf
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 
-	for i := uint64(0); i < arrLen.ToBig().Uint64(); i++ {
-		result = append(result, readOperatorInfo(ctx, seq, arrLoc))
+	for i := uint64(0); i < arrLen.Uint64(); i++ {
+		loc := uint256.NewInt(0).AddUint64(arrLoc, i*OperatorWords)
+		result = append(result, readOperatorInfo(ctx, seq, loc))
 	}
 	return
 }
 func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) OperatorInfo {
-	addr := gethcmn.BytesToAddress(ctx.GetStorageAt(seq, string(loc.PaddedBytes(32))))
-	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	rpcUrl := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	selfStakedAmt := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))))
-	totalStakedAmt := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))))
-	key := loc.AddUint64(loc, 1).PaddedBytes(32)
-	electedTime := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(key)))
-	loc.AddUint64(loc, 1)
+	addr := ctx.GetStorageAt(seq, string(loc.PaddedBytes(32)))                             // slot#0
+	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))   // slot#1
+	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))        // slot#2
+	rpcUrl := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))         // slot#3
+	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))          // slot#4
+	totalStakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#5
+	selfStakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))  // slot#6
+	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#7
 	return OperatorInfo{
-		Addr:           addr,
+		Addr:           gethcmn.BytesToAddress(addr),
 		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
 		RpcUrl:         rpcUrl[:],
 		Intro:          intro[:],
-		TotalStakedAmt: totalStakedAmt,
-		SelfStakedAmt:  selfStakedAmt,
-		ElectedTime:    electedTime,
+		TotalStakedAmt: uint256.NewInt(0).SetBytes(totalStakedAmt),
+		SelfStakedAmt:  uint256.NewInt(0).SetBytes(selfStakedAmt),
+		ElectedTime:    uint256.NewInt(0).SetBytes(electedTime),
 	}
 }
 
@@ -227,7 +226,7 @@ func GetOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
        uint    pubkeyPrefix; // 0x02 or 0x03
        bytes32 pubkeyX;      // x
        bytes32 intro;        // introduction
-       uint    stakedAmt;    // in BCH
+       uint    stakedAmt;    // staked BCH
        uint    electedTime;  // 0 means not elected, set by Golang
    }
 */
@@ -251,27 +250,26 @@ func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 
-	for i := uint64(0); i < arrLen.ToBig().Uint64(); i++ {
-		result = append(result, readMonitorInfo(ctx, seq, arrLoc))
+	for i := uint64(0); i < arrLen.Uint64(); i++ {
+		loc := uint256.NewInt(0).AddUint64(arrLoc, i*MonitorWords)
+		result = append(result, readMonitorInfo(ctx, seq, loc))
 	}
 	return
 }
 
 func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) MonitorInfo {
-	addr := gethcmn.BytesToAddress(ctx.GetStorageAt(seq, string(loc.PaddedBytes(32))))
-	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))
-	stakedAmt := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))))
-	key := loc.AddUint64(loc, 1).PaddedBytes(32)
-	electedTime := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(key)))
-	loc.AddUint64(loc, 1)
+	addr := ctx.GetStorageAt(seq, string(loc.PaddedBytes(32)))                           // slot#0
+	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#1
+	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))      // slot#2
+	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))        // slot#3
+	stakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#4
+	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))  // slot#5
 	return MonitorInfo{
-		Addr:        addr,
+		Addr:        gethcmn.BytesToAddress(addr),
 		Pubkey:      append(pubkeyPrefix[31:], pubkeyX...),
 		Intro:       intro[:],
-		StakedAmt:   stakedAmt,
-		ElectedTime: electedTime,
+		StakedAmt:   uint256.NewInt(0).SetBytes(stakedAmt),
+		ElectedTime: uint256.NewInt(0).SetBytes(electedTime),
 	}
 }
 
