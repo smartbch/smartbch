@@ -297,12 +297,14 @@ func TestOperatorsElection(t *testing.T) {
 	ctx.Close(false)
 
 	// add 9 valid operator candidates
-	for i := 0; i < 9; i++ {
-		stakedAmt := big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(int64(i)))
+	for i := int64(0); i < 9; i++ {
 		data := packAddOperatorData(02,
 			fmt.Sprintf("pk#%d", i),
 			fmt.Sprintf("rpc#%d", i),
-			fmt.Sprintf("op#%d", i), stakedAmt, stakedAmt)
+			fmt.Sprintf("op#%d", i),
+			big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(50)),
+			big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(i)),
+		)
 		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
 		_app.EnsureTxSuccess(tx.Hash())
 	}
@@ -310,25 +312,29 @@ func TestOperatorsElection(t *testing.T) {
 	// not enough operator candidates
 	ctx = _app.GetRpcContext()
 	require.Equal(t, crosschain.OperatorElectionNotEnoughCandidates,
-		crosschain.ElectOperators_(ctx, seq, 12345, noOpLogger))
+		crosschain.ElectOperatorsForUT(ctx, seq, 12345, noOpLogger))
 	ctx.Close(false)
 
 	// add 1 invalid operator candidate
-	data := packAddOperatorData(03, "pk123", "rpc123", "op123", big.NewInt(123), big.NewInt(123))
+	data := packAddOperatorData(03, "pk123", "rpc123", "op123",
+		big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(123)),
+		big.NewInt(0).Sub(operatorMinStakedAmt, big.NewInt(123)))
 	tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
 	_app.EnsureTxSuccess(tx.Hash())
 	ctx = _app.GetRpcContext()
 	require.Equal(t, crosschain.OperatorElectionNotEnoughCandidates,
-		crosschain.ElectOperators_(ctx, seq, 12345, noOpLogger))
+		crosschain.ElectOperatorsForUT(ctx, seq, 12345, noOpLogger))
 	ctx.Close(false)
 
 	// add 3 valid operator candidates
-	for i := 9; i < 12; i++ {
-		stakedAmt := big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(int64(i)))
+	for i := int64(9); i < 12; i++ {
 		data := packAddOperatorData(02,
 			fmt.Sprintf("pk#%d", i),
 			fmt.Sprintf("rpc#%d", i),
-			fmt.Sprintf("op#%d", i), stakedAmt, stakedAmt)
+			fmt.Sprintf("op#%d", i),
+			big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(i*10)),
+			big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(i)),
+		)
 		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
 		_app.EnsureTxSuccess(tx.Hash())
 	}
@@ -336,7 +342,7 @@ func TestOperatorsElection(t *testing.T) {
 	// first election
 	ctx = _app.GetRunTxContext()
 	require.Equal(t, crosschain.OperatorElectionOK,
-		crosschain.ElectOperators_(ctx, seq, 0x12345, noOpLogger))
+		crosschain.ElectOperatorsForUT(ctx, seq, 0x12345, noOpLogger))
 	operatorInfos := crosschain.ReadOperatorInfos(ctx, seq)
 	ctx.Close(true)
 	require.Len(t, operatorInfos, 13)
@@ -356,23 +362,25 @@ func TestOperatorsElection(t *testing.T) {
 
 	ctx = _app.GetRunTxContext()
 	require.Equal(t, crosschain.OperatorElectionNotChanged,
-		crosschain.ElectOperators_(ctx, seq, 0x12345, noOpLogger))
+		crosschain.ElectOperatorsForUT(ctx, seq, 0x12345, noOpLogger))
 	ctx.Close(false)
 
 	// add 4 valid operator candidates
-	for i := 12; i < 16; i++ {
-		stakedAmt := big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(int64(i)))
+	for i := int64(12); i < 16; i++ {
 		data := packAddOperatorData(03,
 			fmt.Sprintf("pk#%d", i),
 			fmt.Sprintf("rpc#%d", i),
-			fmt.Sprintf("op#%d", i), stakedAmt, stakedAmt)
+			fmt.Sprintf("op#%d", i),
+			big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(i*10)),
+			big.NewInt(0).Add(operatorMinStakedAmt, big.NewInt(i*10)),
+		)
 		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
 		_app.EnsureTxSuccess(tx.Hash())
 	}
 
 	ctx = _app.GetRunTxContext()
 	require.Equal(t, crosschain.OperatorElectionChangedTooMany,
-		crosschain.ElectOperators_(ctx, seq, 0x12345, noOpLogger))
+		crosschain.ElectOperatorsForUT(ctx, seq, 0x12345, noOpLogger))
 	ctx.Close(false)
 
 	// remove last candidate
@@ -382,7 +390,7 @@ func TestOperatorsElection(t *testing.T) {
 
 	ctx = _app.GetRunTxContext()
 	require.Equal(t, crosschain.OperatorElectionOK,
-		crosschain.ElectOperators_(ctx, seq, 0x123456, noOpLogger))
+		crosschain.ElectOperatorsForUT(ctx, seq, 0x123456, noOpLogger))
 	operatorInfos = crosschain.ReadOperatorInfos(ctx, seq)
 	ctx.Close(true)
 	require.Len(t, operatorInfos, 16)
@@ -419,16 +427,22 @@ func TestMonitorsElection(t *testing.T) {
 	ctx.Close(false)
 
 	// add 5 valid monitor candidates
-	for i := 0; i < 5; i++ {
-		stakedAmt := big.NewInt(0).Add(monitorMinStakedAmt, big.NewInt(int64(i)))
-		data := packAddMonitorData(02, fmt.Sprintf("pk#%d", i), fmt.Sprintf("op#%d", i), stakedAmt)
+	for i := int64(0); i < 5; i++ {
+		data := packAddMonitorData(02,
+			fmt.Sprintf("pk#%d", i),
+			fmt.Sprintf("op#%d", i),
+			big.NewInt(0).Add(monitorMinStakedAmt, big.NewInt(i)),
+		)
 		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
 		_app.EnsureTxSuccess(tx.Hash())
 	}
 	// add 2 invalid monitor candidates
 	for i := 5; i < 7; i++ {
-		stakedAmt := big.NewInt(123)
-		data := packAddMonitorData(02, fmt.Sprintf("pk#%d", i), fmt.Sprintf("op#%d", i), stakedAmt)
+		data := packAddMonitorData(02,
+			fmt.Sprintf("pk#%d", i),
+			fmt.Sprintf("op#%d", i),
+			big.NewInt(123),
+		)
 		tx, _ = _app.MakeAndExecTxInBlock(key, contractAddr, 0, data)
 		_app.EnsureTxSuccess(tx.Hash())
 	}
@@ -436,9 +450,9 @@ func TestMonitorsElection(t *testing.T) {
 	// invalid nomination count
 	ctx = _app.GetRunTxContext()
 	require.Equal(t, crosschain.MonitorElectionInvalidNominationCount,
-		crosschain.ElectMonitors_(ctx, seq, make([]*cctypes.Nomination, 2), 123, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, make([]*cctypes.Nomination, 2), 123, noOpLogger))
 	require.Equal(t, crosschain.MonitorElectionInvalidNominationCount,
-		crosschain.ElectMonitors_(ctx, seq, make([]*cctypes.Nomination, 4), 123, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, make([]*cctypes.Nomination, 4), 123, noOpLogger))
 	ctx.Close(false)
 
 	// invalid nominations
@@ -449,14 +463,14 @@ func TestMonitorsElection(t *testing.T) {
 		{Pubkey: toBytes33(02, "pk#5"), NominatedCount: 1}, // invalid
 	}
 	require.Equal(t, crosschain.MonitorElectionInvalidNominations,
-		crosschain.ElectMonitors_(ctx, seq, nominations, 123, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, nominations, 123, noOpLogger))
 	nominations = []*cctypes.Nomination{
 		{Pubkey: toBytes33(02, "pk#2"), NominatedCount: 1},
 		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 0}, // invalid
 		{Pubkey: toBytes33(02, "pk#4"), NominatedCount: 1},
 	}
 	require.Equal(t, crosschain.MonitorElectionInvalidNominations,
-		crosschain.ElectMonitors_(ctx, seq, nominations, 123, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, nominations, 123, noOpLogger))
 	ctx.Close(false)
 
 	// first election
@@ -467,7 +481,7 @@ func TestMonitorsElection(t *testing.T) {
 		{Pubkey: toBytes33(02, "pk#4"), NominatedCount: 300},
 	}
 	require.Equal(t, crosschain.MonitorElectionOK,
-		crosschain.ElectMonitors_(ctx, seq, nominations, 0x12345, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, nominations, 0x12345, noOpLogger))
 	monitorInfos := crosschain.ReadMonitorInfos(ctx, seq)
 	lastElectionTime := crosschain.ReadMonitorsLastElectionTime(ctx, seq)
 	ctx.Close(true)
@@ -489,7 +503,7 @@ func TestMonitorsElection(t *testing.T) {
 		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 300},
 	}
 	require.Equal(t, crosschain.MonitorElectionChangedTooMany,
-		crosschain.ElectMonitors_(ctx, seq, nominations, 0x12345, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, nominations, 0x12345, noOpLogger))
 	ctx.Close(false)
 
 	// election ok
@@ -500,7 +514,7 @@ func TestMonitorsElection(t *testing.T) {
 		{Pubkey: toBytes33(02, "pk#3"), NominatedCount: 300},
 	}
 	require.Equal(t, crosschain.MonitorElectionOK,
-		crosschain.ElectMonitors_(ctx, seq, nominations, 0x123456, noOpLogger))
+		crosschain.ElectMonitorsForUT(ctx, seq, nominations, 0x123456, noOpLogger))
 	monitorInfos = crosschain.ReadMonitorInfos(ctx, seq)
 	lastElectionTime = crosschain.ReadMonitorsLastElectionTime(ctx, seq)
 	ctx.Close(true)
