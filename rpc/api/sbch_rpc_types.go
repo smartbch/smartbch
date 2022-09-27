@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
@@ -291,6 +292,10 @@ func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*UtxoInfo {
 }
 
 func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
+	if utxoRecord == nil {
+		fmt.Println("utxoRecord is nil")
+		return &UtxoInfo{}
+	}
 	return &UtxoInfo{
 		OwnerOfLost:      utxoRecord.OwnerOfLost,
 		CovenantAddr:     utxoRecord.CovenantAddr,
@@ -299,7 +304,7 @@ func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
 		ExpectedSignTime: utxoRecord.ExpectedSignTime,
 		Txid:             utxoRecord.Txid,
 		Index:            utxoRecord.Index,
-		Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
+		//Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
 	}
 }
 

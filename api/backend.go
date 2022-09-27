@@ -500,9 +500,9 @@ func loadUtxoRecords(ctx *types.Context, utxoIds [][36]byte) []*cctypes.UTXOReco
 		idx := binary.BigEndian.Uint32(utxoId[32:])
 
 		utxoRecord := crosschain.LoadUTXORecord(ctx, txId, idx)
-		if !utxoRecord.IsRedeemed {
-			utxoRecords = append(utxoRecords, utxoRecord)
-		}
+		//if !utxoRecord.IsRedeemed {
+		utxoRecords = append(utxoRecords, utxoRecord)
+		//}
 	}
 	return utxoRecords
 }

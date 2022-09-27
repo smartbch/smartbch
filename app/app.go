@@ -233,9 +233,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set cc------*/
-	var ccExecutor *crosschain.CcContractExecutor
+	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 	if ctx.IsShaGateFork() {
-		ccExecutor = crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
 	}
 	/*------set watcher------*/
@@ -767,8 +766,13 @@ func (app *App) refresh() (appHash []byte) {
 	if ctx.IsShaGateFork() {
 		ccExecutor := ebp.PredefinedContractManager[crosschain.CCContractAddress]
 		if ccExecutor == nil {
-			ccExecutor = crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
-			ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+			if app.watcher.CcContractExecutor != nil {
+				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, app.watcher.CcContractExecutor)
+			} else {
+				executor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
+				app.watcher.SetCCExecutor(executor)
+				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, executor)
+			}
 		}
 	}
 	ctx.Close(true)
@@ -1027,6 +1031,26 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 }
 
 func (app *App) GetRedeemingUtxoIds() [][36]byte {
+	all := app.historyStore.GetAllUtxoIds()
+	fmt.Printf("get all utxos\n")
+	for _, id := range all {
+		fmt.Printf("id:%s\n", hex.EncodeToString(id[:32]))
+	}
+	fmt.Printf("get all lostandfound utxos\n")
+	allLost := app.historyStore.GetLostAndFoundUtxoIds()
+	for _, id := range allLost {
+		fmt.Printf("id:%s\n", hex.EncodeToString(id[:32]))
+	}
+	fmt.Printf("get all redeemable utxos\n")
+	allR := app.historyStore.GetRedeemableUtxoIds()
+	for _, id := range allR {
+		fmt.Printf("id:%s\n", hex.EncodeToString(id[:32]))
+	}
+	fmt.Printf("get all redeeming utxos\n")
+	allRe := app.historyStore.GetRedeemingUtxoIds()
+	for _, id := range allRe {
+		fmt.Printf("id:%s\n", hex.EncodeToString(id[:32]))
+	}
 	return app.historyStore.GetRedeemingUtxoIds()
 }
 func (app *App) GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte {
