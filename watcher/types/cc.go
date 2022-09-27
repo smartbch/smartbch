@@ -75,11 +75,21 @@ func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransfe
 			if !ok {
 				continue
 			}
-			if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
+			var covenantAddressMatched string
+			switch script {
+			case "OP_HASH160 " + cc.CurrentCovenantAddress + " OP_EQUAL":
+				covenantAddressMatched = cc.CurrentCovenantAddress
+			case "OP_HASH160 " + cc.PrevCovenantAddress + " OP_EQUAL":
+				if cc.PrevCovenantAddress != "" {
+					covenantAddressMatched = cc.PrevCovenantAddress
+				}
+			default:
+			}
+			if covenantAddressMatched != "" {
 				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value*1e8)), uint256.NewInt(1e10)).Bytes32()
 				info.UTXO.TxID = common.HexToHash(ti.Hash)
 				info.UTXO.Index = uint32(n)
-				info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
+				info.CovenantAddress = common.HexToAddress(covenantAddressMatched)
 				isRedeemableTx = true
 				break
 			}
