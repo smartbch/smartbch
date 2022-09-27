@@ -233,9 +233,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 
 	/*------set cc------*/
-	var ccExecutor *crosschain.CcContractExecutor
+	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 	if ctx.IsShaGateFork() {
-		ccExecutor = crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
 	}
 	/*------set watcher------*/
@@ -764,8 +763,13 @@ func (app *App) refresh() (appHash []byte) {
 	if ctx.IsShaGateFork() {
 		ccExecutor := ebp.PredefinedContractManager[crosschain.CCContractAddress]
 		if ccExecutor == nil {
-			ccExecutor = crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
-			ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+			if app.watcher.CcContractExecutor != nil {
+				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, app.watcher.CcContractExecutor)
+			} else {
+				executor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
+				app.watcher.SetCCExecutor(executor)
+				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, executor)
+			}
 		}
 	}
 	ctx.Close(true)

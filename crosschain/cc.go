@@ -98,8 +98,9 @@ type CcContractExecutor struct {
 
 func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger: logger,
-		Voter:  voter,
+		logger:           logger,
+		Voter:            voter,
+		StartUTXOCollect: make(chan types.UTXOCollectParam),
 	}
 }
 
