@@ -180,7 +180,11 @@ func (_ *CcContractExecutor) Run(_ []byte) ([]byte, error) {
 func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
-	if tx.Gas < GasOfCCOp {
+	amount := uint256.NewInt(0).SetBytes32(tx.Value[:])
+	if amount.IsZero() {
+		gasUsed = GasOfLostAndFoundRedeem
+	}
+	if tx.Gas < gasUsed {
 		outData = []byte(ErrOutOfGas.Error())
 		return
 	}
@@ -202,9 +206,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 	index := uint256.NewInt(0).SetBytes32(callData[32:64])
 	var targetAddress [20]byte
 	copy(targetAddress[:], callData[76:96])
-	amount := uint256.NewInt(0).SetBytes32(tx.Value[:])
 	if amount.IsZero() {
-		gasUsed = GasOfLostAndFoundRedeem
 		l, err := checkAndUpdateLostAndFoundTX(ctx, block, txid, uint32(index.Uint64()), tx.From, targetAddress)
 		if err != nil {
 			outData = []byte(err.Error())
