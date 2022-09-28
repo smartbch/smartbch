@@ -51,4 +51,4 @@ cp ./app.toml ~/.smartbchd/config/app.toml
 #  --http.api='eth,web3,net,txpool,sbch,debug' \
 #  --log_level='json-rpc:debug,watcher:debug,app:debug' \
 #  --skip-sanity-check=true \
-#  --with-syncdb=true
+#  --with-syncdb=false

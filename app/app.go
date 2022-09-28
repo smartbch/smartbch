@@ -619,7 +619,8 @@ func (app *App) buildCommitResponse(appHash []byte) abcitypes.ResponseCommit {
 func (app *App) updateValidatorsAndStakingInfo() {
 	ctx := app.GetRunTxContext()
 	defer ctx.Close(true) // context must be written back such that txEngine can read it in 'Prepare'
-
+	blkBalance := ebp.GetBlackHoleBalance(ctx)
+	fmt.Printf("blackhole balance:%d\n", blkBalance)
 	currValidators, newValidators, currEpochNum := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner,
 		app.lastProposer, app.lastVoters, app.getBlockRewardAndUpdateSysAcc(ctx))
 	app.slashValidators = app.slashValidators[:0]

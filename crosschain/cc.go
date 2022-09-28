@@ -28,12 +28,13 @@ const (
 	ccContractSequence uint64 = math.MaxUint64 - 3 /*uint64(-4)*/
 
 	E18 uint64 = 1000_000_000_000_000_000
+	E17 uint64 = 100_000_000_000_000_000
 )
 
 var (
 	MaxCCAmount           uint64 = 1000
 	MinCCAmount           uint64 = 1
-	MinPendingBurningLeft uint64 = 10
+	MinPendingBurningLeft uint64 = 1
 	MatureTime            int64  = 1                  // 24h
 	ForceTransferTime     int64  = 6 * 30 * 24 * 3600 // 6m
 )
@@ -457,7 +458,8 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
 		pendingBurning, _, totalBurntOnMain := getBurningRelativeData(ctx, context)
-		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E18))
+		//todo: change for test
+		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E17))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
