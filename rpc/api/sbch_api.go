@@ -48,8 +48,8 @@ type SbchAPI interface {
 	GetCcCovenantInfo() CcCovenantInfo
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
-	GetToBeConvertedUTXOsForMonitors() []*UtxoInfo
-	GetToBeConvertedUTXOsForOperators() ([]*UtxoInfo, error)
+	GetToBeConvertedUtxosForMonitors() []*UtxoInfo
+	GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error)
 }
 
 var (
@@ -419,14 +419,14 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	return utxoInfos, nil
 }
 
-func (sbch sbchAPI) GetToBeConvertedUTXOsForMonitors() []*UtxoInfo {
+func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() []*UtxoInfo {
 	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForMonitors")
 	utxoRecords, _ := sbch.backend.GetToBeConvertedUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	return utxoInfos
 }
 
-func (sbch sbchAPI) GetToBeConvertedUTXOsForOperators() ([]*UtxoInfo, error) {
+func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForOperators")
 	if sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
