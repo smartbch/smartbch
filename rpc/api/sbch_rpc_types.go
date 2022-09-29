@@ -267,8 +267,10 @@ type MonitorInfo struct {
 }
 
 type CcCovenantInfo struct {
-	OperatorPubkeys []hexutil.Bytes `json:"operator_pubkeys"`
-	MonitorPubkeys  []hexutil.Bytes `json:"monitor_pubkeys"`
+	Operators    []OperatorInfo `json:"operators"`
+	Monitors     []MonitorInfo  `json:"monitors"`
+	OldOperators []OperatorInfo `json:"old_operators"`
+	OldMonitors  []MonitorInfo  `json:"old_monitors"`
 }
 
 type UtxoInfo struct {
