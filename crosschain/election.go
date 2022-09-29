@@ -17,12 +17,16 @@ import (
 )
 
 const (
-	OperatorsSlot = 0
-	OperatorWords = 8
+	OperatorsSlot               = 0
+	OperatorElectedTimeField    = 7
+	OperatorOldElectedTimeField = 8
+	OperatorWords               = 9
 
 	MonitorsLastElectionTimeSlot = 0
 	MonitorsSlot                 = 1
-	MonitorWords                 = 6
+	MonitorElectedTimeField      = 5
+	MonitorOldElectedTimeField   = 6
+	MonitorWords                 = 7
 )
 
 const (
@@ -53,6 +57,7 @@ var (
        uint    totalStakedAmt; // total staked BCH
        uint    selfStakedAmt;  // self staked BCH
        uint    electedTime;    // 0 means not elected, set by Golang
+       uint    oldElectedTime; // used to get old operators, set by Golang
    }
 */
 
@@ -64,6 +69,7 @@ type OperatorInfo struct {
 	TotalStakedAmt *uint256.Int
 	SelfStakedAmt  *uint256.Int
 	ElectedTime    *uint256.Int
+	OldElectedTime *uint256.Int
 
 	// only used by election logic
 	electedFlag bool
@@ -92,6 +98,7 @@ func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) Oper
 	totalStakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#5
 	selfStakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))  // slot#6
 	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#7
+	oldElectedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#8
 	return OperatorInfo{
 		Addr:           gethcmn.BytesToAddress(addr),
 		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
@@ -100,6 +107,7 @@ func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) Oper
 		TotalStakedAmt: uint256.NewInt(0).SetBytes(totalStakedAmt),
 		SelfStakedAmt:  uint256.NewInt(0).SetBytes(selfStakedAmt),
 		ElectedTime:    uint256.NewInt(0).SetBytes(electedTime),
+		OldElectedTime: uint256.NewInt(0).SetBytes(oldElectedTime),
 	}
 }
 
@@ -107,7 +115,15 @@ func WriteOperatorElectedTime(ctx *mevmtypes.Context, seq uint64, operatorIdx ui
 	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, OperatorWords-1)
+	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, OperatorElectedTimeField)
+	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
+		uint256.NewInt(val).PaddedBytes(32))
+}
+func WriteOperatorOldElectedTime(ctx *mevmtypes.Context, seq uint64, operatorIdx uint64, val uint64) {
+	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
+	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
+	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords)
+	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, OperatorOldElectedTimeField)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
 }
@@ -216,12 +232,12 @@ func updateOperatorElectedTimes(ctx *mevmtypes.Context, seq uint64,
 	blockTime int64, operatorInfos []OperatorInfo) {
 
 	for idx, operatorInfo := range operatorInfos {
+		WriteOperatorOldElectedTime(ctx, seq, uint64(idx), operatorInfo.ElectedTime.Uint64())
+
 		if !operatorInfo.electedFlag {
 			WriteOperatorElectedTime(ctx, seq, uint64(idx), 0)
 		} else {
-			if operatorInfo.ElectedTime.Uint64() == 0 {
-				WriteOperatorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
-			}
+			WriteOperatorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
 		}
 	}
 }
@@ -238,21 +254,23 @@ func GetOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
 
 /*
    struct MonitorInfo {
-       address addr;         // address
-       uint    pubkeyPrefix; // 0x02 or 0x03
-       bytes32 pubkeyX;      // x
-       bytes32 intro;        // introduction
-       uint    stakedAmt;    // staked BCH
-       uint    electedTime;  // 0 means not elected, set by Golang
+       address addr;           // address
+       uint    pubkeyPrefix;   // 0x02 or 0x03
+       bytes32 pubkeyX;        // x
+       bytes32 intro;          // introduction
+       uint    stakedAmt;      // staked BCH
+       uint    electedTime;    // 0 means not elected, set by Golang
+       uint    oldElectedTime; // used to get old monitors, set by Golang
    }
 */
 
 type MonitorInfo struct {
-	Addr        gethcmn.Address
-	Pubkey      []byte // 33 bytes
-	Intro       []byte // 32 bytes
-	StakedAmt   *uint256.Int
-	ElectedTime *uint256.Int
+	Addr           gethcmn.Address
+	Pubkey         []byte // 33 bytes
+	Intro          []byte // 32 bytes
+	StakedAmt      *uint256.Int
+	ElectedTime    *uint256.Int
+	OldElectedTime *uint256.Int
 
 	// only used by election logic
 	nominatedCount int64
@@ -274,18 +292,20 @@ func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo)
 }
 
 func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) MonitorInfo {
-	addr := ctx.GetStorageAt(seq, string(loc.PaddedBytes(32)))                           // slot#0
-	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#1
-	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))      // slot#2
-	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))        // slot#3
-	stakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#4
-	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))  // slot#5
+	addr := ctx.GetStorageAt(seq, string(loc.PaddedBytes(32)))                             // slot#0
+	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))   // slot#1
+	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))        // slot#2
+	intro := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))          // slot#3
+	stakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))      // slot#4
+	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#5
+	oldElectedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#6
 	return MonitorInfo{
-		Addr:        gethcmn.BytesToAddress(addr),
-		Pubkey:      append(pubkeyPrefix[31:], pubkeyX...),
-		Intro:       intro[:],
-		StakedAmt:   uint256.NewInt(0).SetBytes(stakedAmt),
-		ElectedTime: uint256.NewInt(0).SetBytes(electedTime),
+		Addr:           gethcmn.BytesToAddress(addr),
+		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
+		Intro:          intro[:],
+		StakedAmt:      uint256.NewInt(0).SetBytes(stakedAmt),
+		ElectedTime:    uint256.NewInt(0).SetBytes(electedTime),
+		OldElectedTime: uint256.NewInt(0).SetBytes(oldElectedTime),
 	}
 }
 
@@ -293,7 +313,15 @@ func WriteMonitorElectedTime(ctx *mevmtypes.Context, seq uint64, monitorIdx uint
 	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, MonitorWords-1)
+	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, MonitorElectedTimeField)
+	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
+		uint256.NewInt(val).PaddedBytes(32))
+}
+func WriteMonitorOldElectedTime(ctx *mevmtypes.Context, seq uint64, monitorIdx uint64, val uint64) {
+	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
+	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
+	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords)
+	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, MonitorOldElectedTimeField)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
 }
@@ -393,12 +421,11 @@ func updateMonitorElectedTimes(ctx *mevmtypes.Context, seq uint64,
 	blockTime int64, monitorInfos []MonitorInfo) {
 
 	for idx, monitorInfo := range monitorInfos {
+		WriteMonitorOldElectedTime(ctx, seq, uint64(idx), monitorInfo.ElectedTime.Uint64())
 		if monitorInfo.nominatedCount == 0 {
 			WriteMonitorElectedTime(ctx, seq, uint64(idx), 0)
 		} else {
-			if monitorInfo.ElectedTime.Uint64() == 0 {
-				WriteMonitorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
-			}
+			WriteMonitorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
 		}
 	}
 }
