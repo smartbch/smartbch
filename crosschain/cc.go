@@ -35,8 +35,8 @@ var (
 	MaxCCAmount           uint64 = 1000
 	MinCCAmount           uint64 = 1
 	MinPendingBurningLeft uint64 = 1
-	MatureTime            int64  = 1                  // 24h
-	ForceTransferTime     int64  = 6 * 30 * 24 * 3600 // 6m
+	MatureTime            int64  = 1       // 24h
+	ForceTransferTime     int64  = 60 * 60 // 6m
 )
 
 var (
@@ -122,15 +122,14 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 		if err != nil {
 			panic(err)
 		}
-		lastAddress := common.HexToAddress("0000000000000000000000000000000000000002")
 		context := types.CCContext{
 			RescanTime:            math.MaxInt64,
 			RescanHeight:          uint64(param.StartMainnetHeightForCC),
 			LastRescannedHeight:   uint64(0),
 			UTXOAlreadyHandled:    true,
 			TotalBurntOnMainChain: uint256.NewInt(uint64(param.AlreadyBurntOnMainChain)).Bytes32(),
-			LastCovenantAddr:      lastAddress,
 			CurrCovenantAddr:      address,
+			LatestEpochHandled:    -1,
 		}
 		SaveCCContext(ctx, context)
 		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", address, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
@@ -280,7 +279,7 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	oldPrevCovenantAddr := context.LastCovenantAddr
 	oldCurrCovenantAddr := context.CurrCovenantAddr
 	fmt.Printf("startRescan prevCovenantAddress:%s,CurrentCovenantAddress:%s\n", common.BytesToAddress(oldPrevCovenantAddr[:]), common.BytesToAddress(oldCurrCovenantAddr[:]))
-	//logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, currBlock, context)...)
+	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, currBlock, context)...)
 	SaveCCContext(ctx, *context)
 	c.logger.Debug("startRescan", "lastRescanHeight", context.LastRescannedHeight, "rescanHeight", context.RescanHeight)
 	c.StartUTXOCollect <- types.UTXOCollectParam{
@@ -518,6 +517,8 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	newR.BornTime = r.BornTime
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
+	fmt.Printf("handleConvertTypeUTXO, totalMinerFeeForConvertTx:%s,prevTxid:%s,txid:%s,newAmount:%s,covenantAddre:%s\n", totalMinerFeeForConvertTx.String(),
+		common.BytesToHash(info.PrevUTXO.TxID[:]).String(), common.BytesToHash(info.UTXO.TxID[:]).String(), newAmount.String(), common.BytesToAddress(info.CovenantAddress[:]).String())
 	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}
 }
 
@@ -555,20 +556,30 @@ func getBurningRelativeData(ctx *mevmtypes.Context, context *types.CCContext) (p
 func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currEpochNum := stakingInfo.CurrEpochNum
+	//if currEpochNum == 0 {
+	//	fmt.Println("handleOperatorOrMonitorSetChanged currEpochNum is zero")
+	//	return nil
+	//}
 	if currEpochNum == context.LatestEpochHandled {
+		fmt.Println("handleOperatorOrMonitorSetChanged same epoch")
 		return nil
 	}
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.OperatorElectionEpochs == 0 {
-		ElectOperators(ctx, currBlock.Timestamp, c.logger)
+		//ElectOperators(ctx, currBlock.Timestamp, c.logger)
 		context.LatestEpochHandled = currEpochNum
+		fmt.Printf("elect operators, current epoch number:%d\n", currEpochNum)
 	}
 	// todo: monitor should call startRescan at least once in every epoch to trigger this
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.MonitorElectionEpochs == 0 {
 		var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
 		for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
+			if i == 0 {
+				continue
+			}
 			infos = append(infos, LoadMonitorVoteInfo(ctx, i))
 		}
 		HandleMonitorVoteInfos(ctx, currBlock.Timestamp, infos, c.logger)
+		fmt.Printf("elect monitors, current epoch number:%d\n", currEpochNum)
 	}
 	changed, newAddress := c.Voter.IsOperatorOrMonitorChanged(ctx, context.CurrCovenantAddr)
 	if !changed && !(context.CovenantAddrLastChangeTime != 0 && currBlock.Timestamp > context.CovenantAddrLastChangeTime+ForceTransferTime) {
@@ -577,6 +588,7 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 	context.CovenantAddrLastChangeTime = currBlock.Timestamp
 	context.LastCovenantAddr = context.CurrCovenantAddr
 	context.CurrCovenantAddr = newAddress
+	fmt.Printf("handleOperatorOrMonitorSetChanged changed:%v,lastCovenantAddr%s,CurrCovenantAddr:%s\n", changed, common.BytesToAddress(context.LastCovenantAddr[:]).String(), common.BytesToAddress(context.CurrCovenantAddr[:]).String())
 	logs = append(logs, buildChangeAddrLog(context.LastCovenantAddr, context.CurrCovenantAddr))
 	return
 }
@@ -693,6 +705,7 @@ func CollectOpList(mdbBlock *modbtypes.Block) modbtypes.OpListsForCcUtxo {
 			binary.BigEndian.PutUint32(newConvertedOp.UtxoId[32:], uint32(uint256.NewInt(0).SetBytes32(l.Data[32:64]).Uint64()))
 			newConvertedOp.NewCovenantAddr = common.BytesToAddress(l.Data[64:])
 			opList.ConvertedOps = append(opList.ConvertedOps, newConvertedOp)
+			fmt.Printf("CollectOpList: convertOp, prevTxid:%s, txid: %s\n", common.BytesToHash(newConvertedOp.PrevUtxoId[:32]).String(), common.BytesToHash(newConvertedOp.UtxoId[:32]).String())
 		case HashOfEventDeleted:
 			newDeleteOp := modbtypes.DeletedOp{}
 			copy(newDeleteOp.UtxoId[:32], l.Topics[1][:])
@@ -728,11 +741,16 @@ func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) 
 }
 
 func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
-	newAddr, err := GetCCCovenantP2SHAddr(ctx)
-	if err != nil {
-		panic(err)
+	//newAddr, err := GetCCCovenantP2SHAddr(ctx)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//return currAddress != newAddr, newAddr
+	if ctx.Height > 30 && ctx.Height < 60 {
+		return true, common.HexToAddress("0000000000000000000000000000000000000002")
+	} else {
+		return false, common.HexToAddress("0000000000000000000000000000000000000002")
 	}
-	return currAddress != newAddr, newAddr
 }
 
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {

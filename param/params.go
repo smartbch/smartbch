@@ -26,11 +26,11 @@ const (
 
 	// cc params
 	StartMainnetHeightForCC = 1 // mainnet height which cc tx collected from
-	StartEpochNumberForCC   = 1 // epoch number which cc enabled from
+	StartEpochNumberForCC   = 0 // epoch number which cc enabled from
 	AlreadyBurntOnMainChain = 0 // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x1234"
-	MonitorElectionEpochs   = 1 //must be divisible by OperatorElectionEpochs
-	OperatorElectionEpochs  = 1
+	MonitorElectionEpochs   = 2 //must be divisible by OperatorElectionEpochs
+	OperatorElectionEpochs  = 2
 	MaxMonitorNumber        = 3
 	OperatorsGovSequence    = 0 // TODO
 	MonitorsGovSequence     = 0 // TODO

@@ -131,6 +131,7 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 			info.UTXO.Index = uint32(0)
 			info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
 			maybeConvertTx = true
+			fmt.Println("maybe convert tx")
 			//break
 		}
 		if maybeConvertTx {

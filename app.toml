@@ -1,0 +1,48 @@
+# This is a TOML config file.
+# For more information, see https://github.com/toml-lang/toml
+
+# eth_getLogs max return items
+get_logs_max_results = 10000
+
+# retain blocks in TM
+retain-blocks = -1
+
+# every retain_interval_blocks blocks execute TM blocks prune
+retain_interval_blocks = 100
+
+# use liteDB
+use_litedb = false
+
+# How many recent blocks can be kept in moeingads (to prune the blocks which are older than them)
+blocks_kept_ads = 10000
+
+# How many recent blocks can be kept in moeingdb (to prune the blocks which are older than them)
+blocks_kept_modb = -1
+
+# The entry count limit of the signature cache, which caches the recent signatures' check results
+sig_cache_size = 20000
+
+# The initial entry count in the trunk cache, which buffers the write operations of the last block
+trunk_cache_size = 200
+
+# We try to prune the old blocks of moeingads every n blocks
+prune_every_n = 10
+
+# If the number of the mempool transactions which need recheck is larger than this threshold, stop
+# adding new transactions into mempool
+recheck_threshold = 1000
+
+# BCH mainnet rpc url
+mainnet-rpc-url = "http://127.0.0.1:1234"
+
+# BCH mainnet rpc username
+mainnet-rpc-username = ""
+
+# BCH mainnet rpc password
+mainnet-rpc-password = ""
+
+# smartBCH rpc url for epoch get
+smartbch-rpc-url = ""
+
+# open epoch get to speedup mainnet block catch, work with "smartbch_rpc_url"
+watcher-speedup = false
