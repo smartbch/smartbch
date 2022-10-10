@@ -15,32 +15,44 @@ import (
 	"github.com/smartbch/smartbch/param"
 )
 
+const (
+	redeemScript        = param.RedeemScriptWithoutConstructorArgs
+	operatorsCount      = param.OperatorsCount
+	monitorsCount       = param.MonitorsCount
+	minOperatorSigCount = param.MinOperatorSigCount
+	minMonitorSigCount  = param.MinMonitorSigCount
+	minerFee            = param.RedeemOrCovertMinerFee
+	monitorsLock        = param.MonitorTransferWaitBlocks
+	bchNetwork          = param.CcBchNetwork
+)
+
 type CcCovenant struct {
 	redeemScriptWithoutConstructorArgs []byte
 	operatorPks                        [][]byte
 	monitorPks                         [][]byte
 	minerFee                           int64
+	monitorLockBlocks                  uint32
 	net                                *chaincfg.Params
 }
 
 func NewDefaultCcCovenant(operatorPks, monitorPks [][]byte) (*CcCovenant, error) {
-	hexStr := strings.TrimPrefix(param.RedeemScriptWithoutConstructorArgs, "0x")
+	hexStr := strings.TrimPrefix(redeemScript, "0x")
 	hexBytes, err := hex.DecodeString(hexStr)
 	if err != nil {
 		return nil, err
 	}
 
 	var bchNet *chaincfg.Params
-	if param.CcBchNetwork == chaincfg.MainNetParams.Name {
+	if bchNetwork == chaincfg.MainNetParams.Name {
 		bchNet = &chaincfg.MainNetParams
-	} else if param.CcBchNetwork == chaincfg.TestNet3Params.Name {
+	} else if bchNetwork == chaincfg.TestNet3Params.Name {
 		bchNet = &chaincfg.TestNet3Params
 	} else {
-		return nil, errors.New("unknown BCH network: " + param.CcBchNetwork)
+		return nil, errors.New("unknown BCH network: " + bchNetwork)
 	}
 
 	return NewCcCovenant(hexBytes, operatorPks, monitorPks,
-		param.RedeemOrCovertMinerFee, bchNet)
+		minerFee, monitorsLock, bchNet)
 }
 
 func NewCcCovenant(
@@ -48,6 +60,7 @@ func NewCcCovenant(
 	operatorPks [][]byte,
 	monitorPks [][]byte,
 	minerFee int64,
+	monitorLockBlocks uint32,
 	net *chaincfg.Params,
 ) (*CcCovenant, error) {
 
@@ -59,16 +72,17 @@ func NewCcCovenant(
 		operatorPks:                        operatorPks,
 		monitorPks:                         monitorPks,
 		minerFee:                           minerFee,
+		monitorLockBlocks:                  monitorLockBlocks,
 		net:                                net,
 	}
 	return ccc, nil
 }
 
 func checkPks(operatorPks [][]byte, monitorPks [][]byte) error {
-	if len(operatorPks) != param.OperatorsCount {
+	if len(operatorPks) != operatorsCount {
 		return errors.New("invalid operatorPks count")
 	}
-	if len(monitorPks) != param.MonitorsCount {
+	if len(monitorPks) != monitorsCount {
 		return errors.New("invalid monitorsPks count")
 	}
 
@@ -125,11 +139,18 @@ func (c CcCovenant) GetP2SHAddress() (string, error) {
 
 func (c CcCovenant) GetP2SHAddressNew(newOperatorPks, newMonitorPks [][]byte) (string, error) {
 	c2, err := NewCcCovenant(c.redeemScriptWithoutConstructorArgs,
-		newOperatorPks, newMonitorPks, c.minerFee, c.net)
+		newOperatorPks, newMonitorPks, c.minerFee, c.monitorLockBlocks, c.net)
 	if err != nil {
 		return "", err
 	}
 	return c2.GetP2SHAddress()
+}
+
+func (c CcCovenant) GetOperatorPubkeysHash() string {
+	return "0x" + hex.EncodeToString(bchutil.Hash160(bytes.Join(c.operatorPks, nil)))
+}
+func (c CcCovenant) GetMonitorPubkeysHash() string {
+	return "0x" + hex.EncodeToString(bchutil.Hash160(bytes.Join(c.monitorPks, nil)))
 }
 
 /* redeem by user */
@@ -175,28 +196,29 @@ func (c CcCovenant) GetRedeemByUserTxSigHash(
 func (c CcCovenant) FinishRedeemByUserTx(
 	unsignedTx *wire.MsgTx,
 	sigs [][]byte,
-) (string, error) {
+) (*wire.MsgTx, []byte, error) {
 	sigScript, err := c.BuildRedeemByUserUnlockingScript(sigs)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-	return msgTxToHex(unsignedTx), nil
+	signedTx := unsignedTx
+	return signedTx, MsgTxToBytes(signedTx), nil
 }
 
 func (c *CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
-	return c.buildRedeemOrConvertUnlockingScript(sigs, nil, nil)
+	return c.buildRedeemOrConvertUnlockingScript(nil, nil, sigs)
 }
 
 func (c *CcCovenant) buildRedeemOrConvertUnlockingScript(
-	sigs [][]byte,
 	newOperatorPubkeysHash []byte,
 	newMonitorPubkeysHash []byte,
+	sigs [][]byte,
 ) ([]byte, error) {
 
-	if len(sigs) != param.MinOperatorSigCount {
+	if len(sigs) != minOperatorSigCount {
 		return nil, errors.New("invalid operator signature count")
 	}
 
@@ -269,32 +291,27 @@ func (c CcCovenant) GetConvertByOperatorsTxSigHash(
 
 func (c CcCovenant) FinishConvertByOperatorsTx(
 	unsignedTx *wire.MsgTx,
-	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
-) (string, error) {
+	sigs [][]byte,
+) (*wire.MsgTx, []byte, error) {
 
-	sigScript, err := c.BuildConvertByOperatorsUnlockingScript(sigs, newOperatorPks, newMonitorPks)
+	sigScript, err := c.BuildConvertByOperatorsUnlockingScript(newOperatorPks, newMonitorPks, sigs)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	inputIdx := 0
 	unsignedTx.TxIn[inputIdx].SignatureScript = sigScript
-	return msgTxToHex(unsignedTx), nil
+	signedTx := unsignedTx
+	return signedTx, MsgTxToBytes(signedTx), nil
 }
 
 func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
-	sigs [][]byte,
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
+	sigs [][]byte,
 ) ([]byte, error) {
-	// TODO: check newOperatorPks & newMonitorPks
-	//if reflect.DeepEqual(newOperatorPks, c.operatorPks) &&
-	//	reflect.DeepEqual(newMonitorPks, c.monitorPks) {
-	//
-	//	return nil, fmt.Errorf("operators and monitors not changed")
-	//}
 
 	err := checkPks(newOperatorPks, newMonitorPks)
 	if err != nil {
@@ -303,7 +320,7 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
 
 	newOperatorPubkeysHash := bchutil.Hash160(bytes.Join(newOperatorPks, nil))
 	newMonitorPubkeysHash := bchutil.Hash160(bytes.Join(newMonitorPks, nil))
-	return c.buildRedeemOrConvertUnlockingScript(sigs, newOperatorPubkeysHash, newMonitorPubkeysHash)
+	return c.buildRedeemOrConvertUnlockingScript(newOperatorPubkeysHash, newMonitorPubkeysHash, sigs)
 }
 
 /* convert by monitors */
@@ -323,7 +340,7 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 	if err = builder.addInput(txid, vout); err != nil {
 		return nil, err
 	}
-	builder.msgTx.TxIn[0].Sequence = param.MonitorTransferWaitBlocks
+	builder.msgTx.TxIn[0].Sequence = c.monitorLockBlocks
 	if err = builder.addOutput(toAddr, inAmt); err != nil {
 		return nil, err
 	}
@@ -355,10 +372,11 @@ func (c CcCovenant) GetConvertByMonitorsTxSigHash(
 
 func (c CcCovenant) AddConvertByMonitorsTxMonitorSigs(
 	unsignedTx *wire.MsgTx,
-	sigs [][]byte, newOperatorPks [][]byte,
+	newOperatorPks [][]byte,
+	sigs [][]byte,
 ) (*wire.MsgTx, error) {
 
-	sigScript, err := c.BuildConvertByMonitorsUnlockingScript(sigs, newOperatorPks)
+	sigScript, err := c.BuildConvertByMonitorsUnlockingScript(newOperatorPks, sigs)
 	if err != nil {
 		return unsignedTx, err
 	}
@@ -369,11 +387,12 @@ func (c CcCovenant) AddConvertByMonitorsTxMonitorSigs(
 	return unsignedTx, nil
 }
 
-func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
+func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(
 	newOperatorPks [][]byte,
+	sigs [][]byte,
 ) ([]byte, error) {
 
-	if len(sigs) != param.MinMonitorSigCount {
+	if len(sigs) != minMonitorSigCount {
 		return nil, errors.New("invalid monitor signature count")
 	}
 	err := checkPks(newOperatorPks, c.monitorPks)
@@ -399,13 +418,14 @@ func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(sigs [][]byte,
 	return builder.Script()
 }
 
-func (c CcCovenant) AddConvertByMonitorsTxMinerFee(
+func AddConvertByMonitorsTxMinerFee(
 	signedTx *wire.MsgTx,
 	txid []byte, vout uint32, inAmt int64, // input info
 	minerFee int64, changeAddr string, // miner fee
+	net *chaincfg.Params,
 ) (*wire.MsgTx, error) {
 
-	builder := wrapMsgTx(signedTx, c.net)
+	builder := wrapMsgTx(signedTx, net)
 	if err := builder.addInput(txid, vout); err != nil {
 		return signedTx, err
 	}
@@ -418,12 +438,13 @@ func (c CcCovenant) AddConvertByMonitorsTxMinerFee(
 	return signedTx, nil
 }
 
-func (c CcCovenant) GetConvertByMonitorsTxSigHash2(
+func GetConvertByMonitorsTxSigHash2(
 	txWithMinerFee *wire.MsgTx,
 	inAmt int64,
 	addr string,
+	net *chaincfg.Params,
 ) ([]byte, error) {
-	decodedAddr, err := bchutil.DecodeAddress(addr, c.net)
+	decodedAddr, err := bchutil.DecodeAddress(addr, net)
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +461,7 @@ func (c CcCovenant) GetConvertByMonitorsTxSigHash2(
 	return hash, err
 }
 
-func (c CcCovenant) AddConvertByMonitorsTxMinerFeeSig(
+func AddConvertByMonitorsTxMinerFeeSig(
 	txWithMinerFee *wire.MsgTx,
 	sig, pkData []byte,
 ) (*wire.MsgTx, error) {
