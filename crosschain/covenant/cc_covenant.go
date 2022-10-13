@@ -64,9 +64,9 @@ func NewCcCovenant(
 	net *chaincfg.Params,
 ) (*CcCovenant, error) {
 
-	if err := checkPks(operatorPks, monitorPks); err != nil {
-		return nil, err
-	}
+	//if err := checkPks(operatorPks, monitorPks); err != nil {
+	//	return nil, err
+	//}
 	ccc := &CcCovenant{
 		redeemScriptWithoutConstructorArgs: redeemScriptWithoutConstructorArgs,
 		operatorPks:                        operatorPks,
@@ -313,10 +313,10 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
 	sigs [][]byte,
 ) ([]byte, error) {
 
-	err := checkPks(newOperatorPks, newMonitorPks)
-	if err != nil {
-		return nil, err
-	}
+	//err := checkPks(newOperatorPks, newMonitorPks)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	newOperatorPubkeysHash := bchutil.Hash160(bytes.Join(newOperatorPks, nil))
 	newMonitorPubkeysHash := bchutil.Hash160(bytes.Join(newMonitorPks, nil))
@@ -395,10 +395,10 @@ func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(
 	if len(sigs) != minMonitorSigCount {
 		return nil, errors.New("invalid monitor signature count")
 	}
-	err := checkPks(newOperatorPks, c.monitorPks)
-	if err != nil {
-		return nil, err
-	}
+	//err := checkPks(newOperatorPks, c.monitorPks)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	redeemScript, err := c.BuildFullRedeemScript()
 	if err != nil {

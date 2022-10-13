@@ -65,7 +65,8 @@ var (
 
 	UTXOHandleDelay              int64 = 3
 	ExpectedRedeemSignTimeDelay  int64 = 3 // 3s
-	ExpectedConvertSignTimeDelay       = ExpectedRedeemSignTimeDelay * 4
+	ExpectedConvertSignTimeDelay int64 = 3
+	//ExpectedConvertSignTimeDelay       = ExpectedRedeemSignTimeDelay * 4
 
 	ErrInvalidCallData         = errors.New("invalid call data")
 	ErrInvalidSelector         = errors.New("invalid selector")
