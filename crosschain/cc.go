@@ -746,7 +746,7 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 	//	panic(err)
 	//}
 	//return currAddress != newAddr, newAddr
-	if ctx.Height > 30 && ctx.Height < 60 {
+	if ctx.Height > 70 && ctx.Height < 100 {
 		return true, common.HexToAddress("0000000000000000000000000000000000000002")
 	} else {
 		return false, common.HexToAddress("0000000000000000000000000000000000000002")
