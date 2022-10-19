@@ -131,6 +131,7 @@ type BackendService interface {
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
 	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
 	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
+	GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 
 	//tendermint info
 	NodeInfo() Info

@@ -99,6 +99,10 @@ func checkPks(operatorPks [][]byte, monitorPks [][]byte) error {
 	return nil
 }
 
+func (c CcCovenant) Net() *chaincfg.Params {
+	return c.net
+}
+
 /* P2SH address */
 
 func (c CcCovenant) BuildFullRedeemScript() ([]byte, error) {

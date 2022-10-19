@@ -54,8 +54,8 @@ var (
        bytes32 pubkeyX;        // x
        bytes32 rpcUrl;         // ip:port
        bytes32 intro;          // introduction
-       uint    totalStakedAmt; // in BCH
-       uint    selfStakedAmt;  // in BCH
+       uint    totalStakedAmt; // total staked BCH
+       uint    selfStakedAmt;  // self staked BCH
        uint    electedTime;    // 0 means not elected, set by Golang
        uint    oldElectedTime; // used to get old operators, set by Golang
    }
@@ -83,8 +83,9 @@ func ReadOperatorInfos(ctx *mevmtypes.Context, seq uint64) (result []OperatorInf
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 
-	for i := uint64(0); i < arrLen.ToBig().Uint64(); i++ {
-		result = append(result, readOperatorInfo(ctx, seq, arrLoc))
+	for i := uint64(0); i < arrLen.Uint64(); i++ {
+		loc := uint256.NewInt(0).AddUint64(arrLoc, i*OperatorWords)
+		result = append(result, readOperatorInfo(ctx, seq, loc))
 	}
 	return
 }
@@ -128,11 +129,18 @@ func WriteOperatorOldElectedTime(ctx *mevmtypes.Context, seq uint64, operatorIdx
 }
 
 func ElectOperators(ctx *mevmtypes.Context, blockTime int64, logger log.Logger) int {
-	return ElectOperators_(ctx, param.OperatorsGovSequence, blockTime, logger)
+	return electOperators(ctx, param.OperatorsGovSequence, blockTime, logger)
 }
-func ElectOperators_(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger log.Logger) int {
+func ElectOperatorsForUT(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger log.Logger) int {
+	return electOperators(ctx, seq, blockTime, logger)
+}
+func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger log.Logger) int {
 	logger.Info("elect operators")
 	operatorInfos := ReadOperatorInfos(ctx, seq)
+
+	operatorInfosJson, _ := json.Marshal(operatorInfos)
+	logger.Info("operatorInfos", "json", operatorInfosJson)
+
 	eligibleOperatorInfos := getEligibleOperatorCandidates(operatorInfos)
 	if len(eligibleOperatorInfos) < param.OperatorsCount {
 		logger.Info("not enough eligible operator candidates!")
@@ -154,6 +162,7 @@ func ElectOperators_(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger
 	newElectedCount := 0
 	for i, operatorInfo := range operatorInfos {
 		if electedOperatorPubkeyMap[string(operatorInfo.Pubkey)] {
+			// operatorInfo is passed by value !
 			operatorInfos[i].electedFlag = true
 			operatorInfo.electedFlag = true
 		}
@@ -185,15 +194,7 @@ func ElectOperators_(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger
 	}
 
 	// everything is ok
-	for idx, operatorInfo := range operatorInfos {
-		if !operatorInfo.electedFlag {
-			WriteOperatorElectedTime(ctx, seq, uint64(idx), 0)
-		} else {
-			if operatorInfo.ElectedTime.Uint64() == 0 {
-				WriteOperatorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
-			}
-		}
-	}
+	updateOperatorElectedTimes(ctx, seq, blockTime, operatorInfos)
 	return OperatorElectionOK
 }
 func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorInfo {
@@ -206,8 +207,12 @@ func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorIn
 	return eligibleOperatorInfos
 }
 func isEligibleOperator(operatorInfo OperatorInfo) bool {
+	// nolint
+	if operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt) {
+		return false
+	}
 	// TODO: check more fields
-	return !operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt)
+	return true
 }
 func sortOperatorInfos(operatorInfos []OperatorInfo) {
 	sort.Slice(operatorInfos, func(i, j int) bool {
@@ -224,7 +229,6 @@ func operatorInfoLessFn(a, b OperatorInfo) bool {
 	// TODO: compare more fields
 	return false
 }
-
 func updateOperatorElectedTimes(ctx *mevmtypes.Context, seq uint64,
 	blockTime int64, operatorInfos []OperatorInfo) {
 
@@ -243,6 +247,15 @@ func GetOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
 	operatorInfos := ReadOperatorInfos(ctx, param.OperatorsGovSequence)
 	for _, operatorInfo := range operatorInfos {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
+			pubkeys = append(pubkeys, operatorInfo.Pubkey[:])
+		}
+	}
+	return
+}
+func GetOldOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
+	operatorInfos := ReadOperatorInfos(ctx, param.OperatorsGovSequence)
+	for _, operatorInfo := range operatorInfos {
+		if operatorInfo.OldElectedTime.Uint64() > 0 {
 			pubkeys = append(pubkeys, operatorInfo.Pubkey[:])
 		}
 	}
@@ -281,8 +294,9 @@ func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
 
-	for i := uint64(0); i < arrLen.ToBig().Uint64(); i++ {
-		result = append(result, readMonitorInfo(ctx, seq, arrLoc))
+	for i := uint64(0); i < arrLen.Uint64(); i++ {
+		loc := uint256.NewInt(0).AddUint64(arrLoc, i*MonitorWords)
+		result = append(result, readMonitorInfo(ctx, seq, loc))
 	}
 	return
 }
@@ -333,9 +347,14 @@ func WriteMonitorsLastElectionTime(ctx *mevmtypes.Context, seq uint64, val uint6
 }
 
 func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, blockTime int64, logger log.Logger) int {
-	return ElectMonitors_(ctx, param.MonitorsGovSequence, nominations, blockTime, logger)
+	return electMonitors(ctx, param.MonitorsGovSequence, nominations, blockTime, logger)
 }
-func ElectMonitors_(ctx *mevmtypes.Context, seq uint64,
+func ElectMonitorsForUT(ctx *mevmtypes.Context, seq uint64,
+	nominations []*cctypes.Nomination, blockTime int64, logger log.Logger,
+) int {
+	return electMonitors(ctx, seq, nominations, blockTime, logger)
+}
+func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	nominations []*cctypes.Nomination, blockTime int64, logger log.Logger,
 ) int {
 	nominationsJson, _ := json.Marshal(nominations)
@@ -354,9 +373,10 @@ func ElectMonitors_(ctx *mevmtypes.Context, seq uint64,
 	thisTimeElectedCount := 0
 	newElectedCount := 0
 	for i, monitorInfo := range monitorInfos {
-		if !monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) {
+		if isEligibleMonitor(monitorInfo) {
 			for _, nomination := range nominations {
 				if bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
+					// monitorInfo is passed by value !
 					monitorInfos[i].nominatedCount = nomination.NominatedCount
 					monitorInfo.nominatedCount = nomination.NominatedCount
 					break
@@ -396,6 +416,21 @@ func ElectMonitors_(ctx *mevmtypes.Context, seq uint64,
 	}
 
 	// everything is ok
+	updateMonitorElectedTimes(ctx, seq, blockTime, monitorInfos)
+	WriteMonitorsLastElectionTime(ctx, seq, uint64(blockTime))
+	return MonitorElectionOK
+}
+func isEligibleMonitor(monitorInfo MonitorInfo) bool {
+	// nolint
+	if monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) {
+		return false
+	}
+	// TODO: check more fields
+	return true
+}
+func updateMonitorElectedTimes(ctx *mevmtypes.Context, seq uint64,
+	blockTime int64, monitorInfos []MonitorInfo) {
+
 	for idx, monitorInfo := range monitorInfos {
 		WriteMonitorOldElectedTime(ctx, seq, uint64(idx), monitorInfo.ElectedTime.Uint64())
 		if monitorInfo.nominatedCount == 0 {
@@ -404,14 +439,21 @@ func ElectMonitors_(ctx *mevmtypes.Context, seq uint64,
 			WriteMonitorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
 		}
 	}
-	WriteMonitorsLastElectionTime(ctx, seq, uint64(blockTime))
-	return MonitorElectionOK
 }
 
 func GetMonitorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
 	monitorInfos := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
 	for _, monitorInfo := range monitorInfos {
 		if monitorInfo.ElectedTime.Uint64() > 0 {
+			pubkeys = append(pubkeys, monitorInfo.Pubkey[:])
+		}
+	}
+	return
+}
+func GetOldMonitorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
+	monitorInfos := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
+	for _, monitorInfo := range monitorInfos {
+		if monitorInfo.OldElectedTime.Uint64() > 0 {
 			pubkeys = append(pubkeys, monitorInfo.Pubkey[:])
 		}
 	}

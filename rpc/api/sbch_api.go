@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
-	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchutil"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -399,7 +398,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 		txid := utxoRecord.Txid[:]
 		vout := utxoRecord.Index
 
-		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], &chaincfg.MainNetParams)
+		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], ccc.Net())
 		if err != nil {
 			sbch.logger.Error("failed to derive BCH address", "err", err)
 			continue
@@ -444,5 +443,32 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 		return nil, nil
 	}
 
-	return castUtxoRecords(utxoRecords), nil
+	oldOperatorPubkeys, oldMonitorPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
+	newOperatorPubkeys, newMonitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
+	ccc, err := covenant.NewDefaultCcCovenant(oldOperatorPubkeys, oldMonitorPubkeys)
+	if err != nil {
+		sbch.logger.Error("failed to create CcCovenant", "err", err.Error())
+		return nil, err
+	}
+
+	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
+	for _, utxoRecord := range utxoRecords {
+		utxoInfo := castUtxoRecord(utxoRecord)
+
+		amt := utxoInfo.Amount
+		txid := utxoRecord.Txid[:]
+		vout := utxoRecord.Index
+
+		_, sigHash, err := ccc.GetConvertByOperatorsTxSigHash(txid, vout, int64(amt),
+			newOperatorPubkeys, newMonitorPubkeys)
+		if err != nil {
+			sbch.logger.Error("failed to call GetConvertByOperatorsTxSigHash", "err", err)
+			continue
+		}
+
+		utxoInfo.TxSigHash = sigHash
+		utxoInfos = append(utxoInfos, utxoInfo)
+	}
+
+	return utxoInfos, nil
 }

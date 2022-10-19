@@ -515,3 +515,11 @@ func (backend *apiBackend) GetOperatorAndMonitorPubkeys() (operatorPubkeys, moni
 	monitorPubkeys = crosschain.GetMonitorPubkeySet(ctx)
 	return
 }
+func (backend *apiBackend) GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte) {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	operatorPubkeys = crosschain.GetOldOperatorPubkeySet(ctx)
+	monitorPubkeys = crosschain.GetOldMonitorPubkeySet(ctx)
+	return
+}
