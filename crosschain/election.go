@@ -207,6 +207,7 @@ func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorIn
 	return eligibleOperatorInfos
 }
 func isEligibleOperator(operatorInfo OperatorInfo) bool {
+	// nolint
 	if operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt) {
 		return false
 	}
@@ -246,6 +247,15 @@ func GetOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
 	operatorInfos := ReadOperatorInfos(ctx, param.OperatorsGovSequence)
 	for _, operatorInfo := range operatorInfos {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
+			pubkeys = append(pubkeys, operatorInfo.Pubkey[:])
+		}
+	}
+	return
+}
+func GetOldOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
+	operatorInfos := ReadOperatorInfos(ctx, param.OperatorsGovSequence)
+	for _, operatorInfo := range operatorInfos {
+		if operatorInfo.OldElectedTime.Uint64() > 0 {
 			pubkeys = append(pubkeys, operatorInfo.Pubkey[:])
 		}
 	}
@@ -411,6 +421,7 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	return MonitorElectionOK
 }
 func isEligibleMonitor(monitorInfo MonitorInfo) bool {
+	// nolint
 	if monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) {
 		return false
 	}
@@ -434,6 +445,15 @@ func GetMonitorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
 	monitorInfos := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
 	for _, monitorInfo := range monitorInfos {
 		if monitorInfo.ElectedTime.Uint64() > 0 {
+			pubkeys = append(pubkeys, monitorInfo.Pubkey[:])
+		}
+	}
+	return
+}
+func GetOldMonitorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
+	monitorInfos := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
+	for _, monitorInfo := range monitorInfos {
+		if monitorInfo.OldElectedTime.Uint64() > 0 {
 			pubkeys = append(pubkeys, monitorInfo.Pubkey[:])
 		}
 	}
