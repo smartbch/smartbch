@@ -41,15 +41,15 @@ jobs:
       - name: Create buildx worker node
         run: docker buildx create --use
 
-      - name: Build mainnet image
-        env:
-          GIT_TAG: ${{ steps.previoustag.outputs.tag }}
-        run: |
-          echo $GIT_TAG
-          docker buildx build --push \
-          -f Dockerfile.optimized \
-          -t smartbch/smartbchd:$GIT_TAG \
-          --platform linux/arm64,linux/amd64 .
+#      - name: Build mainnet image
+#        env:
+#          GIT_TAG: ${{ steps.previoustag.outputs.tag }}
+#        run: |
+#          echo $GIT_TAG
+#          docker buildx build --push \
+#          -f Dockerfile.optimized \
+#          -t smartbch/smartbchd:$GIT_TAG \
+#          --platform linux/arm64,linux/amd64 .
 
       - name: Build testnet image
         env:
