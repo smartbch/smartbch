@@ -125,7 +125,7 @@ func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 	params.AppConfig.SyncdbDataPath = testSyncDir
 	params.AppConfig.ArchiveMode = archiveMode
 	params.AppConfig.WithSyncDB = withSyncDB
-	_app := app.NewApp(params, bigutils.NewU256(1), 0, 0, nopLogger, true)
+	_app := app.NewApp(params, bigutils.NewU256(0x2711), 0, 0, nopLogger, true)
 	//_app.Init(nil)
 	//_app.txEngine = ebp.NewEbpTxExec(10, 100, 1, 100, _app.signer)
 	genesisData := app.GenesisData{

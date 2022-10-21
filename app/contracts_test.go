@@ -142,7 +142,7 @@ func TestChainID(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 
-	require.Equal(t, "0x1", _app.ChainID().String())
+	require.Equal(t, "0x2711", _app.ChainID().String())
 
 	// see testdata/sol/contracts/basic/ChainID.sol
 	creationBytecode := testutils.HexToBytes(`
@@ -159,7 +159,7 @@ func TestChainID(t *testing.T) {
 	require.NotEmpty(t, _app.GetCode(contractAddr))
 
 	_, _, output := _app.Call(addr, contractAddr, testutils.HexToBytes("564b81ef"))
-	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001",
+	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000002711",
 		hex.EncodeToString(output))
 }
 
@@ -250,7 +250,7 @@ func TestEstimateGas(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 
-	require.Equal(t, "0x1", _app.ChainID().String())
+	require.Equal(t, "0x2711", _app.ChainID().String())
 
 	// see testdata/sol/contracts/basic/ChainID.sol
 	creationBytecode := testutils.HexToBytes(`

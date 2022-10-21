@@ -194,7 +194,7 @@ func TestChainId(t *testing.T) {
 	_api := createEthAPI(_app)
 
 	id := _api.ChainId()
-	require.Equal(t, "0x1", id.String())
+	require.Equal(t, "0x2711", id.String())
 }
 
 func TestGasPrice(t *testing.T) {
