@@ -62,7 +62,7 @@ func EncodeVRS(tx *types.Transaction) [65]byte {
 }
 
 func DecodeVRS(bs [65]byte) (v, r, s *big.Int) {
-	v = big.NewInt(int64(bs[0]))
+	v = big.NewInt(0x4e00 + int64(bs[0]))
 	r = big.NewInt(0).SetBytes(bs[1:33])
 	s = big.NewInt(0).SetBytes(bs[33:65])
 	return
