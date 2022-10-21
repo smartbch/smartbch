@@ -267,10 +267,12 @@ type MonitorInfo struct {
 }
 
 type CcCovenantInfo struct {
-	Operators    []OperatorInfo `json:"operators"`
-	Monitors     []MonitorInfo  `json:"monitors"`
-	OldOperators []OperatorInfo `json:"old_operators"`
-	OldMonitors  []MonitorInfo  `json:"old_monitors"`
+	Operators           []OperatorInfo `json:"operators"`
+	Monitors            []MonitorInfo  `json:"monitors"`
+	OldOperators        []OperatorInfo `json:"old_operators"`
+	OldMonitors         []MonitorInfo  `json:"old_monitors"`
+	LastCovenantAddress string         `json:"lastCovenantAddress"`
+	CurrCovenantAddress string         `json:"currCovenantAddress"`
 }
 
 type UtxoInfo struct {
@@ -298,6 +300,7 @@ func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
 		fmt.Println("utxoRecord is nil")
 		return &UtxoInfo{}
 	}
+	hash := [32]byte{0x01, 0x02, 0x03, 0x04} /*hard code for test*/
 	return &UtxoInfo{
 		OwnerOfLost:      utxoRecord.OwnerOfLost,
 		CovenantAddr:     utxoRecord.CovenantAddr,
@@ -306,7 +309,8 @@ func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
 		ExpectedSignTime: utxoRecord.ExpectedSignTime,
 		Txid:             utxoRecord.Txid,
 		Index:            utxoRecord.Index,
-		//Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
+		Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
+		TxSigHash:        hash[:],
 	}
 }
 

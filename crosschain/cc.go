@@ -64,7 +64,7 @@ var (
 	GasOfLostAndFoundRedeem uint64 = 4000_000
 
 	UTXOHandleDelay              int64 = 3
-	ExpectedRedeemSignTimeDelay  int64 = 3 // 3s
+	ExpectedRedeemSignTimeDelay  int64 = 1 // 3s
 	ExpectedConvertSignTimeDelay int64 = 3
 	//ExpectedConvertSignTimeDelay       = ExpectedRedeemSignTimeDelay * 4
 
@@ -491,8 +491,10 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 }
 
 func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, info *types.CCTransferInfo) []mevmtypes.EvmLog {
+	fmt.Println("handle convert type utxo")
 	r := LoadUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
 	if r == nil {
+		fmt.Println("no record in handle convert utxo")
 		return nil
 	}
 	originAmount := uint256.NewInt(0).SetBytes(r.Amount[:])

@@ -49,6 +49,7 @@ type SbchAPI interface {
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
 	GetToBeConvertedUtxosForMonitors() []*UtxoInfo
 	GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error)
+	GetRedeemableUtxos() []*UtxoInfo
 }
 
 var (
@@ -339,7 +340,9 @@ func (sbch sbchAPI) GetCcCovenantInfo() (info CcCovenantInfo) {
 			info.OldMonitors = append(info.OldMonitors, castMonitorInfo(monitorInfo))
 		}
 	}
-
+	ctx := sbch.backend.GetCcContext()
+	info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
+	info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
 	return
 }
 func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) OperatorInfo {
@@ -390,6 +393,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		if utxoRecord.ExpectedSignTime > currTS {
+			fmt.Println("utxoRecord.ExpectedSignTime > currTS")
 			continue
 		}
 
@@ -471,4 +475,11 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 	}
 
 	return utxoInfos, nil
+}
+
+func (sbch sbchAPI) GetRedeemableUtxos() []*UtxoInfo {
+	sbch.logger.Debug("sbch_getRedeemableUTXOs")
+	utxoRecords := sbch.backend.GetRedeemableUtxos()
+	utxoInfos := castUtxoRecords(utxoRecords)
+	return utxoInfos
 }

@@ -70,7 +70,7 @@ func (cc *CcTxParser) Refresh(prevCovenantAddr, currCovenantAddr common.Address)
 }
 
 func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
-	fmt.Printf("findRedeemableTx prevCovenantAddress:%s,CurrentCovenantAddress:%s\n", cc.PrevCovenantAddress, cc.CurrentCovenantAddress)
+	fmt.Printf("in findRedeemableTx prevCovenantAddress:%s,CurrentCovenantAddress:%s\n", cc.PrevCovenantAddress, cc.CurrentCovenantAddress)
 	for _, ti := range txs {
 		var isRedeemableTx bool
 		var info = cctypes.CCTransferInfo{
