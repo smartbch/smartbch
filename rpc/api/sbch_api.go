@@ -343,6 +343,8 @@ func (sbch sbchAPI) GetCcCovenantInfo() (info CcCovenantInfo) {
 	ctx := sbch.backend.GetCcContext()
 	info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
 	info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
+	info.LastRescannedHeight = ctx.LastRescannedHeight
+	info.RescannedHeight = ctx.RescanHeight
 	return
 }
 func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) OperatorInfo {

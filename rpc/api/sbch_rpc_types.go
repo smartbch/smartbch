@@ -273,6 +273,8 @@ type CcCovenantInfo struct {
 	OldMonitors         []MonitorInfo  `json:"old_monitors"`
 	LastCovenantAddress string         `json:"lastCovenantAddress"`
 	CurrCovenantAddress string         `json:"currCovenantAddress"`
+	LastRescannedHeight uint64         `json:"lastRescannedHeight"`
+	RescannedHeight     uint64         `json:"rescannedHeight"`
 }
 
 type UtxoInfo struct {
