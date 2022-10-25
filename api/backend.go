@@ -492,6 +492,21 @@ func (backend *apiBackend) GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64
 	return loadUtxoRecords(ctx, utxoIds), ccCtx.CovenantAddrLastChangeTime
 }
 
+func (backend *apiBackend) GetRedeemableUtxos() []*cctypes.UTXORecord {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+	ccCtx := crosschain.LoadCCContext(ctx)
+	utxoIds := backend.app.GetRedeemableUtxoIdsByCovenantAddr(ccCtx.CurrCovenantAddr)
+	return loadUtxoRecords(ctx, utxoIds)
+}
+
+func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	return crosschain.LoadCCContext(ctx)
+}
+
 func loadUtxoRecords(ctx *types.Context, utxoIds [][36]byte) []*cctypes.UTXORecord {
 	utxoRecords := make([]*cctypes.UTXORecord, 0, len(utxoIds))
 	for _, utxoId := range utxoIds {
