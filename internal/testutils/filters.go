@@ -7,9 +7,10 @@ import (
 	gethfilters "github.com/ethereum/go-ethereum/eth/filters"
 )
 
-func NewBlockHashFilter(hash *gethcmn.Hash) gethfilters.FilterCriteria {
+func NewBlockHashFilter(hash *gethcmn.Hash, addresses ...gethcmn.Address) gethfilters.FilterCriteria {
 	return gethfilters.FilterCriteria{
 		BlockHash: hash,
+		Addresses: addresses,
 	}
 }
 

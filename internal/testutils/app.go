@@ -58,6 +58,7 @@ type TestApp struct {
 	StateRoot      []byte
 	StartTime      time.Time
 	initAllBalance *uint256.Int
+	CfgCopy        *param.ChainConfig
 }
 
 type TestAppInitArgs struct {
@@ -174,6 +175,7 @@ func createTestApp0(startHeight int64, startTime time.Time, valPubKey crypto.Pub
 		StateRoot:      stateRoot,
 		StartTime:      startTime,
 		initAllBalance: allBalance,
+		CfgCopy:        params,
 	}
 }
 

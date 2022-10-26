@@ -210,8 +210,7 @@ func TestGetFilterLogs_blockRangeFilter(t *testing.T) {
 	fmt.Printf("====================================\n")
 	logs, err = _api.GetFilterLogs(id)
 	require.NoError(t, err)
-	// Why test it this way? if no address nor topics specified, modb returns nothing...
-	require.Equal(t, 0, len(logs))
+	require.Equal(t, 1, len(logs))
 }
 
 func TestGetLogs_blockHashFilter(t *testing.T) {
@@ -219,30 +218,110 @@ func TestGetLogs_blockHashFilter(t *testing.T) {
 	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 
+	addr1 := gethcmn.Address{0xA1}
 	b1Hash := gethcmn.Hash{0xB1}
 	block1 := testutils.NewMdbBlockBuilder().
 		Height(1).Hash(b1Hash).
-		Tx(gethcmn.Hash{0xC1}, types.Log{Address: gethcmn.Address{0xA1}}).
+		Tx(gethcmn.Hash{0xC1}, types.Log{Address: addr1}).
 		Build()
 
+	addr2 := gethcmn.Address{0xA2}
 	b2Hash := gethcmn.Hash{0xB2}
 	block2 := testutils.NewMdbBlockBuilder().
 		Height(2).Hash(b2Hash).
-		Tx(gethcmn.Hash{0xC2}, types.Log{Address: gethcmn.Address{0xA2}}).
+		Tx(gethcmn.Hash{0xC2}, types.Log{Address: addr2}).
 		Build()
 
 	_app.StoreBlocks(block1, block2)
 	_app.WaitMS(10)
 
-	logs, err := _api.GetLogs(testutils.NewBlockHashFilter(&b1Hash))
+	logs, err := _api.GetLogs(testutils.NewBlockHashFilter(&b1Hash, addr1))
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
-	require.Equal(t, gethcmn.Address{0xA1}, logs[0].Address)
+	require.Equal(t, addr1, logs[0].Address)
+
+	logs, err = _api.GetLogs(testutils.NewBlockHashFilter(&b2Hash, addr2))
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+	require.Equal(t, gethcmn.Address{0xA2}, logs[0].Address)
 
 	logs, err = _api.GetLogs(testutils.NewBlockHashFilter(&b2Hash))
 	require.NoError(t, err)
 	require.Len(t, logs, 1)
-	require.Equal(t, gethcmn.Address{0xA2}, logs[0].Address)
+
+	b3Hash := gethcmn.Hash{0xB3}
+	_, err = _api.GetLogs(gethfilters.FilterCriteria{BlockHash: &b3Hash})
+	require.Error(t, err)
+}
+
+func TestGetLogs_blockHashFilter2(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	defer _app.Destroy()
+	_api := createFiltersAPI(_app)
+
+	addr1 := gethcmn.Address{0xA1}
+	b1Hash := gethcmn.Hash{0xB1}
+	block1 := testutils.NewMdbBlockBuilder().
+		Height(1).Hash(b1Hash).
+		Tx(gethcmn.Hash{0xC1}, types.Log{
+			Address: addr1,
+			Topics:  [][32]byte{{0xE1}, {0xF1}},
+		}).
+		Build()
+
+	addr2 := gethcmn.Address{0xA2}
+	b2Hash := gethcmn.Hash{0xB2}
+	block2 := testutils.NewMdbBlockBuilder().
+		Height(2).Hash(b2Hash).
+		Tx(gethcmn.Hash{0xC2}, types.Log{
+			Address: addr1,
+			Topics:  [][32]byte{{0xE2}, {0xF2}},
+			Data:    []byte{0xD2},
+		}).
+		Tx(gethcmn.Hash{0xC3}, types.Log{
+			Address: addr2,
+			Topics:  [][32]byte{{0xE3}, {0xF3}},
+			Data:    []byte{0xD3},
+		}).
+		Tx(gethcmn.Hash{0xC4},
+			types.Log{
+				Address: addr1,
+				Topics:  [][32]byte{{0xE4}, {0xF4}},
+				Data:    []byte{0xD4},
+			},
+			types.Log{
+				Address: addr2,
+				Topics:  [][32]byte{{0xE5}, {0xF5}},
+				Data:    []byte{0xD5},
+			},
+		).
+		Build()
+
+	_app.StoreBlocks(block1, block2)
+	_app.WaitMS(10)
+
+	logs, err := _api.GetLogs(testutils.NewBlockHashFilter(&b1Hash, addr1))
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+	require.Equal(t, gethcmn.Address{0xA1}, logs[0].Address)
+
+	logs, err = _api.GetLogs(testutils.NewBlockHashFilter(&b2Hash, addr1, addr2))
+	require.NoError(t, err)
+	require.Len(t, logs, 4)
+	require.Equal(t, []byte{0xD2}, logs[0].Data)
+	require.Equal(t, []byte{0xD3}, logs[1].Data)
+	require.Equal(t, []byte{0xD4}, logs[2].Data)
+	require.Equal(t, []byte{0xD5}, logs[3].Data)
+
+	logs, err = _api.GetLogs(testutils.NewBlockHashFilter(&b2Hash, addr1))
+	require.NoError(t, err)
+	require.Len(t, logs, 2)
+	require.Equal(t, []byte{0xD2}, logs[0].Data)
+	require.Equal(t, []byte{0xD4}, logs[1].Data)
+
+	logs, err = _api.GetLogs(testutils.NewBlockHashFilter(&b2Hash))
+	require.NoError(t, err)
+	require.Len(t, logs, 4)
 }
 
 func TestGetLogs_addrFilter(t *testing.T) {
@@ -290,6 +369,19 @@ func TestGetLogs_addrFilter(t *testing.T) {
 	logs, err = _api.GetLogs(f3)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
+
+	f4 := testutils.NewFilterBuilder().BlockRange(1, 3).
+		Topics([][]gethcmn.Hash{{{0xD7, 0xD8}}}).
+		Build()
+	logs, err = _api.GetLogs(f4)
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+
+	f5 := testutils.NewFilterBuilder().BlockRange(1, 2).
+		Build()
+	logs, err = _api.GetLogs(f5)
+	require.NoError(t, err)
+	require.Len(t, logs, 4)
 }
 
 func TestGetLogs_blockRangeFilter(t *testing.T) {
@@ -342,7 +434,10 @@ func TestGetLogs_blockRangeFilter(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		f := testutils.NewFilterBuilder().BlockRange(testCase.hFrom, testCase.hTo).Addresses(addr).Build()
+		f := testutils.NewFilterBuilder().
+			BlockRange(testCase.hFrom, testCase.hTo).
+			Addresses(addr).
+			Build()
 		logs, err := _api.GetLogs(f)
 		require.NoError(t, err)
 		require.Len(t, logs, testCase.nLogs,
@@ -494,11 +589,21 @@ func TestGetLogs_OneTx(t *testing.T) {
 	require.Equal(t, []byte{0xDA, 0x01}, logs[0].Data)
 	require.Equal(t, []byte{0xDA, 0x02}, logs[1].Data)
 	require.Equal(t, []byte{0xDA, 0x03}, logs[2].Data)
+
+	logs, err = _api.GetLogs(gethfilters.FilterCriteria{
+		FromBlock: big.NewInt(1),
+		ToBlock:   big.NewInt(0x222ef + 1),
+		//Addresses: []gethcmn.Address{gethcmn.HexToAddress("0xa112caaefecb231b91779a9e68c12080672fcc81")},
+		// Topics: [] “anything”
+	})
+	require.NoError(t, err)
+	require.Len(t, logs, 8)
 }
 
 func TestGetLogs_TooManyResults(t *testing.T) {
 	_app := testutils.CreateTestApp()
 	_app.HistoryStore().SetMaxEntryCount(5)
+	_app.CfgCopy.AppConfig.RpcEthGetLogsMaxResults = 5
 	defer _app.Destroy()
 	_api := createFiltersAPI(_app)
 
@@ -513,6 +618,10 @@ func TestGetLogs_TooManyResults(t *testing.T) {
 
 	f := testutils.NewFilterBuilder().BlockRange(1, 9).Addresses(addr).Build()
 	_, err := _api.GetLogs(f)
+	require.Error(t, err)
+	require.Equal(t, "too many potential results", err.Error())
+
+	_, err = _api.GetLogs(testutils.NewBlockRangeFilter(1, 9))
 	require.Error(t, err)
 	require.Equal(t, "too many potential results", err.Error())
 }

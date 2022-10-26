@@ -2,6 +2,7 @@ package filters
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -205,7 +206,7 @@ func (api *filterAPI) UninstallFilter(id rpc.ID) bool {
 //
 // https://eth.wiki/json-rpc/API#eth_getfilterchanges
 func (api *filterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
-	api.logger.Debug("eth_uninstallFilter")
+	api.logger.Debug("eth_getFilterChanges")
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
 
@@ -257,17 +258,6 @@ func (api *filterAPI) GetFilterLogs(id rpc.ID) ([]*gethtypes.Log, error) {
 // https://eth.wiki/json-rpc/API#eth_getLogs
 func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log, error) {
 	api.logger.Debug("eth_getLogs")
-	if crit.BlockHash != nil {
-		// Block filter requested, construct a single-shot filter
-		filter := NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics)
-
-		// Run the filter and return all the logs
-		logs, err := filter.Logs(context.TODO())
-		if err != nil {
-			return nil, err
-		}
-		return returnLogs(logs), nil
-	}
 
 	// Convert the RPC block numbers into internal representations
 	begin := rpc.LatestBlockNumber.Int64()
@@ -278,11 +268,26 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 	if crit.ToBlock != nil {
 		end = crit.ToBlock.Int64()
 	}
+
+	if crit.BlockHash != nil {
+		block, err := api.backend.BlockByHash(*crit.BlockHash)
+		if err != nil {
+			return nil, err
+		}
+
+		begin = block.Number
+		end = block.Number
+	}
+
 	if begin < 0 {
 		begin = api.backend.LatestHeight()
 	}
 	if end < 0 {
 		end = api.backend.LatestHeight()
+	}
+
+	if len(crit.Addresses) == 0 && len(crit.Topics) == 0 {
+		return api.getLogsByBlockNumberRange(begin, end+1)
 	}
 
 	logs, err := api.backend.QueryLogs(crit.Addresses, crit.Topics, uint32(begin), uint32(end+1), filterFunc)
@@ -292,6 +297,28 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 	//fmt.Printf("Why? begin %d end %d logs %#v\n", begin, end, logs)
 
 	return motypes.ToGethLogs(logs), nil
+}
+
+func (api *filterAPI) getLogsByBlockNumberRange(begin, end int64) ([]*gethtypes.Log, error) {
+	maxLogResults := api.backend.GetRpcMaxLogResults()
+	var allLogs []*gethtypes.Log
+
+	for i := begin; i < end; i++ {
+		txList, _, err := api.backend.GetTxListByHeight(uint32(i))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, tx := range txList {
+			allLogs = append(allLogs, motypes.ToGethLogs(tx.Logs)...)
+		}
+
+		if len(allLogs) > maxLogResults {
+			return nil, errors.New("too many potential results")
+		}
+	}
+
+	return allLogs, nil
 }
 
 // NewHeads send a notification each time a new (header) block is appended to the chain.

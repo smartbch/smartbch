@@ -125,6 +125,7 @@ type BackendService interface {
 	GetSeq(address common.Address) uint64
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
+	GetRpcMaxLogResults() int
 
 	//tendermint info
 	NodeInfo() Info

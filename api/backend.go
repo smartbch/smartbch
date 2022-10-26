@@ -459,3 +459,7 @@ func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
 func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
 	return backend.app.GetBlockForSync(height)
 }
+
+func (backend *apiBackend) GetRpcMaxLogResults() int {
+	return backend.app.GetRpcMaxLogResults()
+}
