@@ -265,7 +265,7 @@ type MonitorInfo struct {
 	Intro   string          `json:"intro"`
 }
 
-type CcCovenantInfo struct {
+type CcInfo struct {
 	Operators           []OperatorInfo `json:"operators"`
 	Monitors            []MonitorInfo  `json:"monitors"`
 	OldOperators        []OperatorInfo `json:"old_operators"`
@@ -274,6 +274,7 @@ type CcCovenantInfo struct {
 	CurrCovenantAddress string         `json:"currCovenantAddress"`
 	LastRescannedHeight uint64         `json:"lastRescannedHeight"`
 	RescannedHeight     uint64         `json:"rescannedHeight"`
+	RescanTime          int64          `json:"rescanTime"`
 }
 
 type UtxoInfo struct {

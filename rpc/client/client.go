@@ -31,9 +31,9 @@ func DialContext(ctx context.Context, rawUrl string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) CcCovenantInfo(ctx context.Context) (*api.CcCovenantInfo, error) {
-	var result api.CcCovenantInfo
-	err := c.rpcClient.CallContext(ctx, &result, "sbch_getCcCovenantInfo")
+func (c *Client) CcInfo(ctx context.Context) (*api.CcInfo, error) {
+	var result api.CcInfo
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getCcInfo")
 	return &result, err
 }
 

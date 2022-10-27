@@ -44,7 +44,7 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
-	GetCcCovenantInfo() CcCovenantInfo
+	GetCcInfo() CcInfo
 	GetRedeemingUtxosForMonitors() []*UtxoInfo
 	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
 	GetToBeConvertedUtxosForMonitors() []*UtxoInfo
@@ -316,8 +316,8 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	return sbch.backend.GetSyncBlock(int64(height))
 }
 
-func (sbch sbchAPI) GetCcCovenantInfo() (info CcCovenantInfo) {
-	sbch.logger.Debug("sbch_getCcCovenantInfo")
+func (sbch sbchAPI) GetCcInfo() (info CcInfo) {
+	sbch.logger.Debug("sbch_getCcInfo")
 
 	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
 	allMonitorsInfo := sbch.backend.GetAllMonitorsInfo()
@@ -344,8 +344,10 @@ func (sbch sbchAPI) GetCcCovenantInfo() (info CcCovenantInfo) {
 	info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
 	info.LastRescannedHeight = ctx.LastRescannedHeight
 	info.RescannedHeight = ctx.RescanHeight
+	info.RescanTime = ctx.RescanTime
 	return
 }
+
 func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) OperatorInfo {
 	return OperatorInfo{
 		Address: ccOperatorInfo.Addr,
