@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/covenant"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
 	"github.com/smartbch/smartbch/staking"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
@@ -44,11 +44,11 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
-	GetCcInfo() CcInfo
-	GetRedeemingUtxosForMonitors() []*UtxoInfo
-	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
-	GetToBeConvertedUtxosForMonitors() []*UtxoInfo
-	GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error)
+	GetCcInfo() sbchrpctypes.CcInfo
+	GetRedeemingUtxosForMonitors() []*sbchrpctypes.UtxoInfo
+	GetRedeemingUtxosForOperators() ([]*sbchrpctypes.UtxoInfo, error)
+	GetToBeConvertedUtxosForMonitors() []*sbchrpctypes.UtxoInfo
+	GetToBeConvertedUtxosForOperators() ([]*sbchrpctypes.UtxoInfo, error)
 }
 
 var (
@@ -316,7 +316,7 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	return sbch.backend.GetSyncBlock(int64(height))
 }
 
-func (sbch sbchAPI) GetCcInfo() (info CcInfo) {
+func (sbch sbchAPI) GetCcInfo() (info sbchrpctypes.CcInfo) {
 	sbch.logger.Debug("sbch_getCcInfo")
 
 	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
@@ -348,30 +348,14 @@ func (sbch sbchAPI) GetCcInfo() (info CcInfo) {
 	return
 }
 
-func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) OperatorInfo {
-	return OperatorInfo{
-		Address: ccOperatorInfo.Addr,
-		Pubkey:  ccOperatorInfo.Pubkey,
-		RpcUrl:  string(bytes.TrimLeft(ccOperatorInfo.RpcUrl, string([]byte{0}))),
-		Intro:   string(bytes.TrimLeft(ccOperatorInfo.Intro, string([]byte{0}))),
-	}
-}
-func castMonitorInfo(ccMonitorInfo crosschain.MonitorInfo) MonitorInfo {
-	return MonitorInfo{
-		Address: ccMonitorInfo.Addr,
-		Pubkey:  ccMonitorInfo.Pubkey,
-		Intro:   string(bytes.TrimLeft(ccMonitorInfo.Intro, string([]byte{0}))),
-	}
-}
-
-func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
+func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*sbchrpctypes.UtxoInfo {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForMonitors")
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	return utxoInfos
 }
 
-func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
+func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*sbchrpctypes.UtxoInfo, error) {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForOperators")
 	if sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
@@ -393,7 +377,7 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	currTS := currBlock.Timestamp
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 
-	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
+	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		if utxoRecord.ExpectedSignTime > currTS {
 			continue
@@ -424,14 +408,14 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	return utxoInfos, nil
 }
 
-func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() []*UtxoInfo {
+func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() []*sbchrpctypes.UtxoInfo {
 	sbch.logger.Debug("sbch_getToBeConvertedUtxosForMonitors")
 	utxoRecords, _ := sbch.backend.GetToBeConvertedUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	return utxoInfos
 }
 
-func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
+func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*sbchrpctypes.UtxoInfo, error) {
 	sbch.logger.Debug("sbch_getToBeConvertedUtxosForOperators")
 	if sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
@@ -457,7 +441,7 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 		return nil, err
 	}
 
-	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
+	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		utxoInfo := castUtxoRecord(utxoRecord)
 
@@ -479,7 +463,7 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 	return utxoInfos, nil
 }
 
-func (sbch sbchAPI) GetRedeemableUtxos() []*UtxoInfo {
+func (sbch sbchAPI) GetRedeemableUtxos() []*sbchrpctypes.UtxoInfo {
 	sbch.logger.Debug("sbch_getRedeemableUTXOs")
 	utxoRecords := sbch.backend.GetRedeemableUtxos()
 	utxoInfos := castUtxoRecords(utxoRecords)

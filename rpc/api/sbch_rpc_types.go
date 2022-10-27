@@ -1,14 +1,18 @@
 package api
 
 import (
+	"bytes"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
-	"github.com/smartbch/moeingevm/ebp"
 
+	"github.com/smartbch/moeingevm/ebp"
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
+	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -252,53 +256,32 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 
 // Cross Chain
 
-type OperatorInfo struct {
-	Address gethcmn.Address `json:"address"`
-	Pubkey  hexutil.Bytes   `json:"pubkey"`
-	RpcUrl  string          `json:"rpc_url"`
-	Intro   string          `json:"intro"`
+func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) sbchrpctypes.OperatorInfo {
+	return sbchrpctypes.OperatorInfo{
+		Address: ccOperatorInfo.Addr,
+		Pubkey:  ccOperatorInfo.Pubkey,
+		RpcUrl:  string(bytes.TrimLeft(ccOperatorInfo.RpcUrl, string([]byte{0}))),
+		Intro:   string(bytes.TrimLeft(ccOperatorInfo.Intro, string([]byte{0}))),
+	}
+}
+func castMonitorInfo(ccMonitorInfo crosschain.MonitorInfo) sbchrpctypes.MonitorInfo {
+	return sbchrpctypes.MonitorInfo{
+		Address: ccMonitorInfo.Addr,
+		Pubkey:  ccMonitorInfo.Pubkey,
+		Intro:   string(bytes.TrimLeft(ccMonitorInfo.Intro, string([]byte{0}))),
+	}
 }
 
-type MonitorInfo struct {
-	Address gethcmn.Address `json:"address"`
-	Pubkey  hexutil.Bytes   `json:"pubkey"`
-	Intro   string          `json:"intro"`
-}
-
-type CcInfo struct {
-	Operators           []OperatorInfo `json:"operators"`
-	Monitors            []MonitorInfo  `json:"monitors"`
-	OldOperators        []OperatorInfo `json:"old_operators"`
-	OldMonitors         []MonitorInfo  `json:"old_monitors"`
-	LastCovenantAddress string         `json:"lastCovenantAddress"`
-	CurrCovenantAddress string         `json:"currCovenantAddress"`
-	LastRescannedHeight uint64         `json:"lastRescannedHeight"`
-	RescannedHeight     uint64         `json:"rescannedHeight"`
-	RescanTime          int64          `json:"rescanTime"`
-}
-
-type UtxoInfo struct {
-	OwnerOfLost      gethcmn.Address `json:"owner_of_lost"`
-	CovenantAddr     gethcmn.Address `json:"covenant_addr"`
-	IsRedeemed       bool            `json:"is_redeemed"`
-	RedeemTarget     gethcmn.Address `json:"redeem_target"`
-	ExpectedSignTime int64           `json:"expected_sign_time"`
-	Txid             gethcmn.Hash    `json:"txid"`
-	Index            uint32          `json:"index"`
-	Amount           hexutil.Uint64  `json:"amount"` // in satoshi
-	TxSigHash        hexutil.Bytes   `json:"tx_sig_hash"`
-}
-
-func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*UtxoInfo {
-	infos := make([]*UtxoInfo, len(utxoRecords))
+func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*sbchrpctypes.UtxoInfo {
+	infos := make([]*sbchrpctypes.UtxoInfo, len(utxoRecords))
 	for i, record := range utxoRecords {
 		infos[i] = castUtxoRecord(record)
 	}
 	return infos
 }
 
-func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
-	return &UtxoInfo{
+func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *sbchrpctypes.UtxoInfo {
+	return &sbchrpctypes.UtxoInfo{
 		OwnerOfLost:      utxoRecord.OwnerOfLost,
 		CovenantAddr:     utxoRecord.CovenantAddr,
 		IsRedeemed:       utxoRecord.IsRedeemed,
