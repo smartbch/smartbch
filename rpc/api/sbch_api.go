@@ -423,14 +423,14 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 }
 
 func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() []*UtxoInfo {
-	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForMonitors")
+	sbch.logger.Debug("sbch_getToBeConvertedUtxosForMonitors")
 	utxoRecords, _ := sbch.backend.GetToBeConvertedUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	return utxoInfos
 }
 
 func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
-	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForOperators")
+	sbch.logger.Debug("sbch_getToBeConvertedUtxosForOperators")
 	if sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
 	}
