@@ -28,6 +28,7 @@ type CcInfo struct {
 	LastRescannedHeight uint64         `json:"lastRescannedHeight"`
 	RescannedHeight     uint64         `json:"rescannedHeight"`
 	RescanTime          int64          `json:"rescanTime"`
+	Signature           []byte         `json:"signature"`
 }
 
 type UtxoInfo struct {
@@ -40,4 +41,9 @@ type UtxoInfo struct {
 	Index            uint32          `json:"index"`
 	Amount           hexutil.Uint64  `json:"amount"` // in satoshi
 	TxSigHash        hexutil.Bytes   `json:"tx_sig_hash"`
+}
+
+type UtxoInfos struct {
+	Infos     []*UtxoInfo `json:"infos"`
+	Signature []byte      `json:"signature"`
 }

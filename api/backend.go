@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
 	"math"
@@ -48,6 +49,8 @@ type apiBackend struct {
 	//logsFeed   event.Feed
 	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
+
+	rpcPrivateKey *ecdsa.PrivateKey
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
@@ -430,6 +433,18 @@ func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
 
 func (backend *apiBackend) IsArchiveMode() bool {
 	return backend.app.IsArchiveMode()
+}
+
+func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
+	return backend.rpcPrivateKey
+}
+
+func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
+	if backend.rpcPrivateKey == nil {
+		backend.rpcPrivateKey = key
+		return true
+	}
+	return false
 }
 
 func (backend *apiBackend) GetSeq(address common.Address) uint64 {
