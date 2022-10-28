@@ -34,12 +34,20 @@ func handleMonitorInfos(ctx *mevmtypes.Context, pubkeyVoteMap map[[33]byte]int64
 			NominatedCount: v,
 		})
 	}
-	SortMonitorVoteNominations(infos)
+	//SortMonitorVoteNominations(infos)
 	//if len(infos) > param.MaxMonitorNumber {
 	//	infos = infos[:param.MaxMonitorNumber]
 	//}
 	// 2. set the monitor info to vote contract
-	ElectMonitors(ctx, infos, blockTime, logger)
+	ElectMonitors(ctx, nominationsToMap(infos), blockTime, logger)
+}
+
+func nominationsToMap(nominations []*types.Nomination) map[[33]byte]int64 {
+	m := map[[33]byte]int64{}
+	for _, n := range nominations {
+		m[n.Pubkey] = n.NominatedCount
+	}
+	return m
 }
 
 func SortMonitorVoteNominations(nominations []*types.Nomination) {

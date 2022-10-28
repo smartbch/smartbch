@@ -12,7 +12,6 @@ import (
 
 	mevmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/crosschain/covenant"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 )
 
@@ -30,16 +29,17 @@ const (
 )
 
 const (
-	OperatorElectionOK                  = 0
-	OperatorElectionNotEnoughCandidates = 1
-	OperatorElectionNotChanged          = 2
-	OperatorElectionChangedTooMany      = 3
+	OperatorElectionOK = iota
+	OperatorElectionNoNewCandidates
+	OperatorElectionNotEnoughCandidates
+	OperatorElectionNotChanged
+)
 
-	MonitorElectionOK                   = 0
-	MonitorElectionNotEnoughNominations = 1
-	MonitorElectionInvalidNominations   = 2
-	MonitorElectionNotChanged           = 2
-	MonitorElectionChangedTooMany       = 3
+const (
+	MonitorElectionOK = iota
+	MonitorElectionNoNewCandidates
+	MonitorElectionNotEnoughCandidates
+	MonitorElectionNotChanged
 )
 
 var (
@@ -75,10 +75,10 @@ type OperatorInfo struct {
 	electedFlag bool
 }
 
-func GetOperatorInfos(ctx *mevmtypes.Context) (result []OperatorInfo) {
+func GetOperatorInfos(ctx *mevmtypes.Context) (result []*OperatorInfo) {
 	return ReadOperatorInfos(ctx, param.OperatorsGovSequence)
 }
-func ReadOperatorInfos(ctx *mevmtypes.Context, seq uint64) (result []OperatorInfo) {
+func ReadOperatorInfos(ctx *mevmtypes.Context, seq uint64) (result []*OperatorInfo) {
 	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
@@ -89,7 +89,7 @@ func ReadOperatorInfos(ctx *mevmtypes.Context, seq uint64) (result []OperatorInf
 	}
 	return
 }
-func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) OperatorInfo {
+func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) *OperatorInfo {
 	addr := ctx.GetStorageAt(seq, string(loc.PaddedBytes(32)))                             // slot#0
 	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))   // slot#1
 	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))        // slot#2
@@ -99,7 +99,7 @@ func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) Oper
 	selfStakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))  // slot#6
 	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#7
 	oldElectedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#8
-	return OperatorInfo{
+	return &OperatorInfo{
 		Addr:           gethcmn.BytesToAddress(addr),
 		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
 		RpcUrl:         rpcUrl[:],
@@ -135,102 +135,107 @@ func ElectOperatorsForUT(ctx *mevmtypes.Context, seq uint64, blockTime int64, lo
 	return electOperators(ctx, seq, blockTime, logger)
 }
 func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger log.Logger) int {
-	logger.Info("elect operators")
+	logger.Info("elect operators ...")
 	operatorInfos := ReadOperatorInfos(ctx, seq)
+	logger.Info("allOperatorInfos", "json", toJSON(operatorInfos))
 
-	operatorInfosJson, _ := json.Marshal(operatorInfos)
-	logger.Info("operatorInfos", "json", operatorInfosJson)
+	// get and sort current operators
+	currOperators := getCurrOperators(operatorInfos)
+	sortOperatorInfos(currOperators)
+	logger.Info("currOperators", "json", toJSON(currOperators))
 
-	eligibleOperatorInfos := getEligibleOperatorCandidates(operatorInfos)
-	if len(eligibleOperatorInfos) < param.OperatorsCount {
-		logger.Info("not enough eligible operator candidates!")
-		return OperatorElectionNotEnoughCandidates
-	}
+	// get and sort eligible new candidates
+	newOperatorCandidates := getNewOperatorCandidates(operatorInfos)
+	sortOperatorInfos(newOperatorCandidates)
+	logger.Info("newOperatorCandidates", "json", toJSON(newOperatorCandidates))
 
-	sortOperatorInfos(eligibleOperatorInfos)
-	if len(eligibleOperatorInfos) > param.OperatorsCount {
-		eligibleOperatorInfos = eligibleOperatorInfos[:param.OperatorsCount]
-	}
-
-	electedOperatorPubkeyMap := map[string]bool{}
-	for _, operatorInfo := range eligibleOperatorInfos {
-		electedOperatorPubkeyMap[string(operatorInfo.Pubkey)] = true
-	}
-
-	lastTimeElectedCount := 0
-	thisTimeElectedCount := 0
-	newElectedCount := 0
-	for i, operatorInfo := range operatorInfos {
-		if electedOperatorPubkeyMap[string(operatorInfo.Pubkey)] {
-			// operatorInfo is passed by value !
-			operatorInfos[i].electedFlag = true
-			operatorInfo.electedFlag = true
+	// first election ?
+	if len(currOperators) == 0 {
+		logger.Info("first operators election")
+		if len(newOperatorCandidates) < param.OperatorsCount {
+			logger.Info("not enough candidates for the first election!")
+			return OperatorElectionNotEnoughCandidates
 		}
-
-		lastElectedTime := operatorInfo.ElectedTime.Uint64()
-		if lastElectedTime > 0 {
-			lastTimeElectedCount++
-		}
-		if operatorInfo.electedFlag {
-			thisTimeElectedCount++
-			if lastElectedTime == 0 {
-				newElectedCount++
-			}
-		}
+		newOperators := newOperatorCandidates[:param.OperatorsCount]
+		markOperatorElectedFlags(newOperators, true)
+		updateOperatorElectedTimes(ctx, seq, blockTime, operatorInfos)
+		return OperatorElectionOK
 	}
 
-	if newElectedCount == 0 {
-		logger.Info("operators not changed")
+	if len(newOperatorCandidates) == 0 {
+		logger.Info("no new eligible operator candidates!")
+		return OperatorElectionNoNewCandidates
+	}
+
+	// kick out needless candidates
+	if len(newOperatorCandidates) > param.OperatorsMaxChangeCount {
+		newOperatorCandidates = newOperatorCandidates[:param.OperatorsMaxChangeCount]
+	}
+
+	if operatorInfoLessFn(newOperatorCandidates[0], currOperators[len(currOperators)-1]) {
+		logger.Info("operator set not changed")
 		return OperatorElectionNotChanged
 	}
-	if newElectedCount > param.OperatorsMaxChangeCount {
-		if newElectedCount == param.OperatorsCount && lastTimeElectedCount == 0 {
-			logger.Info("first operators election")
-		} else {
-			logger.Info("too many new operators!",
-				"newElectedCount", newElectedCount)
-			return OperatorElectionChangedTooMany
-		}
-	}
 
-	// everything is ok
+	allCandidates := append(currOperators, newOperatorCandidates...)
+	sortOperatorInfos(allCandidates)
+	markOperatorElectedFlags(allCandidates[:param.OperatorsCount], true)
+	markOperatorElectedFlags(allCandidates[param.OperatorsCount:], false)
 	updateOperatorElectedTimes(ctx, seq, blockTime, operatorInfos)
+	logger.Info("new operator set", "json", allCandidates)
 	return OperatorElectionOK
 }
-func getEligibleOperatorCandidates(allOperatorInfos []OperatorInfo) []OperatorInfo {
-	eligibleOperatorInfos := make([]OperatorInfo, 0, len(allOperatorInfos))
+func getCurrOperators(allOperatorInfos []*OperatorInfo) []*OperatorInfo {
+	operators := make([]*OperatorInfo, 0, param.OperatorsCount)
 	for _, operatorInfo := range allOperatorInfos {
-		if isEligibleOperator(operatorInfo) {
-			eligibleOperatorInfos = append(eligibleOperatorInfos, operatorInfo)
+		if operatorInfo.ElectedTime.GtUint64(0) {
+			operators = append(operators, operatorInfo)
 		}
 	}
-	return eligibleOperatorInfos
+	return operators
 }
-func isEligibleOperator(operatorInfo OperatorInfo) bool {
-	// nolint
-	if operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt) {
-		return false
+func getNewOperatorCandidates(allOperatorInfos []*OperatorInfo) []*OperatorInfo {
+	candidates := make([]*OperatorInfo, 0, len(allOperatorInfos))
+	for _, operatorInfo := range allOperatorInfos {
+		if operatorInfo.ElectedTime.GtUint64(0) {
+			// skip current operators
+			continue
+		}
+		if isEligibleOperatorCandidate(operatorInfo) {
+			candidates = append(candidates, operatorInfo)
+		}
 	}
-	// TODO: check more fields
-	return true
+	return candidates
 }
-func sortOperatorInfos(operatorInfos []OperatorInfo) {
+func isEligibleOperatorCandidate(operatorInfo *OperatorInfo) bool {
+	return !operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt)
+	// TODO: check more fields ?
+}
+func sortOperatorInfos(operatorInfos []*OperatorInfo) {
 	sort.Slice(operatorInfos, func(i, j int) bool {
+		// DESC
 		return !operatorInfoLessFn(operatorInfos[i], operatorInfos[j])
 	})
 }
-func operatorInfoLessFn(a, b OperatorInfo) bool {
-	if a.TotalStakedAmt.Lt(b.TotalStakedAmt) {
-		return true
+func operatorInfoLessFn(a, b *OperatorInfo) bool {
+	if x := a.TotalStakedAmt.Cmp(b.TotalStakedAmt); x != 0 {
+		return x < 0
 	}
-	if a.SelfStakedAmt.Lt(b.SelfStakedAmt) {
-		return true
+	if x := a.TotalStakedAmt.Cmp(b.TotalStakedAmt); x != 0 {
+		return x < 0
 	}
-	// TODO: compare more fields
-	return false
+	if x := a.SelfStakedAmt.Cmp(b.SelfStakedAmt); x != 0 {
+		return x < 0
+	}
+	return bytes.Compare(a.Addr[:], b.Addr[:]) < 0
+}
+func markOperatorElectedFlags(operatorInfos []*OperatorInfo, flag bool) {
+	for _, operatorInfo := range operatorInfos {
+		operatorInfo.electedFlag = flag
+	}
 }
 func updateOperatorElectedTimes(ctx *mevmtypes.Context, seq uint64,
-	blockTime int64, operatorInfos []OperatorInfo) {
+	blockTime int64, operatorInfos []*OperatorInfo) {
 
 	for idx, operatorInfo := range operatorInfos {
 		WriteOperatorOldElectedTime(ctx, seq, uint64(idx), operatorInfo.ElectedTime.Uint64())
@@ -286,12 +291,13 @@ type MonitorInfo struct {
 
 	// only used by election logic
 	powNominatedCount int64
+	electedFlag       bool
 }
 
-func GetMonitorInfos(ctx *mevmtypes.Context) []MonitorInfo {
+func GetMonitorInfos(ctx *mevmtypes.Context) []*MonitorInfo {
 	return ReadMonitorInfos(ctx, param.MonitorsGovSequence)
 }
-func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo) {
+func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []*MonitorInfo) {
 	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
 	arrLen := uint256.NewInt(0).SetBytes(ctx.GetStorageAt(seq, string(arrSlot)))
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
@@ -303,7 +309,7 @@ func ReadMonitorInfos(ctx *mevmtypes.Context, seq uint64) (result []MonitorInfo)
 	return
 }
 
-func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) MonitorInfo {
+func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) *MonitorInfo {
 	addr := ctx.GetStorageAt(seq, string(loc.PaddedBytes(32)))                             // slot#0
 	pubkeyPrefix := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))   // slot#1
 	pubkeyX := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))        // slot#2
@@ -312,7 +318,7 @@ func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) Monit
 	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#5
 	oldElectedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#6
 	nominatedBy := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#7
-	return MonitorInfo{
+	return &MonitorInfo{
 		Addr:           gethcmn.BytesToAddress(addr),
 		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
 		Intro:          intro[:],
@@ -350,129 +356,134 @@ func WriteMonitorsLastElectionTime(ctx *mevmtypes.Context, seq uint64, val uint6
 	ctx.SetStorageAt(seq, string(slot), uint256.NewInt(val).PaddedBytes(32))
 }
 
-func ElectMonitors(ctx *mevmtypes.Context, nominations []*cctypes.Nomination, blockTime int64, logger log.Logger) int {
-	return electMonitors(ctx, param.MonitorsGovSequence, nominations, blockTime, logger)
+func ElectMonitors(ctx *mevmtypes.Context, powNominations map[[33]byte]int64, blockTime int64, logger log.Logger) int {
+	return electMonitors(ctx, param.MonitorsGovSequence, powNominations, blockTime, logger)
 }
 func ElectMonitorsForUT(ctx *mevmtypes.Context, seq uint64,
-	nominations []*cctypes.Nomination, blockTime int64, logger log.Logger,
+	powNominations map[[33]byte]int64, blockTime int64, logger log.Logger,
 ) int {
-	return electMonitors(ctx, seq, nominations, blockTime, logger)
+	return electMonitors(ctx, seq, powNominations, blockTime, logger)
 }
 func electMonitors(ctx *mevmtypes.Context, seq uint64,
-	nominations []*cctypes.Nomination, blockTime int64, logger log.Logger,
+	powNominations map[[33]byte]int64, blockTime int64, logger log.Logger,
 ) int {
 	logger.Info("elect monitors ...")
 	monitorInfos := ReadMonitorInfos(ctx, seq)
-	monitorInfosJson, _ := json.Marshal(monitorInfos)
-	logger.Info("monitorInfos", "json", monitorInfosJson)
+	logger.Info("allMonitorInfos", "json", toJSON(monitorInfos))
+	logger.Info("allPowNominations", "json", toJSON(powNominations))
 
-	nominationsJson, _ := json.Marshal(nominations)
-	logger.Info("allNominations", "json", nominationsJson)
+	// get and sort current monitors
+	currMonitors := getCurrMonitors(monitorInfos, powNominations)
+	sortMonitorInfos(currMonitors)
+	logger.Info("currMonitors", "json", toJSON(currMonitors))
 
-	nominations = filterPowNominations(nominations, monitorInfos)
-	nominationsJson, _ = json.Marshal(nominations)
-	logger.Info("validNominations", "json", nominationsJson)
+	// get and sort eligible new candidates
+	newMonitorCandidates := getNewMonitorCandidates(monitorInfos, powNominations)
+	sortMonitorInfos(newMonitorCandidates)
+	logger.Info("newMonitorCandidates", "json", toJSON(newMonitorCandidates))
 
-	if len(nominations) > param.MonitorsCount {
-		nominations = nominations[:param.MonitorsCount]
-	}
-
-	if len(nominations) != param.MonitorsCount {
-		logger.Info("not enough valid pow nominations!")
-		return MonitorElectionNotEnoughNominations
-	}
-
-	lastTimeElectedCount := 0
-	thisTimeElectedCount := 0
-	newElectedCount := 0
-	for i, monitorInfo := range monitorInfos {
-		if isEligibleMonitor(monitorInfo) {
-			for _, nomination := range nominations {
-				if bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
-					// monitorInfo is passed by value !
-					monitorInfos[i].powNominatedCount = nomination.NominatedCount
-					monitorInfo.powNominatedCount = nomination.NominatedCount
-					break
-				}
-			}
+	// first election ?
+	if len(currMonitors) == 0 {
+		logger.Info("first monitors election")
+		if len(newMonitorCandidates) < param.MonitorsCount {
+			logger.Info("not enough candidates for the first election!")
+			return MonitorElectionNotEnoughCandidates
 		}
-
-		lastElectedTime := monitorInfo.ElectedTime.Uint64()
-		if lastElectedTime > 0 {
-			lastTimeElectedCount++
-		}
-		if monitorInfo.powNominatedCount > 0 {
-			thisTimeElectedCount++
-			if lastElectedTime == 0 {
-				newElectedCount++
-			}
-		}
+		newMonitors := newMonitorCandidates[:param.MonitorsCount]
+		markMonitorElectedFlags(newMonitors, true)
+		updateMonitorElectedTimes(ctx, seq, blockTime, monitorInfos)
+		WriteMonitorsLastElectionTime(ctx, seq, uint64(blockTime))
+		return OperatorElectionOK
 	}
 
-	if thisTimeElectedCount != param.MonitorsCount {
-		logger.Info("invalid nominations",
-			"thisTimeElectedCount", thisTimeElectedCount)
-		return MonitorElectionInvalidNominations
+	if len(newMonitorCandidates) == 0 {
+		logger.Info("no new eligible monitor candidates!")
+		return MonitorElectionNoNewCandidates
 	}
-	if newElectedCount == 0 {
-		logger.Info("monitors not changed")
+
+	// kick out needless candidates
+	if len(newMonitorCandidates) > param.MonitorsMaxChangeCount {
+		newMonitorCandidates = newMonitorCandidates[:param.MonitorsMaxChangeCount]
+	}
+
+	if monitorInfoLessFn(newMonitorCandidates[0], currMonitors[len(currMonitors)-1]) {
+		logger.Info("monitor set not changed")
 		return MonitorElectionNotChanged
 	}
-	if newElectedCount > param.MonitorsMaxChangeCount {
-		if newElectedCount == param.MonitorsCount && lastTimeElectedCount == 0 {
-			logger.Info("first monitors election")
-		} else {
-			logger.Info("too many new monitors!",
-				"newElectedCount", newElectedCount)
-			return MonitorElectionChangedTooMany
-		}
-	}
 
-	// everything is ok
+	allCandidates := append(currMonitors, newMonitorCandidates...)
+	sortMonitorInfos(allCandidates)
+	markMonitorElectedFlags(allCandidates[:param.MonitorsCount], true)
+	markMonitorElectedFlags(allCandidates[param.MonitorsCount:], false)
 	updateMonitorElectedTimes(ctx, seq, blockTime, monitorInfos)
 	WriteMonitorsLastElectionTime(ctx, seq, uint64(blockTime))
+	logger.Info("new monitor set", "json", allCandidates)
 	return MonitorElectionOK
 }
-func filterPowNominations(nominations []*cctypes.Nomination, monitorInfos []MonitorInfo) []*cctypes.Nomination {
-	var validNominations []*cctypes.Nomination
-	for _, nomination := range nominations {
-		if isValidPowNomination(nomination, monitorInfos) {
-			validNominations = append(validNominations, nomination)
+func getCurrMonitors(allMonitorInfos []*MonitorInfo, powNominations map[[33]byte]int64) []*MonitorInfo {
+	monitors := make([]*MonitorInfo, 0, param.MonitorsCount)
+	for _, monitorInfo := range allMonitorInfos {
+		if monitorInfo.ElectedTime.GtUint64(0) {
+			monitorInfo.powNominatedCount = getPowNomination(powNominations, monitorInfo)
+			monitors = append(monitors, monitorInfo)
 		}
 	}
-	return validNominations
+	return monitors
 }
-func isValidPowNomination(nomination *cctypes.Nomination, monitorInfos []MonitorInfo) bool {
-	if nomination == nil {
-		return false
-	}
-	for _, monitorInfo := range monitorInfos {
-		if !bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
+func getNewMonitorCandidates(allMonitorInfos []*MonitorInfo, powNominations map[[33]byte]int64) []*MonitorInfo {
+	candidates := make([]*MonitorInfo, 0, len(allMonitorInfos))
+	for _, monitorInfo := range allMonitorInfos {
+		if monitorInfo.ElectedTime.GtUint64(0) {
+			// skip current monitors
 			continue
 		}
-		if monitorInfo.ElectedTime.GtUint64(0) {
-			// old monitor
-			return true
+		powNominatedCount := getPowNomination(powNominations, monitorInfo)
+		if powNominatedCount > 0 && isEligibleMonitorCandidate(monitorInfo) {
+			monitorInfo.powNominatedCount = powNominatedCount
+			candidates = append(candidates, monitorInfo)
 		}
-		// new monitor candidate
-		return !monitorInfo.NominatedByOps.LtUint64(param.MonitorMinOpsNomination)
 	}
-	return false
+	return candidates
 }
-func isEligibleMonitor(monitorInfo MonitorInfo) bool {
-	// nolint
-	if monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) {
-		return false
+func isEligibleMonitorCandidate(monitorInfo *MonitorInfo) bool {
+	return !monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) &&
+		!monitorInfo.NominatedByOps.LtUint64(param.MonitorMinOpsNomination)
+	// TODO: check more fields ?
+}
+func getPowNomination(powNominations map[[33]byte]int64, monitorInfo *MonitorInfo) int64 {
+	var pubKey [33]byte
+	copy(pubKey[:], monitorInfo.Pubkey)
+	return powNominations[pubKey]
+}
+func sortMonitorInfos(monitorInfos []*MonitorInfo) {
+	sort.Slice(monitorInfos, func(i, j int) bool {
+		// DESC
+		return !monitorInfoLessFn(monitorInfos[i], monitorInfos[j])
+	})
+}
+func monitorInfoLessFn(a, b *MonitorInfo) bool {
+	if a.powNominatedCount != b.powNominatedCount {
+		return a.powNominatedCount < b.powNominatedCount
 	}
-	// TODO: check more fields
-	return true
+	if x := a.StakedAmt.Cmp(b.StakedAmt); x != 0 {
+		return x < 0
+	}
+	if x := a.NominatedByOps.Cmp(b.NominatedByOps); x != 0 {
+		return x < 0
+	}
+	return bytes.Compare(a.Addr[:], b.Addr[:]) < 0
+}
+func markMonitorElectedFlags(monitorInfos []*MonitorInfo, flag bool) {
+	for _, monitorInfo := range monitorInfos {
+		monitorInfo.electedFlag = flag
+	}
 }
 func updateMonitorElectedTimes(ctx *mevmtypes.Context, seq uint64,
-	blockTime int64, monitorInfos []MonitorInfo) {
+	blockTime int64, monitorInfos []*MonitorInfo) {
 
 	for idx, monitorInfo := range monitorInfos {
 		WriteMonitorOldElectedTime(ctx, seq, uint64(idx), monitorInfo.ElectedTime.Uint64())
-		if monitorInfo.powNominatedCount == 0 {
+		if !monitorInfo.electedFlag {
 			WriteMonitorElectedTime(ctx, seq, uint64(idx), 0)
 		} else {
 			WriteMonitorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))
@@ -511,4 +522,9 @@ func GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
 		return [20]byte{}, err
 	}
 	return addr, nil
+}
+
+func toJSON(v any) string {
+	bz, _ := json.Marshal(v)
+	return string(bz)
 }
