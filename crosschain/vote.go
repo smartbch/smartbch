@@ -9,7 +9,6 @@ import (
 	mevmtypes "github.com/smartbch/moeingevm/types"
 
 	"github.com/smartbch/smartbch/crosschain/types"
-	"github.com/smartbch/smartbch/param"
 )
 
 func HandleMonitorVoteInfos(ctx *mevmtypes.Context, blockTime int64, infos []*types.MonitorVoteInfo, logger log.Logger) {
@@ -36,9 +35,9 @@ func handleMonitorInfos(ctx *mevmtypes.Context, pubkeyVoteMap map[[33]byte]int64
 		})
 	}
 	SortMonitorVoteNominations(infos)
-	if len(infos) > param.MaxMonitorNumber {
-		infos = infos[:param.MaxMonitorNumber]
-	}
+	//if len(infos) > param.MaxMonitorNumber {
+	//	infos = infos[:param.MaxMonitorNumber]
+	//}
 	// 2. set the monitor info to vote contract
 	ElectMonitors(ctx, infos, blockTime, logger)
 }

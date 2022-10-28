@@ -26,7 +26,7 @@ const (
 	MonitorsSlot                 = 1
 	MonitorElectedTimeField      = 5
 	MonitorOldElectedTimeField   = 6
-	MonitorWords                 = 7
+	MonitorWords                 = 8
 )
 
 const (
@@ -35,11 +35,11 @@ const (
 	OperatorElectionNotChanged          = 2
 	OperatorElectionChangedTooMany      = 3
 
-	MonitorElectionOK                     = 0
-	MonitorElectionInvalidNominationCount = 1
-	MonitorElectionInvalidNominations     = 2
-	MonitorElectionNotChanged             = 2
-	MonitorElectionChangedTooMany         = 3
+	MonitorElectionOK                   = 0
+	MonitorElectionNotEnoughNominations = 1
+	MonitorElectionInvalidNominations   = 2
+	MonitorElectionNotChanged           = 2
+	MonitorElectionChangedTooMany       = 3
 )
 
 var (
@@ -264,13 +264,14 @@ func GetOldOperatorPubkeySet(ctx *mevmtypes.Context) (pubkeys [][]byte) {
 
 /*
    struct MonitorInfo {
-       address addr;           // address
-       uint    pubkeyPrefix;   // 0x02 or 0x03
-       bytes32 pubkeyX;        // x
-       bytes32 intro;          // introduction
-       uint    stakedAmt;      // staked BCH
-       uint    electedTime;    // 0 means not elected, set by Golang
-       uint    oldElectedTime; // used to get old monitors, set by Golang
+       address   addr;           // address
+       uint      pubkeyPrefix;   // 0x02 or 0x03
+       bytes32   pubkeyX;        // x
+       bytes32   intro;          // introduction
+       uint      stakedAmt;      // staked BCH
+       uint      electedTime;    // 0 means not elected, set by Golang
+       uint      oldElectedTime; // used to get old monitors, set by Golang
+       address[] nominatedBy;    // length of nominatedBy is read by Golang
    }
 */
 
@@ -281,9 +282,10 @@ type MonitorInfo struct {
 	StakedAmt      *uint256.Int
 	ElectedTime    *uint256.Int
 	OldElectedTime *uint256.Int
+	NominatedByOps *uint256.Int
 
 	// only used by election logic
-	nominatedCount int64
+	powNominatedCount int64
 }
 
 func GetMonitorInfos(ctx *mevmtypes.Context) []MonitorInfo {
@@ -309,6 +311,7 @@ func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) Monit
 	stakedAmt := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))      // slot#4
 	electedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#5
 	oldElectedTime := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32))) // slot#6
+	nominatedBy := ctx.GetStorageAt(seq, string(loc.AddUint64(loc, 1).PaddedBytes(32)))    // slot#7
 	return MonitorInfo{
 		Addr:           gethcmn.BytesToAddress(addr),
 		Pubkey:         append(pubkeyPrefix[31:], pubkeyX...),
@@ -316,6 +319,7 @@ func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) Monit
 		StakedAmt:      uint256.NewInt(0).SetBytes(stakedAmt),
 		ElectedTime:    uint256.NewInt(0).SetBytes(electedTime),
 		OldElectedTime: uint256.NewInt(0).SetBytes(oldElectedTime),
+		NominatedByOps: uint256.NewInt(0).SetBytes(nominatedBy),
 	}
 }
 
@@ -357,17 +361,26 @@ func ElectMonitorsForUT(ctx *mevmtypes.Context, seq uint64,
 func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	nominations []*cctypes.Nomination, blockTime int64, logger log.Logger,
 ) int {
-	nominationsJson, _ := json.Marshal(nominations)
-	logger.Info("elect monitors", "nominationsJson", nominationsJson)
-
-	if len(nominations) != param.MonitorsCount {
-		logger.Info("invalid nomination count!")
-		return MonitorElectionInvalidNominationCount
-	}
-
+	logger.Info("elect monitors ...")
 	monitorInfos := ReadMonitorInfos(ctx, seq)
 	monitorInfosJson, _ := json.Marshal(monitorInfos)
 	logger.Info("monitorInfos", "json", monitorInfosJson)
+
+	nominationsJson, _ := json.Marshal(nominations)
+	logger.Info("allNominations", "json", nominationsJson)
+
+	nominations = filterPowNominations(nominations, monitorInfos)
+	nominationsJson, _ = json.Marshal(nominations)
+	logger.Info("validNominations", "json", nominationsJson)
+
+	if len(nominations) > param.MonitorsCount {
+		nominations = nominations[:param.MonitorsCount]
+	}
+
+	if len(nominations) != param.MonitorsCount {
+		logger.Info("not enough valid pow nominations!")
+		return MonitorElectionNotEnoughNominations
+	}
 
 	lastTimeElectedCount := 0
 	thisTimeElectedCount := 0
@@ -377,8 +390,8 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 			for _, nomination := range nominations {
 				if bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
 					// monitorInfo is passed by value !
-					monitorInfos[i].nominatedCount = nomination.NominatedCount
-					monitorInfo.nominatedCount = nomination.NominatedCount
+					monitorInfos[i].powNominatedCount = nomination.NominatedCount
+					monitorInfo.powNominatedCount = nomination.NominatedCount
 					break
 				}
 			}
@@ -388,7 +401,7 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 		if lastElectedTime > 0 {
 			lastTimeElectedCount++
 		}
-		if monitorInfo.nominatedCount > 0 {
+		if monitorInfo.powNominatedCount > 0 {
 			thisTimeElectedCount++
 			if lastElectedTime == 0 {
 				newElectedCount++
@@ -420,6 +433,32 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	WriteMonitorsLastElectionTime(ctx, seq, uint64(blockTime))
 	return MonitorElectionOK
 }
+func filterPowNominations(nominations []*cctypes.Nomination, monitorInfos []MonitorInfo) []*cctypes.Nomination {
+	var validNominations []*cctypes.Nomination
+	for _, nomination := range nominations {
+		if isValidPowNomination(nomination, monitorInfos) {
+			validNominations = append(validNominations, nomination)
+		}
+	}
+	return validNominations
+}
+func isValidPowNomination(nomination *cctypes.Nomination, monitorInfos []MonitorInfo) bool {
+	if nomination == nil {
+		return false
+	}
+	for _, monitorInfo := range monitorInfos {
+		if !bytes.Equal(nomination.Pubkey[:], monitorInfo.Pubkey) {
+			continue
+		}
+		if monitorInfo.ElectedTime.GtUint64(0) {
+			// old monitor
+			return true
+		}
+		// new monitor candidate
+		return !monitorInfo.NominatedByOps.LtUint64(param.MonitorMinOpsNomination)
+	}
+	return false
+}
 func isEligibleMonitor(monitorInfo MonitorInfo) bool {
 	// nolint
 	if monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) {
@@ -433,7 +472,7 @@ func updateMonitorElectedTimes(ctx *mevmtypes.Context, seq uint64,
 
 	for idx, monitorInfo := range monitorInfos {
 		WriteMonitorOldElectedTime(ctx, seq, uint64(idx), monitorInfo.ElectedTime.Uint64())
-		if monitorInfo.nominatedCount == 0 {
+		if monitorInfo.powNominatedCount == 0 {
 			WriteMonitorElectedTime(ctx, seq, uint64(idx), 0)
 		} else {
 			WriteMonitorElectedTime(ctx, seq, uint64(idx), uint64(blockTime))

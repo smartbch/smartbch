@@ -31,11 +31,11 @@ const (
 	GenesisCovenantAddress  = "0x1234"
 	MonitorElectionEpochs   = 12 //must be divisible by OperatorElectionEpochs
 	OperatorElectionEpochs  = 4
-	MaxMonitorNumber        = 3
 	OperatorsGovSequence    = 0 // TODO
 	MonitorsGovSequence     = 0 // TODO
 	OperatorMinStakedBCH    = 10000
 	MonitorMinStakedBCH     = 100000
+	MonitorMinOpsNomination = 6
 	OperatorsCount          = 10
 	OperatorsMaxChangeCount = 3
 	MonitorsCount           = 3
