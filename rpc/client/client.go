@@ -2,7 +2,12 @@ package client
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -13,6 +18,7 @@ import (
 type Client struct {
 	*ethclient.Client
 	rpcClient *rpc.Client
+	rpcPubkey []byte
 }
 
 func Dial(rawUrl string) (*Client, error) {
@@ -34,29 +40,98 @@ func DialContext(ctx context.Context, rawUrl string) (*Client, error) {
 func (c *Client) CcInfo(ctx context.Context) (*types.CcInfo, error) {
 	var result types.CcInfo
 	err := c.rpcClient.CallContext(ctx, &result, "sbch_getCcInfo")
+	if err == nil {
+		bz, err := json.Marshal(result)
+		if err != nil {
+			return nil, err
+		}
+		hash := sha256.Sum256(bz)
+		err = c.getRpcKeyAndVerifySig(ctx, hash[:], result.Signature)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &result, err
 }
 
-func (c *Client) RedeemingUtxosForMonitors(ctx context.Context) ([]*types.UtxoInfo, error) {
-	var results []*types.UtxoInfo
-	err := c.rpcClient.CallContext(ctx, &results, "sbch_getRedeemingUtxosForMonitors")
-	return results, err
+func (c *Client) verifySigInUtxoInfos(ctx context.Context, infos *types.UtxoInfos) error {
+	bz, err := json.Marshal(infos.Infos)
+	if err != nil {
+		return err
+	}
+	hash := sha256.Sum256(bz)
+	return c.getRpcKeyAndVerifySig(ctx, hash[:], infos.Signature)
 }
 
-func (c *Client) RedeemingUtxosForOperators(ctx context.Context) ([]*types.UtxoInfo, error) {
-	var results []*types.UtxoInfo
-	err := c.rpcClient.CallContext(ctx, &results, "sbch_getRedeemingUtxosForOperators")
-	return results, err
+func (c *Client) RedeemingUtxosForMonitors(ctx context.Context) (*types.UtxoInfos, error) {
+	var result *types.UtxoInfos
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getRedeemingUtxosForMonitors")
+	if err == nil {
+		err = c.verifySigInUtxoInfos(ctx, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, err
 }
 
-func (c *Client) ToBeConvertedUtxosForMonitors(ctx context.Context) ([]*types.UtxoInfo, error) {
-	var results []*types.UtxoInfo
-	err := c.rpcClient.CallContext(ctx, &results, "sbch_getToBeConvertedUtxosForMonitors")
-	return results, err
+func (c *Client) RedeemingUtxosForOperators(ctx context.Context) (*types.UtxoInfos, error) {
+	var result *types.UtxoInfos
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getRedeemingUtxosForOperators")
+	if err == nil {
+		err = c.verifySigInUtxoInfos(ctx, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, err
 }
 
-func (c *Client) ToBeConvertedUtxosForOperators(ctx context.Context) ([]*types.UtxoInfo, error) {
-	var results []*types.UtxoInfo
-	err := c.rpcClient.CallContext(ctx, &results, "sbch_getToBeConvertedUtxosForOperators")
-	return results, err
+func (c *Client) ToBeConvertedUtxosForMonitors(ctx context.Context) (*types.UtxoInfos, error) {
+	var result *types.UtxoInfos
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getToBeConvertedUtxosForMonitors")
+	if err == nil {
+		err = c.verifySigInUtxoInfos(ctx, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, err
+}
+
+func (c *Client) ToBeConvertedUtxosForOperators(ctx context.Context) (*types.UtxoInfos, error) {
+	var result *types.UtxoInfos
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getToBeConvertedUtxosForOperators")
+	if err == nil {
+		err = c.verifySigInUtxoInfos(ctx, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, err
+}
+
+func (c *Client) GetRpcPubkey(ctx context.Context) ([]byte, error) {
+	var results string
+	err := c.rpcClient.CallContext(ctx, &results, "sbch_getRpcPubkey")
+	if err != nil {
+		return nil, err
+	}
+	return hex.DecodeString(results)
+}
+
+// this method need rpc server must have a pubkey
+func (c *Client) getRpcKeyAndVerifySig(ctx context.Context, hash, sig []byte) error {
+	if c.rpcPubkey == nil {
+		pubkey, err := c.GetRpcPubkey(ctx)
+		if err != nil {
+			return err
+		}
+		c.rpcPubkey = pubkey
+	}
+	success := crypto.VerifySignature(c.rpcPubkey, hash, sig)
+	if !success {
+		return errors.New("verify signature failed")
+	}
+	return nil
 }
