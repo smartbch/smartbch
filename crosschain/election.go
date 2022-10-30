@@ -141,12 +141,12 @@ func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger 
 
 	// get and sort current operators
 	currOperators := getCurrOperators(operatorInfos)
-	sortOperatorInfos(currOperators)
+	sortOperatorInfosDesc(currOperators)
 	logger.Info("currOperators", "json", toJSON(currOperators))
 
 	// get and sort eligible new candidates
 	newOperatorCandidates := getNewOperatorCandidates(operatorInfos)
-	sortOperatorInfos(newOperatorCandidates)
+	sortOperatorInfosDesc(newOperatorCandidates)
 	logger.Info("newOperatorCandidates", "json", toJSON(newOperatorCandidates))
 
 	// first election ?
@@ -178,7 +178,7 @@ func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger 
 	}
 
 	allCandidates := append(currOperators, newOperatorCandidates...)
-	sortOperatorInfos(allCandidates)
+	sortOperatorInfosDesc(allCandidates)
 	markOperatorElectedFlags(allCandidates[:param.OperatorsCount], true)
 	markOperatorElectedFlags(allCandidates[param.OperatorsCount:], false)
 	updateOperatorElectedTimes(ctx, seq, blockTime, operatorInfos)
@@ -211,16 +211,12 @@ func isEligibleOperatorCandidate(operatorInfo *OperatorInfo) bool {
 	return !operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt)
 	// TODO: check more fields ?
 }
-func sortOperatorInfos(operatorInfos []*OperatorInfo) {
+func sortOperatorInfosDesc(operatorInfos []*OperatorInfo) {
 	sort.Slice(operatorInfos, func(i, j int) bool {
-		// DESC
 		return !operatorInfoLessFn(operatorInfos[i], operatorInfos[j])
 	})
 }
 func operatorInfoLessFn(a, b *OperatorInfo) bool {
-	if x := a.TotalStakedAmt.Cmp(b.TotalStakedAmt); x != 0 {
-		return x < 0
-	}
 	if x := a.TotalStakedAmt.Cmp(b.TotalStakedAmt); x != 0 {
 		return x < 0
 	}
@@ -374,12 +370,12 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 
 	// get and sort current monitors
 	currMonitors := getCurrMonitors(monitorInfos, powNominations)
-	sortMonitorInfos(currMonitors)
+	sortMonitorInfosDesc(currMonitors)
 	logger.Info("currMonitors", "json", toJSON(currMonitors))
 
 	// get and sort eligible new candidates
 	newMonitorCandidates := getNewMonitorCandidates(monitorInfos, powNominations)
-	sortMonitorInfos(newMonitorCandidates)
+	sortMonitorInfosDesc(newMonitorCandidates)
 	logger.Info("newMonitorCandidates", "json", toJSON(newMonitorCandidates))
 
 	// first election ?
@@ -412,7 +408,7 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	}
 
 	allCandidates := append(currMonitors, newMonitorCandidates...)
-	sortMonitorInfos(allCandidates)
+	sortMonitorInfosDesc(allCandidates)
 	markMonitorElectedFlags(allCandidates[:param.MonitorsCount], true)
 	markMonitorElectedFlags(allCandidates[param.MonitorsCount:], false)
 	updateMonitorElectedTimes(ctx, seq, blockTime, monitorInfos)
@@ -455,9 +451,8 @@ func getPowNomination(powNominations map[[33]byte]int64, monitorInfo *MonitorInf
 	copy(pubKey[:], monitorInfo.Pubkey)
 	return powNominations[pubKey]
 }
-func sortMonitorInfos(monitorInfos []*MonitorInfo) {
+func sortMonitorInfosDesc(monitorInfos []*MonitorInfo) {
 	sort.Slice(monitorInfos, func(i, j int) bool {
-		// DESC
 		return !monitorInfoLessFn(monitorInfos[i], monitorInfos[j])
 	})
 }
