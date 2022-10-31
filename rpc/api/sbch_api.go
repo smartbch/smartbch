@@ -348,11 +348,13 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 		}
 	}
 	ctx := sbch.backend.GetCcContext()
-	info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
-	info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
-	info.LastRescannedHeight = ctx.LastRescannedHeight
-	info.RescannedHeight = ctx.RescanHeight
-	info.RescanTime = ctx.RescanTime
+	if ctx != nil {
+		info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
+		info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
+		info.LastRescannedHeight = ctx.LastRescannedHeight
+		info.RescannedHeight = ctx.RescanHeight
+		info.RescanTime = ctx.RescanTime
+	}
 	key := sbch.backend.GetRpcPrivateKey()
 	if key != nil {
 		bz, _ := json.Marshal(info)
@@ -535,5 +537,4 @@ func (sbch sbchAPI) GetRpcPubkey() (string, error) {
 		return hex.EncodeToString(pubkey), nil
 	}
 	return "", errors.New("rpc pubkey not set")
-
 }
