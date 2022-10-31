@@ -256,16 +256,16 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 
 // Cross Chain
 
-func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) sbchrpctypes.OperatorInfo {
-	return sbchrpctypes.OperatorInfo{
+func castOperatorInfo(ccOperatorInfo *crosschain.OperatorInfo) *sbchrpctypes.OperatorInfo {
+	return &sbchrpctypes.OperatorInfo{
 		Address: ccOperatorInfo.Addr,
 		Pubkey:  ccOperatorInfo.Pubkey,
 		RpcUrl:  string(bytes.TrimLeft(ccOperatorInfo.RpcUrl, string([]byte{0}))),
 		Intro:   string(bytes.TrimLeft(ccOperatorInfo.Intro, string([]byte{0}))),
 	}
 }
-func castMonitorInfo(ccMonitorInfo crosschain.MonitorInfo) sbchrpctypes.MonitorInfo {
-	return sbchrpctypes.MonitorInfo{
+func castMonitorInfo(ccMonitorInfo *crosschain.MonitorInfo) *sbchrpctypes.MonitorInfo {
+	return &sbchrpctypes.MonitorInfo{
 		Address: ccMonitorInfo.Addr,
 		Pubkey:  ccMonitorInfo.Pubkey,
 		Intro:   string(bytes.TrimLeft(ccMonitorInfo.Intro, string([]byte{0}))),

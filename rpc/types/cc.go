@@ -8,7 +8,7 @@ import (
 type OperatorInfo struct {
 	Address gethcmn.Address `json:"address"`
 	Pubkey  hexutil.Bytes   `json:"pubkey"`
-	RpcUrl  string          `json:"rpc_url"`
+	RpcUrl  string          `json:"rpcUrl"`
 	Intro   string          `json:"intro"`
 }
 
@@ -19,28 +19,28 @@ type MonitorInfo struct {
 }
 
 type CcInfo struct {
-	Operators           []OperatorInfo `json:"operators"`
-	Monitors            []MonitorInfo  `json:"monitors"`
-	OldOperators        []OperatorInfo `json:"old_operators"`
-	OldMonitors         []MonitorInfo  `json:"old_monitors"`
-	LastCovenantAddress string         `json:"lastCovenantAddress"`
-	CurrCovenantAddress string         `json:"currCovenantAddress"`
-	LastRescannedHeight uint64         `json:"lastRescannedHeight"`
-	RescannedHeight     uint64         `json:"rescannedHeight"`
-	RescanTime          int64          `json:"rescanTime"`
-	Signature           []byte         `json:"signature"`
+	Operators           []*OperatorInfo `json:"operators"`
+	Monitors            []*MonitorInfo  `json:"monitors"`
+	OldOperators        []*OperatorInfo `json:"oldOperators"`
+	OldMonitors         []*MonitorInfo  `json:"oldMonitors"`
+	LastCovenantAddress string          `json:"lastCovenantAddress"`
+	CurrCovenantAddress string          `json:"currCovenantAddress"`
+	LastRescannedHeight uint64          `json:"lastRescannedHeight"`
+	RescannedHeight     uint64          `json:"rescannedHeight"`
+	RescanTime          int64           `json:"rescanTime"`
+	Signature           []byte          `json:"signature"`
 }
 
 type UtxoInfo struct {
-	OwnerOfLost      gethcmn.Address `json:"owner_of_lost"`
-	CovenantAddr     gethcmn.Address `json:"covenant_addr"`
-	IsRedeemed       bool            `json:"is_redeemed"`
-	RedeemTarget     gethcmn.Address `json:"redeem_target"`
-	ExpectedSignTime int64           `json:"expected_sign_time"`
+	OwnerOfLost      gethcmn.Address `json:"ownerOfLost"`
+	CovenantAddr     gethcmn.Address `json:"covenantAddr"`
+	IsRedeemed       bool            `json:"isRedeemed"`
+	RedeemTarget     gethcmn.Address `json:"redeemTarget"`
+	ExpectedSignTime int64           `json:"expectedSignTime"`
 	Txid             gethcmn.Hash    `json:"txid"`
 	Index            uint32          `json:"index"`
 	Amount           hexutil.Uint64  `json:"amount"` // in satoshi
-	TxSigHash        hexutil.Bytes   `json:"tx_sig_hash"`
+	TxSigHash        hexutil.Bytes   `json:"txSigHash"`
 }
 
 type UtxoInfos struct {

@@ -1,9 +1,6 @@
 package crosschain
 
 import (
-	"bytes"
-	"sort"
-
 	"github.com/tendermint/tendermint/libs/log"
 
 	mevmtypes "github.com/smartbch/moeingevm/types"
@@ -26,35 +23,5 @@ func HandleMonitorVoteInfos(ctx *mevmtypes.Context, blockTime int64, infos []*ty
 }
 
 func handleMonitorInfos(ctx *mevmtypes.Context, pubkeyVoteMap map[[33]byte]int64, blockTime int64, logger log.Logger) {
-	// 1. sort pubkey vote map
-	var infos = make([]*types.Nomination, 0, len(pubkeyVoteMap))
-	for k, v := range pubkeyVoteMap {
-		infos = append(infos, &types.Nomination{
-			Pubkey:         k,
-			NominatedCount: v,
-		})
-	}
-	//SortMonitorVoteNominations(infos)
-	//if len(infos) > param.MaxMonitorNumber {
-	//	infos = infos[:param.MaxMonitorNumber]
-	//}
-	// 2. set the monitor info to vote contract
-	ElectMonitors(ctx, nominationsToMap(infos), blockTime, logger)
-}
-
-func nominationsToMap(nominations []*types.Nomination) map[[33]byte]int64 {
-	m := map[[33]byte]int64{}
-	for _, n := range nominations {
-		m[n.Pubkey] = n.NominatedCount
-	}
-	return m
-}
-
-func SortMonitorVoteNominations(nominations []*types.Nomination) {
-	sort.Slice(nominations, func(i, j int) bool {
-		return bytes.Compare(nominations[i].Pubkey[:], nominations[j].Pubkey[:]) < 0
-	})
-	sort.SliceStable(nominations, func(i, j int) bool {
-		return nominations[i].NominatedCount > nominations[j].NominatedCount
-	})
+	ElectMonitors(ctx, pubkeyVoteMap, blockTime, logger)
 }

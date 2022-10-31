@@ -48,7 +48,7 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
-	GetCcInfo() sbchrpctypes.CcInfo
+	GetCcInfo() *sbchrpctypes.CcInfo
 	GetRedeemingUtxosForMonitors() *sbchrpctypes.UtxoInfos
 	GetRedeemingUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
 	GetToBeConvertedUtxosForMonitors() *sbchrpctypes.UtxoInfos
@@ -323,12 +323,13 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	return sbch.backend.GetSyncBlock(int64(height))
 }
 
-func (sbch sbchAPI) GetCcInfo() (info sbchrpctypes.CcInfo) {
+func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 	sbch.logger.Debug("sbch_getCcInfo")
 
 	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
 	allMonitorsInfo := sbch.backend.GetAllMonitorsInfo()
 
+	info := sbchrpctypes.CcInfo{}
 	for _, operatorInfo := range allOperatorsInfo {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
 			info.Operators = append(info.Operators, castOperatorInfo(operatorInfo))
@@ -359,7 +360,7 @@ func (sbch sbchAPI) GetCcInfo() (info sbchrpctypes.CcInfo) {
 		sig, _ := crypto.Sign(hash[:], key)
 		info.Signature = sig
 	}
-	return
+	return &info
 }
 
 func (sbch sbchAPI) GetRedeemingUtxosForMonitors() *sbchrpctypes.UtxoInfos {

@@ -114,16 +114,14 @@ func readOperatorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) *Ope
 func WriteOperatorElectedTime(ctx *mevmtypes.Context, seq uint64, operatorIdx uint64, val uint64) {
 	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
-	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, OperatorElectedTimeField)
+	fieldLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords+OperatorElectedTimeField)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
 }
 func WriteOperatorOldElectedTime(ctx *mevmtypes.Context, seq uint64, operatorIdx uint64, val uint64) {
 	arrSlot := uint256.NewInt(OperatorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
-	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, OperatorOldElectedTimeField)
+	fieldLoc := uint256.NewInt(0).AddUint64(arrLoc, operatorIdx*OperatorWords+OperatorOldElectedTimeField)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
 }
@@ -328,16 +326,14 @@ func readMonitorInfo(ctx *mevmtypes.Context, seq uint64, loc *uint256.Int) *Moni
 func WriteMonitorElectedTime(ctx *mevmtypes.Context, seq uint64, monitorIdx uint64, val uint64) {
 	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
-	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, MonitorElectedTimeField)
+	fieldLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords+MonitorElectedTimeField)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
 }
 func WriteMonitorOldElectedTime(ctx *mevmtypes.Context, seq uint64, monitorIdx uint64, val uint64) {
 	arrSlot := uint256.NewInt(MonitorsSlot).PaddedBytes(32)
 	arrLoc := uint256.NewInt(0).SetBytes(crypto.Keccak256(arrSlot))
-	itemLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords)
-	fieldLoc := uint256.NewInt(0).AddUint64(itemLoc, MonitorOldElectedTimeField)
+	fieldLoc := uint256.NewInt(0).AddUint64(arrLoc, monitorIdx*MonitorWords+MonitorOldElectedTimeField)
 	ctx.SetStorageAt(seq, string(fieldLoc.PaddedBytes(32)),
 		uint256.NewInt(val).PaddedBytes(32))
 }

@@ -127,8 +127,8 @@ type BackendService interface {
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
 	IsCrossChainPaused() bool
-	GetAllOperatorsInfo() []crosschain.OperatorInfo
-	GetAllMonitorsInfo() []crosschain.MonitorInfo
+	GetAllOperatorsInfo() []*crosschain.OperatorInfo
+	GetAllMonitorsInfo() []*crosschain.MonitorInfo
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
 	GetRedeemableUtxos() []*cctypes.UTXORecord
 	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)

@@ -476,13 +476,13 @@ func (backend *apiBackend) IsCrossChainPaused() bool {
 	return ccCtx == nil || len(ccCtx.MonitorsWithPauseCommand) != 0
 }
 
-func (backend *apiBackend) GetAllOperatorsInfo() []crosschain.OperatorInfo {
+func (backend *apiBackend) GetAllOperatorsInfo() []*crosschain.OperatorInfo {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
 	return crosschain.GetOperatorInfos(ctx)
 }
-func (backend *apiBackend) GetAllMonitorsInfo() []crosschain.MonitorInfo {
+func (backend *apiBackend) GetAllMonitorsInfo() []*crosschain.MonitorInfo {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
