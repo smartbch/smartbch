@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"github.com/smartbch/smartbch/crosschain"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -13,7 +15,6 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
@@ -126,11 +127,11 @@ type BackendService interface {
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
 	IsCrossChainPaused() bool
-	GetAllOperatorsInfo() []crosschain.OperatorInfo
-	GetAllMonitorsInfo() []crosschain.MonitorInfo
+	GetAllOperatorsInfo() []*crosschain.OperatorInfo
+	GetAllMonitorsInfo() []*crosschain.MonitorInfo
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
-	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
 	GetRedeemableUtxos() []*cctypes.UTXORecord
+	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
 	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetCcContext() *cctypes.CCContext
@@ -140,4 +141,7 @@ type BackendService interface {
 	ValidatorsInfo() app.ValidatorsInfo
 
 	IsArchiveMode() bool
+
+	GetRpcPrivateKey() *ecdsa.PrivateKey
+	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
 }

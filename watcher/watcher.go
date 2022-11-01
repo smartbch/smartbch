@@ -269,8 +269,17 @@ func (watcher *Watcher) buildMonitorVoteInfo() *cctypes.MonitorVoteInfo {
 	for _, v := range monitorMapByPubkey {
 		info.Nominations = append(info.Nominations, v)
 	}
-	crosschain.SortMonitorVoteNominations(info.Nominations)
+	sortMonitorVoteNominations(info.Nominations)
 	return &info
+}
+
+func sortMonitorVoteNominations(nominations []*cctypes.Nomination) {
+	sort.Slice(nominations, func(i, j int) bool {
+		return bytes.Compare(nominations[i].Pubkey[:], nominations[j].Pubkey[:]) < 0
+	})
+	sort.SliceStable(nominations, func(i, j int) bool {
+		return nominations[i].NominatedCount > nominations[j].NominatedCount
+	})
 }
 
 func (watcher *Watcher) buildNewEpoch() *stakingtypes.Epoch {

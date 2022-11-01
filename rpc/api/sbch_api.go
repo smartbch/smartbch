@@ -1,10 +1,13 @@
 package api
 
 import (
-	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"math/big"
 	"time"
 
@@ -20,6 +23,8 @@ import (
 	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/covenant"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
+	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
+
 	"github.com/smartbch/smartbch/staking"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
@@ -44,12 +49,14 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
-	GetCcCovenantInfo() CcCovenantInfo
-	GetRedeemingUtxosForMonitors() []*UtxoInfo
-	GetRedeemingUtxosForOperators() ([]*UtxoInfo, error)
-	GetToBeConvertedUtxosForMonitors() []*UtxoInfo
-	GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error)
-	GetRedeemableUtxos() []*UtxoInfo
+	GetCcInfo() *sbchrpctypes.CcInfo
+	GetRedeemingUtxosForMonitors() *sbchrpctypes.UtxoInfos
+	GetRedeemingUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
+	GetToBeConvertedUtxosForMonitors() *sbchrpctypes.UtxoInfos
+	GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
+	GetRedeemableUtxos() *sbchrpctypes.UtxoInfos
+	SetRpcKey(key string) error
+	GetRpcPubkey() (string, error)
 }
 
 var (
@@ -317,12 +324,13 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	return sbch.backend.GetSyncBlock(int64(height))
 }
 
-func (sbch sbchAPI) GetCcCovenantInfo() (info CcCovenantInfo) {
-	sbch.logger.Debug("sbch_getCcCovenantInfo")
+func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
+	sbch.logger.Debug("sbch_getCcInfo")
 
 	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
 	allMonitorsInfo := sbch.backend.GetAllMonitorsInfo()
 
+	info := sbchrpctypes.CcInfo{}
 	for _, operatorInfo := range allOperatorsInfo {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
 			info.Operators = append(info.Operators, castOperatorInfo(operatorInfo))
@@ -341,36 +349,35 @@ func (sbch sbchAPI) GetCcCovenantInfo() (info CcCovenantInfo) {
 		}
 	}
 	ctx := sbch.backend.GetCcContext()
-	info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
-	info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
-	info.LastRescannedHeight = ctx.LastRescannedHeight
-	info.RescannedHeight = ctx.RescanHeight
-	return
-}
-func castOperatorInfo(ccOperatorInfo crosschain.OperatorInfo) OperatorInfo {
-	return OperatorInfo{
-		Address: ccOperatorInfo.Addr,
-		Pubkey:  ccOperatorInfo.Pubkey,
-		RpcUrl:  string(bytes.TrimLeft(ccOperatorInfo.RpcUrl, string([]byte{0}))),
-		Intro:   string(bytes.TrimLeft(ccOperatorInfo.Intro, string([]byte{0}))),
+	if ctx != nil {
+		info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
+		info.LastCovenantAddress = gethcmn.Address(ctx.LastCovenantAddr).String()
+		info.LastRescannedHeight = ctx.LastRescannedHeight
+		info.RescannedHeight = ctx.RescanHeight
+		info.RescanTime = ctx.RescanTime
 	}
-}
-func castMonitorInfo(ccMonitorInfo crosschain.MonitorInfo) MonitorInfo {
-	return MonitorInfo{
-		Address: ccMonitorInfo.Addr,
-		Pubkey:  ccMonitorInfo.Pubkey,
-		Intro:   string(bytes.TrimLeft(ccMonitorInfo.Intro, string([]byte{0}))),
+	key := sbch.backend.GetRpcPrivateKey()
+	if key != nil {
+		bz, _ := json.Marshal(info)
+		hash := sha256.Sum256(bz)
+		sig, _ := crypto.Sign(hash[:], key)
+		info.Signature = sig
 	}
+	return &info
 }
 
-func (sbch sbchAPI) GetRedeemingUtxosForMonitors() []*UtxoInfo {
+func (sbch sbchAPI) GetRedeemingUtxosForMonitors() *sbchrpctypes.UtxoInfos {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForMonitors")
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
-	return utxoInfos
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos
 }
 
-func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
+func (sbch sbchAPI) GetRedeemingUtxosForOperators() (*sbchrpctypes.UtxoInfos, error) {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForOperators")
 	if sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
@@ -392,10 +399,9 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 	currTS := currBlock.Timestamp
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 
-	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
+	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		if utxoRecord.ExpectedSignTime > currTS {
-			fmt.Println("utxoRecord.ExpectedSignTime > currTS")
 			continue
 		}
 
@@ -420,19 +426,37 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() ([]*UtxoInfo, error) {
 		utxoInfo.TxSigHash = sigHash
 		utxoInfos = append(utxoInfos, utxoInfo)
 	}
-
-	return utxoInfos, nil
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos, nil
 }
 
-func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() []*UtxoInfo {
-	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForMonitors")
+func (sbch sbchAPI) signUtxoInfos(infos []*sbchrpctypes.UtxoInfo) []byte {
+	key := sbch.backend.GetRpcPrivateKey()
+	if key != nil {
+		bz, _ := json.Marshal(infos)
+		hash := sha256.Sum256(bz)
+		sig, _ := crypto.Sign(hash[:], key)
+		return sig
+	}
+	return nil
+}
+
+func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() *sbchrpctypes.UtxoInfos {
+	sbch.logger.Debug("sbch_getToBeConvertedUtxosForMonitors")
 	utxoRecords, _ := sbch.backend.GetToBeConvertedUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
-	return utxoInfos
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos
 }
 
-func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
-	sbch.logger.Debug("sbch_getToBeConvertedUTXOsForOperators")
+func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error) {
+	sbch.logger.Debug("sbch_getToBeConvertedUtxosForOperators")
 	if sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
 	}
@@ -457,7 +481,7 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 		return nil, err
 	}
 
-	utxoInfos := make([]*UtxoInfo, 0, len(utxoRecords))
+	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		utxoInfo := castUtxoRecord(utxoRecord)
 
@@ -475,13 +499,43 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() ([]*UtxoInfo, error) {
 		utxoInfo.TxSigHash = sigHash
 		utxoInfos = append(utxoInfos, utxoInfo)
 	}
-
-	return utxoInfos, nil
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos, nil
 }
 
-func (sbch sbchAPI) GetRedeemableUtxos() []*UtxoInfo {
+func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
 	sbch.logger.Debug("sbch_getRedeemableUTXOs")
 	utxoRecords := sbch.backend.GetRedeemableUtxos()
 	utxoInfos := castUtxoRecords(utxoRecords)
-	return utxoInfos
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos
+}
+
+func (sbch sbchAPI) SetRpcKey(key string) error {
+	sbch.logger.Debug("sbch_setRpcKey")
+	ecdsaKey, _, err := ethutils.HexToPrivKey(key)
+	if err != nil {
+		return err
+	}
+	success := sbch.backend.SetRpcPrivateKey(ecdsaKey)
+	if !success {
+		return errors.New("already set rpc key")
+	}
+	return nil
+}
+
+func (sbch sbchAPI) GetRpcPubkey() (string, error) {
+	sbch.logger.Debug("sbch_getRpcPubkey")
+	key := sbch.backend.GetRpcPrivateKey()
+	if key != nil {
+		pubkey := crypto.FromECDSAPub(&key.PublicKey)
+		return hex.EncodeToString(pubkey), nil
+	}
+	return "", errors.New("rpc pubkey not set")
 }

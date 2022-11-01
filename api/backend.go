@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
 	"math"
@@ -48,6 +49,8 @@ type apiBackend struct {
 	//logsFeed   event.Feed
 	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
+
+	rpcPrivateKey *ecdsa.PrivateKey
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
@@ -461,13 +464,13 @@ func (backend *apiBackend) IsCrossChainPaused() bool {
 	return ccCtx == nil || len(ccCtx.MonitorsWithPauseCommand) != 0
 }
 
-func (backend *apiBackend) GetAllOperatorsInfo() []crosschain.OperatorInfo {
+func (backend *apiBackend) GetAllOperatorsInfo() []*crosschain.OperatorInfo {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
 	return crosschain.GetOperatorInfos(ctx)
 }
-func (backend *apiBackend) GetAllMonitorsInfo() []crosschain.MonitorInfo {
+func (backend *apiBackend) GetAllMonitorsInfo() []*crosschain.MonitorInfo {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
@@ -538,4 +541,16 @@ func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
 	defer ctx.Close(false)
 
 	return crosschain.LoadCCContext(ctx)
+}
+
+func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
+	return backend.rpcPrivateKey
+}
+
+func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
+	if backend.rpcPrivateKey == nil {
+		backend.rpcPrivateKey = key
+		return true
+	}
+	return false
 }

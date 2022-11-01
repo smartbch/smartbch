@@ -36,6 +36,7 @@ const (
 	MonitorsGovSequence     = 0 // TODO
 	OperatorMinStakedBCH    = 10000
 	MonitorMinStakedBCH     = 100000
+	MonitorMinOpsNomination = 6
 	OperatorsCount          = 10
 	OperatorsMaxChangeCount = 3
 	MonitorsCount           = 3

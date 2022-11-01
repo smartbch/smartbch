@@ -1,11 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingevm/ebp"
+	"github.com/smartbch/smartbch/crosschain"
+	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
 
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
@@ -266,44 +269,37 @@ type MonitorInfo struct {
 	Intro   string          `json:"intro"`
 }
 
-type CcCovenantInfo struct {
-	Operators           []OperatorInfo `json:"operators"`
-	Monitors            []MonitorInfo  `json:"monitors"`
-	OldOperators        []OperatorInfo `json:"old_operators"`
-	OldMonitors         []MonitorInfo  `json:"old_monitors"`
-	LastCovenantAddress string         `json:"lastCovenantAddress"`
-	CurrCovenantAddress string         `json:"currCovenantAddress"`
-	LastRescannedHeight uint64         `json:"lastRescannedHeight"`
-	RescannedHeight     uint64         `json:"rescannedHeight"`
+func castOperatorInfo(ccOperatorInfo *crosschain.OperatorInfo) *sbchrpctypes.OperatorInfo {
+	return &sbchrpctypes.OperatorInfo{
+		Address: ccOperatorInfo.Addr,
+		Pubkey:  ccOperatorInfo.Pubkey,
+		RpcUrl:  string(bytes.TrimLeft(ccOperatorInfo.RpcUrl, string([]byte{0}))),
+		Intro:   string(bytes.TrimLeft(ccOperatorInfo.Intro, string([]byte{0}))),
+	}
+}
+func castMonitorInfo(ccMonitorInfo *crosschain.MonitorInfo) *sbchrpctypes.MonitorInfo {
+	return &sbchrpctypes.MonitorInfo{
+		Address: ccMonitorInfo.Addr,
+		Pubkey:  ccMonitorInfo.Pubkey,
+		Intro:   string(bytes.TrimLeft(ccMonitorInfo.Intro, string([]byte{0}))),
+	}
 }
 
-type UtxoInfo struct {
-	OwnerOfLost      gethcmn.Address `json:"owner_of_lost"`
-	CovenantAddr     gethcmn.Address `json:"covenant_addr"`
-	IsRedeemed       bool            `json:"is_redeemed"`
-	RedeemTarget     gethcmn.Address `json:"redeem_target"`
-	ExpectedSignTime int64           `json:"expected_sign_time"`
-	Txid             gethcmn.Hash    `json:"txid"`
-	Index            uint32          `json:"index"`
-	Amount           hexutil.Uint64  `json:"amount"` // in satoshi
-	TxSigHash        hexutil.Bytes   `json:"tx_sig_hash"`
-}
-
-func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*UtxoInfo {
-	infos := make([]*UtxoInfo, len(utxoRecords))
+func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*sbchrpctypes.UtxoInfo {
+	infos := make([]*sbchrpctypes.UtxoInfo, len(utxoRecords))
 	for i, record := range utxoRecords {
 		infos[i] = castUtxoRecord(record)
 	}
 	return infos
 }
 
-func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *UtxoInfo {
+func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *sbchrpctypes.UtxoInfo {
 	if utxoRecord == nil {
 		fmt.Println("utxoRecord is nil")
-		return &UtxoInfo{}
+		return &sbchrpctypes.UtxoInfo{}
 	}
 	hash := [32]byte{0x01, 0x02, 0x03, 0x04} /*hard code for test*/
-	return &UtxoInfo{
+	return &sbchrpctypes.UtxoInfo{
 		OwnerOfLost:      utxoRecord.OwnerOfLost,
 		CovenantAddr:     utxoRecord.CovenantAddr,
 		IsRedeemed:       utxoRecord.IsRedeemed,
