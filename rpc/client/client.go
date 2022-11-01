@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -27,6 +28,22 @@ func Dial(rawUrl string) (*Client, error) {
 
 func DialContext(ctx context.Context, rawUrl string) (*Client, error) {
 	c, err := rpc.DialContext(ctx, rawUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{
+		Client:    ethclient.NewClient(c),
+		rpcClient: c,
+	}, nil
+}
+
+func DialHTTP(endpoint string) (*Client, error) {
+	return DialHTTPWithClient(endpoint, new(http.Client))
+}
+
+func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
+	c, err := rpc.DialHTTPWithClient(endpoint, client)
 	if err != nil {
 		return nil, err
 	}
