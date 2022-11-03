@@ -78,6 +78,9 @@ func (c *Client) CcInfo(ctx context.Context) (*types.CcInfo, error) {
 }
 
 func (c *Client) verifySigInUtxoInfos(ctx context.Context, infos *types.UtxoInfos) error {
+	if infos == nil {
+		return errors.New("infos is nil")
+	}
 	if len(infos.Signature) < 64 {
 		return errors.New("invalid signature")
 	}

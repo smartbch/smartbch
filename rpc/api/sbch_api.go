@@ -469,7 +469,7 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos
 	currTS := currBlock.Timestamp
 	utxoRecords, lastCovenantAddrChangeTime := sbch.backend.GetToBeConvertedUTXOs()
 	if lastCovenantAddrChangeTime+crosschain.ExpectedConvertSignTimeDelay > currTS {
-		return nil, nil
+		return nil, errors.New("not match expected convert sign delay")
 	}
 
 	oldOperatorPubkeys, oldMonitorPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
