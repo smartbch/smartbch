@@ -240,15 +240,20 @@ func (server *Server) stopHTTP() {
 	}
 	if server.httpListener != nil {
 		_ = server.httpListener.Close()
-
+	}
+	if server.httpsListener != nil {
+		_ = server.httpsListener.Close()
 	}
 }
 func (server *Server) stopWS() {
 	if server.wsServer != nil {
-		server.httpServer.Stop()
+		server.wsServer.Stop()
 	}
 	if server.wsListener != nil {
 		_ = server.httpListener.Close()
+	}
+	if server.wssListener != nil {
+		_ = server.wssListener.Close()
 	}
 }
 
