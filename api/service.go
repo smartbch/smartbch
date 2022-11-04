@@ -144,5 +144,5 @@ type BackendService interface {
 
 	GetRpcPrivateKey() *ecdsa.PrivateKey
 	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
-	WaitSelfSignedRpcServerCloseSignal()
+	WaitRpcKeySet()
 }

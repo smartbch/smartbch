@@ -7,6 +7,8 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -50,16 +52,14 @@ type apiBackend struct {
 	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
 
-	rpcPrivateKey *ecdsa.PrivateKey
-
-	selfSignCertificateRpcServerCloseChan chan bool
+	rpcPrivateKeyLock sync.RWMutex
+	rpcPrivateKey     *ecdsa.PrivateKey
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
 	return &apiBackend{
-		node:                                  node,
-		app:                                   app,
-		selfSignCertificateRpcServerCloseChan: make(chan bool),
+		node: node,
+		app:  app,
 	}
 }
 
@@ -438,19 +438,6 @@ func (backend *apiBackend) IsArchiveMode() bool {
 	return backend.app.IsArchiveMode()
 }
 
-func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
-	return backend.rpcPrivateKey
-}
-
-func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
-	if backend.rpcPrivateKey == nil {
-		backend.rpcPrivateKey = key
-		backend.CloseSelfSignedRpcServerCloseChan()
-		return true
-	}
-	return false
-}
-
 func (backend *apiBackend) GetSeq(address common.Address) uint64 {
 	ctx := backend.app.GetRpcContextAtHeight(-1)
 	defer ctx.Close(false)
@@ -558,13 +545,29 @@ func (backend *apiBackend) GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, m
 	return
 }
 
-func (backend *apiBackend) WaitSelfSignedRpcServerCloseSignal() {
-	<-backend.selfSignCertificateRpcServerCloseChan
+func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
+	return backend.rpcPrivateKey
 }
 
-func (backend *apiBackend) CloseSelfSignedRpcServerCloseChan() {
-	defer func() {
-		_ = recover()
-	}()
-	close(backend.selfSignCertificateRpcServerCloseChan)
+func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
+	if backend.rpcPrivateKey == nil {
+		backend.rpcPrivateKeyLock.Lock()
+		backend.rpcPrivateKey = key
+		backend.rpcPrivateKeyLock.Unlock()
+		return true
+	}
+	return false
+}
+
+func (backend *apiBackend) WaitRpcKeySet() {
+	for {
+		backend.rpcPrivateKeyLock.RLock()
+		key := backend.rpcPrivateKey
+		backend.rpcPrivateKeyLock.RUnlock()
+		time.Sleep(3 * time.Second)
+		if key != nil {
+			break
+		}
+	}
+	return
 }
