@@ -51,12 +51,15 @@ type apiBackend struct {
 	//pendingLogsFeed event.Feed
 
 	rpcPrivateKey *ecdsa.PrivateKey
+
+	selfSignCertificateRpcServerCloseChan chan bool
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
 	return &apiBackend{
-		node: node,
-		app:  app,
+		node:                                  node,
+		app:                                   app,
+		selfSignCertificateRpcServerCloseChan: make(chan bool),
 	}
 }
 
@@ -550,7 +553,19 @@ func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
 func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
 	if backend.rpcPrivateKey == nil {
 		backend.rpcPrivateKey = key
+		backend.CloseSelfSignedRpcServerCloseChan()
 		return true
 	}
 	return false
+}
+
+func (backend *apiBackend) WaitSelfSignedRpcServerCloseSignal() {
+	<-backend.selfSignCertificateRpcServerCloseChan
+}
+
+func (backend *apiBackend) CloseSelfSignedRpcServerCloseChan() {
+	defer func() {
+		_ = recover()
+	}()
+	close(backend.selfSignCertificateRpcServerCloseChan)
 }
