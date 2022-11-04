@@ -445,6 +445,7 @@ func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
 func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
 	if backend.rpcPrivateKey == nil {
 		backend.rpcPrivateKey = key
+		backend.CloseSelfSignedRpcServerCloseChan()
 		return true
 	}
 	return false
