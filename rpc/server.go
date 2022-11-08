@@ -127,7 +127,7 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 			go func() {
 				go func() {
 					time.Sleep(3 * time.Second)
-					server.backend.WaitSelfSignedRpcServerCloseSignal()
+					server.backend.WaitRpcKeySet()
 					server.StopHttpsListener()
 				}()
 				err := ServeTLSWithSelfSignedCertificate(server.httpsListener, handler,
@@ -242,13 +242,19 @@ func (server *Server) stopHTTP() {
 		_ = server.httpListener.Close()
 
 	}
+	if server.httpsListener != nil {
+		_ = server.httpsListener.Close()
+	}
 }
 func (server *Server) stopWS() {
 	if server.wsServer != nil {
-		server.httpServer.Stop()
+		server.wsServer.Stop()
 	}
 	if server.wsListener != nil {
 		_ = server.httpListener.Close()
+	}
+	if server.wssListener != nil {
+		_ = server.wssListener.Close()
 	}
 }
 

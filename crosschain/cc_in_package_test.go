@@ -62,7 +62,7 @@ func TestRedeem(t *testing.T) {
 	ccAcc := ctx.GetAccount(CCContractAddress)
 	require.Equal(t, uint256.NewInt(0).SetBytes(amount[:]).Uint64(), ccAcc.Balance().Uint64())
 	// already redeemed
-	status, logs, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
+	status, _, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			From:  alice,
 			Value: amount,
@@ -76,7 +76,7 @@ func TestRedeem(t *testing.T) {
 	DeleteUTXORecord(ctx, txid, vout)
 	SaveUTXORecord(ctx, record)
 	// test lost and found utxo not found
-	status, logs, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
+	status, _, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			From:  alice,
 			Value: uint256.NewInt(0).Bytes32(),
@@ -87,7 +87,7 @@ func TestRedeem(t *testing.T) {
 	require.Equal(t, StatusFailed, status)
 	require.Equal(t, ErrNotLostAndFound.Error(), string(outdata))
 	// test redeem amount not match
-	status, logs, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
+	status, _, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			From:  alice,
 			Value: uint256.NewInt(1).Bytes32(),
@@ -103,7 +103,7 @@ func TestRedeem(t *testing.T) {
 	record.OwnerOfLost = alice
 	SaveUTXORecord(ctx, record)
 	// test lost and found utxo not found
-	status, logs, _, outdata = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
+	status, _, _, _ = redeem(ctx, &mtypes.BlockInfo{Timestamp: 0}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			From:  alice,
 			Value: uint256.NewInt(0).Bytes32(),
@@ -336,6 +336,7 @@ func TestResume(t *testing.T) {
 	})
 	require.Equal(t, StatusFailed, status)
 	require.Equal(t, ErrMustPauseFirst.Error(), string(outdata))
+	require.Equal(t, 0, len(logs))
 
 	status, logs, _, outdata = executor.resume(ctx, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{

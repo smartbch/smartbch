@@ -17,7 +17,7 @@ func TestBuildNewRedeemable(t *testing.T) {
 	log := buildNewRedeemable(txid, vout, address)
 
 	require.Equal(t, 4, len(log.Topics))
-	require.Equal(t, HashOfEventNewRedeemable, [32]byte(log.Topics[0]))
+	require.Equal(t, HashOfEventNewRedeemable, log.Topics[0])
 	require.Equal(t, txid, [32]byte(log.Topics[1]))
 	require.Equal(t, vout, uint32(uint256.NewInt(0).SetBytes32(log.Topics[2].Bytes()).Uint64()))
 	require.Equal(t, address.Hash(), log.Topics[3])
@@ -29,7 +29,7 @@ func TestBuildRedeemLog(t *testing.T) {
 	address := common.Address{0x1}
 	log := buildRedeemLog(txid, vout, address, types.FromBurnRedeem)
 	require.Equal(t, 4, len(log.Topics))
-	require.Equal(t, HashOfEventRedeem, [32]byte(log.Topics[0]))
+	require.Equal(t, HashOfEventRedeem, log.Topics[0])
 	require.Equal(t, txid, [32]byte(log.Topics[1]))
 	require.Equal(t, vout, uint32(uint256.NewInt(0).SetBytes32(log.Topics[2].Bytes()).Uint64()))
 	require.Equal(t, address.Hash(), log.Topics[3])
@@ -45,7 +45,7 @@ func TestBuildChangeAddrLog(t *testing.T) {
 	vout := uint32(1)
 	log := buildConvertLog(prevTxid, prevVout, address, txid, vout, newAddress)
 	require.Equal(t, 4, len(log.Topics))
-	require.Equal(t, HashOfEventConvert, [32]byte(log.Topics[0]))
+	require.Equal(t, HashOfEventConvert, log.Topics[0])
 	require.Equal(t, prevTxid, [32]byte(log.Topics[1]))
 	require.Equal(t, prevVout, uint32(uint256.NewInt(0).SetBytes32(log.Topics[2].Bytes()).Uint64()))
 	require.Equal(t, address.Hash(), log.Topics[3])

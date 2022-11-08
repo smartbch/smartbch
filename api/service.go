@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/smartbch/smartbch/crosschain"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +14,7 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
+	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
@@ -144,6 +144,5 @@ type BackendService interface {
 
 	GetRpcPrivateKey() *ecdsa.PrivateKey
 	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
-	WaitSelfSignedRpcServerCloseSignal()
-	CloseSelfSignedRpcServerCloseChan()
+	WaitRpcKeySet()
 }

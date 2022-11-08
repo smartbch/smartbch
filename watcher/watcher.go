@@ -377,11 +377,10 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 			continue
 		}
 		if watcher.CcContractExecutor == nil {
-			fmt.Printf("watcher.CcContractExecutor is nil")
+
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		fmt.Printf("waiting collector info...\n")
 		collectInfo := <-watcher.CcContractExecutor.StartUTXOCollect
 		watcher.logger.Debug("collect cc infos", "BeginHeight", collectInfo.BeginHeight, "EndHeight", collectInfo.EndHeight)
 		if collectInfo.EndHeight == latestEndHeight {

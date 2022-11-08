@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/smartbch/smartbch/internal/ethutils"
 	"math/big"
 	"time"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/gcash/bchutil"
 	"github.com/tendermint/tendermint/libs/log"
@@ -22,9 +21,9 @@ import (
 	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/covenant"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
-
 	"github.com/smartbch/smartbch/staking"
 	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )

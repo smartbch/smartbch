@@ -29,9 +29,10 @@ const (
 	StartEpochNumberForCC   = 0 // epoch number which cc enabled from
 	AlreadyBurntOnMainChain = 0 // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x1234"
-	MonitorElectionEpochs   = 2 //must be divisible by OperatorElectionEpochs
-	OperatorElectionEpochs  = 2
-	MaxMonitorNumber        = 3
+	MonitorElectionEpochs   = 2 // For test
+	OperatorElectionEpochs  = 2 // For test
+	MaxMonitorNumber        = 3 // For test
+
 	OperatorsGovSequence    = 0 // TODO
 	MonitorsGovSequence     = 0 // TODO
 	OperatorMinStakedBCH    = 10000

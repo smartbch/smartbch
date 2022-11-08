@@ -61,97 +61,83 @@ func TestOpReturnReceiverParse(t *testing.T) {
 	require.Equal(t, bz.Bytes(), r)
 
 	receiver = hex.EncodeToString([]byte("01" + address))
-	r, ok = findReceiverInOPReturn("OP_RETURN " + receiver)
+	_, ok = findReceiverInOPReturn("OP_RETURN " + receiver)
 	require.False(t, ok)
 }
 
 func TestGetAddrFromOpReturn(t *testing.T) {
-	// https://www.blockchain.com/bch-testnet/block/1508978
-	blockJson := `
- {
-    "hash": "00000000000000c8d02f76b19ee228ff14eefc1fd00ff85d9837c023da232503",
-    "confirmations": 6911,
-    "strippedsize": 0,
-    "size": 484,
-    "height": 1508978,
-    "version": 549453824,
-    "versionHex": "20c00000",
-    "merkleroot": "90ccadacbfd7d90107e31acb21d43c7ec4e2d5fd80472a527698dc79901a9e96",
+	// https://www.blockchain.com/bch-testnet/block/1517179
+	blockJson := `{
+    "hash": "00000000567d66f18743e1a1607b1f557ea3b5a85eef17c9386c49a471ef4311",
+    "confirmations": 4,
+    "size": 470,
+    "height": 1517179,
+    "version": 536870912,
+    "versionHex": "20000000",
+    "merkleroot": "25b4a0e09b1e42f8e4fe887718d7d5ccfe70c2e870e1a213660688e2819eed66",
     "tx": [
       {
-        "hex": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0403720617ffffffff020d513602000000001976a914f60e91e018a0f963a21129aa7427357b1653d17288ac00000000000000002a6a288ab89e331cb2e163133de3c1c4a016f8655cac4ca1fb363a9a823cb741e243f89c0b00002500000000000000",
-        "hash": "80de78e76bc26b901d9d1156b3f0369f350170117ea005421dd8723a2dd46333",
-        "size": 140,
+        "txid": "d239cdd0c66d5c132d51f64b5c743b1d0ed6c3cc9af4b2935df87c6bab24170c",
+        "hash": "d239cdd0c66d5c132d51f64b5c743b1d0ed6c3cc9af4b2935df87c6bab24170c",
         "version": 1,
+        "size": 112,
         "locktime": 0,
         "vin": [
           {
-            "coinbase": "03720617",
+            "coinbase": "037b2617184e4954534f504f554c4f53204b4f4e5354414e54494e4f53",
             "sequence": 4294967295
           }
         ],
         "vout": [
           {
-            "value": 0.37114125,
+            "value": 0.390635,
             "n": 0,
             "scriptPubKey": {
-              "asm": "OP_DUP OP_HASH160 f60e91e018a0f963a21129aa7427357b1653d172 OP_EQUALVERIFY OP_CHECKSIG",
-              "hex": "76a914f60e91e018a0f963a21129aa7427357b1653d17288ac",
+              "asm": "OP_HASH160 00000009e62dc2a3eafd18b870ed16fff020a69d OP_EQUAL",
+              "hex": "a91400000009e62dc2a3eafd18b870ed16fff020a69d87",
               "reqSigs": 1,
-              "type": "pubkeyhash",
+              "type": "scripthash",
               "addresses": [
-                "qrmqay0qrzs0jcazzy565ap8x4a3v573wgru39vu0e"
+                "bchtest:pqqqqqqfucku9gl2l5vtsu8dzmllqg9xn5xr336tqn"
               ]
-            }
-          },
-          {
-            "value": 0,
-            "n": 1,
-            "scriptPubKey": {
-              "asm": "OP_RETURN 8ab89e331cb2e163133de3c1c4a016f8655cac4ca1fb363a9a823cb741e243f89c0b000025000000",
-              "hex": "6a288ab89e331cb2e163133de3c1c4a016f8655cac4ca1fb363a9a823cb741e243f89c0b000025000000",
-              "type": "nulldata"
             }
           }
         ],
-        "blockhash": "00000000000000c8d02f76b19ee228ff14eefc1fd00ff85d9837c023da232503",
-        "confirmations": 6911,
-        "time": 1657866426,
-        "blocktime": 1657866426
+        "hex": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1d037b2617184e4954534f504f554c4f53204b4f4e5354414e54494e4f53ffffffff01cc0f54020000000017a91400000009e62dc2a3eafd18b870ed16fff020a69d8700000000"
       },
       {
-        "hex": "0200000001c3b1d3755fee3d4370833f0cec46e86ab2763a30b93f28d6ca94707a66b6af84000000006b483045022100ac5165cccc65fc104523bee1979c498116f5becdd06614808b41a2f4222ad13b022016d107fe4784a772d7d293281592af59d72fe3c5fe7c6a349b736c107c3b5203412102d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3effffffff03102700000000000017a914ccf8fb324aebbc9f53a7fb28138a3d703b9e60d087084c0100000000001976a91468ccb0e4918444bddb05dccb313d8c979e8e25f288ac00000000000000001e6a1c7342434841646472c370743331b37d3c6d0ee798b3918f6561af2c9200000000",
-        "hash": "7ff88192c5a5ee27237880230b4a9fc0c7e97d7dfe979831b23cd104d46160ee",
-        "size": 263,
+        "txid": "c01ab2bfa4a7f64cf781e886844de836e7b45f2c6150de380cb891045e8353c9",
+        "hash": "c01ab2bfa4a7f64cf781e886844de836e7b45f2c6150de380cb891045e8353c9",
         "version": 2,
+        "size": 277,
         "locktime": 0,
         "vin": [
           {
-            "txid": "84afb6667a7094cad6283fb9303a76b26ae846ec0c3f8370433dee5f75d3b1c3",
-            "vout": 0,
+            "txid": "3a9eb8d0a8bb046f4b0e4423a83612803c6a0c8a0731e1e5895be6ad42144781",
+            "vout": 1,
             "scriptSig": {
-              "asm": "3045022100ac5165cccc65fc104523bee1979c498116f5becdd06614808b41a2f4222ad13b022016d107fe4784a772d7d293281592af59d72fe3c5fe7c6a349b736c107c3b520341 02d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3e",
-              "hex": "483045022100ac5165cccc65fc104523bee1979c498116f5becdd06614808b41a2f4222ad13b022016d107fe4784a772d7d293281592af59d72fe3c5fe7c6a349b736c107c3b5203412102d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3e"
+              "asm": "3045022100fcf716f6b6cb75be60c1b4f399facc7bc596fdcb521008cb0ccb6d8045a20f6a0220236859c32ee5f7868e6c97657dc35cfd2143b6ec5c5b62eba7006b0f63cc9b00[ALL|FORKID] 02d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3e",
+              "hex": "483045022100fcf716f6b6cb75be60c1b4f399facc7bc596fdcb521008cb0ccb6d8045a20f6a0220236859c32ee5f7868e6c97657dc35cfd2143b6ec5c5b62eba7006b0f63cc9b00412102d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3e"
             },
             "sequence": 4294967295
           }
         ],
         "vout": [
           {
-            "value": 0.0001,
+            "value": 5.001e-05,
             "n": 0,
             "scriptPubKey": {
-              "asm": "OP_HASH160 ccf8fb324aebbc9f53a7fb28138a3d703b9e60d0 OP_EQUAL",
-              "hex": "a914ccf8fb324aebbc9f53a7fb28138a3d703b9e60d087",
+              "asm": "OP_HASH160 6ad3f81523c87aa17f1dfa08271cf57b6277c98e OP_EQUAL",
+              "hex": "a9146ad3f81523c87aa17f1dfa08271cf57b6277c98e87",
               "reqSigs": 1,
               "type": "scripthash",
               "addresses": [
-                "prx037ejft4me86n5lajsyu284crh8nq6qlqjscazv"
+                "bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk"
               ]
             }
           },
           {
-            "value": 0.00085,
+            "value": 0.00048999,
             "n": 1,
             "scriptPubKey": {
               "asm": "OP_DUP OP_HASH160 68ccb0e4918444bddb05dccb313d8c979e8e25f2 OP_EQUALVERIFY OP_CHECKSIG",
@@ -159,7 +145,7 @@ func TestGetAddrFromOpReturn(t *testing.T) {
               "reqSigs": 1,
               "type": "pubkeyhash",
               "addresses": [
-                "qp5vev8yjxzyf0wmqhwvkvfa3jtear397gwsfxg7sa"
+                "bchtest:qp5vev8yjxzyf0wmqhwvkvfa3jtear397gwsfxg7sa"
               ]
             }
           },
@@ -167,32 +153,31 @@ func TestGetAddrFromOpReturn(t *testing.T) {
             "value": 0,
             "n": 2,
             "scriptPubKey": {
-              "asm": "OP_RETURN 63333730373433333331623337643363366430656537393862333931386636353631616632633932",
-              "hex": "6a1c63333730373433333331623337643363366430656537393862333931386636353631616632633932",
+              "asm": "OP_RETURN 307863333730373433333331423337643343364430456537393842333931386636353631416632433932",
+              "hex": "6a2a307863333730373433333331423337643343364430456537393842333931386636353631416632433932",
               "type": "nulldata"
             }
           }
         ],
-        "blockhash": "00000000000000c8d02f76b19ee228ff14eefc1fd00ff85d9837c023da232503",
-        "confirmations": 6911,
-        "time": 1657866426,
-        "blocktime": 1657866426
+        "hex": "020000000181471442ade65b89e5e131078a0c6a3c801236a823440e4b6f04bba8d0b89e3a010000006b483045022100fcf716f6b6cb75be60c1b4f399facc7bc596fdcb521008cb0ccb6d8045a20f6a0220236859c32ee5f7868e6c97657dc35cfd2143b6ec5c5b62eba7006b0f63cc9b00412102d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3effffffff03891300000000000017a9146ad3f81523c87aa17f1dfa08271cf57b6277c98e8767bf0000000000001976a91468ccb0e4918444bddb05dccb313d8c979e8e25f288ac00000000000000002c6a2a30786333373037343333333142333764334336443045653739384233393138663635363141663243393200000000"
       }
     ],
-    "time": 1657866426,
-    "nonce": 1741380489,
-    "bits": "1a05c74e",
-    "difficulty": 2903324.64724242,
-    "previousblockhash": "0000000000000123229171002dc6d67dd34fc6241166624334e343201e480251",
-    "nextblockhash": "00000000022b966f1eb246455c7ade9faf1384df39f807096b930a595f6498b5"
-  }
-`
+    "time": 1662779022,
+    "mediantime": 1662775280,
+    "nonce": 819914115,
+    "bits": "1d00ffff",
+    "difficulty": 1,
+    "chainwork": "000000000000000000000000000000000000000000000092ebf98c2b37bb78b6",
+    "nTx": 2,
+    "previousblockhash": "000000000000006331122ef4a6def1c696b236d45ab2b214278161badc72a488",
+    "nextblockhash": "00000000000000fd76dbde24e02a374d66d25c3c6afba6ecef37bc02eb42a6ea"
+  }`
 
 	var bi BlockInfo
 	err := json.Unmarshal([]byte(blockJson), &bi)
 	require.NoError(t, err)
 
-	covenantAddr := "ccf8fb324aebbc9f53a7fb28138a3d703b9e60d0"
+	covenantAddr := "6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
 	parser := &CcTxParser{
 		CurrentCovenantAddress: covenantAddr,
 	}
@@ -206,12 +191,12 @@ func TestGetAddrFromOpReturn(t *testing.T) {
     "Amount": "0x0"
   },
   "UTXO": {
-    "TxID": "7ff88192c5a5ee27237880230b4a9fc0c7e97d7dfe979831b23cd104d46160ee",
+    "TxID": "c01ab2bfa4a7f64cf781e886844de836e7b45f2c6150de380cb891045e8353c9",
     "Index": 0,
-    "Amount": "0x5af3107a4000"
+    "Amount": "0x2d7bdc490400"
   },
   "Receiver": "c370743331b37d3c6d0ee798b3918f6561af2c92",
-  "CovenantAddress": "ccf8fb324aebbc9f53a7fb28138a3d703b9e60d0"
+  "CovenantAddress": "6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
 }`, ccTransferInfoToJSON(infos[0]))
 }
 

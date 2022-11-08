@@ -5,9 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
-	"math"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethcore "github.com/ethereum/go-ethereum/core"
@@ -15,6 +12,10 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math"
+	"math/big"
+	"sync"
+	"time"
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
@@ -49,17 +50,14 @@ type apiBackend struct {
 	//logsFeed   event.Feed
 	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
-
-	rpcPrivateKey *ecdsa.PrivateKey
-
-	selfSignCertificateRpcServerCloseChan chan bool
+	rpcPrivateKeyLock sync.RWMutex
+	rpcPrivateKey     *ecdsa.PrivateKey
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
 	return &apiBackend{
-		node:                                  node,
-		app:                                   app,
-		selfSignCertificateRpcServerCloseChan: make(chan bool),
+		node: node,
+		app:  app,
 	}
 }
 
@@ -506,6 +504,13 @@ func (backend *apiBackend) GetRedeemableUtxos() []*cctypes.UTXORecord {
 	return loadUtxoRecords(ctx, utxoIds)
 }
 
+func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	return crosschain.LoadCCContext(ctx)
+}
+
 func loadUtxoRecords(ctx *types.Context, utxoIds [][36]byte) []*cctypes.UTXORecord {
 	utxoRecords := make([]*cctypes.UTXORecord, 0, len(utxoIds))
 	for _, utxoId := range utxoIds {
@@ -539,33 +544,29 @@ func (backend *apiBackend) GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, m
 	return
 }
 
-func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	return crosschain.LoadCCContext(ctx)
-}
-
 func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
 	return backend.rpcPrivateKey
 }
 
 func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
 	if backend.rpcPrivateKey == nil {
+		backend.rpcPrivateKeyLock.Lock()
 		backend.rpcPrivateKey = key
-		backend.CloseSelfSignedRpcServerCloseChan()
+		backend.rpcPrivateKeyLock.Unlock()
 		return true
 	}
 	return false
 }
 
-func (backend *apiBackend) WaitSelfSignedRpcServerCloseSignal() {
-	<-backend.selfSignCertificateRpcServerCloseChan
-}
-
-func (backend *apiBackend) CloseSelfSignedRpcServerCloseChan() {
-	defer func() {
-		_ = recover()
-	}()
-	close(backend.selfSignCertificateRpcServerCloseChan)
+func (backend *apiBackend) WaitRpcKeySet() {
+	for {
+		backend.rpcPrivateKeyLock.RLock()
+		key := backend.rpcPrivateKey
+		backend.rpcPrivateKeyLock.RUnlock()
+		time.Sleep(3 * time.Second)
+		if key != nil {
+			break
+		}
+	}
+	return
 }

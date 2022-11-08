@@ -3,16 +3,17 @@ package api
 import (
 	"bytes"
 	"fmt"
+
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
-	"github.com/smartbch/moeingevm/ebp"
-	"github.com/smartbch/smartbch/crosschain"
-	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
 
+	"github.com/smartbch/moeingevm/ebp"
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
+	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
+	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -67,17 +68,17 @@ type CCTransferInfo struct {
 	SenderPubkey hexutil.Bytes  `json:"senderPubkey"`
 }
 
-func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
-	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
-	//for i, ccTransferInfo := range ccTransferInfos {
-	//	rpcTransferInfos[i] = &CCTransferInfo{
-	//		UTXO:         ccTransferInfo.UTXO[:],
-	//		Amount:       hexutil.Uint64(ccTransferInfo.Amount),
-	//		SenderPubkey: ccTransferInfo.SenderPubkey[:],
-	//	}
-	//}
-	return rpcTransferInfos
-}
+//func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
+//	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
+//	for i, ccTransferInfo := range ccTransferInfos {
+//		rpcTransferInfos[i] = &CCTransferInfo{
+//			UTXO:         ccTransferInfo.UTXO[:],
+//			Amount:       hexutil.Uint64(ccTransferInfo.Amount),
+//			SenderPubkey: ccTransferInfo.SenderPubkey[:],
+//		}
+//	}
+//	return rpcTransferInfos
+//}
 
 // CallDetail
 
@@ -256,19 +257,6 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 
 // Cross Chain
 
-type OperatorInfo struct {
-	Address gethcmn.Address `json:"address"`
-	Pubkey  hexutil.Bytes   `json:"pubkey"`
-	RpcUrl  string          `json:"rpc_url"`
-	Intro   string          `json:"intro"`
-}
-
-type MonitorInfo struct {
-	Address gethcmn.Address `json:"address"`
-	Pubkey  hexutil.Bytes   `json:"pubkey"`
-	Intro   string          `json:"intro"`
-}
-
 func castOperatorInfo(ccOperatorInfo *crosschain.OperatorInfo) *sbchrpctypes.OperatorInfo {
 	return &sbchrpctypes.OperatorInfo{
 		Address: ccOperatorInfo.Addr,
@@ -298,7 +286,6 @@ func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *sbchrpctypes.UtxoInfo {
 		fmt.Println("utxoRecord is nil")
 		return &sbchrpctypes.UtxoInfo{}
 	}
-	hash := [32]byte{0x01, 0x02, 0x03, 0x04} /*hard code for test*/
 	return &sbchrpctypes.UtxoInfo{
 		OwnerOfLost:      utxoRecord.OwnerOfLost,
 		CovenantAddr:     utxoRecord.CovenantAddr,
@@ -308,7 +295,6 @@ func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *sbchrpctypes.UtxoInfo {
 		Txid:             utxoRecord.Txid,
 		Index:            utxoRecord.Index,
 		Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
-		TxSigHash:        hash[:],
 	}
 }
 
