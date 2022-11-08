@@ -113,7 +113,8 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	if ccAcc == nil { // only executed at genesis
 		ccAcc = mevmtypes.ZeroAccountInfo()
 		ccAcc.UpdateSequence(ccContractSequence)
-		ccAcc.UpdateBalance(uint256.NewInt(0).Mul(uint256.NewInt(1e10), uint256.NewInt(1e10)))
+		// init balance of cc address is 1000000sBCH
+		ccAcc.UpdateBalance(uint256.NewInt(0).Mul(uint256.NewInt(0).Mul(uint256.NewInt(1000_000), uint256.NewInt(1e8)), uint256.NewInt(1e10)))
 		ctx.SetAccount(CCContractAddress, ccAcc)
 	}
 	ccCtx := LoadCCContext(ctx)
@@ -746,11 +747,7 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 	//	panic(err)
 	//}
 	//return currAddress != newAddr, newAddr
-	if ctx.Height > 70 && ctx.Height < 100 {
-		return true, common.HexToAddress("0000000000000000000000000000000000000002")
-	} else {
-		return false, common.HexToAddress("0000000000000000000000000000000000000002")
-	}
+	return false, common.HexToAddress("0000000000000000000000000000000000000000")
 }
 
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
