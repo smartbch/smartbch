@@ -62,7 +62,7 @@ var (
 	GasOfLostAndFoundRedeem uint64 = 4000_000
 
 	UTXOHandleDelay              int64 = 20 * 60
-	ExpectedRedeemSignTimeDelay  int64 = 5 * 60 // 5min
+	ExpectedRedeemSignTimeDelay  int64 = 25 * 60 // 25min
 	ExpectedConvertSignTimeDelay       = ExpectedRedeemSignTimeDelay * 4
 
 	ErrInvalidCallData         = errors.New("invalid call data")
