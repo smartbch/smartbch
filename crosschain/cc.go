@@ -751,7 +751,7 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 }
 
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
-	return common.HexToAddress("0000000000000000000000000000000000000001"), nil
+	return common.HexToAddress(param.GenesisCovenantAddress), nil
 	//return GetCCCovenantP2SHAddr(ctx)
 }
 
