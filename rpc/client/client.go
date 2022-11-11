@@ -152,3 +152,7 @@ func (c *Client) getRpcKeyAndVerifySig(ctx context.Context, hash, sig []byte) er
 	}
 	return nil
 }
+
+func (c *Client) CachedRpcPubkey() []byte {
+	return c.rpcPubkey
+}
