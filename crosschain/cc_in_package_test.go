@@ -11,6 +11,7 @@ import (
 	mtypes "github.com/smartbch/moeingevm/types"
 	"github.com/stretchr/testify/require"
 
+	ccabi "github.com/smartbch/smartbch/crosschain/abi"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
@@ -46,7 +47,7 @@ func TestRedeem(t *testing.T) {
 		Amount:           amount,
 	}
 	SaveUTXORecord(ctx, record)
-	txData := PackRedeemFunc(big.NewInt(0).SetBytes(txid[:]), big.NewInt(int64(vout)), alice)
+	txData := ccabi.PackRedeemFunc(big.NewInt(0).SetBytes(txid[:]), big.NewInt(int64(vout)), alice)
 	// normal
 	status, logs, _, outdata := redeem(ctx, &mtypes.BlockInfo{Timestamp: MatureTime + 2}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
@@ -257,7 +258,7 @@ func TestStartRescan(t *testing.T) {
 	staking.SaveStakingInfo(ctx, stakingtypes.StakingInfo{
 		CurrEpochNum: param.StartEpochNumberForCC,
 	})
-	txData := PackStartRescanFunc(big.NewInt(2))
+	txData := ccabi.PackStartRescanFunc(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
 		Voter:            &MockVoteContract{IsM: true},
@@ -290,7 +291,7 @@ func TestPause(t *testing.T) {
 		RescanHeight: 1,
 	}
 	SaveCCContext(ctx, context)
-	txData := PackPauseFunc()
+	txData := ccabi.PackPauseFunc()
 	// normal
 	executor := CcContractExecutor{
 		Voter: &MockVoteContract{IsM: true},
@@ -323,7 +324,7 @@ func TestResume(t *testing.T) {
 		MonitorsWithPauseCommand: [][20]byte{from},
 	}
 	SaveCCContext(ctx, context)
-	txData := PackResumeFunc()
+	txData := ccabi.PackResumeFunc()
 	// normal
 	executor := CcContractExecutor{
 		Voter: &MockVoteContract{IsM: true},
