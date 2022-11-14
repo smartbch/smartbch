@@ -1,4 +1,4 @@
-package crosschain
+package abi
 
 import (
 	"math/big"

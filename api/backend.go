@@ -569,5 +569,4 @@ func (backend *apiBackend) WaitRpcKeySet() {
 			break
 		}
 	}
-	return
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/crosschain"
+	ccabi "github.com/smartbch/smartbch/crosschain/abi"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/param"
@@ -84,7 +85,7 @@ func TestCC(t *testing.T) {
 	ctx.SetAccount(crosschain.CCContractAddress, acc)
 	ctx.Close(true)
 	// call handleUTXO
-	txData := crosschain.PackHandleUTXOsFunc()
+	txData := ccabi.PackHandleUTXOsFunc()
 	tx, _ := _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(0), txData)
 	_app.EnsureTxSuccess(tx.Hash())
 
@@ -107,7 +108,7 @@ func TestCC(t *testing.T) {
 
 	// call redeem
 	crosschain.MatureTime = 1
-	txData = crosschain.PackRedeemFunc(txid.ToBig(), index, targetAddress)
+	txData = ccabi.PackRedeemFunc(txid.ToBig(), index, targetAddress)
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, int64(value.Uint64()), txData)
 	_app.EnsureTxSuccess(tx.Hash())
 
@@ -156,7 +157,7 @@ func TestCC(t *testing.T) {
 			},
 		},
 	}
-	txData = crosschain.PackHandleUTXOsFunc()
+	txData = ccabi.PackHandleUTXOsFunc()
 	tx, _ = _app.MakeAndExecTxInBlock(key, crosschain.CCContractAddress, 0, txData)
 	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", crosschain.ErrUTXOAlreadyHandled.Error())
 
