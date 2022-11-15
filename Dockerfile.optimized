@@ -86,4 +86,4 @@ WORKDIR /root/
 VOLUME ["/root/.smartbchd"]
 
 ENTRYPOINT ["smartbchd"]
-EXPOSE 8545 8546
+EXPOSE 8545 8546 26656
