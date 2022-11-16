@@ -10,6 +10,9 @@ import (
 
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/txscript"
+	"github.com/gcash/bchutil"
+
+	"github.com/smartbch/smartbch/param"
 )
 
 var (
@@ -68,6 +71,12 @@ var (
 		HexToBytes("02516d07ed1eadf9a19ac5b723c7030d913c01475e923c7d08c805312491debab3"),
 	}
 )
+
+func TestAddr(t *testing.T) {
+	addr, err := bchutil.NewAddressPubKeyHash(gethcmn.FromHex(param.GenesisCovenantAddress), &chaincfg.TestNet3Params)
+	require.NoError(t, err)
+	require.Equal(t, "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqjxspejcpnvc", addr.EncodeAddress())
+}
 
 func Test_GetP2SHAddr(t *testing.T) {
 	c, err := NewCcCovenant(redeemScriptWithoutConstructorArgs, operatorPks, monitorPks, 2000, 34560, &chaincfg.TestNet3Params)
