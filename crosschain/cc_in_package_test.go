@@ -5,18 +5,33 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	mtypes "github.com/smartbch/moeingevm/types"
-	"github.com/stretchr/testify/require"
-
 	ccabi "github.com/smartbch/smartbch/crosschain/abi"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
+
+func TestSelectors(t *testing.T) {
+	require.Equal(t, getSelector("redeem(uint256,uint256,address)"), SelectorRedeem)
+	require.Equal(t, getSelector("startRescan(uint256)"), SelectorStartRescan)
+	require.Equal(t, getSelector("handleUTXOs()"), SelectorHandleUTXOs)
+	require.Equal(t, getSelector("pause()"), SelectorPause)
+	require.Equal(t, getSelector("resume()"), SelectorResume)
+}
+
+func getSelector(funcSig string) (sel [4]byte) {
+	h := crypto.Keccak256Hash([]byte(funcSig))
+	copy(sel[:], h[:])
+	return
+}
 
 func TestRedeem(t *testing.T) {
 	r := rabbit.NewRabbitStore(store.NewMockRootStore())
