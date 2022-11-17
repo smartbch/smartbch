@@ -72,6 +72,7 @@ var (
 	ErrBalanceNotEnough        = errors.New("balance is not enough")
 	ErrMustMonitor             = errors.New("only monitor")
 	ErrRescanNotFinish         = errors.New("rescan not finish ")
+	ErrRescanHeightInvalid     = errors.New("rescan height invalid ")
 	ErrUTXOAlreadyHandled      = errors.New("utxos in rescan already handled")
 	ErrUTXONotExist            = errors.New("utxo not exist")
 	ErrAmountNotMatch          = errors.New("redeem amount not match")
@@ -271,8 +272,13 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	if !context.UTXOAlreadyHandled {
 		logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
 	}
+	rescanHeight := uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
+	if rescanHeight <= context.RescanHeight {
+		outData = []byte(ErrRescanHeightInvalid.Error())
+		return
+	}
 	context.LastRescannedHeight = context.RescanHeight
-	context.RescanHeight = uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
+	context.RescanHeight = rescanHeight
 	context.RescanTime = currBlock.Timestamp
 	context.UTXOAlreadyHandled = false
 	oldPrevCovenantAddr := context.LastCovenantAddr
