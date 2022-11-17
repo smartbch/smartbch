@@ -73,9 +73,9 @@ var (
 )
 
 func TestAddr(t *testing.T) {
-	addr, err := bchutil.NewAddressPubKeyHash(gethcmn.FromHex(param.GenesisCovenantAddress), &chaincfg.TestNet3Params)
+	addr, err := bchutil.NewAddressScriptHashFromHash(gethcmn.FromHex(param.GenesisCovenantAddress), &chaincfg.TestNet3Params)
 	require.NoError(t, err)
-	require.Equal(t, "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqjxspejcpnvc", addr.EncodeAddress())
+	require.Equal(t, "pqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqjxsku0hxsh9", addr.EncodeAddress())
 }
 
 func Test_GetP2SHAddr(t *testing.T) {
