@@ -65,8 +65,8 @@ func (cc *CcTxParser) Refresh(prevCovenantAddr, currCovenantAddr common.Address)
 		outpointSet[txid] = index
 	}
 	cc.UtxoSet = outpointSet
-	cc.PrevCovenantAddress = prevCovenantAddr.String()
-	cc.CurrentCovenantAddress = currCovenantAddr.String()
+	cc.PrevCovenantAddress = strings.TrimPrefix(prevCovenantAddr.String(), "0x")
+	cc.CurrentCovenantAddress = strings.TrimPrefix(currCovenantAddr.String(), "0x")
 }
 
 func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
