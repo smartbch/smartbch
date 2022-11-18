@@ -504,6 +504,12 @@ func (backend *apiBackend) GetRedeemableUtxos() []*cctypes.UTXORecord {
 	return loadUtxoRecords(ctx, utxoIds)
 }
 
+func (backend *apiBackend) GetUtxos(utxoIds [][36]byte) []*cctypes.UTXORecord {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+	return loadUtxoRecords(ctx, utxoIds)
+}
+
 func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)

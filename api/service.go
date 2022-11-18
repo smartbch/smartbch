@@ -132,6 +132,7 @@ type BackendService interface {
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
 	GetRedeemableUtxos() []*cctypes.UTXORecord
 	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
+	GetUtxos(utxoIds [][36]byte) []*cctypes.UTXORecord
 	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetCcContext() *cctypes.CCContext

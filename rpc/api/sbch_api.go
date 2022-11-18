@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -54,6 +55,7 @@ type SbchAPI interface {
 	GetToBeConvertedUtxosForMonitors() *sbchrpctypes.UtxoInfos
 	GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
 	GetRedeemableUtxos() *sbchrpctypes.UtxoInfos
+	GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos
 	SetRpcKey(key string) error
 	GetRpcPubkey() (string, error)
 }
@@ -508,6 +510,22 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos
 func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
 	sbch.logger.Debug("sbch_getRedeemableUTXOs")
 	utxoRecords := sbch.backend.GetRedeemableUtxos()
+	utxoInfos := castUtxoRecords(utxoRecords)
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos
+}
+
+func (sbch sbchAPI) GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos {
+	sbch.logger.Debug("sbch_getCcUTXO")
+
+	var utxoId [36]byte
+	copy(utxoId[:32], txid)
+	binary.BigEndian.PutUint32(utxoId[32:], idx)
+
+	utxoRecords := sbch.backend.GetUtxos([][36]byte{utxoId})
 	utxoInfos := castUtxoRecords(utxoRecords)
 	infos := sbchrpctypes.UtxoInfos{
 		Infos: utxoInfos,
