@@ -3,6 +3,7 @@ package crosschain
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -434,6 +435,14 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 	c.Lock.RLock()
 	defer c.Lock.RUnlock()
 	fmt.Printf("handleTransferInfos inofs:%d\n", len(c.Infos))
+	for _, info := range c.Infos {
+		fmt.Println("txid:", hex.EncodeToString(info.UTXO.TxID[:]))
+		fmt.Println("vout:", info.UTXO.Index)
+		fmt.Println("amount:", hex.EncodeToString(info.UTXO.Amount[:]))
+		fmt.Println("type:", info.Type)
+		fmt.Println("receiver:", hex.EncodeToString(info.Receiver[:]))
+		fmt.Println("covenantAddress:", hex.EncodeToString(info.CovenantAddress[:]))
+	}
 	for _, info := range c.Infos {
 		switch info.Type {
 		case types.TransferType:
