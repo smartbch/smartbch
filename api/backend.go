@@ -450,7 +450,7 @@ func (backend *apiBackend) GetSeq(address common.Address) uint64 {
 }
 
 func (backend *apiBackend) GetPosVotes() map[[32]byte]*big.Int {
-	ctx := backend.app.GetRunTxContext()
+	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
 	return staking.GetPosVotes(ctx, param.XHedgeContractSequence)
