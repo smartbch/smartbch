@@ -2,7 +2,9 @@ package api
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"sync/atomic"
@@ -411,6 +413,7 @@ func (api *ethAPI) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 
 	tmTxHash, err := api.backend.SendRawTx(data)
 	if err != nil {
+		fmt.Printf("eth_sendRawTransaction err:%s\n", err.Error())
 		return tmTxHash, err
 	}
 
@@ -488,10 +491,10 @@ func (api *ethAPI) Call(args rpctypes.CallArgs, blockNrOrHash gethrpc.BlockNumbe
 	}
 
 	statusCode, retData := api.backend.Call(tx, from, height)
+	fmt.Printf("eth_call: statusCode:%d, retData:%s\n", statusCode, hex.EncodeToString(retData))
 	if !ebp.StatusIsFailure(statusCode) {
 		return retData, nil
 	}
-
 	return nil, toCallErr(statusCode, retData)
 }
 

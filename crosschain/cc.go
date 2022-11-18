@@ -241,19 +241,23 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	if tx.Gas < GasOfCCOp {
+		fmt.Printf("startrescan bas gas:%d\n", tx.Gas)
 		outData = []byte(ErrOutOfGas.Error())
 		return
 	}
 	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
+		fmt.Printf("startrescan not zero value\n")
 		outData = []byte(ErrNonPayable.Error())
 		return
 	}
 	callData := tx.Data[4:]
 	if len(callData) < 32 {
+		fmt.Printf("startrescan bad calldata\n")
 		outData = []byte(ErrInvalidCallData.Error())
 		return
 	}
 	if !c.Voter.IsMonitor(ctx, tx.From) {
+		fmt.Printf("startrescan not monitor\n")
 		outData = []byte(ErrMustMonitor.Error())
 		return
 	}
@@ -262,18 +266,22 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 		panic("cc context is nil")
 	}
 	if isPaused(context) {
+		fmt.Printf("startrescan paused\n")
 		outData = []byte(ErrCCPaused.Error())
 		return
 	}
 	if context.RescanTime+UTXOHandleDelay > currBlock.Timestamp {
+		fmt.Printf("startrescan context.RescanTime+UTXOHandleDelay > currBlock.Timestamp, rescantime:%d\n", context.RescanTime)
 		outData = []byte(ErrRescanNotFinish.Error())
 		return
 	}
 	if !context.UTXOAlreadyHandled {
+		fmt.Printf("context.UTXOAlreadyHandled is false\n")
 		logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
 	}
 	rescanHeight := uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
 	if rescanHeight <= context.RescanHeight {
+		fmt.Printf("rescanHeight <= context.RescanHeight, rescanHeight:%d,context.RescanHeight:%d\n", rescanHeight, context.RescanHeight)
 		outData = []byte(ErrRescanHeightInvalid.Error())
 		return
 	}
