@@ -68,7 +68,6 @@ var (
 
 type IApp interface {
 	ChainID() *uint256.Int
-	GetRunTxContext() *types.Context
 	GetRpcContext() *types.Context
 	GetRpcContextAtHeight(height int64) *types.Context
 	GetHistoryOnlyContext() *types.Context
