@@ -78,13 +78,13 @@ var (
 	//slot
 	SlotStakingInfo               = strings.Repeat(string([]byte{0}), 32)
 	SlotAllBurnt                  = strings.Repeat(string([]byte{0}), 31) + string([]byte{1})
-	SlotMinGasPrice               = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
+	SlotMinGasPriceInBlock        = strings.Repeat(string([]byte{0}), 31) + string([]byte{2})
 	SlotLastMinGasPrice           = strings.Repeat(string([]byte{0}), 31) + string([]byte{3})
 	SlotMinGasPriceProposalTarget = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
 	SlotVoters                    = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
 
 	// slot in hex
-	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotMinGasPrice))
+	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotLastMinGasPrice))
 
 	votingSlotHashPrefix = [4]byte{'v', 'o', 't', 'e'}
 )
@@ -686,7 +686,7 @@ func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
 	if isLast {
 		bz = ctx.GetStorageAt(StakingContractSequence, SlotLastMinGasPrice)
 	} else {
-		bz = ctx.GetStorageAt(StakingContractSequence, SlotMinGasPrice)
+		bz = ctx.GetStorageAt(StakingContractSequence, SlotMinGasPriceInBlock)
 	}
 	if len(bz) == 0 {
 		return DefaultMinGasPrice
@@ -694,14 +694,14 @@ func LoadMinGasPrice(ctx *mevmtypes.Context, isLast bool) uint64 {
 	return binary.BigEndian.Uint64(bz)
 }
 
-// In this file, only SlotMinGasPrice is written. In refresh of app.go, SlotMinGasPrice is copied to SlotLastMinGasPrice
+// In this file, only SlotMinGasPriceInBlock is written. In refresh of app.go, SlotMinGasPriceInBlock is copied to SlotLastMinGasPrice
 func SaveMinGasPrice(ctx *mevmtypes.Context, minGP uint64, isLast bool) {
 	var b [8]byte
 	binary.BigEndian.PutUint64(b[:], minGP)
 	if isLast {
 		ctx.SetStorageAt(StakingContractSequence, SlotLastMinGasPrice, b[:])
 	} else {
-		ctx.SetStorageAt(StakingContractSequence, SlotMinGasPrice, b[:])
+		ctx.SetStorageAt(StakingContractSequence, SlotMinGasPriceInBlock, b[:])
 	}
 }
 
