@@ -29,12 +29,13 @@ const (
 
 	E18 uint64 = 1000_000_000_000_000_000
 	E17 uint64 = 100_000_000_000_000_000
+	E14 uint64 = 100_000_000_000_000_000
 )
 
 var (
-	MaxCCAmount           uint64 = 1000
-	MinCCAmount           uint64 = 1
-	MinPendingBurningLeft uint64 = 1
+	MaxCCAmount           uint64 = 1000    // 0.1BCH
+	MinCCAmount           uint64 = 10      // 0.001BCH
+	MinPendingBurningLeft uint64 = 1       // 0.0001BCH
 	MatureTime            int64  = 1       // 24h
 	ForceTransferTime     int64  = 60 * 60 // 6m
 )
@@ -461,8 +462,10 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	}
 	amount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
-	maxAmount := uint256.NewInt(0).Mul(uint256.NewInt(MaxCCAmount), uint256.NewInt(E18))
-	minAmount := uint256.NewInt(0).Mul(uint256.NewInt(MinCCAmount), uint256.NewInt(E18))
+	//maxAmount := uint256.NewInt(0).Mul(uint256.NewInt(MaxCCAmount), uint256.NewInt(E18))
+	//minAmount := uint256.NewInt(0).Mul(uint256.NewInt(MinCCAmount), uint256.NewInt(E18))
+	maxAmount := uint256.NewInt(0).Mul(uint256.NewInt(MaxCCAmount), uint256.NewInt(E14))
+	minAmount := uint256.NewInt(0).Mul(uint256.NewInt(MinCCAmount), uint256.NewInt(E14))
 	if amount.Gt(maxAmount) {
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
@@ -471,7 +474,8 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 	} else if amount.Lt(minAmount) {
 		pendingBurning, _, totalBurntOnMain := getBurningRelativeData(ctx, context)
 		//todo: change for test
-		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E17))
+		//minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E17))
+		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E14))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
