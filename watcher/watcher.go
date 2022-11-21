@@ -23,6 +23,7 @@ import (
 const (
 	waitingBlockDelayTime     = 2
 	monitorInfoCleanThreshold = 5
+	blockFinalizeNumber       = 1 // 1 for test, 9 for product
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
@@ -126,9 +127,9 @@ func (watcher *Watcher) Run(catchupChan chan bool) {
 func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight, latestMainnetHeight int64) {
 	catchup := false
 	for {
-		if !catchup && latestMainnetHeight <= latestFinalizedHeight+9 {
+		if !catchup && latestMainnetHeight <= latestFinalizedHeight+blockFinalizeNumber {
 			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-			if latestMainnetHeight <= latestFinalizedHeight+9 {
+			if latestMainnetHeight <= latestFinalizedHeight+blockFinalizeNumber {
 				watcher.logger.Debug("Catchup")
 				catchup = true
 				catchupChan <- true
@@ -138,15 +139,15 @@ func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight
 		latestFinalizedHeight++
 		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
 		//10 confirms
-		if latestMainnetHeight < latestFinalizedHeight+9 {
+		if latestMainnetHeight < latestFinalizedHeight+blockFinalizeNumber {
 			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 			latestFinalizedHeight--
 			continue
 		}
-		for latestFinalizedHeight+9 <= latestMainnetHeight {
+		for latestFinalizedHeight+blockFinalizeNumber <= latestMainnetHeight {
 			fmt.Printf("latestFinalizedHeight:%d,latestMainnetHeight:%d\n", latestFinalizedHeight, latestMainnetHeight)
-			if latestFinalizedHeight+9+int64(watcher.parallelNum) <= latestMainnetHeight {
+			if latestFinalizedHeight+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
 				watcher.parallelFetchBlocks(latestFinalizedHeight)
 				latestFinalizedHeight += int64(watcher.parallelNum)
 			} else {
@@ -390,7 +391,7 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		watcher.CcContractExecutor.Lock.Lock()
 		watcher.CcContractExecutor.Infos = nil
 		var infos []*cctypes.CCTransferInfo
-		blocks := watcher.getBCHBlocks(collectInfo.BeginHeight, collectInfo.EndHeight)
+		blocks := watcher.getFinalizedBCHBlocks(collectInfo.BeginHeight, collectInfo.EndHeight)
 		watcher.txParser.Refresh(collectInfo.PrevCovenantAddress, collectInfo.CurrentCovenantAddress)
 		for _, bi := range blocks {
 			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
@@ -399,6 +400,19 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		watcher.CcContractExecutor.Infos = infos
 		watcher.CcContractExecutor.Lock.Unlock()
 	}
+}
+
+func (watcher *Watcher) getFinalizedBCHBlocks(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
+	if startHeight >= endHeight {
+		watcher.logger.Debug("wrong startHeight and endHeight", "startHeight", startHeight, "endHeight", endHeight)
+		return nil
+	}
+	latestHeight := watcher.rpcClient.GetLatestHeight(true)
+	for latestHeight < endHeight+blockFinalizeNumber {
+		time.Sleep(30 * time.Second)
+		latestHeight = watcher.rpcClient.GetLatestHeight(true)
+	}
+	return watcher.getBCHBlocks(startHeight, endHeight)
 }
 
 // (startHeight, endHeight]

@@ -65,16 +65,18 @@ var (
 	GasOfCCOp               uint64 = 400_000
 	GasOfLostAndFoundRedeem uint64 = 4000_000
 
-	UTXOHandleDelay              int64 = 3 // For test
-	ExpectedRedeemSignTimeDelay  int64 = 1 // For test
-	ExpectedConvertSignTimeDelay int64 = 3 // For test
+	UTXOHandleDelay              int64  = 3    // For test
+	ExpectedRedeemSignTimeDelay  int64  = 1    // For test
+	ExpectedConvertSignTimeDelay int64  = 3    // For test
+	MaxRescanBlockInterval       uint64 = 1000 // mainnet blocks
 
 	ErrInvalidCallData         = errors.New("invalid call data")
 	ErrInvalidSelector         = errors.New("invalid selector")
 	ErrBalanceNotEnough        = errors.New("balance is not enough")
 	ErrMustMonitor             = errors.New("only monitor")
 	ErrRescanNotFinish         = errors.New("rescan not finish ")
-	ErrRescanHeightInvalid     = errors.New("rescan height invalid ")
+	ErrRescanHeightTooSmall    = errors.New("rescan height too small")
+	ErrRescanHeightTooBig      = errors.New("rescan height too big")
 	ErrUTXOAlreadyHandled      = errors.New("utxos in rescan already handled")
 	ErrUTXONotExist            = errors.New("utxo not exist")
 	ErrAmountNotMatch          = errors.New("redeem amount not match")
@@ -277,15 +279,20 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 		outData = []byte(ErrRescanNotFinish.Error())
 		return
 	}
+	rescanHeight := uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
+	if rescanHeight <= context.RescanHeight {
+		c.logger.Debug("rescanHeight <= context.RescanHeight", "rescanHeight", rescanHeight, "context.RescanHeight", context.RescanHeight)
+		outData = []byte(ErrRescanHeightTooSmall.Error())
+		return
+	}
+	if rescanHeight >= context.RescanHeight+MaxRescanBlockInterval {
+		c.logger.Debug("rescanHeight >= context.RescanHeight + MaxRescanBlockInterval", "rescanHeight", rescanHeight, "context.RescanHeight", context.RescanHeight)
+		outData = []byte(ErrRescanHeightTooBig.Error())
+		return
+	}
 	if !context.UTXOAlreadyHandled {
 		fmt.Printf("context.UTXOAlreadyHandled is false\n")
 		logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
-	}
-	rescanHeight := uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
-	if rescanHeight <= context.RescanHeight {
-		fmt.Printf("rescanHeight <= context.RescanHeight, rescanHeight:%d,context.RescanHeight:%d\n", rescanHeight, context.RescanHeight)
-		outData = []byte(ErrRescanHeightInvalid.Error())
-		return
 	}
 	context.LastRescannedHeight = context.RescanHeight
 	context.RescanHeight = rescanHeight
