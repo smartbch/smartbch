@@ -28,6 +28,7 @@ type CcInfo struct {
 	LastRescannedHeight uint64          `json:"lastRescannedHeight"`
 	RescannedHeight     uint64          `json:"rescannedHeight"`
 	RescanTime          int64           `json:"rescanTime"`
+	UTXOAlreadyHandled  bool            `json:"utxoAlreadyHandled"`
 	Signature           hexutil.Bytes   `json:"signature"`
 }
 

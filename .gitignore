@@ -36,3 +36,5 @@ app/stresstest/stresstest
 testdbdata/
 keys*.txt
 cmd/stresstest/stresstest
+*.un~
+*.go~
