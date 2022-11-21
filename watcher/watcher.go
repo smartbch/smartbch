@@ -150,25 +150,26 @@ func (watcher *Watcher) fetchBlocks() {
 		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
 			watcher.logger.Debug("block fetch info", "latestFinalizedHeight", watcher.latestFinalizedHeight, "latestMainnetHeight", latestMainnetHeight)
 			if heightWanted+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
-				watcher.parallelFetchBlocks(heightWanted)
+				watcher.parallelFetchBlocks(heightWanted, latestMainnetHeight)
+				heightWanted = latestMainnetHeight
 			} else {
 				watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
+				heightWanted = watcher.latestFinalizedHeight + 1
 			}
-			heightWanted = watcher.latestFinalizedHeight + 1
 		}
 	}
 }
 
-func (watcher *Watcher) parallelFetchBlocks(heightWanted int64) {
+func (watcher *Watcher) parallelFetchBlocks(heightStart, heightEnd int64) {
 	var blockSet = make([]*types.BCHBlock, watcher.parallelNum)
 	sharedIdx := int64(-1)
 	datatree.ParallelRun(watcher.parallelNum, func(_ int) {
 		for {
 			index := atomic.AddInt64(&sharedIdx, 1)
-			if index >= int64(watcher.parallelNum) {
+			if heightStart+index > heightEnd {
 				break
 			}
-			blockSet[index] = watcher.rpcClient.GetBlockByHeight(heightWanted+index, true)
+			blockSet[index] = watcher.rpcClient.GetBlockByHeight(heightStart+index, true)
 		}
 	})
 	for _, blk := range blockSet {
