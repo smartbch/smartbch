@@ -244,12 +244,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.SetCCExecutor(ccExecutor)
 	app.watcher.CheckSanity(skipSanityCheck)
-	catchupChan := make(chan bool, 1)
-	go app.watcher.Run(catchupChan)
+	go app.watcher.Run()
 	if ctx.IsShaGateFork() {
 		crosschain.RestartUTXOCollect(ctx, app.watcher.CcContractExecutor.StartUTXOCollect)
 	}
-	<-catchupChan
+	app.watcher.WaitCatchup()
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	if app.currHeight != 0 { // restart postCommit
 		app.mtx.Lock()

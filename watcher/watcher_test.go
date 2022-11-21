@@ -142,9 +142,8 @@ func TestRun(t *testing.T) {
 	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w.rpcClient = client
-	catchupChan := make(chan bool, 1)
-	go w.Run(catchupChan)
-	<-catchupChan
+	go w.Run()
+	w.WaitCatchup()
 	time.Sleep(1 * time.Second)
 	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
 	require.Equal(t, 91, len(w.heightToFinalizedBlock))
@@ -159,9 +158,8 @@ func TestRunWithNewEpoch(t *testing.T) {
 	}
 	numBlocksInEpoch := 10
 	w.SetNumBlocksInEpoch(int64(numBlocksInEpoch))
-	catchupChan := make(chan bool, 1)
-	go w.Run(catchupChan)
-	<-catchupChan
+	go w.Run()
+	w.WaitCatchup()
 	go c.consume()
 	time.Sleep(3 * time.Second)
 	//test watcher clear
@@ -179,9 +177,8 @@ func TestRunWithFork(t *testing.T) {
 	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
 	w.SetNumBlocksInEpoch(1000)
-	catchupChan := make(chan bool, 1)
-	go w.Run(catchupChan)
-	<-catchupChan
+	go w.Run()
+	w.WaitCatchup()
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))
 	require.Equal(t, 91, len(w.heightToFinalizedBlock))
@@ -216,7 +213,7 @@ func TestGetBCHBlocks(t *testing.T) {
 	for i := int64(0); i < 100; i++ {
 		c.SetBlockInfoByHeight(i, &types.BlockInfo{Height: i})
 	}
-	blks := w.getBCHBlocks(0, 30)
+	blks := w.getBCHBlockInfos(0, 30)
 	require.Equal(t, 30, len(blks))
 	for k, blk := range blks {
 		require.Equal(t, int64(k+1), blk.Height)

@@ -2,10 +2,8 @@ package watcher
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"sort"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -37,6 +35,8 @@ type Watcher struct {
 	latestFinalizedHeight int64
 
 	heightToFinalizedBlock map[int64]*types.BCHBlock
+
+	catchupChan chan bool
 
 	EpochChan chan *stakingtypes.Epoch
 	epochList []*stakingtypes.Epoch
@@ -72,6 +72,8 @@ func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnown
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
 		lastKnownEpochNum:     lastKnownEpochNum,
+
+		catchupChan: make(chan bool, 1),
 
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 
@@ -110,82 +112,72 @@ func (watcher *Watcher) SetWaitingBlockDelayTime(n int) {
 	watcher.waitingBlockDelayTime = n
 }
 
+func (watcher *Watcher) WaitCatchup() {
+	<-watcher.catchupChan
+}
+
 // The main function to do a watcher's job. It must be run as a goroutine
-func (watcher *Watcher) Run(catchupChan chan bool) {
+func (watcher *Watcher) Run() {
 	if watcher.rpcClient == (*RpcClient)(nil) {
-		//for ut
-		catchupChan <- true
+		watcher.catchupChan <- true // for ut
 		return
 	}
-	latestFinalizedHeight := watcher.latestFinalizedHeight
-	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
-	latestFinalizedHeight = watcher.speedup(latestFinalizedHeight, latestMainnetHeight)
+	watcher.speedup()
 	go watcher.CollectCCTransferInfos()
-	watcher.fetchBlocks(catchupChan, latestFinalizedHeight, latestMainnetHeight)
+	watcher.fetchBlocks()
 }
 
-func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight, latestMainnetHeight int64) {
+func (watcher *Watcher) fetchBlocks() {
 	catchup := false
+	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
+	heightWanted := watcher.latestFinalizedHeight + 1
 	for {
-		if !catchup && latestMainnetHeight <= latestFinalizedHeight+blockFinalizeNumber {
+		if !catchup && latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
 			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-			if latestMainnetHeight <= latestFinalizedHeight+blockFinalizeNumber {
+			if latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
 				watcher.logger.Debug("Catchup")
 				catchup = true
-				catchupChan <- true
-				close(catchupChan)
+				close(watcher.catchupChan)
 			}
 		}
-		latestFinalizedHeight++
 		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
 		//10 confirms
-		if latestMainnetHeight < latestFinalizedHeight+blockFinalizeNumber {
+		if latestMainnetHeight < heightWanted+blockFinalizeNumber {
 			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
-			latestFinalizedHeight--
 			continue
 		}
-		for latestFinalizedHeight+blockFinalizeNumber <= latestMainnetHeight {
-			fmt.Printf("latestFinalizedHeight:%d,latestMainnetHeight:%d\n", latestFinalizedHeight, latestMainnetHeight)
-			if latestFinalizedHeight+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
-				watcher.parallelFetchBlocks(latestFinalizedHeight)
-				latestFinalizedHeight += int64(watcher.parallelNum)
+		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
+			watcher.logger.Debug("block fetch info", "latestFinalizedHeight", watcher.latestFinalizedHeight, "latestMainnetHeight", latestMainnetHeight)
+			if heightWanted+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
+				watcher.parallelFetchBlocks(heightWanted)
 			} else {
-				blk := watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight, true)
-				if blk == nil {
-					//todo: panic it
-					fmt.Printf("get block:%d failed\n", latestFinalizedHeight)
-					latestFinalizedHeight--
-					continue
-				}
-				watcher.addFinalizedBlock(blk)
-				latestFinalizedHeight++
+				watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
 			}
+			heightWanted = watcher.latestFinalizedHeight + 1
 		}
-		latestFinalizedHeight--
 	}
 }
 
-func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
-	fmt.Printf("begin paralell fetch blocks\n")
+func (watcher *Watcher) parallelFetchBlocks(heightWanted int64) {
 	var blockSet = make([]*types.BCHBlock, watcher.parallelNum)
-	var w sync.WaitGroup
-	w.Add(watcher.parallelNum)
-	for i := 0; i < watcher.parallelNum; i++ {
-		go func(index int) {
-			blockSet[index] = watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight+int64(index), true)
-			w.Done()
-		}(i)
-	}
-	w.Wait()
-	fmt.Printf("after paralell fetch blocks\n")
+	sharedIdx := int64(-1)
+	datatree.ParallelRun(watcher.parallelNum, func(_ int) {
+		for {
+			index := atomic.AddInt64(&sharedIdx, 1)
+			if index >= int64(watcher.parallelNum) {
+				break
+			}
+			blockSet[index] = watcher.rpcClient.GetBlockByHeight(heightWanted+index, true)
+		}
+	})
 	for _, blk := range blockSet {
 		watcher.addFinalizedBlock(blk)
 	}
-	watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
+	watcher.logger.Debug("Get bch mainnet blocks parallel", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 }
 
-func (watcher *Watcher) speedup(latestFinalizedHeight, latestMainnetHeight int64) int64 {
+func (watcher *Watcher) speedup() {
 	if watcher.chainConfig.AppConfig.Speedup {
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
@@ -202,14 +194,13 @@ func (watcher *Watcher) speedup(latestFinalizedHeight, latestMainnetHeight int64
 					watcher.MonitorVoteChan <- &in.MonitorVote
 				}
 			}
-			latestFinalizedHeight += int64(len(infos)) * watcher.numBlocksInEpoch
+			watcher.latestFinalizedHeight += int64(len(infos)) * watcher.numBlocksInEpoch
 			start = start + uint64(len(infos))
 		}
-		watcher.latestFinalizedHeight = latestFinalizedHeight
-		watcher.lastEpochEndHeight = latestFinalizedHeight
+		watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
-	return latestFinalizedHeight
+	return
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {
@@ -373,12 +364,11 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 	var latestEndHeight int64
 	for {
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
-			fmt.Printf("watcher.latestFinalizedHeight:%d,param.StartMainnetHeightForCC:%d\n", watcher.latestFinalizedHeight, param.StartMainnetHeightForCC)
+			watcher.logger.Debug("watcher.latestFinalizedHeight:%d,param.StartMainnetHeightForCC:%d\n", watcher.latestFinalizedHeight, param.StartMainnetHeightForCC)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		if watcher.CcContractExecutor == nil {
-
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -391,18 +381,18 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		watcher.CcContractExecutor.Lock.Lock()
 		watcher.CcContractExecutor.Infos = nil
 		var infos []*cctypes.CCTransferInfo
-		blocks := watcher.getFinalizedBCHBlocks(collectInfo.BeginHeight, collectInfo.EndHeight)
+		blocks := watcher.getFinalizedBCHBlockInfos(collectInfo.BeginHeight, collectInfo.EndHeight)
 		watcher.txParser.Refresh(collectInfo.PrevCovenantAddress, collectInfo.CurrentCovenantAddress)
 		for _, bi := range blocks {
 			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
 		}
-		fmt.Printf("collect infos, len:%d\n", len(infos))
+		watcher.logger.Debug("collect cc infos", "length", len(infos))
 		watcher.CcContractExecutor.Infos = infos
 		watcher.CcContractExecutor.Lock.Unlock()
 	}
 }
 
-func (watcher *Watcher) getFinalizedBCHBlocks(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
+func (watcher *Watcher) getFinalizedBCHBlockInfos(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
 	if startHeight >= endHeight {
 		watcher.logger.Debug("wrong startHeight and endHeight", "startHeight", startHeight, "endHeight", endHeight)
 		return nil
@@ -412,11 +402,11 @@ func (watcher *Watcher) getFinalizedBCHBlocks(startHeight, endHeight int64) (blo
 		time.Sleep(30 * time.Second)
 		latestHeight = watcher.rpcClient.GetLatestHeight(true)
 	}
-	return watcher.getBCHBlocks(startHeight, endHeight)
+	return watcher.getBCHBlockInfos(startHeight, endHeight)
 }
 
 // (startHeight, endHeight]
-func (watcher *Watcher) getBCHBlocks(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
+func (watcher *Watcher) getBCHBlockInfos(startHeight, endHeight int64) (blocks []*types.BlockInfo) {
 	blocks = make([]*types.BlockInfo, endHeight-startHeight)
 	sharedIdx := startHeight
 	datatree.ParallelRun(10, func(_ int) {
