@@ -356,6 +356,7 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 		info.LastRescannedHeight = ctx.LastRescannedHeight
 		info.RescannedHeight = ctx.RescanHeight
 		info.RescanTime = ctx.RescanTime
+		info.UTXOAlreadyHandled = ctx.UTXOAlreadyHandled
 	}
 	key := sbch.backend.GetRpcPrivateKey()
 	if key != nil {
