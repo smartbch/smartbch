@@ -64,9 +64,9 @@ func NewCcCovenant(
 	net *chaincfg.Params,
 ) (*CcCovenant, error) {
 
-	//if err := checkPks(operatorPks, monitorPks); err != nil {
-	//	return nil, err
-	//}
+	if err := checkPks(operatorPks, monitorPks); err != nil {
+		return nil, err
+	}
 	ccc := &CcCovenant{
 		redeemScriptWithoutConstructorArgs: redeemScriptWithoutConstructorArgs,
 		operatorPks:                        operatorPks,
