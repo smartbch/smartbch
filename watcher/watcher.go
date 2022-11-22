@@ -400,7 +400,7 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		if collectParam == nil {
 			continue
 		}
-		if collectParam.EndHeight == latestEndHeight {
+		if collectParam.EndHeight == latestEndHeight || collectParam.BeginHeight == 0 {
 			continue
 		}
 		latestEndHeight = collectParam.EndHeight
