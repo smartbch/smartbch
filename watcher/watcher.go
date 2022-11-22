@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartbch/moeingads/datatree"
 	modbtypes "github.com/smartbch/moeingdb/types"
+	evmtypes "github.com/smartbch/moeingevm/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/smartbch/crosschain"
@@ -23,6 +24,10 @@ const (
 	monitorInfoCleanThreshold = 5
 	blockFinalizeNumber       = 1 // 1 for test, 9 for product
 )
+
+type IContextGetter interface {
+	GetRpcContext() *evmtypes.Context
+}
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
 // outputs epoch information through a channel
@@ -60,6 +65,8 @@ type Watcher struct {
 	//executors
 	CcContractExecutor *crosschain.CcContractExecutor
 	txParser           types.CcTxParser
+
+	contextGetter IContextGetter
 }
 
 func NewWatcher(logger log.Logger, historyDB modbtypes.DB, lastHeight, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
@@ -104,6 +111,10 @@ func (watcher *Watcher) SetCCExecutor(exe *crosschain.CcContractExecutor) {
 	watcher.CcContractExecutor = exe
 }
 
+func (watcher *Watcher) SetContextGetter(getter IContextGetter) {
+	watcher.contextGetter = getter
+}
+
 func (watcher *Watcher) SetNumBlocksInEpoch(n int64) {
 	watcher.numBlocksInEpoch = n
 }
@@ -123,7 +134,9 @@ func (watcher *Watcher) Run() {
 		return
 	}
 	watcher.speedup()
-	go watcher.CollectCCTransferInfos()
+	if !param.IsAmber {
+		go watcher.CollectCCTransferInfos()
+	}
 	watcher.fetchBlocks()
 }
 
@@ -357,33 +370,47 @@ func (watcher *Watcher) ClearOldData() {
 	}
 }
 
+func (watcher *Watcher) getUTXOCollectParam() *cctypes.UTXOCollectParam {
+	ctx := watcher.contextGetter.GetRpcContext()
+	ccContext := crosschain.LoadCCContext(ctx)
+	if ccContext == nil {
+		return nil
+	}
+	return &cctypes.UTXOCollectParam{
+		BeginHeight:            int64(ccContext.LastRescannedHeight),
+		EndHeight:              int64(ccContext.RescanHeight),
+		CurrentCovenantAddress: ccContext.CurrCovenantAddr,
+		PrevCovenantAddress:    ccContext.LastCovenantAddr,
+	}
+}
+
 func (watcher *Watcher) CollectCCTransferInfos() {
 	var latestEndHeight int64
 	for {
+		time.Sleep(10 * time.Second)
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
 			watcher.logger.Debug("watcher.latestFinalizedHeight:%d,param.StartMainnetHeightForCC:%d\n", watcher.latestFinalizedHeight, param.StartMainnetHeightForCC)
-			time.Sleep(5 * time.Second)
 			continue
 		}
 		if watcher.CcContractExecutor == nil {
-			time.Sleep(1 * time.Second)
 			continue
 		}
-		collectInfo := <-watcher.CcContractExecutor.StartUTXOCollect
-		watcher.logger.Debug("collect cc infos", "BeginHeight", collectInfo.BeginHeight, "EndHeight", collectInfo.EndHeight)
-		if collectInfo.EndHeight == latestEndHeight {
+		collectParam := watcher.getUTXOCollectParam()
+		if collectParam == nil {
 			continue
 		}
-		latestEndHeight = collectInfo.EndHeight
-		watcher.CcContractExecutor.Lock.Lock()
-		watcher.CcContractExecutor.Infos = nil
+		if collectParam.EndHeight == latestEndHeight {
+			continue
+		}
+		latestEndHeight = collectParam.EndHeight
 		var infos []*cctypes.CCTransferInfo
-		blocks := watcher.getFinalizedBCHBlockInfos(collectInfo.BeginHeight, collectInfo.EndHeight)
-		watcher.txParser.Refresh(collectInfo.PrevCovenantAddress, collectInfo.CurrentCovenantAddress)
+		blocks := watcher.getFinalizedBCHBlockInfos(collectParam.BeginHeight, collectParam.EndHeight)
+		watcher.txParser.Refresh(collectParam.PrevCovenantAddress, collectParam.CurrentCovenantAddress)
 		for _, bi := range blocks {
 			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
 		}
-		watcher.logger.Debug("collect cc infos", "length", len(infos))
+		watcher.logger.Debug("collect cc infos", "BeginHeight", collectParam.BeginHeight, "EndHeight", collectParam.EndHeight, "length", len(infos))
+		watcher.CcContractExecutor.Lock.Lock()
 		watcher.CcContractExecutor.Infos = infos
 		watcher.CcContractExecutor.Lock.Unlock()
 	}

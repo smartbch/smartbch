@@ -244,6 +244,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
 	app.watcher.SetCCExecutor(ccExecutor)
 	app.watcher.CheckSanity(skipSanityCheck)
+	app.watcher.SetContextGetter(app)
 	go app.watcher.Run()
 	if ctx.IsShaGateFork() {
 		crosschain.RestartUTXOCollect(ctx, app.watcher.CcContractExecutor.StartUTXOCollect)
