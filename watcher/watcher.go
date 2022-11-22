@@ -149,7 +149,7 @@ func (watcher *Watcher) fetchBlocks() {
 			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 		} else if latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
-			watcher.logger.Debug("AlreadyCatchedUp")
+			watcher.logger.Debug("AlreadyCaughtUp")
 			catchedUp = true
 			close(watcher.catchupChan)
 		}
@@ -157,7 +157,7 @@ func (watcher *Watcher) fetchBlocks() {
 }
 
 func (watcher *Watcher) parallelFetchBlocks(heightStart, heightEnd int64) {
-	var blockSet = make([]*types.BCHBlock, heightEnd - heightStart)
+	var blockSet = make([]*types.BCHBlock, heightEnd-heightStart+1)
 	sharedIdx := int64(-1)
 	datatree.ParallelRun(watcher.parallelNum, func(_ int) {
 		for {
