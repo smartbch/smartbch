@@ -139,7 +139,15 @@ func (watcher *Watcher) fetchBlocks() {
 	}
 	// normal catchup
 	for {
-		if !catchup && latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
+		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
+		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
+			watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
+			heightWanted++
+		}
+		if catchup {
+			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
+			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
+		} else {
 			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
 			if latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
 				watcher.logger.Debug("Catchup")
@@ -147,13 +155,6 @@ func (watcher *Watcher) fetchBlocks() {
 				close(watcher.catchupChan)
 			}
 		}
-		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
-			watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
-			heightWanted++
-		}
-		watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
-		watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 	}
 }
 
