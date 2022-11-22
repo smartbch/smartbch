@@ -475,6 +475,12 @@ func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos
 		return nil, errors.New("not match expected convert sign delay")
 	}
 
+	if len(utxoRecords) == 0 {
+		infos := sbchrpctypes.UtxoInfos{}
+		infos.Signature = sbch.signUtxoInfos(infos.Infos)
+		return &infos, nil
+	}
+
 	oldOperatorPubkeys, oldMonitorPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
 	newOperatorPubkeys, newMonitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
 	ccc, err := covenant.NewDefaultCcCovenant(oldOperatorPubkeys, oldMonitorPubkeys)
