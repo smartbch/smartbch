@@ -372,6 +372,7 @@ func (watcher *Watcher) ClearOldData() {
 
 func (watcher *Watcher) getUTXOCollectParam() *cctypes.UTXOCollectParam {
 	ctx := watcher.contextGetter.GetRpcContext()
+	defer ctx.Close(false)
 	ccContext := crosschain.LoadCCContext(ctx)
 	if ccContext == nil {
 		return nil
