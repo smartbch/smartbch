@@ -54,6 +54,7 @@ var (
 	SelectorHandleUTXOs [4]byte = [4]byte{0x9c, 0x44, 0x8e, 0xfe}
 	SelectorPause       [4]byte = [4]byte{0x84, 0x56, 0xcb, 0x59}
 	SelectorResume      [4]byte = [4]byte{0x04, 0x6f, 0x7d, 0xa2}
+	SelectorReset       [4]byte = [4]byte{0xd8, 0x26, 0xf8, 0x8f}
 
 	HashOfEventNewRedeemable   = crypto.Keccak256Hash([]byte("NewRedeemable(uint256,uint32,address)"))
 	HashOfEventNewLostAndFound = crypto.Keccak256Hash([]byte("NewLostAndFound(uint256,uint32,address)"))
@@ -170,6 +171,8 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 	case SelectorHandleUTXOs:
 		// func handleUTXOs()
 		return c.handleUTXOs(ctx, currBlock, tx)
+	case SelectorReset:
+		return c.debugReset(ctx)
 	default:
 		status = StatusFailed
 		outData = []byte(ErrInvalidSelector.Error())
@@ -428,6 +431,24 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		return
 	}
 	logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
+	SaveCCContext(ctx, *context)
+	status = StatusSuccess
+	return
+}
+
+func (c *CcContractExecutor) debugReset(ctx *mevmtypes.Context) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+	context := LoadCCContext(ctx)
+	if context == nil {
+		panic("cc context is nil")
+	}
+
+	newAddr, err := c.Voter.GetCCCovenantP2SHAddr(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	context.LastCovenantAddr = context.CurrCovenantAddr
+	context.CurrCovenantAddr = newAddr
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
 	return
