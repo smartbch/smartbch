@@ -99,15 +99,15 @@ type CcContractExecutor struct {
 	Lock  sync.RWMutex
 	Infos []*types.CCTransferInfo
 
-	StartUTXOCollect chan types.UTXOCollectParam
-	logger           log.Logger
+	UTXOCollectDoneChan chan bool
+	logger              log.Logger
 }
 
 func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger:           logger,
-		Voter:            voter,
-		StartUTXOCollect: make(chan types.UTXOCollectParam),
+		logger:              logger,
+		Voter:               voter,
+		UTXOCollectDoneChan: make(chan bool),
 	}
 }
 
@@ -304,28 +304,16 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	logs = append(logs, c.handleOperatorOrMonitorSetChanged(ctx, currBlock, context)...)
 	SaveCCContext(ctx, *context)
 	c.logger.Debug("startRescan", "lastRescanHeight", context.LastRescannedHeight, "rescanHeight", context.RescanHeight)
-	c.StartUTXOCollect <- types.UTXOCollectParam{
-		BeginHeight:            int64(context.LastRescannedHeight),
-		EndHeight:              int64(context.RescanHeight),
-		CurrentCovenantAddress: oldCurrCovenantAddr,
-		PrevCovenantAddress:    oldPrevCovenantAddr,
-	}
 	status = StatusSuccess
 	return
 }
 
-func RestartUTXOCollect(ctx *mevmtypes.Context, collectChannel chan types.UTXOCollectParam) {
+func WaitUTXOCollectDone(ctx *mevmtypes.Context, collectDoneChannel chan bool) {
 	ccCTx := LoadCCContext(ctx)
 	if ccCTx.UTXOAlreadyHandled {
 		return
 	}
-	p := types.UTXOCollectParam{
-		BeginHeight:            int64(ccCTx.LastRescannedHeight),
-		EndHeight:              int64(ccCTx.RescanHeight),
-		CurrentCovenantAddress: ccCTx.CurrCovenantAddr,
-		PrevCovenantAddress:    ccCTx.LastCovenantAddr,
-	}
-	collectChannel <- p
+	<-collectDoneChannel
 }
 
 // pause() onlyMonitor

@@ -386,6 +386,7 @@ func (watcher *Watcher) getUTXOCollectParam() *cctypes.UTXOCollectParam {
 
 func (watcher *Watcher) CollectCCTransferInfos() {
 	var latestEndHeight int64
+	var initCollect = true
 	for {
 		time.Sleep(10 * time.Second)
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
@@ -413,6 +414,10 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		watcher.CcContractExecutor.Lock.Lock()
 		watcher.CcContractExecutor.Infos = infos
 		watcher.CcContractExecutor.Lock.Unlock()
+		if initCollect {
+			close(watcher.CcContractExecutor.UTXOCollectDoneChan)
+			initCollect = false
+		}
 	}
 }
 

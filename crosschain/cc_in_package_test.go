@@ -261,12 +261,8 @@ func TestStartRescan(t *testing.T) {
 	txData := ccabi.PackStartRescanFunc(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
-		Voter:            &MockVoteContract{IsM: true},
-		StartUTXOCollect: make(chan types.UTXOCollectParam),
+		Voter: &MockVoteContract{IsM: true},
 	}
-	go func(exe *CcContractExecutor) {
-		<-exe.StartUTXOCollect
-	}(&executor)
 	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			Data: txData,

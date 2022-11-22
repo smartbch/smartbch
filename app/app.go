@@ -247,7 +247,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.watcher.SetContextGetter(app)
 	go app.watcher.Run()
 	if ctx.IsShaGateFork() {
-		crosschain.RestartUTXOCollect(ctx, app.watcher.CcContractExecutor.StartUTXOCollect)
+		crosschain.WaitUTXOCollectDone(ctx, app.watcher.CcContractExecutor.UTXOCollectDoneChan)
 	}
 	app.watcher.WaitCatchup()
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
