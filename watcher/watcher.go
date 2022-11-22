@@ -140,7 +140,7 @@ func (watcher *Watcher) fetchBlocks() {
 	// normal catchup
 	for {
 		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-		for heightWanted+blockFinalizeNumber < latestMainnetHeight {
+		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
 			watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
 			heightWanted++
 			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
@@ -148,7 +148,7 @@ func (watcher *Watcher) fetchBlocks() {
 		if catchedUp {
 			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
-		} else if latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
+		} else {
 			watcher.logger.Debug("AlreadyCaughtUp")
 			catchedUp = true
 			close(watcher.catchupChan)
