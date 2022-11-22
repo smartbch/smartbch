@@ -131,6 +131,13 @@ func (watcher *Watcher) fetchBlocks() {
 	catchup := false
 	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
 	heightWanted := watcher.latestFinalizedHeight + 1
+	// parallel fetch blocks when startup
+	if heightWanted+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
+		watcher.logger.Debug("block parallel fetch info", "latestFinalizedHeight", watcher.latestFinalizedHeight, "latestMainnetHeight", latestMainnetHeight)
+		watcher.parallelFetchBlocks(heightWanted, latestMainnetHeight-blockFinalizeNumber)
+		heightWanted = watcher.latestFinalizedHeight + 1
+	}
+	// normal catchup
 	for {
 		if !catchup && latestMainnetHeight <= watcher.latestFinalizedHeight+blockFinalizeNumber {
 			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
@@ -141,22 +148,12 @@ func (watcher *Watcher) fetchBlocks() {
 			}
 		}
 		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-		//10 confirms
-		if latestMainnetHeight < heightWanted+blockFinalizeNumber {
-			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
-			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
-			continue
-		}
 		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
-			watcher.logger.Debug("block fetch info", "latestFinalizedHeight", watcher.latestFinalizedHeight, "latestMainnetHeight", latestMainnetHeight)
-			if heightWanted+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
-				watcher.parallelFetchBlocks(heightWanted, latestMainnetHeight)
-				heightWanted = latestMainnetHeight
-			} else {
-				watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
-				heightWanted = watcher.latestFinalizedHeight + 1
-			}
+			watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
+			heightWanted++
 		}
+		watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
+		watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
 	}
 }
 
