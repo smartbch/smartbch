@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gcash/bchd/txscript"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gcash/bchd/chaincfg"
+	"github.com/gcash/bchd/txscript"
 	"github.com/gcash/bchutil"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingdb/types"
@@ -65,8 +65,11 @@ func (cc *CcTxParser) Refresh(prevCovenantAddr, currCovenantAddr common.Address)
 		outpointSet[txid] = index
 	}
 	cc.UtxoSet = outpointSet
-	cc.PrevCovenantAddress = strings.TrimPrefix(prevCovenantAddr.String(), "0x")
-	cc.CurrentCovenantAddress = strings.TrimPrefix(currCovenantAddr.String(), "0x")
+	cc.PrevCovenantAddress = ethAddrToBchAddr(prevCovenantAddr)
+	cc.CurrentCovenantAddress = ethAddrToBchAddr(currCovenantAddr)
+}
+func ethAddrToBchAddr(ethAddr common.Address) string {
+	return hex.EncodeToString(ethAddr[:])
 }
 
 func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
