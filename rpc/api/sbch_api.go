@@ -50,9 +50,9 @@ type SbchAPI interface {
 	ValidatorsInfo() json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
 	GetCcInfo() *sbchrpctypes.CcInfo
-	GetRedeemingUtxosForMonitors() *sbchrpctypes.UtxoInfos
+	GetRedeemingUtxosForMonitors() (*sbchrpctypes.UtxoInfos, error)
 	GetRedeemingUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
-	GetToBeConvertedUtxosForMonitors() *sbchrpctypes.UtxoInfos
+	GetToBeConvertedUtxosForMonitors() (*sbchrpctypes.UtxoInfos, error)
 	GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
 	GetRedeemableUtxos() *sbchrpctypes.UtxoInfos
 	GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos
@@ -368,20 +368,18 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 	return &info
 }
 
-func (sbch sbchAPI) GetRedeemingUtxosForMonitors() *sbchrpctypes.UtxoInfos {
+func (sbch sbchAPI) GetRedeemingUtxosForMonitors() (*sbchrpctypes.UtxoInfos, error) {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForMonitors")
-	utxoRecords := sbch.backend.GetRedeemingUTXOs()
-	utxoInfos := castUtxoRecords(utxoRecords)
-	infos := sbchrpctypes.UtxoInfos{
-		Infos: utxoInfos,
-	}
-	infos.Signature = sbch.signUtxoInfos(infos.Infos)
-	return &infos
+	return sbch.getRedeemingUtxos(false)
 }
 
 func (sbch sbchAPI) GetRedeemingUtxosForOperators() (*sbchrpctypes.UtxoInfos, error) {
 	sbch.logger.Debug("sbch_getRedeemingUtxosForOperators")
-	if sbch.backend.IsCrossChainPaused() {
+	return sbch.getRedeemingUtxos(true)
+}
+
+func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfos, error) {
+	if forOperators && sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
 	}
 
@@ -392,18 +390,21 @@ func (sbch sbchAPI) GetRedeemingUtxosForOperators() (*sbchrpctypes.UtxoInfos, er
 		return nil, err
 	}
 
-	currBlock, err := sbch.backend.CurrentBlock()
-	if err != nil {
-		sbch.logger.Info("failed to get current block", "err", err.Error())
-		return nil, err
+	var currTS int64
+	if forOperators {
+		currBlock, err := sbch.backend.CurrentBlock()
+		if err != nil {
+			sbch.logger.Info("failed to get current block", "err", err.Error())
+			return nil, err
+		}
+
+		currTS = currBlock.Timestamp
 	}
 
-	currTS := currBlock.Timestamp
 	utxoRecords := sbch.backend.GetRedeemingUTXOs()
-
 	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
-		if utxoRecord.ExpectedSignTime > currTS {
+		if forOperators && utxoRecord.ExpectedSignTime > currTS {
 			continue
 		}
 
@@ -446,33 +447,33 @@ func (sbch sbchAPI) signUtxoInfos(infos []*sbchrpctypes.UtxoInfo) []byte {
 	return nil
 }
 
-func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() *sbchrpctypes.UtxoInfos {
+func (sbch sbchAPI) GetToBeConvertedUtxosForMonitors() (*sbchrpctypes.UtxoInfos, error) {
 	sbch.logger.Debug("sbch_getToBeConvertedUtxosForMonitors")
-	utxoRecords, _ := sbch.backend.GetToBeConvertedUTXOs()
-	utxoInfos := castUtxoRecords(utxoRecords)
-	infos := sbchrpctypes.UtxoInfos{
-		Infos: utxoInfos,
-	}
-	infos.Signature = sbch.signUtxoInfos(infos.Infos)
-	return &infos
+	return sbch.getToBeConvertedUtxos(false)
 }
 
 func (sbch sbchAPI) GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error) {
 	sbch.logger.Debug("sbch_getToBeConvertedUtxosForOperators")
-	if sbch.backend.IsCrossChainPaused() {
+	return sbch.getToBeConvertedUtxos(true)
+}
+
+func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.UtxoInfos, error) {
+	if forOperators && sbch.backend.IsCrossChainPaused() {
 		return nil, errCrossChainPaused
 	}
 
-	currBlock, err := sbch.backend.CurrentBlock()
-	if err != nil {
-		sbch.logger.Info("failed to get current block", "err", err.Error())
-		return nil, err
-	}
-
-	currTS := currBlock.Timestamp
 	utxoRecords, lastCovenantAddrChangeTime := sbch.backend.GetToBeConvertedUTXOs()
-	if lastCovenantAddrChangeTime+crosschain.ExpectedConvertSignTimeDelay > currTS {
-		return nil, errors.New("not match expected convert sign delay")
+	if forOperators {
+		currBlock, err := sbch.backend.CurrentBlock()
+		if err != nil {
+			sbch.logger.Info("failed to get current block", "err", err.Error())
+			return nil, err
+		}
+
+		currTS := currBlock.Timestamp
+		if lastCovenantAddrChangeTime+crosschain.ExpectedConvertSignTimeDelay > currTS {
+			return nil, errors.New("not match expected convert sign delay")
+		}
 	}
 
 	if len(utxoRecords) == 0 {
