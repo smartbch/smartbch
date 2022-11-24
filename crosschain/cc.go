@@ -149,6 +149,7 @@ func (_ *CcContractExecutor) IsSystemContract(addr common.Address) bool {
 func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = StatusFailed
+		gasUsed = tx.Gas
 		outData = []byte(ErrInvalidCallData.Error())
 		return
 	}
@@ -172,6 +173,7 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 		return c.handleUTXOs(ctx, currBlock, tx)
 	default:
 		status = StatusFailed
+		gasUsed = tx.Gas
 		outData = []byte(ErrInvalidSelector.Error())
 		return
 	}
@@ -195,6 +197,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 	}
 	if tx.Gas < gasUsed {
 		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
 		return
 	}
 	callData := tx.Data[4:]
@@ -247,6 +250,7 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	if tx.Gas < GasOfCCOp {
 		fmt.Printf("startrescan bas gas:%d\n", tx.Gas)
 		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
 		return
 	}
 	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
@@ -322,6 +326,7 @@ func (c *CcContractExecutor) pause(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun
 	gasUsed = GasOfCCOp
 	if tx.Gas < GasOfCCOp {
 		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
 		return
 	}
 	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
@@ -354,6 +359,7 @@ func (c *CcContractExecutor) resume(ctx *mevmtypes.Context, tx *mevmtypes.TxToRu
 	gasUsed = GasOfCCOp
 	if tx.Gas < GasOfCCOp {
 		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
 		return
 	}
 	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
@@ -393,6 +399,7 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 	gasUsed = GasOfCCOp
 	if tx.Gas < GasOfCCOp {
 		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
 		return
 	}
 	if !uint256.NewInt(0).SetBytes32(tx.Value[:]).IsZero() {
