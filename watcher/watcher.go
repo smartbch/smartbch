@@ -391,7 +391,6 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 	for {
 		time.Sleep(10 * time.Second)
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
-			watcher.logger.Debug("watcher.latestFinalizedHeight:%d,param.StartMainnetHeightForCC:%d\n", watcher.latestFinalizedHeight, param.StartMainnetHeightForCC)
 			continue
 		}
 		if watcher.CcContractExecutor == nil {

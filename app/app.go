@@ -252,10 +252,13 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.watcher.WaitCatchup()
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	if app.currHeight != 0 { // restart postCommit
+		time.Sleep(20 * time.Second)
+		fmt.Printf("run postcommit in newApp, height:%d\n", app.currHeight)
 		app.mtx.Lock()
 		app.postCommit(app.syncBlockInfo())
 	}
 	ctx.Close(true)
+	fmt.Printf("NewApp end\n")
 	return app
 }
 
@@ -506,6 +509,7 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 		Timestamp: req.Header.Time.Unix(),
 		Size:      int64(req.Size()),
 	}
+	fmt.Printf("begin block, height:%d\n", req.Header.Height)
 	copy(app.block.Miner[:], req.Header.ProposerAddress)
 	app.logger.Debug(fmt.Sprintf("current proposer %s, last proposer: %s",
 		gethcmn.Address(app.block.Miner).String(), gethcmn.Address(app.lastProposer).String()))
@@ -546,6 +550,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
+	fmt.Printf("end block, height:%d\n", req.Height)
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
 	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -562,6 +567,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 }
 
 func (app *App) Commit() abcitypes.ResponseCommit {
+	fmt.Printf("commit, height:%d\n", app.currHeight)
 	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectedTxsCount())
 	app.mtx.Lock()
 	app.updateValidatorsAndStakingInfo()
@@ -583,6 +589,7 @@ func (app *App) getBlockRewardAndUpdateSysAcc(ctx *types.Context) *uint256.Int {
 	}
 	//invariant check for fund safe
 	sysB := ebp.GetSystemBalance(ctx)
+	fmt.Printf("sysB:%s,app.lastGasFee:%s,app.lastGasRefund:%s\n", sysB.String(), app.lastGasFee.String(), app.lastGasRefund.String())
 	if sysB.Cmp(&app.lastGasFee) < 0 {
 		panic("system balance not enough!")
 	}
@@ -734,6 +741,7 @@ func (app *App) LoadBlockInfo() *types.BlockInfo {
 }
 
 func (app *App) postCommit(bi *types.BlockInfo) {
+	fmt.Printf("postcommit, height:%d\n", bi.Number)
 	defer app.mtx.Unlock()
 	if bi != nil {
 		if bi.Number > 1 {
@@ -745,6 +753,7 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 	}
 	app.txEngine.Execute(bi)
 	app.lastGasUsed, app.lastGasRefund, app.lastGasFee = app.txEngine.GasUsedInfo()
+	fmt.Printf("app.lastGasUsed:%d, app.lastGasRefund:%s, app.lastGasFee:%s\n", app.lastGasUsed, app.lastGasRefund.String(), app.lastGasFee.String())
 }
 
 func (app *App) refresh() (appHash []byte) {
