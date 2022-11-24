@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/crypto"
