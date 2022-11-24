@@ -60,7 +60,14 @@ func TestHandleMinGasPrice(t *testing.T) {
 	ctx := types.NewContext(nil, nil)
 	ctx.SetCurrentHeight(1)
 	ctx.SetXHedgeForkBlock(0)
-	status, _, gasUsed, _ := handleMinGasPrice(ctx, common.Address{}, false, nil)
+	tx := types.TxToRun{
+		BasicTx: types.BasicTx{
+			From: common.Address{},
+			To:   common.Address{},
+			Gas:  GasOfMinGasPriceOp,
+		},
+	}
+	status, _, gasUsed, _ := handleMinGasPrice(ctx, &tx, false, nil)
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, GasOfMinGasPriceOp, gasUsed)
 }

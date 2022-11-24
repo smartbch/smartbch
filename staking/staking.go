@@ -132,6 +132,7 @@ var (
 	TargetExceedChangeDelta           = errors.New("minGasPrice target exceeds the allowable range")
 	ProposalHasFinished               = errors.New("proposal has finished")
 	ProposalNotFinished               = errors.New("proposal not finished")
+	ErrOutOfGas                       = errors.New("out of gas")
 )
 
 var readonlyStakingInfo *types.StakingInfo // for sumVotingPower
@@ -168,6 +169,7 @@ func (_ *StakingContractExecutor) IsSystemContract(addr common.Address) bool {
 func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if len(tx.Data) < 4 {
 		status = StatusFailed
+		gasUsed = tx.Gas
 		outData = []byte(InvalidCallData.Error())
 		return
 	}
@@ -185,36 +187,36 @@ func (s *StakingContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mev
 		return retire(ctx, tx)
 	case SelectorIncreaseMinGasPrice:
 		//function increaseMinGasPrice() external;
-		return handleMinGasPrice(ctx, tx.From, true, s.logger)
+		return handleMinGasPrice(ctx, tx, true, s.logger)
 	case SelectorDecreaseMinGasPrice:
 		//function decreaseMinGasPrice() external;
-		return handleMinGasPrice(ctx, tx.From, false, s.logger)
+		return handleMinGasPrice(ctx, tx, false, s.logger)
 	case SelectorProposal:
 		if ctx.IsXHedgeFork() {
 			return createProposal(ctx, uint64(currBlock.Timestamp), tx)
 		} else {
-			return handleInvalidSelector()
+			return handleInvalidSelector(tx)
 		}
 	case SelectorVote:
 		if ctx.IsXHedgeFork() {
 			return vote(ctx, uint64(currBlock.Timestamp), tx)
 		} else {
-			return handleInvalidSelector()
+			return handleInvalidSelector(tx)
 		}
 	case SelectorExecuteProposal:
 		if ctx.IsXHedgeFork() {
 			return executeProposal(ctx, uint64(currBlock.Timestamp), tx)
 		} else {
-			return handleInvalidSelector()
+			return handleInvalidSelector(tx)
 		}
 	case SelectorGetVote:
 		if ctx.IsXHedgeFork() {
 			return getVote(ctx, tx)
 		} else {
-			return handleInvalidSelector()
+			return handleInvalidSelector(tx)
 		}
 	default:
-		return handleInvalidSelector()
+		return handleInvalidSelector(tx)
 	}
 }
 
@@ -263,6 +265,11 @@ func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
 	gasUsed = GasOfValidatorOp
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	callData := tx.Data[4:]
 	if len(callData) < 96 {
 		outData = []byte(InvalidCallData.Error())
@@ -304,6 +311,11 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 func editValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
 	gasUsed = GasOfValidatorOp
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	callData := tx.Data[4:]
 	if len(callData) < 64 {
 		outData = []byte(InvalidCallData.Error())
@@ -387,19 +399,20 @@ func transferStakedCoins(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, stakingA
 func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed //default status is failed
 	gasUsed = GasOfValidatorOp
-
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	info := LoadStakingInfo(ctx)
-
 	val := info.GetValidatorByAddr(tx.From)
 	if val == nil {
 		outData = []byte(NoSuchValidator.Error())
 		return
 	}
 	val.IsRetiring = true
-
 	//Now let's update the states, readonlyStakingInfo is unchanged because voting powers are unchanged.
 	SaveStakingInfo(ctx, info)
-
 	status = StatusSuccess
 	return
 }
@@ -407,7 +420,11 @@ func retire(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []m
 func createProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfMinGasPriceOp
-
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	info := LoadStakingInfo(ctx)
 	val := info.GetValidatorByAddr(tx.From)
 	if val == nil {
@@ -445,7 +462,11 @@ func createProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (
 func vote(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfMinGasPriceOp
-
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	info := LoadStakingInfo(ctx)
 	val := info.GetValidatorByAddr(tx.From)
 	if val == nil {
@@ -481,7 +502,6 @@ func vote(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int
 	}
 	SaveVote(ctx, tx.From, target, uint64(val.VotingPower))
 	AddVoters(ctx, tx.From)
-
 	status = StatusSuccess
 	return
 }
@@ -503,7 +523,11 @@ func checkTarget(lastMinGasPrice, target uint64) error {
 func executeProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfMinGasPriceOp
-
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	target, deadline := LoadProposal(ctx)
 	if target == 0 {
 		outData = []byte(NotInProposal.Error())
@@ -517,7 +541,6 @@ func executeProposal(ctx *mevmtypes.Context, now uint64, tx *mevmtypes.TxToRun) 
 	target = CalculateTarget(ctx, voters)
 	SaveMinGasPrice(ctx, target, false)
 	DeleteProposalInfos(ctx, voters)
-
 	status = StatusSuccess
 	return
 }
@@ -551,7 +574,11 @@ func CalcMedian(nums []uint64) uint64 {
 func getVote(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfMinGasPriceOp
-
+	if tx.Gas < gasUsed {
+		outData = []byte(ErrOutOfGas.Error())
+		gasUsed = tx.Gas
+		return
+	}
 	callData := tx.Data[4:]
 	if len(callData) != 32 {
 		outData = []byte(InvalidCallData.Error())
@@ -568,13 +595,26 @@ func getVote(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int, logs []
 	return
 }
 
-func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func handleMinGasPrice(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun, isIncrease bool, logger log.Logger) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	if ctx.IsXHedgeFork() {
-		status = StatusSuccess
 		gasUsed = GasOfMinGasPriceOp
+		if tx.Gas < gasUsed {
+			outData = []byte(ErrOutOfGas.Error())
+			gasUsed = tx.Gas
+			status = StatusFailed
+			return
+		}
+		status = StatusSuccess
+		return
 	} else {
 		status = StatusFailed //default status is failed
 		gasUsed = GasOfMinGasPriceOp
+		if tx.Gas < gasUsed {
+			outData = []byte(ErrOutOfGas.Error())
+			gasUsed = tx.Gas
+			return
+		}
+		sender := tx.From
 		mGP := LoadMinGasPrice(ctx, false)
 		lastMGP := LoadMinGasPrice(ctx, true) // this variable only updates at endblock
 		info := LoadStakingInfo(ctx)
@@ -617,8 +657,9 @@ func handleMinGasPrice(ctx *mevmtypes.Context, sender common.Address, isIncrease
 	return
 }
 
-func handleInvalidSelector() (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func handleInvalidSelector(tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
+	gasUsed = tx.Gas
 	outData = []byte(InvalidSelector.Error())
 	return
 }
