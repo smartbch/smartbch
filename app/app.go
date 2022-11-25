@@ -215,8 +215,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	} else {
 		app.block = &types.Block{}
 	}
-
 	app.root.SetHeight(app.currHeight)
+	ctx.SetCurrentHeight(app.currHeight)
 	app.txEngine.SetContext(app.GetRunTxContext())
 
 	/*------set stakingInfo------*/
