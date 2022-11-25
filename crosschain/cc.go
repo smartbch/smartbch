@@ -640,6 +640,7 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	if r.BornTime == 0 || r.BornTime+MatureTime >= block.Timestamp {
 		return nil, ErrNotTimeToRedeem
 	}
+	fmt.Printf("checkAndUpdateRedeemTX passed\n")
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
 	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
