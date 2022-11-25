@@ -376,7 +376,7 @@ func TestOperatorsElection(t *testing.T) {
 	require.Equal(t, uint64(0x12345), operatorInfos[11].ElectedTime.Uint64())
 	require.Equal(t, uint64(0x12345), operatorInfos[12].ElectedTime.Uint64())
 	for i := 0; i < 13; i++ {
-		require.Equal(t, uint64(0), operatorInfos[12].OldElectedTime.Uint64())
+		require.Equal(t, uint64(0), operatorInfos[i].OldElectedTime.Uint64())
 	}
 
 	ctx = _app.GetRunTxContext()

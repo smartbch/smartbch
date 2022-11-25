@@ -12,6 +12,7 @@ import (
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	mtypes "github.com/smartbch/moeingevm/types"
+
 	ccabi "github.com/smartbch/smartbch/crosschain/abi"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
@@ -276,12 +277,8 @@ func TestStartRescan(t *testing.T) {
 	txData := ccabi.PackStartRescanFunc(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
-		Voter:            &MockVoteContract{IsM: true},
-		StartUTXOCollect: make(chan types.UTXOCollectParam),
+		Voter: &MockVoteContract{IsM: true},
 	}
-	go func(exe *CcContractExecutor) {
-		<-exe.StartUTXOCollect
-	}(&executor)
 	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{
 			Data: txData,

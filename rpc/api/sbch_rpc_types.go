@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -281,6 +282,10 @@ func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*sbchrpctypes.UtxoInfo
 }
 
 func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *sbchrpctypes.UtxoInfo {
+	if utxoRecord == nil {
+		fmt.Println("utxoRecord is nil")
+		return &sbchrpctypes.UtxoInfo{}
+	}
 	return &sbchrpctypes.UtxoInfo{
 		OwnerOfLost:      utxoRecord.OwnerOfLost,
 		CovenantAddr:     utxoRecord.CovenantAddr,

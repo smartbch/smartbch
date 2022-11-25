@@ -3,14 +3,15 @@ package types
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gcash/bchd/txscript"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gcash/bchd/chaincfg"
+	"github.com/gcash/bchd/txscript"
 	"github.com/gcash/bchutil"
 	"github.com/holiman/uint256"
 	"github.com/smartbch/moeingdb/types"
@@ -45,6 +46,10 @@ type CcTxParser struct {
 }
 
 func (cc *CcTxParser) GetCCUTXOTransferInfo(bi *BlockInfo) (infos []*cctypes.CCTransferInfo) {
+	if len(bi.Tx) != 0 {
+		out, _ := json.Marshal(bi.Tx)
+		fmt.Printf("bi.txs: %s\n", string(out))
+	}
 	infos = append(infos, cc.findRedeemableTx(bi.Tx)...)
 	infos = append(infos, cc.findConvertTx(bi.Tx)...)
 	infos = append(infos, cc.findRedeemOrLostAndFoundTx(bi.Tx)...)
@@ -60,11 +65,15 @@ func (cc *CcTxParser) Refresh(prevCovenantAddr, currCovenantAddr common.Address)
 		outpointSet[txid] = index
 	}
 	cc.UtxoSet = outpointSet
-	cc.PrevCovenantAddress = prevCovenantAddr.String()
-	cc.CurrentCovenantAddress = currCovenantAddr.String()
+	cc.PrevCovenantAddress = ethAddrToBchAddr(prevCovenantAddr)
+	cc.CurrentCovenantAddress = ethAddrToBchAddr(currCovenantAddr)
+}
+func ethAddrToBchAddr(ethAddr common.Address) string {
+	return hex.EncodeToString(ethAddr[:])
 }
 
 func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransferInfo) {
+	fmt.Printf("in findRedeemableTx prevCovenantAddress:%s,CurrentCovenantAddress:%s\n", cc.PrevCovenantAddress, cc.CurrentCovenantAddress)
 	for _, ti := range txs {
 		var isRedeemableTx bool
 		var info = cctypes.CCTransferInfo{
@@ -125,6 +134,7 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 			info.UTXO.Index = uint32(0)
 			info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
 			maybeConvertTx = true
+			fmt.Println("maybe convert tx")
 			//break
 		}
 		if maybeConvertTx {
@@ -169,8 +179,10 @@ func (cc *CcTxParser) findRedeemOrLostAndFoundTx(txs []TxInfo) (infos []*cctypes
 			if !ok {
 				continue
 			}
+			fmt.Printf("mayberedeemTx\n")
 			// only check prefix
 			if strings.HasPrefix(script, "OP_DUP OP_HASH160") {
+				fmt.Printf("found redeem tx\n")
 				infos = append(infos, &info)
 				continue
 			}
@@ -181,6 +193,7 @@ func (cc *CcTxParser) findRedeemOrLostAndFoundTx(txs []TxInfo) (infos []*cctypes
 
 func (cc *CcTxParser) isCcUXTOSpent(txid [32]byte, vout uint32) bool {
 	index, ok := cc.UtxoSet[txid]
+	fmt.Printf("isCcUXTOSpent: txid:%s, vout:%d, ok:%v\n", common.BytesToHash(txid[:]).String(), vout, ok)
 	if ok {
 		return index == vout
 	}

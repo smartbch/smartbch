@@ -2,8 +2,8 @@
 
 set -ex
 
-#export EVMWRAP=libevmwrap.so
-export CGO_LDFLAGS="-L../moeingevm/evmwrap/host_bridge"
+export EVMWRAP=libevmwrap.so
+#export CGO_LDFLAGS="-L../moeingevm/evmwrap/host_bridge"
 go build -tags cppbtree github.com/smartbch/smartbch/cmd/smartbchd
 
 NODE_HOME=~/.smartbchd/
@@ -46,8 +46,9 @@ echo 'adding genesis validator ...'
 #export NOSTACK=1
 #export NOINSTLOG=1
 echo 'starting node ...'
-./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
-  --http.api='eth,web3,net,txpool,sbch,debug' \
-  --log_level='json-rpc:debug,*:info' \
-  --skip-sanity-check=true \
-  --with-syncdb=true
+cp ./app.toml ~/.smartbchd/config/app.toml
+#./smartbchd start --home $NODE_HOME --unlock $TEST_KEYS --https.addr=off --wss.addr=off \
+#  --http.api='eth,web3,net,txpool,sbch,debug' \
+#  --log_level='json-rpc:debug,watcher:debug,app:debug' \
+#  --skip-sanity-check=true \
+#  --with-syncdb=false

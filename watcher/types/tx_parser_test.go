@@ -1031,3 +1031,59 @@ func TestFindConvertTx(t *testing.T) {
   "CovenantAddress": "ae2c75b69475fe48a15f1a838b5238f4cc54bd58"
 }`, ccTransferInfoToJSON(infos[0]))
 }
+
+func TestFindRedeemableTx2(t *testing.T) {
+	//parser := CcTxParser{CurrentCovenantAddress: "0000000000000000000000000000000000001234"}
+	parser := CcTxParser{CurrentCovenantAddress: gethcmn.HexToAddress("0000000000000000000000000000000000001234").String()}
+	var txs []TxInfo
+	_ = json.Unmarshal([]byte(`[{
+  "txid":"5a06790b3f566fe43e67c6f57252d86d263d1b4bac521ccdb91d97bf48d02dfb",
+  "hash":"5a06790b3f566fe43e67c6f57252d86d263d1b4bac521ccdb91d97bf48d02dfb",
+  "version":2,
+  "size":243,
+  "locktime":0,
+  "vin":[
+    {
+      "scriptSig":{
+        "asm":"3045022100f5c60f0d71a884af901423dff2c5e67f6ee450c1017c7c6330782696085fca4f022045143186bf5e281ee3865d20ff87fce3eb0e31f0b6545996f6faf9c8705b2aab[ALL|FORKID] 02d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3e",
+        "hex":"483045022100f5c60f0d71a884af901423dff2c5e67f6ee450c1017c7c6330782696085fca4f022045143186bf5e281ee3865d20ff87fce3eb0e31f0b6545996f6faf9c8705b2aab412102d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3e"
+      },
+      "sequence":4294967295,
+      "txid":"3557528b10a44babd22f59b09c327de7f2e81e2c638543b55ed2b685f7759e5c",
+      "vout":0
+    }
+  ],
+  "vout":[
+    {
+      "value":0.00002,
+      "n":0,
+      "scriptPubKey":{
+        "addresses":[
+          "bchtest:pqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqjxsku0hxsh9"
+        ],
+        "asm":"OP_HASH160 0000000000000000000000000000000000001234 OP_EQUAL",
+        "hex":"a914000000000000000000000000000000000000123487",
+        "reqSigs":1,
+        "type":"scripthash"
+      }
+    },
+    {
+      "value":0,
+      "n":1,
+      "scriptPubKey":{
+        "asm":"OP_RETURN 307863333730373433333331423337643343364430456537393842333931386636353631416632433932",
+        "hex":"6a2a307863333730373433333331423337643343364430456537393842333931386636353631416632433932",
+        "type":"nulldata"
+      }
+    }
+  ],
+  "hex":"02000000015c9e75f785b6d25eb54385632c1ee8f2e77d329cb0592fd2ab4ba4108b525735000000006b483045022100f5c60f0d71a884af901423dff2c5e67f6ee450c1017c7c6330782696085fca4f022045143186bf5e281ee3865d20ff87fce3eb0e31f0b6545996f6faf9c8705b2aab412102d27c31afad03f4a300868165b5aff09babe6bb3fdc14048ecb3e1de1457c4b3effffffff02d00700000000000017a91400000000000000000000000000000000000012348700000000000000002c6a2a30786333373037343333333142333764334336443045653739384233393138663635363141663243393200000000",
+  "blockhash":"",
+  "confirmations":0,
+  "time":0,
+  "blocktime":0
+}]`), &txs)
+
+	infos := parser.findRedeemableTx(txs)
+	require.Len(t, infos, 1)
+}

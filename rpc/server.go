@@ -240,6 +240,10 @@ func (server *Server) stopHTTP() {
 	}
 	if server.httpListener != nil {
 		_ = server.httpListener.Close()
+
+	}
+	if server.httpsListener != nil {
+		_ = server.httpsListener.Close()
 	}
 	if server.httpsListener != nil {
 		_ = server.httpsListener.Close()

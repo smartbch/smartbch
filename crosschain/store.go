@@ -3,6 +3,8 @@ package crosschain
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"strings"
 
 	mevmtypes "github.com/smartbch/moeingevm/types"
@@ -17,6 +19,7 @@ var (
 func LoadUTXORecord(ctx *mevmtypes.Context, txid [32]byte, index uint32) *types.UTXORecord {
 	bz := ctx.GetStorageAt(ccContractSequence, buildUTXOKey(txid, index))
 	if len(bz) == 0 {
+		fmt.Printf("LoadUTXORecord txid:%s, index:%d\n", common.BytesToHash(txid[:]), index)
 		return nil
 	}
 	var r types.UTXORecord
