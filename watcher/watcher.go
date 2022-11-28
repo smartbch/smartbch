@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/smartbch/moeingads/datatree"
 	"math"
 	"sort"
 	"sync/atomic"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 
+	"github.com/smartbch/moeingads/datatree"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
