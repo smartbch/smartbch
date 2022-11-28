@@ -184,12 +184,13 @@ func (server *Server) stopHTTP() {
 		_ = server.httpsListener.Close()
 	}
 }
+
 func (server *Server) stopWS() {
 	if server.wsServer != nil {
 		server.wsServer.Stop()
 	}
 	if server.wsListener != nil {
-		_ = server.httpListener.Close()
+		_ = server.wsListener.Close()
 	}
 	if server.wssListener != nil {
 		_ = server.wssListener.Close()
