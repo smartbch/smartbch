@@ -133,7 +133,7 @@ func TestRun(t *testing.T) {
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w.rpcClient = client
 	catchupChan := make(chan bool, 1)
-	go w.Run(catchupChan)
+	go w.Run()
 	<-catchupChan
 	time.Sleep(1 * time.Second)
 	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
@@ -150,7 +150,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 	numBlocksInEpoch := 10
 	w.SetNumBlocksInEpoch(int64(numBlocksInEpoch))
 	catchupChan := make(chan bool, 1)
-	go w.Run(catchupChan)
+	go w.Run()
 	<-catchupChan
 	go c.consume()
 	time.Sleep(3 * time.Second)
@@ -171,7 +171,7 @@ func TestRunWithFork(t *testing.T) {
 	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)
 	catchupChan := make(chan bool, 1)
-	go w.Run(catchupChan)
+	go w.Run()
 	<-catchupChan
 	time.Sleep(5 * time.Second)
 	require.Equal(t, 0, len(w.epochList))

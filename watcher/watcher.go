@@ -199,7 +199,6 @@ func (watcher *Watcher) speedup() {
 		watcher.lastEpochEndHeight = latestFinalizedHeight
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
-	return
 }
 
 func (watcher *Watcher) ccEpochSpeedup() {

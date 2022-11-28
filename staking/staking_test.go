@@ -85,6 +85,7 @@ func buildRetireValCallEntry(sender common.Address) *callEntry {
 		BasicTx: types.BasicTx{
 			From: sender,
 			To:   c.Address,
+			Gas:  staking.GasOfValidatorOp,
 		},
 	}
 	// retire()
@@ -154,6 +155,7 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	tx := types.TxToRun{
 		BasicTx: types.BasicTx{
 			Data: staking.PackProposal(target),
+			Gas:  staking.GasOfValidatorOp,
 		},
 	}
 	now := time.Now().Unix()
@@ -395,6 +397,7 @@ func TestInvalidExecuteProposal(t *testing.T) {
 	tx := types.TxToRun{
 		BasicTx: types.BasicTx{
 			Data: staking.PackExecuteProposal(),
+			Gas:  staking.GasOfValidatorOp,
 		},
 	}
 	now := time.Now().Unix()
@@ -426,6 +429,7 @@ func TestInvalidVote(t *testing.T) {
 	tx := types.TxToRun{
 		BasicTx: types.BasicTx{
 			Data: staking.PackVote(target),
+			Gas:  staking.GasOfValidatorOp,
 		},
 	}
 	now := time.Now().Unix()

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -121,7 +121,7 @@ func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	respData, err := ioutil.ReadAll(resp.Body)
+	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
