@@ -254,7 +254,7 @@ func (server *Server) stopWS() {
 		server.wsServer.Stop()
 	}
 	if server.wsListener != nil {
-		_ = server.httpListener.Close()
+		_ = server.wsListener.Close()
 	}
 	if server.wssListener != nil {
 		_ = server.wssListener.Close()
