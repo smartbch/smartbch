@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/smartbch/moeingads/datatree"
 	"math"
 	"sort"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -20,6 +21,7 @@ import (
 const (
 	NumBlocksToClearMemory = 1000
 	WaitingBlockDelayTime  = 2
+	blockFinalizeNumber    = 9
 )
 
 // A watcher watches the new blocks generated on bitcoin cash's mainnet, and
@@ -33,6 +35,8 @@ type Watcher struct {
 	latestFinalizedHeight int64
 
 	heightToFinalizedBlock map[int64]*types.BCHBlock
+
+	catchupChan chan bool
 
 	EpochChan          chan *stakingtypes.Epoch
 	epochList          []*stakingtypes.Epoch
@@ -65,6 +69,8 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastK
 		lastEpochEndHeight:    lastHeight,
 		latestFinalizedHeight: lastHeight,
 		lastKnownEpochNum:     lastKnownEpochNum,
+
+		catchupChan: make(chan bool, 1),
 
 		heightToFinalizedBlock: make(map[int64]*types.BCHBlock),
 		epochList:              make([]*stakingtypes.Epoch, 0, 10),
@@ -99,82 +105,72 @@ func (watcher *Watcher) SetWaitingBlockDelayTime(n int) {
 	watcher.waitingBlockDelayTime = n
 }
 
+func (watcher *Watcher) WaitCatchup() {
+	<-watcher.catchupChan
+}
+
 // The main function to do a watcher's job. It must be run as a goroutine
-func (watcher *Watcher) Run(catchupChan chan bool) {
+func (watcher *Watcher) Run() {
 	if watcher.rpcClient == (*RpcClient)(nil) {
 		//for ut
-		catchupChan <- true
+		watcher.catchupChan <- true
 		return
 	}
-	latestFinalizedHeight := watcher.latestFinalizedHeight
-	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
-	latestFinalizedHeight = watcher.epochSpeedup(latestFinalizedHeight, latestMainnetHeight)
-	watcher.fetchBlocks(catchupChan, latestFinalizedHeight, latestMainnetHeight)
+	watcher.speedup()
+	watcher.fetchBlocks()
 }
 
-func (watcher *Watcher) fetchBlocks(catchupChan chan bool, latestFinalizedHeight, latestMainnetHeight int64) {
-	catchup := false
+func (watcher *Watcher) fetchBlocks() {
+	catchedUp := false
+	latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
+	heightWanted := watcher.latestFinalizedHeight + 1
+	// parallel fetch blocks when startup
+	if heightWanted+blockFinalizeNumber+int64(watcher.parallelNum) <= latestMainnetHeight {
+		watcher.logger.Debug("block parallel fetch info", "latestFinalizedHeight", watcher.latestFinalizedHeight, "latestMainnetHeight", latestMainnetHeight)
+		watcher.parallelFetchBlocks(heightWanted, latestMainnetHeight-blockFinalizeNumber)
+		heightWanted = watcher.latestFinalizedHeight + 1
+	}
+	// normal catchup
 	for {
-		if !catchup && latestMainnetHeight <= latestFinalizedHeight+9 {
-			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-			if latestMainnetHeight <= latestFinalizedHeight+9 {
-				watcher.logger.Debug("Catchup")
-				catchup = true
-				catchupChan <- true
-				close(catchupChan)
-			}
-		}
-		latestFinalizedHeight++
 		latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
-		//10 confirms
-		if latestMainnetHeight < latestFinalizedHeight+9 {
+		for heightWanted+blockFinalizeNumber <= latestMainnetHeight {
+			watcher.addFinalizedBlock(watcher.rpcClient.GetBlockByHeight(heightWanted, true))
+			heightWanted++
+			latestMainnetHeight = watcher.rpcClient.GetLatestHeight(true)
+		}
+		if catchedUp {
 			watcher.logger.Debug("waiting BCH mainnet", "height now is", latestMainnetHeight)
 			watcher.suspended(time.Duration(watcher.waitingBlockDelayTime) * time.Second) //delay half of bch mainnet block intervals
-			latestFinalizedHeight--
-			continue
+		} else {
+			watcher.logger.Debug("AlreadyCaughtUp")
+			catchedUp = true
+			close(watcher.catchupChan)
 		}
-		for latestFinalizedHeight+9 <= latestMainnetHeight {
-			fmt.Printf("latestFinalizedHeight:%d,latestMainnetHeight:%d\n", latestFinalizedHeight, latestMainnetHeight)
-			if latestFinalizedHeight+9+int64(watcher.parallelNum) <= latestMainnetHeight {
-				watcher.parallelFetchBlocks(latestFinalizedHeight)
-				latestFinalizedHeight += int64(watcher.parallelNum)
-			} else {
-				blk := watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight, true)
-				if blk == nil {
-					//todo: panic it
-					fmt.Printf("get block:%d failed\n", latestFinalizedHeight)
-					latestFinalizedHeight--
-					continue
-				}
-				watcher.addFinalizedBlock(blk)
-				latestFinalizedHeight++
-			}
-		}
-		latestFinalizedHeight--
 	}
 }
 
-func (watcher *Watcher) parallelFetchBlocks(latestFinalizedHeight int64) {
-	fmt.Printf("begin paralell fetch blocks\n")
-	var blockSet = make([]*types.BCHBlock, watcher.parallelNum)
-	var w sync.WaitGroup
-	w.Add(watcher.parallelNum)
-	for i := 0; i < watcher.parallelNum; i++ {
-		go func(index int) {
-			blockSet[index] = watcher.rpcClient.GetBlockByHeight(latestFinalizedHeight+int64(index), true)
-			w.Done()
-		}(i)
-	}
-	w.Wait()
-	fmt.Printf("after paralell fetch blocks\n")
+func (watcher *Watcher) parallelFetchBlocks(heightStart, heightEnd int64) {
+	var blockSet = make([]*types.BCHBlock, heightEnd-heightStart+1)
+	sharedIdx := int64(-1)
+	datatree.ParallelRun(watcher.parallelNum, func(_ int) {
+		for {
+			index := atomic.AddInt64(&sharedIdx, 1)
+			if heightStart+index > heightEnd {
+				break
+			}
+			blockSet[index] = watcher.rpcClient.GetBlockByHeight(heightStart+index, true)
+		}
+	})
 	for _, blk := range blockSet {
 		watcher.addFinalizedBlock(blk)
 	}
-	watcher.logger.Debug("Get bch mainnet block", "latestFinalizedHeight", latestFinalizedHeight)
+	watcher.logger.Debug("Get bch mainnet blocks parallel", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 }
 
-func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight int64) int64 {
+func (watcher *Watcher) speedup() {
 	if watcher.chainConfig.AppConfig.Speedup {
+		latestFinalizedHeight := watcher.latestFinalizedHeight
+		latestMainnetHeight := watcher.rpcClient.GetLatestHeight(true)
 		start := uint64(watcher.lastKnownEpochNum) + 1
 		for {
 			if latestMainnetHeight < latestFinalizedHeight+watcher.numBlocksInEpoch {
@@ -203,7 +199,7 @@ func (watcher *Watcher) epochSpeedup(latestFinalizedHeight, latestMainnetHeight 
 		watcher.lastEpochEndHeight = latestFinalizedHeight
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
-	return latestFinalizedHeight
+	return
 }
 
 func (watcher *Watcher) ccEpochSpeedup() {
@@ -297,35 +293,6 @@ func (watcher *Watcher) GetEpochList() []*stakingtypes.Epoch {
 func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
 	return watcher.currentMainnetBlockTimestamp
 }
-
-//func (watcher *Watcher) generateNewCCEpoch() {
-//	if !watcher.chainConfig.ShaGateSwitch {
-//		return
-//	}
-//	epoch := watcher.buildNewCCEpoch()
-//	watcher.ccEpochList = append(watcher.ccEpochList, epoch)
-//	watcher.logger.Debug("Generate new cc epoch", "epochNumber", epoch.Number, "startHeight", epoch.StartHeight)
-//	watcher.CCEpochChan <- epoch
-//	watcher.lastCCEpochEndHeight = watcher.latestFinalizedHeight
-//}
-
-//func (watcher *Watcher) buildNewCCEpoch() *cctypes.CCEpoch {
-//	epoch := &cctypes.CCEpoch{
-//		StartHeight:   watcher.lastCCEpochEndHeight + 1,
-//		TransferInfos: make([]*cctypes.CCTransferInfo, 0, 10),
-//	}
-//	for i := epoch.StartHeight; i <= watcher.latestFinalizedHeight; i++ {
-//		blk, ok := watcher.heightToFinalizedBlock[i]
-//		if !ok {
-//			panic("Missing Block")
-//		}
-//		if epoch.EndTime < blk.Timestamp {
-//			epoch.EndTime = blk.Timestamp
-//		}
-//		//epoch.TransferInfos = append(epoch.TransferInfos, blk.CCTransferInfos...)
-//	}
-//	return epoch
-//}
 
 func (watcher *Watcher) CheckSanity(skipCheck bool) {
 	if !skipCheck {
