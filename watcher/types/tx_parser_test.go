@@ -1033,8 +1033,7 @@ func TestFindConvertTx(t *testing.T) {
 }
 
 func TestFindRedeemableTx2(t *testing.T) {
-	//parser := CcTxParser{CurrentCovenantAddress: "0000000000000000000000000000000000001234"}
-	parser := CcTxParser{CurrentCovenantAddress: gethcmn.HexToAddress("0000000000000000000000000000000000001234").String()}
+	parser := CcTxParser{CurrentCovenantAddress: "0000000000000000000000000000000000001234"}
 	var txs []TxInfo
 	_ = json.Unmarshal([]byte(`[{
   "txid":"5a06790b3f566fe43e67c6f57252d86d263d1b4bac521ccdb91d97bf48d02dfb",

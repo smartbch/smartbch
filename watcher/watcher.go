@@ -22,8 +22,9 @@ import (
 const (
 	waitingBlockDelayTime     = 2
 	monitorInfoCleanThreshold = 5
-	blockFinalizeNumber       = 1 // 1 for test, 9 for product
 )
+
+var blockFinalizeNumber = int64(1) // 1 for test, 9 for product
 
 type IContextGetter interface {
 	GetRpcContext() *evmtypes.Context
@@ -316,9 +317,12 @@ func (watcher *Watcher) GetCurrEpoch() *stakingtypes.Epoch {
 	return watcher.buildNewEpoch()
 }
 func (watcher *Watcher) GetEpochList() []*stakingtypes.Epoch {
-	list := stakingtypes.CopyEpochs(watcher.epochList)
+	epochList := make([]*stakingtypes.Epoch, len(watcher.voteInfoList))
+	for i, v := range watcher.voteInfoList {
+		epochList[i] = stakingtypes.CopyEpoch(v.Epoch)
+	}
 	currEpoch := watcher.buildNewEpoch()
-	return append(list, currEpoch)
+	return append(epochList, currEpoch)
 }
 
 func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
@@ -356,6 +360,9 @@ func (watcher *Watcher) ClearOldData() {
 	}
 	height := watcher.voteInfoList[vLen-1].Epoch.StartHeight
 	height -= 5 * watcher.numBlocksInEpoch
+	if height <= 0 {
+		return
+	}
 	for {
 		_, ok := watcher.heightToFinalizedBlock[height]
 		if !ok {

@@ -1,6 +1,7 @@
 package crosschain
 
 import (
+	"github.com/tendermint/tendermint/libs/log"
 	"math/big"
 	"testing"
 
@@ -70,7 +71,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: amount,
 			Data:  txData,
-			Gas:   GasOfCCOp,
+			Gas:   GasOfLostAndFoundRedeem,
 		},
 	})
 	require.Equal(t, StatusSuccess, status)
@@ -98,7 +99,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: uint256.NewInt(0).Bytes32(),
 			Data:  txData,
-			Gas:   GasOfCCOp,
+			Gas:   GasOfLostAndFoundRedeem,
 		},
 	})
 	require.Equal(t, StatusFailed, status)
@@ -125,7 +126,7 @@ func TestRedeem(t *testing.T) {
 			From:  alice,
 			Value: uint256.NewInt(0).Bytes32(),
 			Data:  txData,
-			Gas:   GasOfCCOp,
+			Gas:   GasOfLostAndFoundRedeem,
 		},
 	})
 	require.Equal(t, StatusSuccess, status)
@@ -277,7 +278,8 @@ func TestStartRescan(t *testing.T) {
 	txData := ccabi.PackStartRescanFunc(big.NewInt(2))
 	// normal
 	executor := CcContractExecutor{
-		Voter: &MockVoteContract{IsM: true},
+		Voter:  &MockVoteContract{IsM: true},
+		logger: log.NewNopLogger(),
 	}
 	status, logs, _, outdata := executor.startRescan(ctx, &mtypes.BlockInfo{Timestamp: UTXOHandleDelay + 1}, &mtypes.TxToRun{
 		BasicTx: mtypes.BasicTx{

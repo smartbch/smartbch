@@ -142,10 +142,12 @@ func TestRun(t *testing.T) {
 	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w.rpcClient = client
+	blockFinalizeNumber = 9
+	w.SetNumBlocksInEpoch(90)
 	go w.Run()
 	w.WaitCatchup()
 	time.Sleep(1 * time.Second)
-	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
+	require.Equal(t, 1, len(w.voteInfoList))
 	require.Equal(t, 91, len(w.heightToFinalizedBlock))
 	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
@@ -157,6 +159,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 		w: w,
 	}
 	numBlocksInEpoch := 10
+	blockFinalizeNumber = 9
 	w.SetNumBlocksInEpoch(int64(numBlocksInEpoch))
 	go w.Run()
 	w.WaitCatchup()
@@ -165,7 +168,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 	//test watcher clear
 	//require.Equal(t, 6*int(WatcherNumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
 	require.Equal(t, 6*numBlocksInEpoch, len(w.heightToFinalizedBlock))
-	require.Equal(t, 5, len(w.epochList))
+	require.Equal(t, 5, len(w.voteInfoList))
 	require.Equal(t, int64(91), w.latestFinalizedHeight)
 	require.Equal(t, 9, len(c.epochList))
 	for i, e := range c.epochList {
@@ -176,11 +179,12 @@ func TestRunWithNewEpoch(t *testing.T) {
 func TestRunWithFork(t *testing.T) {
 	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
+	blockFinalizeNumber = 9
 	w.SetNumBlocksInEpoch(1000)
 	go w.Run()
 	w.WaitCatchup()
 	time.Sleep(5 * time.Second)
-	require.Equal(t, 0, len(w.epochList))
+	require.Equal(t, 0, len(w.voteInfoList))
 	require.Equal(t, 91, len(w.heightToFinalizedBlock))
 	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
