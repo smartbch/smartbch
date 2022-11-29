@@ -210,7 +210,6 @@ func (watcher *Watcher) speedup() {
 		watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
-	return
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {

@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	OperatorsSlot               = 0
+	OperatorsSlot               = 1 // _ownerSlot = 0
 	OperatorElectedTimeField    = 7
 	OperatorOldElectedTimeField = 8
 	OperatorWords               = 9
 
-	MonitorsLastElectionTimeSlot = 0
-	MonitorsSlot                 = 1
+	MonitorsLastElectionTimeSlot = 1 // _ownerSlot = 0
+	MonitorsSlot                 = 2
 	MonitorElectedTimeField      = 5
 	MonitorOldElectedTimeField   = 6
 	MonitorWords                 = 8

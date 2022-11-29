@@ -520,7 +520,7 @@ func TestCc(t *testing.T) {
 	_api := createSbchAPI(_app)
 	err := _api.SetRpcKey(key2)
 	require.Nil(t, err)
-	infos := _api.GetRedeemingUtxosForMonitors()
+	infos, _ := _api.GetRedeemingUtxosForMonitors()
 	require.NotNil(t, infos)
 	pubkey, err := _api.GetRpcPubkey()
 	require.Nil(t, err)
