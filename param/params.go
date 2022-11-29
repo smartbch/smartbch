@@ -33,8 +33,8 @@ const (
 	OperatorElectionEpochs  = 2 // For test
 	MaxMonitorNumber        = 3 // For test
 
-	OperatorsGovSequence    = 0 // TODO
-	MonitorsGovSequence     = 0 // TODO
+	OperatorsGovSequence    = 0x1c1 // TODO: change this in production mode
+	MonitorsGovSequence     = 0x124 // TODO: change this in production mode
 	OperatorMinStakedBCH    = 10000
 	MonitorMinStakedBCH     = 100000
 	MonitorMinOpsNomination = 6

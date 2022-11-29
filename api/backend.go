@@ -538,27 +538,8 @@ func (backend *apiBackend) GetOperatorAndMonitorPubkeys() (operatorPubkeys, moni
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
-	//operatorPubkeys = crosschain.GetOperatorPubkeySet(ctx)
-	//monitorPubkeys = crosschain.GetMonitorPubkeySet(ctx)
-
-	// sha-gate testnet1
-	operatorPubkeys = [][]byte{
-		common.FromHex("02d86b49e3424e557beebf67bd06842cdb88e314c44887f3f265b7f81107dd6994"),
-		common.FromHex("035c0a0cb8987290ea0a7a926e8aa8978ac042b4c0be8553eb4422461ce1a17cd8"),
-		common.FromHex("03fdec69ef6ec640264045229ca7cf0f170927b87fc8d2047844f8a766ead467e4"),
-		common.FromHex("038fd3d33474e1bd453614f85d8fb1edecae92255867d18a9048669119fb710af5"),
-		common.FromHex("0394ec324d59305638ead14b4f4da9a50c793f1e328e180f92c04a4990bb573af1"),
-		common.FromHex("0271ea0c254ebbb7ed78668ba8653abe222b9f7177642d3a75709d95912a8d9d2c"),
-		common.FromHex("02fbbc3870035c2ee30cfa3102aff15e58bdfc0d0f95998cd7e1eeebc09cdb6873"),
-		common.FromHex("0386f450b1bee3b220c6a9a25515f15f05bd80a23e5f707873dfbac52db933b27d"),
-		common.FromHex("03bfe6f6ecb5e10662481aeb6f6408db2a32b9b86a660acbb8c5374dbb976e53ca"),
-		common.FromHex("03883b732620e238e74041e5fab900234dc80f7a48d56a1bf41e8523c4661f8243"),
-	}
-	monitorPubkeys = [][]byte{
-		common.FromHex("024a899d685daf6b1999a5c8f2fd3c9ed640d58e92fd0e00cf87cacee8ff1504b8"),
-		common.FromHex("0374ac9ab3415253dbb7e29f46a69a3e51b5d2d66f125b0c9f2dc990b1d2e87e17"),
-		common.FromHex("024cc911ba9d2c7806a217774618b7ba4848ccd33fe664414fc3144d144cdebf7b"),
-	}
+	operatorPubkeys = crosschain.GetOperatorPubkeySet(ctx)
+	monitorPubkeys = crosschain.GetMonitorPubkeySet(ctx)
 
 	return
 }
