@@ -98,6 +98,8 @@ func TestStaking(t *testing.T) {
 	e.Init(ctx)
 
 	staking.InitialStakingAmount = uint256.NewInt(0)
+	staking.GasOfMinGasPriceOp = 0
+	staking.GasOfValidatorOp = 0
 
 	// test create validator
 	c := buildCreateValCallEntry(sender, 101, 11, 1)
@@ -139,6 +141,8 @@ func TestMinGasPriceAdjust(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
+	staking.GasOfMinGasPriceOp = 0
+	staking.GasOfValidatorOp = 0
 	ctx := _app.GetRunTxContext()
 	ctx.SetXHedgeForkBlock(0)
 
@@ -227,6 +231,8 @@ func TestSwitchEpoch(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
+	staking.GasOfValidatorOp = 0
+	staking.GasOfMinGasPriceOp = 0
 	ctx := _app.GetRunTxContext()
 	//build new epoch
 	e := &types2.Epoch{
@@ -342,6 +348,8 @@ func TestInvalidExecuteProposal(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
+	staking.GasOfValidatorOp = 0
+	staking.GasOfMinGasPriceOp = 0
 	ctx := _app.GetRunTxContext()
 	ctx.SetXHedgeForkBlock(0)
 
@@ -372,6 +380,8 @@ func TestInvalidVote(t *testing.T) {
 	_app := testutils.CreateTestApp(key)
 	defer _app.Destroy()
 	staking.InitialStakingAmount = uint256.NewInt(0)
+	staking.GasOfMinGasPriceOp = 0
+	staking.GasOfValidatorOp = 0
 	ctx := _app.GetRunTxContext()
 	ctx.SetXHedgeForkBlock(0)
 
