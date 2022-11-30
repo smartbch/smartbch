@@ -1,7 +1,6 @@
 package crosschain
 
 import (
-	"github.com/tendermint/tendermint/libs/log"
 	"math/big"
 	"testing"
 
@@ -9,11 +8,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	mtypes "github.com/smartbch/moeingevm/types"
-
 	ccabi "github.com/smartbch/smartbch/crosschain/abi"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"

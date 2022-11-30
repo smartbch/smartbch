@@ -45,7 +45,6 @@ type Watcher struct {
 	catchupChan chan bool
 
 	EpochChan chan *stakingtypes.Epoch
-	epochList []*stakingtypes.Epoch
 
 	MonitorVoteChan     chan *cctypes.MonitorVoteInfo
 	monitorVoteInfoList []*cctypes.MonitorVoteInfo

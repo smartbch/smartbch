@@ -383,6 +383,13 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		return nil, errCrossChainPaused
 	}
 
+	utxoRecords := sbch.backend.GetRedeemingUTXOs()
+	if len(utxoRecords) == 0 {
+		infos := sbchrpctypes.UtxoInfos{}
+		infos.Signature = sbch.signUtxoInfos(infos.Infos)
+		return &infos, nil
+	}
+
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
 	ccc, err := covenant.NewDefaultCcCovenant(operatorPubkeys, monitorPubkeys)
 	if err != nil {
@@ -401,7 +408,6 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		currTS = currBlock.Timestamp
 	}
 
-	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		if forOperators && utxoRecord.ExpectedSignTime > currTS {
