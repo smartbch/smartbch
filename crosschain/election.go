@@ -137,13 +137,12 @@ func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger 
 	operatorInfos := ReadOperatorInfos(ctx, seq)
 	logger.Info("allOperatorInfos", "json", toJSON(operatorInfos))
 
-	// get and sort current operators
-	currOperators := getCurrOperators(operatorInfos)
+	currOperators, newOperatorCandidates := getCurrOperatorsAndCandidates(operatorInfos)
+	// sort current operators
 	sortOperatorInfosDesc(currOperators)
 	logger.Info("currOperators", "json", toJSON(currOperators))
 
-	// get and sort eligible new candidates
-	newOperatorCandidates := getNewOperatorCandidates(operatorInfos)
+	// sort eligible new candidates
 	sortOperatorInfosDesc(newOperatorCandidates)
 	logger.Info("newOperatorCandidates", "json", toJSON(newOperatorCandidates))
 
@@ -183,28 +182,19 @@ func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger 
 	logger.Info("new operator set", "json", allCandidates)
 	return OperatorElectionOK
 }
-func getCurrOperators(allOperatorInfos []*OperatorInfo) []*OperatorInfo {
-	operators := make([]*OperatorInfo, 0, param.OperatorsCount)
+func getCurrOperatorsAndCandidates(allOperatorInfos []*OperatorInfo) (currOperators []*OperatorInfo, candidates []*OperatorInfo) {
+	currOperators = make([]*OperatorInfo, 0, param.OperatorsCount)
+	candidates = make([]*OperatorInfo, 0, len(allOperatorInfos))
 	for _, operatorInfo := range allOperatorInfos {
 		if operatorInfo.ElectedTime.GtUint64(0) {
-			operators = append(operators, operatorInfo)
-		}
-	}
-	return operators
-}
-func getNewOperatorCandidates(allOperatorInfos []*OperatorInfo) []*OperatorInfo {
-	candidates := make([]*OperatorInfo, 0, len(allOperatorInfos))
-	for _, operatorInfo := range allOperatorInfos {
-		if operatorInfo.ElectedTime.GtUint64(0) {
-			// skip current operators
-			continue
-		}
-		if isEligibleOperatorCandidate(operatorInfo) {
+			currOperators = append(currOperators, operatorInfo)
+		} else if isEligibleOperatorCandidate(operatorInfo) {
 			candidates = append(candidates, operatorInfo)
 		}
 	}
-	return candidates
+	return
 }
+
 func isEligibleOperatorCandidate(operatorInfo *OperatorInfo) bool {
 	return !operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt)
 	// TODO: check more fields ?

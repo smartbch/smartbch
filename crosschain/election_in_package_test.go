@@ -73,14 +73,12 @@ func TestFilterOperators(t *testing.T) {
 	}
 	//shuffle(ops)
 
-	currOps := getCurrOperators(ops)
+	currOps, newCandidates := getCurrOperatorsAndCandidates(ops)
 	//sortOperatorInfosDesc(currOps)
 	require.Len(t, currOps, 3)
 	require.Equal(t, gethcmn.Address{0xA0}, currOps[0].Addr)
 	require.Equal(t, gethcmn.Address{0xA1}, currOps[1].Addr)
 	require.Equal(t, gethcmn.Address{0xA2}, currOps[2].Addr)
-
-	newCandidates := getNewOperatorCandidates(ops)
 	//sortOperatorInfosDesc(newCandidates)
 	require.Len(t, newCandidates, 2)
 	require.Equal(t, gethcmn.Address{0xA4}, newCandidates[0].Addr)
