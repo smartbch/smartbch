@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Install Dependencies
         run: |
-          sudo apt install gcc-8 g++-8
+          sudo apt install gcc-9 g++-9
           sudo apt install libgflags-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev
           sudo apt install libsnappy-dev
 
@@ -50,8 +50,10 @@ jobs:
           wget https://github.com/facebook/rocksdb/archive/refs/tags/v5.18.4.tar.gz
           tar zxvf v5.18.4.tar.gz
           cd rocksdb-5.18.4
-          make EXTRA_CXXFLAGS="-march=x86-64" CC=gcc-8 CXX=g++-8 static_lib
-
+          wget -O - https://raw.githubusercontent.com/smartbch/artifacts/main/patches/rocksdb.gcc11.patch | git apply -v 
+          CXXFLAGS=-Wno-range-loop-construct PORTABLE=1 make -j4 static_lib
+          strip --strip-unneeded librocksdb.a
+          # make EXTRA_CXXFLAGS="-march=x86-64" CC=gcc-9 CXX=g++-9 static_lib
       - name: Setup go
         uses: actions/setup-go@v2
         with:
