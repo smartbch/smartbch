@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.6
+
+* JSON-RPC
+  * Fix a bug related to `VRS` signature
+  * Fix a bug of eth_getLogs
+  * Fix a bug of eth_gasPrice
+* Others
+  * Other small bug fixes and improvements
+
+
 ## v0.4.5
 
 * JSON-RPC
