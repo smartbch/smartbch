@@ -595,7 +595,7 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 		return nil
 	}
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.OperatorElectionEpochs == 0 {
-		//ElectOperators(ctx, currBlock.Timestamp, c.logger)
+		ElectOperators(ctx, currBlock.Timestamp, c.logger)
 		context.LatestEpochHandled = currEpochNum
 		fmt.Printf("elect operators, current epoch number:%d\n", currEpochNum)
 	}
