@@ -601,14 +601,9 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 	}
 	// todo: monitor should call startRescan at least once in every epoch to trigger this
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.MonitorElectionEpochs == 0 {
-		var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
-		for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
-			if i == 0 {
-				continue
-			}
-			infos = append(infos, LoadMonitorVoteInfo(ctx, i))
-		}
-		HandleMonitorVoteInfos(ctx, currBlock.Timestamp, infos, c.logger)
+		voteInfos := loadMonitorVotes(ctx, currEpochNum)
+		voteMaps := monitorVotesToMap(voteInfos)
+		ElectMonitors(ctx, voteMaps, currBlock.Timestamp, c.logger)
 		fmt.Printf("elect monitors, current epoch number:%d\n", currEpochNum)
 	}
 	changed, newAddress := c.Voter.IsOperatorOrMonitorChanged(ctx, context.CurrCovenantAddr)
@@ -621,6 +616,30 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 	fmt.Printf("handleOperatorOrMonitorSetChanged changed:%v,lastCovenantAddr%s,CurrCovenantAddr:%s\n", changed, common.BytesToAddress(context.LastCovenantAddr[:]).String(), common.BytesToAddress(context.CurrCovenantAddr[:]).String())
 	logs = append(logs, buildChangeAddrLog(context.LastCovenantAddr, context.CurrCovenantAddr))
 	return
+}
+
+func loadMonitorVotes(ctx *mevmtypes.Context, currEpochNum int64) []*types.MonitorVoteInfo {
+	var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
+	for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
+		if i == 0 {
+			continue
+		}
+		infos = append(infos, LoadMonitorVoteInfo(ctx, i))
+	}
+	return infos
+}
+func monitorVotesToMap(infos []*types.MonitorVoteInfo) map[[33]byte]int64 {
+	var pubkeyVoteMap = make(map[[33]byte]int64)
+	for _, info := range infos {
+		for _, n := range info.Nominations {
+			if _, ok := pubkeyVoteMap[n.Pubkey]; !ok {
+				pubkeyVoteMap[n.Pubkey] = n.NominatedCount
+				continue
+			}
+			pubkeyVoteMap[n.Pubkey] += n.NominatedCount
+		}
+	}
+	return pubkeyVoteMap
 }
 
 func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress, currCovenantAddr [20]byte) (*mevmtypes.EvmLog, error) {
