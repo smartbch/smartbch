@@ -25,13 +25,13 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	StartMainnetHeightForCC = 1526600 // mainnet height which cc tx collected from
+	StartMainnetHeightForCC = 1529538 // mainnet height which cc tx collected from
 	StartEpochNumberForCC   = 0       // epoch number which cc enabled from
 	AlreadyBurntOnMainChain = 0       // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
-	MonitorElectionEpochs   = 2 // For test
-	OperatorElectionEpochs  = 2 // For test
-	MaxMonitorNumber        = 3 // For test
+	MonitorElectionEpochs   = 2       // For test
+	OperatorElectionEpochs  = 2       // For test
+	MaxMonitorNumber        = 3       // For test
 
 	OperatorsGovSequence    = 0x1a9 // TODO: change this in production mode
 	MonitorsGovSequence     = 0x15f // TODO: change this in production mode
