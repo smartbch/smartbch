@@ -529,7 +529,7 @@ func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.Utxo
 }
 
 func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
-	sbch.logger.Debug("sbch_getRedeemableUTXOs")
+	sbch.logger.Debug("sbch_getRedeemableUtxos")
 	utxoRecords := sbch.backend.GetRedeemableUtxos()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	infos := sbchrpctypes.UtxoInfos{
@@ -540,7 +540,7 @@ func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
 }
 
 func (sbch sbchAPI) GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos {
-	sbch.logger.Debug("sbch_getCcUTXO")
+	sbch.logger.Debug("sbch_getCcUtxo")
 
 	var utxoId [36]byte
 	copy(utxoId[:32], txid)
