@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -96,18 +97,19 @@ var (
 type CcContractExecutor struct {
 	Voter IVoteContract
 
-	Lock  sync.RWMutex
-	Infos []*types.CCTransferInfo
+	Lock               sync.RWMutex
+	Infos              []*types.CCTransferInfo
+	LastEndRescanBlock uint64
 
-	UTXOCollectDoneChan chan bool
-	logger              log.Logger
+	UTXOInitCollectDoneChan chan bool
+	logger                  log.Logger
 }
 
 func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger:              logger,
-		Voter:               voter,
-		UTXOCollectDoneChan: make(chan bool),
+		logger:                  logger,
+		Voter:                   voter,
+		UTXOInitCollectDoneChan: make(chan bool),
 	}
 }
 
@@ -284,6 +286,10 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 		return
 	}
 	rescanHeight := uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
+	// todo: hardcode, delete this when merge branch
+	if context.RescanHeight == 1526600 {
+		context.RescanHeight = 1529538
+	}
 	if rescanHeight <= context.RescanHeight {
 		c.logger.Debug("rescanHeight <= context.RescanHeight", "rescanHeight", rescanHeight, "context.RescanHeight", context.RescanHeight)
 		outData = []byte(ErrRescanHeightTooSmall.Error())
@@ -434,8 +440,15 @@ func isPaused(context *types.CCContext) bool {
 
 func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	context.UTXOAlreadyHandled = true
-	c.Lock.RLock()
-	defer c.Lock.RUnlock()
+	for {
+		c.Lock.RLock()
+		if c.LastEndRescanBlock == context.LastRescannedHeight {
+			break
+		}
+		fmt.Printf("cc want handle lastRescanHeight:%d, but watcher now is %d\n", context.LastRescannedHeight, c.LastEndRescanBlock)
+		c.Lock.RUnlock()
+		time.Sleep(500 * time.Millisecond)
+	}
 	fmt.Printf("handleTransferInfos inofs:%d\n", len(c.Infos))
 	for _, info := range c.Infos {
 		fmt.Println("txid:", hex.EncodeToString(info.UTXO.TxID[:]))
@@ -456,6 +469,7 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 		default:
 		}
 	}
+	c.Lock.RUnlock()
 	return logs
 }
 
