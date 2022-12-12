@@ -287,9 +287,9 @@ func (c *CcContractExecutor) startRescan(ctx *mevmtypes.Context, currBlock *mevm
 	}
 	rescanHeight := uint256.NewInt(0).SetBytes32(callData[:32]).Uint64()
 	// todo: hardcode, delete this when merge branch
-	if context.RescanHeight == 1526600 {
-		context.RescanHeight = 1529538
-	}
+	//if context.RescanHeight == 1526600 {
+	//	context.RescanHeight = 1529538
+	//}
 	if rescanHeight <= context.RescanHeight {
 		c.logger.Debug("rescanHeight <= context.RescanHeight", "rescanHeight", rescanHeight, "context.RescanHeight", context.RescanHeight)
 		outData = []byte(ErrRescanHeightTooSmall.Error())
@@ -442,7 +442,7 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 	context.UTXOAlreadyHandled = true
 	for {
 		c.Lock.RLock()
-		if c.LastEndRescanBlock == context.LastRescannedHeight {
+		if c.LastEndRescanBlock == context.RescanHeight {
 			break
 		}
 		fmt.Printf("cc want handle lastRescanHeight:%d, but watcher now is %d\n", context.LastRescannedHeight, c.LastEndRescanBlock)

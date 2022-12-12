@@ -25,7 +25,7 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	StartMainnetHeightForCC = 1529538 // mainnet height which cc tx collected from
+	StartMainnetHeightForCC = 1530543 // mainnet height which cc tx collected from
 	StartEpochNumberForCC   = 0       // epoch number which cc enabled from
 	AlreadyBurntOnMainChain = 0       // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
@@ -54,8 +54,8 @@ const (
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201
 	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,
-	StakingNumBlocksInEpoch                int64 = 100
-	StakingEpochSwitchDelay                int64 = 30 // 5% time of an epoch
+	StakingNumBlocksInEpoch                int64 = 60
+	StakingEpochSwitchDelay                int64 = 10 * 60 * 3 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
 
 	// network params

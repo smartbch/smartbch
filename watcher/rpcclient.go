@@ -67,9 +67,9 @@ func (client *RpcClient) GetLatestHeight(retry bool) (height int64) {
 }
 
 func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
-	if height == 1529565 {
-		return &types.BCHBlock{Height: height, Timestamp: 1670225100}
-	}
+	//if height == 1529565 {
+	//	return &types.BCHBlock{Height: height, Timestamp: 1670225100}
+	//}
 	var hash string
 	var err error
 	var blk *types.BCHBlock
@@ -101,9 +101,9 @@ func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBl
 }
 
 func (client *RpcClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
-	if height == 1529565 {
-		return &types.BlockInfo{}
-	}
+	//if height == 1529565 {
+	//	return &types.BlockInfo{}
+	//}
 	var hash string
 	var err error
 	var blk *types.BlockInfo
