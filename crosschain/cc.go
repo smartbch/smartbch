@@ -805,12 +805,12 @@ func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) 
 }
 
 func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
-	//newAddr, err := GetCCCovenantP2SHAddr(ctx)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//return currAddress != newAddr, newAddr
-	return false, common.HexToAddress("0000000000000000000000000000000000000000")
+	newAddr, err := GetCCCovenantP2SHAddr(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return currAddress != newAddr, newAddr
+	//return false, common.HexToAddress("0000000000000000000000000000000000000000")
 }
 
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {

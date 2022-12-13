@@ -19,17 +19,19 @@ type MonitorInfo struct {
 }
 
 type CcInfo struct {
-	Operators           []*OperatorInfo `json:"operators"`
-	Monitors            []*MonitorInfo  `json:"monitors"`
-	OldOperators        []*OperatorInfo `json:"oldOperators"`
-	OldMonitors         []*MonitorInfo  `json:"oldMonitors"`
-	LastCovenantAddress string          `json:"lastCovenantAddress"`
-	CurrCovenantAddress string          `json:"currCovenantAddress"`
-	LastRescannedHeight uint64          `json:"lastRescannedHeight"`
-	RescannedHeight     uint64          `json:"rescannedHeight"`
-	RescanTime          int64           `json:"rescanTime"`
-	UTXOAlreadyHandled  bool            `json:"utxoAlreadyHandled"`
-	Signature           hexutil.Bytes   `json:"signature"`
+	Operators                  []*OperatorInfo `json:"operators"`
+	Monitors                   []*MonitorInfo  `json:"monitors"`
+	OldOperators               []*OperatorInfo `json:"oldOperators"`
+	OldMonitors                []*MonitorInfo  `json:"oldMonitors"`
+	LastCovenantAddress        string          `json:"lastCovenantAddress"`
+	CurrCovenantAddress        string          `json:"currCovenantAddress"`
+	LastRescannedHeight        uint64          `json:"lastRescannedHeight"`
+	RescannedHeight            uint64          `json:"rescannedHeight"`
+	RescanTime                 int64           `json:"rescanTime"`
+	UTXOAlreadyHandled         bool            `json:"utxoAlreadyHandled"`
+	LatestEpochHandled         int64           `json:"latestEpochHandled"`
+	CovenantAddrLastChangeTime int64           `json:"covenantAddrLastChangeTime"`
+	Signature                  hexutil.Bytes   `json:"signature"`
 }
 
 type UtxoInfo struct {

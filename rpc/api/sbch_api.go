@@ -328,10 +328,10 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 	sbch.logger.Debug("sbch_getCcInfo")
 
+	info := sbchrpctypes.CcInfo{}
+
 	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
 	allMonitorsInfo := sbch.backend.GetAllMonitorsInfo()
-
-	info := sbchrpctypes.CcInfo{}
 	for _, operatorInfo := range allOperatorsInfo {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
 			info.Operators = append(info.Operators, castOperatorInfo(operatorInfo))
@@ -340,7 +340,6 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 			info.OldOperators = append(info.OldOperators, castOperatorInfo(operatorInfo))
 		}
 	}
-
 	for _, monitorInfo := range allMonitorsInfo {
 		if monitorInfo.ElectedTime.Uint64() > 0 {
 			info.Monitors = append(info.Monitors, castMonitorInfo(monitorInfo))
@@ -349,6 +348,7 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 			info.OldMonitors = append(info.OldMonitors, castMonitorInfo(monitorInfo))
 		}
 	}
+
 	ctx := sbch.backend.GetCcContext()
 	if ctx != nil {
 		info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
@@ -357,7 +357,10 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 		info.RescannedHeight = ctx.RescanHeight
 		info.RescanTime = ctx.RescanTime
 		info.UTXOAlreadyHandled = ctx.UTXOAlreadyHandled
+		info.LatestEpochHandled = ctx.LatestEpochHandled
+		info.CovenantAddrLastChangeTime = ctx.CovenantAddrLastChangeTime
 	}
+
 	key := sbch.backend.GetRpcPrivateKey()
 	if key != nil {
 		bz, _ := json.Marshal(info)
