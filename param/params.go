@@ -31,13 +31,13 @@ const (
 	GenesisCovenantAddress  = "0x6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
 	MonitorElectionEpochs   = 2 // For test
 	OperatorElectionEpochs  = 2 // For test
-	MaxMonitorNumber        = 3 // For test
 
 	OperatorsGovSequence    = 0x130 // TODO: change this in production mode
 	MonitorsGovSequence     = 0x1b5 // TODO: change this in production mode
-	OperatorMinStakedBCH    = 0     // 10000
-	MonitorMinStakedBCH     = 0     // 100000
-	MonitorMinOpsNomination = 6
+	OperatorMinStakedBCH    = 1     // TODO: change this in production mode
+	MonitorMinStakedBCH     = 1     // TODO: change this in production mode
+	MonitorMinOpsNomination = 6     // TODO: change this in production mode
+	MonitorMinPowNomination = 0     // TODO: change this in production mode
 	OperatorsCount          = 10
 	OperatorsMaxChangeCount = 3
 	MonitorsCount           = 3
