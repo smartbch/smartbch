@@ -147,7 +147,7 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 				copy(info.PrevUTXO.TxID[:], txid[:])
 				info.PrevUTXO.Index = vout
 				infos = append(infos, &info)
-				break
+				//break
 			}
 		}
 	}
