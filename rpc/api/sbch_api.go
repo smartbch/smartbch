@@ -493,11 +493,18 @@ func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.Utxo
 
 	oldOperatorPubkeys, oldMonitorPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
 	newOperatorPubkeys, newMonitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
-	if len(oldOperatorPubkeys) == 0 || len(oldMonitorPubkeys) == 0 {
-		sbch.logger.Error("no old operator or monitor pubkeys")
+	if len(oldOperatorPubkeys) == 0 && len(oldMonitorPubkeys) == 0 {
+		sbch.logger.Error("no old operator and monitor pubkeys")
 		infos := sbchrpctypes.UtxoInfos{}
 		infos.Signature = sbch.signUtxoInfos(infos.Infos)
 		return &infos, nil
+	}
+
+	if len(oldOperatorPubkeys) == 0 {
+		oldOperatorPubkeys = newOperatorPubkeys
+	}
+	if len(oldMonitorPubkeys) == 0 {
+		oldMonitorPubkeys = newMonitorPubkeys
 	}
 
 	ccc, err := covenant.NewDefaultCcCovenant(oldOperatorPubkeys, oldMonitorPubkeys)
