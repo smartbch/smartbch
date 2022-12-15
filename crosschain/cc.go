@@ -445,7 +445,7 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 		if c.LastEndRescanBlock == context.RescanHeight {
 			break
 		}
-		fmt.Printf("cc want handle lastRescanHeight:%d, but watcher now is %d\n", context.LastRescannedHeight, c.LastEndRescanBlock)
+		fmt.Printf("cc want handle RescanHeight:%d, but watcher now is %d\n", context.RescanHeight, c.LastEndRescanBlock)
 		c.Lock.RUnlock()
 		time.Sleep(500 * time.Millisecond)
 	}

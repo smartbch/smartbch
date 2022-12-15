@@ -268,7 +268,8 @@ func TestStartRescan(t *testing.T) {
 	ctx := mtypes.NewContext(&r, nil)
 	// prepare cc context
 	context := types.CCContext{
-		RescanHeight: 1,
+		RescanHeight:       1,
+		UTXOAlreadyHandled: true,
 	}
 	SaveCCContext(ctx, context)
 	staking.SaveStakingInfo(ctx, stakingtypes.StakingInfo{
