@@ -32,8 +32,8 @@ const (
 	MonitorElectionEpochs   = 2 // For test
 	OperatorElectionEpochs  = 2 // For test
 
-	OperatorsGovSequence    = 0x130 // TODO: change this in production mode
-	MonitorsGovSequence     = 0x1b5 // TODO: change this in production mode
+	OperatorsGovSequence    = 0x170 // TODO: change this in production mode
+	MonitorsGovSequence     = 0x130 // TODO: change this in production mode
 	OperatorMinStakedBCH    = 1     // TODO: change this in production mode
 	MonitorMinStakedBCH     = 1     // TODO: change this in production mode
 	MonitorMinOpsNomination = 6     // TODO: change this in production mode
