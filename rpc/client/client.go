@@ -110,6 +110,15 @@ func (c *Client) RedeemingUtxosForOperators(ctx context.Context) (*types.UtxoInf
 	return result, c.verifySigInUtxoInfos(ctx, result)
 }
 
+func (c *Client) RedeemableUtxos(ctx context.Context) (*types.UtxoInfos, error) {
+	var result *types.UtxoInfos
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getRedeemableUtxos")
+	if err != nil {
+		return nil, err
+	}
+	return result, c.verifySigInUtxoInfos(ctx, result)
+}
+
 func (c *Client) ToBeConvertedUtxosForMonitors(ctx context.Context) (*types.UtxoInfos, error) {
 	var result *types.UtxoInfos
 	err := c.rpcClient.CallContext(ctx, &result, "sbch_getToBeConvertedUtxosForMonitors")
