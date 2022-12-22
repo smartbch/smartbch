@@ -223,7 +223,7 @@ func (c *CcCovenant) buildRedeemOrConvertUnlockingScript(
 ) ([]byte, error) {
 
 	if len(sigs) != minOperatorSigCount {
-		return nil, errors.New("invalid operator signature count")
+		return nil, fmt.Errorf("invalid operator signature count: %d", len(sigs))
 	}
 
 	redeemScript, err := c.BuildFullRedeemScript()
