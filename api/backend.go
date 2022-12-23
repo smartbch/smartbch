@@ -578,3 +578,7 @@ func (backend *apiBackend) WaitRpcKeySet() {
 		}
 	}
 }
+
+func (backend *apiBackend) GetWatcherHeight() int64 {
+	return backend.app.GetWatcherHeight()
+}

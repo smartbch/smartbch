@@ -88,6 +88,7 @@ type IApp interface {
 	GetBlockForSync(height int64) (blk []byte, err error)
 	GetRedeemingUtxoIds() [][36]byte
 	GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte
+	GetWatcherHeight() int64
 }
 
 type App struct {
@@ -1004,6 +1005,10 @@ func (app *App) GetRedeemingUtxoIds() [][36]byte {
 
 func (app *App) GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte {
 	return app.historyStore.GetRedeemableUtxoIdsByCovenantAddr(addr)
+}
+
+func (app *App) GetWatcherHeight() int64 {
+	return app.watcher.GetLatestFinalizedHeight()
 }
 
 //nolint

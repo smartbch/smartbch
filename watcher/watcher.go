@@ -329,6 +329,10 @@ func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
 	return watcher.currentMainnetBlockTimestamp
 }
 
+func (watcher *Watcher) GetLatestFinalizedHeight() int64 {
+	return watcher.latestFinalizedHeight
+}
+
 func (watcher *Watcher) CheckSanity(skipCheck bool) {
 	if !skipCheck {
 		latestHeight := watcher.rpcClient.GetLatestHeight(false)
