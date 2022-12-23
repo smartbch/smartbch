@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -95,7 +96,7 @@ func (cc *CcTxParser) findRedeemableTx(txs []TxInfo) (infos []*cctypes.CCTransfe
 			default:
 			}
 			if covenantAddressMatched != "" {
-				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value*1e8)), uint256.NewInt(1e10)).Bytes32()
+				info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(math.Round(vOut.Value*1e8))), uint256.NewInt(1e10)).Bytes32()
 				info.UTXO.TxID = common.HexToHash(ti.Hash)
 				info.UTXO.Index = uint32(n)
 				info.CovenantAddress = common.HexToAddress(covenantAddressMatched)
@@ -129,7 +130,7 @@ func (cc *CcTxParser) findConvertTx(txs []TxInfo) (infos []*cctypes.CCTransferIn
 			continue
 		}
 		if script == "OP_HASH160 "+cc.CurrentCovenantAddress+" OP_EQUAL" {
-			info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(vOut.Value*1e8)), uint256.NewInt(1e10)).Bytes32()
+			info.UTXO.Amount = uint256.NewInt(0).Mul(uint256.NewInt(uint64(math.Round(vOut.Value*1e8))), uint256.NewInt(1e10)).Bytes32()
 			info.UTXO.TxID = common.HexToHash(ti.Hash)
 			info.UTXO.Index = uint32(0)
 			info.CovenantAddress = common.HexToAddress(cc.CurrentCovenantAddress)
