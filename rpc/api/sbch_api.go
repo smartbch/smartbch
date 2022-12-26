@@ -401,22 +401,6 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		return nil, err
 	}
 
-	// begin hack!
-	oldOpPubkeys, oldMoPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
-	if len(oldOpPubkeys) == 0 {
-		oldOpPubkeys = operatorPubkeys
-	}
-	if len(oldMoPubkeys) == 0 {
-		oldMoPubkeys = monitorPubkeys
-	}
-	oldCcc, err := covenant.NewDefaultCcCovenant(oldOpPubkeys, oldMoPubkeys)
-	if err != nil {
-		sbch.logger.Error("failed to create old CcCovenant", "err", err.Error())
-		return nil, err
-	}
-	oldCccAddr, _ := oldCcc.GetP2SHAddress20()
-	// end hack!
-
 	var currTS int64
 	if forOperators {
 		currBlock, err := sbch.backend.CurrentBlock()
@@ -451,15 +435,6 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 			sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
 			continue
 		}
-		// begin hack!
-		if utxoRecord.CovenantAddr == oldCccAddr {
-			_, sigHash, err = oldCcc.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
-			if err != nil {
-				sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
-				continue
-			}
-		}
-		// end hack!
 
 		utxoInfo.TxSigHash = sigHash
 		utxoInfos = append(utxoInfos, utxoInfo)
