@@ -87,6 +87,7 @@ type IApp interface {
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
 	GetRedeemingUtxoIds() [][36]byte
+	GetLostAndFoundUtxoIds() [][36]byte
 	GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte
 	GetWatcherHeight() int64
 }
@@ -997,6 +998,10 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 		err = errNoSyncBlock
 	}
 	return
+}
+
+func (app *App) GetLostAndFoundUtxoIds() [][36]byte {
+	return app.historyStore.GetLostAndFoundUtxoIds()
 }
 
 func (app *App) GetRedeemingUtxoIds() [][36]byte {

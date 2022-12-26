@@ -129,6 +129,7 @@ type BackendService interface {
 	IsCrossChainPaused() bool
 	GetAllOperatorsInfo() []*crosschain.OperatorInfo
 	GetAllMonitorsInfo() []*crosschain.MonitorInfo
+	GetLostAndFoundUTXOs() []*cctypes.UTXORecord
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
 	GetRedeemableUtxos() []*cctypes.UTXORecord
 	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)

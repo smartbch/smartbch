@@ -55,6 +55,7 @@ type SbchAPI interface {
 	GetToBeConvertedUtxosForMonitors() (*sbchrpctypes.UtxoInfos, error)
 	GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
 	GetRedeemableUtxos() *sbchrpctypes.UtxoInfos
+	GetLostAndFoundUtxos() *sbchrpctypes.UtxoInfos
 	GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos
 	SetRpcKey(key string) error
 	GetRpcPubkey() (string, error)
@@ -566,6 +567,17 @@ func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.Utxo
 func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
 	sbch.logger.Debug("sbch_getRedeemableUtxos")
 	utxoRecords := sbch.backend.GetRedeemableUtxos()
+	utxoInfos := castUtxoRecords(utxoRecords)
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos
+}
+
+func (sbch sbchAPI) GetLostAndFoundUtxos() *sbchrpctypes.UtxoInfos {
+	sbch.logger.Debug("sbch_getLostAndFoundUtxos")
+	utxoRecords := sbch.backend.GetLostAndFoundUTXOs()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	infos := sbchrpctypes.UtxoInfos{
 		Infos: utxoInfos,

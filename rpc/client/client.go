@@ -119,6 +119,15 @@ func (c *Client) RedeemableUtxos(ctx context.Context) (*types.UtxoInfos, error) 
 	return result, c.verifySigInUtxoInfos(ctx, result)
 }
 
+func (c *Client) LostAndFoundUtxos(ctx context.Context) (*types.UtxoInfos, error) {
+	var result *types.UtxoInfos
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getLostAndFoundUtxos")
+	if err != nil {
+		return nil, err
+	}
+	return result, c.verifySigInUtxoInfos(ctx, result)
+}
+
 func (c *Client) ToBeConvertedUtxosForMonitors(ctx context.Context) (*types.UtxoInfos, error) {
 	var result *types.UtxoInfos
 	err := c.rpcClient.CallContext(ctx, &result, "sbch_getToBeConvertedUtxosForMonitors")

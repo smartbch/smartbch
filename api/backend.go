@@ -480,6 +480,14 @@ func (backend *apiBackend) GetAllMonitorsInfo() []*crosschain.MonitorInfo {
 	return crosschain.GetMonitorInfos(ctx)
 }
 
+func (backend *apiBackend) GetLostAndFoundUTXOs() []*cctypes.UTXORecord {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	utxoIds := backend.app.GetLostAndFoundUtxoIds()
+	return loadUtxoRecords(ctx, utxoIds)
+}
+
 func (backend *apiBackend) GetRedeemingUTXOs() []*cctypes.UTXORecord {
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
