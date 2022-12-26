@@ -794,14 +794,13 @@ type IVoteContract interface {
 type VoteContract struct{}
 
 func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) bool {
-	return true
-	//monitors := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
-	//for _, monitor := range monitors {
-	//	if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
-	//		return true
-	//	}
-	//}
-	//return false
+	monitors := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
+	for _, monitor := range monitors {
+		if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
+			return true
+		}
+	}
+	return false
 }
 
 func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
@@ -810,12 +809,20 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 		panic(err)
 	}
 	return currAddress != newAddr, newAddr
-	//return false, common.HexToAddress("0000000000000000000000000000000000000000")
 }
 
+// todo:
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
-	return common.HexToAddress(param.GenesisCovenantAddress), nil
-	//return GetCCCovenantP2SHAddr(ctx)
+	//return common.HexToAddress(param.GenesisCovenantAddress), nil
+	address, err := GetCCCovenantP2SHAddr(ctx)
+	if err != nil {
+		panic(err)
+	}
+	genesisAddress := common.HexToAddress(param.GenesisCovenantAddress)
+	if bytes.Equal(genesisAddress[:], address[:]) {
+		panic("genesis covenant address invalid")
+	}
+	return address, nil
 }
 
 type MockVoteContract struct {
