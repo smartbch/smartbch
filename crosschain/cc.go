@@ -545,7 +545,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	}
 	//deduct miner fee used for utxo convert
 	pendingBurning, totalMinerFeeForConvertTx, _ := getBurningRelativeData(ctx, context)
-	minerFee := originAmount.Sub(originAmount, newAmount)
+	minerFee := uint256.NewInt(0).Sub(originAmount, newAmount)
 	if pendingBurning.Lt(minerFee) {
 		panic(ErrPendingBurningNotEnough.Error())
 	}
@@ -561,7 +561,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	newR.BornTime = r.BornTime
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	fmt.Printf("handleConvertTypeUTXO, totalMinerFeeForConvertTx:%s,prevTxid:%s,txid:%s,newAmount:%s,covenantAddre:%s\n", totalMinerFeeForConvertTx.String(),
+	fmt.Printf("handleConvertTypeUTXO, totalMinerFeeForConvertTx:%s,prevTxid:%s,txid:%s,newAmount:%s,covenantAddress:%s\n", totalMinerFeeForConvertTx.String(),
 		common.BytesToHash(info.PrevUTXO.TxID[:]).String(), common.BytesToHash(info.UTXO.TxID[:]).String(), newAmount.String(), common.BytesToAddress(info.CovenantAddress[:]).String())
 	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}
 }
