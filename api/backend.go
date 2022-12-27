@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
-
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethcore "github.com/ethereum/go-ethereum/core"
@@ -13,6 +13,7 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/holiman/uint256"
 	"math"
 	"math/big"
 	"sync"
@@ -525,6 +526,39 @@ func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
 	defer ctx.Close(false)
 
 	return crosschain.LoadCCContext(ctx)
+}
+
+func (backend *apiBackend) GetCcInfosForTest() *cctypes.CCInfosForTest {
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+	internalInfo := crosschain.LoadInternalInfoForTest(ctx)
+	if internalInfo == nil {
+		return nil
+	}
+	infos := cctypes.CCInfosForTest{
+		MaxAmount:             fmt.Sprintf("%d", crosschain.MaxCCAmount*1e4),
+		MinAmount:             fmt.Sprintf("%d", crosschain.MinCCAmount*1e4),
+		MinPendingBurningLeft: fmt.Sprintf("%d", crosschain.MinPendingBurningLeft*1e4),
+
+		TotalRedeemAmountS2M:       uint256.NewInt(0).SetBytes32(internalInfo.TotalRedeemAmountS2M[:]).String(),
+		TotalRedeemNumsS2M:         internalInfo.TotalRedeemNumsS2M,
+		TotalLostAndFoundAmountS2M: uint256.NewInt(0).SetBytes32(internalInfo.TotalLostAndFoundAmountS2M[:]).String(),
+		TotalLostAndFoundNumsS2M:   internalInfo.TotalLostAndFoundNumsS2M,
+		TotalTransferAmountM2S:     uint256.NewInt(0).SetBytes32(internalInfo.TotalTransferAmountM2S[:]).String(),
+		TotalTransferNumsM2S:       internalInfo.TotalTransferNumsM2S,
+	}
+	ccCtx := crosschain.LoadCCContext(ctx)
+	if ccCtx == nil {
+		return nil
+	}
+	pendingBurning, totalMinerFeeForConvertTx, totalBurntOnMainChain, totalConsumedOnMainChain := crosschain.GetBurningRelativeData(ctx, ccCtx)
+	infos.PendingBurning = pendingBurning.String()
+	infos.TotalMinerFeeForConvertTx = totalMinerFeeForConvertTx.String()
+	infos.TotalBurntOnMainChain = totalBurntOnMainChain.String()
+	infos.TotalConsumedOnMainChain = totalConsumedOnMainChain.String()
+	infos.AmountTriggerLostAndFound = uint256.NewInt(0).Sub(pendingBurning, uint256.NewInt(0).Add(uint256.NewInt(crosschain.MinPendingBurningLeft*1e4), uint256.NewInt(1e10))).String()
+
+	return &infos
 }
 
 func loadUtxoRecords(ctx *types.Context, utxoIds [][36]byte) []*cctypes.UTXORecord {

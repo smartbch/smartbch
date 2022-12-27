@@ -137,6 +137,7 @@ type BackendService interface {
 	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetCcContext() *cctypes.CCContext
+	GetCcInfosForTest() *cctypes.CCInfosForTest
 	GetWatcherHeight() int64
 
 	//tendermint info

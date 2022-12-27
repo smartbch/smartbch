@@ -474,6 +474,12 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 }
 
 func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) []mevmtypes.EvmLog {
+	// todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+	infos.TotalTransferNumsM2S++
+	SaveInternalInfoForTest(ctx, *infos)
+
 	r := types.UTXORecord{
 		Txid:         info.UTXO.TxID,
 		Index:        info.UTXO.Index,
@@ -497,7 +503,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		fmt.Printf("handleTransferTypeUTXO amount.Gt(maxAmount)\n")
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
-		pendingBurning, _, totalBurntOnMain := getBurningRelativeData(ctx, context)
+		pendingBurning, _, totalBurntOnMain, _ := GetBurningRelativeData(ctx, context)
 		//todo: change for test
 		//minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E17))
 		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E14))
@@ -544,7 +550,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 		panic("wrong amount in convert utxo")
 	}
 	//deduct miner fee used for utxo convert
-	pendingBurning, totalMinerFeeForConvertTx, _ := getBurningRelativeData(ctx, context)
+	pendingBurning, totalMinerFeeForConvertTx, _, _ := GetBurningRelativeData(ctx, context)
 	minerFee := uint256.NewInt(0).Sub(originAmount, newAmount)
 	if pendingBurning.Lt(minerFee) {
 		panic(ErrPendingBurningNotEnough.Error())
@@ -585,11 +591,11 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	}
 }
 
-func getBurningRelativeData(ctx *mevmtypes.Context, context *types.CCContext) (pendingBurning *uint256.Int, totalMinerFeeForConvertTx *uint256.Int, totalBurntOnMainChain *uint256.Int) {
+func GetBurningRelativeData(ctx *mevmtypes.Context, context *types.CCContext) (pendingBurning, totalMinerFeeForConvertTx, totalBurntOnMainChain, totalConsumedOnMainChain *uint256.Int) {
 	blockHoleBalance := ebp.GetBlackHoleBalance(ctx)
 	totalBurntOnMainChain = uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
 	totalMinerFeeForConvertTx = uint256.NewInt(0).SetBytes32(context.TotalMinerFeeForConvertTx[:])
-	totalConsumedOnMainChain := uint256.NewInt(0).Add(totalMinerFeeForConvertTx, totalBurntOnMainChain)
+	totalConsumedOnMainChain = uint256.NewInt(0).Add(totalMinerFeeForConvertTx, totalBurntOnMainChain)
 	if !blockHoleBalance.Gt(totalConsumedOnMainChain) {
 		panic(ErrPendingBurningNotEnough.Error())
 	}
@@ -679,6 +685,11 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable)
+	//todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalRedeemAmountS2M = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalRedeemAmountS2M[:]), amount).Bytes32()
+	infos.TotalRedeemNumsS2M++
+	SaveInternalInfoForTest(ctx, *infos)
 	return &l, nil
 }
 
@@ -702,6 +713,11 @@ func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.Block
 	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, index, r.CovenantAddr, types.FromLostAndFound)
+	//todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalLostAndFoundAmountS2M = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalLostAndFoundAmountS2M[:]), uint256.NewInt(0).SetBytes32(r.Amount[:])).Bytes32()
+	infos.TotalLostAndFoundNumsS2M++
+	SaveInternalInfoForTest(ctx, *infos)
 	return &l, nil
 }
 

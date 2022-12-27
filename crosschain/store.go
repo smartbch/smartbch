@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	SlotContext string = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
+	SlotContext      string = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
+	SlotInfosForTest string = strings.Repeat(string([]byte{0}), 31) + string([]byte{6})
 )
 
 func LoadUTXORecord(ctx *mevmtypes.Context, txid [32]byte, index uint32) *types.UTXORecord {
@@ -61,6 +62,27 @@ func SaveCCContext(ctx *mevmtypes.Context, ccContext types.CCContext) {
 		panic(err)
 	}
 	ctx.SetStorageAt(ccContractSequence, SlotContext, bz)
+}
+
+func LoadInternalInfoForTest(ctx *mevmtypes.Context) *types.CCInternalInfosForTest {
+	bz := ctx.GetStorageAt(ccContractSequence, SlotInfosForTest)
+	if len(bz) == 0 {
+		return &types.CCInternalInfosForTest{}
+	}
+	var c types.CCInternalInfosForTest
+	_, err := c.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	return &c
+}
+
+func SaveInternalInfoForTest(ctx *mevmtypes.Context, c types.CCInternalInfosForTest) {
+	bz, err := c.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(ccContractSequence, SlotInfosForTest, bz)
 }
 
 func buildUTXOKey(txid [32]byte, index uint32) string {

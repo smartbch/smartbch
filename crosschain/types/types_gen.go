@@ -396,6 +396,234 @@ func (z *CCContext) Msgsize() (s int) {
 }
 
 // DecodeMsg implements msgp.Decodable
+func (z *CCInternalInfosForTest) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "TotalRedeemAmountS2M":
+			err = dc.ReadExactBytes((z.TotalRedeemAmountS2M)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalRedeemAmountS2M")
+				return
+			}
+		case "TotalRedeemNumsS2M":
+			z.TotalRedeemNumsS2M, err = dc.ReadUint64()
+			if err != nil {
+				err = msgp.WrapError(err, "TotalRedeemNumsS2M")
+				return
+			}
+		case "TotalLostAndFoundAmountS2M":
+			err = dc.ReadExactBytes((z.TotalLostAndFoundAmountS2M)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalLostAndFoundAmountS2M")
+				return
+			}
+		case "TotalLostAndFoundNumsS2M":
+			z.TotalLostAndFoundNumsS2M, err = dc.ReadUint64()
+			if err != nil {
+				err = msgp.WrapError(err, "TotalLostAndFoundNumsS2M")
+				return
+			}
+		case "TotalTransferAmountM2S":
+			err = dc.ReadExactBytes((z.TotalTransferAmountM2S)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalTransferAmountM2S")
+				return
+			}
+		case "TotalTransferNumsM2S":
+			z.TotalTransferNumsM2S, err = dc.ReadUint64()
+			if err != nil {
+				err = msgp.WrapError(err, "TotalTransferNumsM2S")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *CCInternalInfosForTest) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 6
+	// write "TotalRedeemAmountS2M"
+	err = en.Append(0x86, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.TotalRedeemAmountS2M)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "TotalRedeemAmountS2M")
+		return
+	}
+	// write "TotalRedeemNumsS2M"
+	err = en.Append(0xb2, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x4e, 0x75, 0x6d, 0x73, 0x53, 0x32, 0x4d)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint64(z.TotalRedeemNumsS2M)
+	if err != nil {
+		err = msgp.WrapError(err, "TotalRedeemNumsS2M")
+		return
+	}
+	// write "TotalLostAndFoundAmountS2M"
+	err = en.Append(0xba, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x4c, 0x6f, 0x73, 0x74, 0x41, 0x6e, 0x64, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.TotalLostAndFoundAmountS2M)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "TotalLostAndFoundAmountS2M")
+		return
+	}
+	// write "TotalLostAndFoundNumsS2M"
+	err = en.Append(0xb8, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x4c, 0x6f, 0x73, 0x74, 0x41, 0x6e, 0x64, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x4e, 0x75, 0x6d, 0x73, 0x53, 0x32, 0x4d)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint64(z.TotalLostAndFoundNumsS2M)
+	if err != nil {
+		err = msgp.WrapError(err, "TotalLostAndFoundNumsS2M")
+		return
+	}
+	// write "TotalTransferAmountM2S"
+	err = en.Append(0xb6, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x32, 0x53)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.TotalTransferAmountM2S)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "TotalTransferAmountM2S")
+		return
+	}
+	// write "TotalTransferNumsM2S"
+	err = en.Append(0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x4e, 0x75, 0x6d, 0x73, 0x4d, 0x32, 0x53)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint64(z.TotalTransferNumsM2S)
+	if err != nil {
+		err = msgp.WrapError(err, "TotalTransferNumsM2S")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *CCInternalInfosForTest) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 6
+	// string "TotalRedeemAmountS2M"
+	o = append(o, 0x86, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
+	o = msgp.AppendBytes(o, (z.TotalRedeemAmountS2M)[:])
+	// string "TotalRedeemNumsS2M"
+	o = append(o, 0xb2, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x4e, 0x75, 0x6d, 0x73, 0x53, 0x32, 0x4d)
+	o = msgp.AppendUint64(o, z.TotalRedeemNumsS2M)
+	// string "TotalLostAndFoundAmountS2M"
+	o = append(o, 0xba, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x4c, 0x6f, 0x73, 0x74, 0x41, 0x6e, 0x64, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
+	o = msgp.AppendBytes(o, (z.TotalLostAndFoundAmountS2M)[:])
+	// string "TotalLostAndFoundNumsS2M"
+	o = append(o, 0xb8, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x4c, 0x6f, 0x73, 0x74, 0x41, 0x6e, 0x64, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x4e, 0x75, 0x6d, 0x73, 0x53, 0x32, 0x4d)
+	o = msgp.AppendUint64(o, z.TotalLostAndFoundNumsS2M)
+	// string "TotalTransferAmountM2S"
+	o = append(o, 0xb6, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x4d, 0x32, 0x53)
+	o = msgp.AppendBytes(o, (z.TotalTransferAmountM2S)[:])
+	// string "TotalTransferNumsM2S"
+	o = append(o, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x4e, 0x75, 0x6d, 0x73, 0x4d, 0x32, 0x53)
+	o = msgp.AppendUint64(o, z.TotalTransferNumsM2S)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *CCInternalInfosForTest) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "TotalRedeemAmountS2M":
+			bts, err = msgp.ReadExactBytes(bts, (z.TotalRedeemAmountS2M)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalRedeemAmountS2M")
+				return
+			}
+		case "TotalRedeemNumsS2M":
+			z.TotalRedeemNumsS2M, bts, err = msgp.ReadUint64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "TotalRedeemNumsS2M")
+				return
+			}
+		case "TotalLostAndFoundAmountS2M":
+			bts, err = msgp.ReadExactBytes(bts, (z.TotalLostAndFoundAmountS2M)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalLostAndFoundAmountS2M")
+				return
+			}
+		case "TotalLostAndFoundNumsS2M":
+			z.TotalLostAndFoundNumsS2M, bts, err = msgp.ReadUint64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "TotalLostAndFoundNumsS2M")
+				return
+			}
+		case "TotalTransferAmountM2S":
+			bts, err = msgp.ReadExactBytes(bts, (z.TotalTransferAmountM2S)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "TotalTransferAmountM2S")
+				return
+			}
+		case "TotalTransferNumsM2S":
+			z.TotalTransferNumsM2S, bts, err = msgp.ReadUint64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "TotalTransferNumsM2S")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *CCInternalInfosForTest) Msgsize() (s int) {
+	s = 1 + 21 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 19 + msgp.Uint64Size + 27 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 25 + msgp.Uint64Size + 23 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 21 + msgp.Uint64Size
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
 func (z *MonitorVoteInfo) DecodeMsg(dc *msgp.Reader) (err error) {
 	var field []byte
 	_ = field

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math/big"
 	"time"
 
@@ -57,6 +58,7 @@ type SbchAPI interface {
 	GetRedeemableUtxos() *sbchrpctypes.UtxoInfos
 	GetLostAndFoundUtxos() *sbchrpctypes.UtxoInfos
 	GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos
+	GetCcInfosForTest() *cctypes.CCInfosForTest
 	SetRpcKey(key string) error
 	GetRpcPubkey() (string, error)
 }
@@ -576,6 +578,11 @@ func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
 	}
 	infos.Signature = sbch.signUtxoInfos(infos.Infos)
 	return &infos
+}
+
+func (sbch sbchAPI) GetCcInfosForTest() *cctypes.CCInfosForTest {
+	sbch.logger.Debug("sbch_getCcInfosForTest")
+	return sbch.backend.GetCcInfosForTest()
 }
 
 func (sbch sbchAPI) GetLostAndFoundUtxos() *sbchrpctypes.UtxoInfos {
