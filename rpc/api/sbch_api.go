@@ -395,11 +395,26 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 	}
 
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
-	ccc, err := covenant.NewDefaultCcCovenant(operatorPubkeys, monitorPubkeys)
+	currCovenant, err := covenant.NewDefaultCcCovenant(operatorPubkeys, monitorPubkeys)
 	if err != nil {
 		sbch.logger.Error("failed to create CcCovenant", "err", err.Error())
 		return nil, err
 	}
+	currCovenantAddr, _ := currCovenant.GetP2SHAddress20()
+
+	oldOpPubkeys, oldMoPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
+	if len(oldOpPubkeys) == 0 {
+		oldOpPubkeys = operatorPubkeys
+	}
+	if len(oldMoPubkeys) == 0 {
+		oldMoPubkeys = monitorPubkeys
+	}
+	oldCovenant, err := covenant.NewDefaultCcCovenant(oldOpPubkeys, oldMoPubkeys)
+	if err != nil {
+		sbch.logger.Error("failed to create old CcCovenant", "err", err.Error())
+		return nil, err
+	}
+	oldCovenantAddr, _ := oldCovenant.GetP2SHAddress20()
 
 	var currTS int64
 	if forOperators {
@@ -423,16 +438,29 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		txid := utxoRecord.Txid[:]
 		vout := utxoRecord.Index
 
-		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], ccc.Net())
+		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], currCovenant.Net())
 		if err != nil {
 			sbch.logger.Error("failed to derive BCH address", "err", err)
 			continue
 		}
 
 		toAddr := addr.EncodeAddress()
-		_, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
-		if err != nil {
-			sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+		var sigHash []byte
+		if utxoRecord.CovenantAddr == currCovenantAddr {
+			_, sigHash, err = currCovenant.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
+			if err != nil {
+				sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+				continue
+			}
+		} else if utxoRecord.CovenantAddr == oldCovenantAddr {
+			_, sigHash, err = oldCovenant.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
+			if err != nil {
+				sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+				continue
+			}
+		} else {
+			sbch.logger.Error("invalid covenant address", "covenantAddr",
+				hex.EncodeToString(utxoRecord.CovenantAddr[:]))
 			continue
 		}
 
