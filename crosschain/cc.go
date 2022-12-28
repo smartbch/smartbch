@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	MaxCCAmount           uint64 = 1000             // 0.1BCH
+	MaxCCAmount           uint64 = 100              // 0.01BCH
 	MinCCAmount           uint64 = 10               // 0.001BCH
 	MinPendingBurningLeft uint64 = 1                // 0.0001BCH
 	MatureTime            int64  = 1                // 24h

@@ -6,6 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethcore "github.com/ethereum/go-ethereum/core"
@@ -14,10 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
-	"math"
-	"math/big"
-	"sync"
-	"time"
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"

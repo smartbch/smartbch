@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/rpc/types"
 )
 
@@ -52,6 +53,15 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 		Client:    ethclient.NewClient(c),
 		rpcClient: c,
 	}, nil
+}
+
+func (c *Client) CcInfosForTest(ctx context.Context) (*cctypes.CCInfosForTest, error) {
+	var result cctypes.CCInfosForTest
+	err := c.rpcClient.CallContext(ctx, &result, "sbch_getCcInfosForTest")
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (c *Client) CcInfo(ctx context.Context) (*types.CcInfo, error) {

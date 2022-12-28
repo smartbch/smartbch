@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"math/big"
 	"time"
 
@@ -20,9 +19,11 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	motypes "github.com/smartbch/moeingevm/types"
+
 	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/covenant"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
