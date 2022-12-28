@@ -507,6 +507,9 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		//todo: change for test
 		//minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E17))
 		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E14))
+		//todo: hack for test
+		fmt.Printf("pending burning: %s, hack it to 0.0005BCH, and transfer amount should in (0.0006, 0.001)\n", pendingBurning.String())
+		pendingBurning = uint256.NewInt(0).Mul(uint256.NewInt(5), uint256.NewInt(1e14))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
