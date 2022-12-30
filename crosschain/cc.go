@@ -126,21 +126,17 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	}
 	ccCtx := LoadCCContext(ctx)
 	if ccCtx == nil {
-		address, err := c.Voter.GetCCCovenantP2SHAddr(ctx)
-		if err != nil {
-			panic(err)
-		}
 		context := types.CCContext{
 			RescanTime:            math.MaxInt64,
 			RescanHeight:          uint64(param.StartMainnetHeightForCC),
 			LastRescannedHeight:   uint64(0),
 			UTXOAlreadyHandled:    true,
 			TotalBurntOnMainChain: uint256.NewInt(uint64(param.AlreadyBurntOnMainChain)).Bytes32(),
-			CurrCovenantAddr:      address,
+			CurrCovenantAddr:      common.HexToAddress(param.GenesisCovenantAddress),
 			LatestEpochHandled:    -1,
 		}
 		SaveCCContext(ctx, context)
-		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", address, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
+		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", context.CurrCovenantAddr, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
 	}
 }
 
@@ -832,16 +828,7 @@ func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAdd
 
 // todo:
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
-	//return common.HexToAddress(param.GenesisCovenantAddress), nil
-	address, err := GetCCCovenantP2SHAddr(ctx)
-	if err != nil {
-		panic(err)
-	}
-	genesisAddress := common.HexToAddress(param.GenesisCovenantAddress)
-	if bytes.Equal(genesisAddress[:], address[:]) {
-		panic("genesis covenant address invalid")
-	}
-	return address, nil
+	return GetCCCovenantP2SHAddr(ctx)
 }
 
 type MockVoteContract struct {
