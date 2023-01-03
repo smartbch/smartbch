@@ -449,6 +449,18 @@ func (z *CCInternalInfosForTest) DecodeMsg(dc *msgp.Reader) (err error) {
 				err = msgp.WrapError(err, "TotalTransferNumsM2S")
 				return
 			}
+		case "ToTalTransferByBurnAmount":
+			err = dc.ReadExactBytes((z.ToTalTransferByBurnAmount)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "ToTalTransferByBurnAmount")
+				return
+			}
+		case "TotalTransferByBurnMums":
+			z.TotalTransferByBurnMums, err = dc.ReadUint64()
+			if err != nil {
+				err = msgp.WrapError(err, "TotalTransferByBurnMums")
+				return
+			}
 		default:
 			err = dc.Skip()
 			if err != nil {
@@ -462,9 +474,9 @@ func (z *CCInternalInfosForTest) DecodeMsg(dc *msgp.Reader) (err error) {
 
 // EncodeMsg implements msgp.Encodable
 func (z *CCInternalInfosForTest) EncodeMsg(en *msgp.Writer) (err error) {
-	// map header, size 6
+	// map header, size 8
 	// write "TotalRedeemAmountS2M"
-	err = en.Append(0x86, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
+	err = en.Append(0x88, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
 	if err != nil {
 		return
 	}
@@ -523,15 +535,35 @@ func (z *CCInternalInfosForTest) EncodeMsg(en *msgp.Writer) (err error) {
 		err = msgp.WrapError(err, "TotalTransferNumsM2S")
 		return
 	}
+	// write "ToTalTransferByBurnAmount"
+	err = en.Append(0xb9, 0x54, 0x6f, 0x54, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x42, 0x79, 0x42, 0x75, 0x72, 0x6e, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
+	if err != nil {
+		return
+	}
+	err = en.WriteBytes((z.ToTalTransferByBurnAmount)[:])
+	if err != nil {
+		err = msgp.WrapError(err, "ToTalTransferByBurnAmount")
+		return
+	}
+	// write "TotalTransferByBurnMums"
+	err = en.Append(0xb7, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x42, 0x79, 0x42, 0x75, 0x72, 0x6e, 0x4d, 0x75, 0x6d, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint64(z.TotalTransferByBurnMums)
+	if err != nil {
+		err = msgp.WrapError(err, "TotalTransferByBurnMums")
+		return
+	}
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *CCInternalInfosForTest) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 6
+	// map header, size 8
 	// string "TotalRedeemAmountS2M"
-	o = append(o, 0x86, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
+	o = append(o, 0x88, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x32, 0x4d)
 	o = msgp.AppendBytes(o, (z.TotalRedeemAmountS2M)[:])
 	// string "TotalRedeemNumsS2M"
 	o = append(o, 0xb2, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x52, 0x65, 0x64, 0x65, 0x65, 0x6d, 0x4e, 0x75, 0x6d, 0x73, 0x53, 0x32, 0x4d)
@@ -548,6 +580,12 @@ func (z *CCInternalInfosForTest) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "TotalTransferNumsM2S"
 	o = append(o, 0xb4, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x4e, 0x75, 0x6d, 0x73, 0x4d, 0x32, 0x53)
 	o = msgp.AppendUint64(o, z.TotalTransferNumsM2S)
+	// string "ToTalTransferByBurnAmount"
+	o = append(o, 0xb9, 0x54, 0x6f, 0x54, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x42, 0x79, 0x42, 0x75, 0x72, 0x6e, 0x41, 0x6d, 0x6f, 0x75, 0x6e, 0x74)
+	o = msgp.AppendBytes(o, (z.ToTalTransferByBurnAmount)[:])
+	// string "TotalTransferByBurnMums"
+	o = append(o, 0xb7, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x42, 0x79, 0x42, 0x75, 0x72, 0x6e, 0x4d, 0x75, 0x6d, 0x73)
+	o = msgp.AppendUint64(o, z.TotalTransferByBurnMums)
 	return
 }
 
@@ -605,6 +643,18 @@ func (z *CCInternalInfosForTest) UnmarshalMsg(bts []byte) (o []byte, err error) 
 				err = msgp.WrapError(err, "TotalTransferNumsM2S")
 				return
 			}
+		case "ToTalTransferByBurnAmount":
+			bts, err = msgp.ReadExactBytes(bts, (z.ToTalTransferByBurnAmount)[:])
+			if err != nil {
+				err = msgp.WrapError(err, "ToTalTransferByBurnAmount")
+				return
+			}
+		case "TotalTransferByBurnMums":
+			z.TotalTransferByBurnMums, bts, err = msgp.ReadUint64Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "TotalTransferByBurnMums")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -619,7 +669,7 @@ func (z *CCInternalInfosForTest) UnmarshalMsg(bts []byte) (o []byte, err error) 
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *CCInternalInfosForTest) Msgsize() (s int) {
-	s = 1 + 21 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 19 + msgp.Uint64Size + 27 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 25 + msgp.Uint64Size + 23 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 21 + msgp.Uint64Size
+	s = 1 + 21 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 19 + msgp.Uint64Size + 27 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 25 + msgp.Uint64Size + 23 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 21 + msgp.Uint64Size + 26 + msgp.ArrayHeaderSize + (32 * (msgp.ByteSize)) + 24 + msgp.Uint64Size
 	return
 }
 

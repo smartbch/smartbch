@@ -470,12 +470,6 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 }
 
 func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) []mevmtypes.EvmLog {
-	// todo: for test
-	infos := LoadInternalInfoForTest(ctx)
-	infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
-	infos.TotalTransferNumsM2S++
-	SaveInternalInfoForTest(ctx, *infos)
-
 	r := types.UTXORecord{
 		Txid:         info.UTXO.TxID,
 		Index:        info.UTXO.Index,
@@ -486,6 +480,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
 		fmt.Printf("handleTransferTypeUTXO info.CovenantAddress == context.LastCovenantAddr\n")
+		// todo: for test
+		infos := LoadInternalInfoForTest(ctx)
+		infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+		infos.TotalTransferNumsM2S++
+		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	}
 	amount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
@@ -497,6 +496,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
 		fmt.Printf("handleTransferTypeUTXO amount.Gt(maxAmount)\n")
+		// todo: for test
+		infos := LoadInternalInfoForTest(ctx)
+		infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+		infos.TotalTransferNumsM2S++
+		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
 		pendingBurning, _, totalBurntOnMain, _ := GetBurningRelativeData(ctx, context)
@@ -510,6 +514,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
 			fmt.Printf("handleTransferTypeUTXO amount.Lt(minAmount) and lost\n")
+			// todo: for test
+			infos := LoadInternalInfoForTest(ctx)
+			infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+			infos.TotalTransferNumsM2S++
+			SaveInternalInfoForTest(ctx, *infos)
 			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 		}
 		// add total burnt on main chain here, not waiting tx minted on main chain
@@ -524,6 +533,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 			panic(err)
 		}
 		fmt.Printf("handleTransferTypeUTXO amount.Lt(minAmount) and not lost\n")
+		//todo: for test
+		infos := LoadInternalInfoForTest(ctx)
+		infos.ToTalTransferByBurnAmount = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.ToTalTransferByBurnAmount[:]), amount).Bytes32()
+		infos.TotalTransferByBurnMums++
+		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}
 	}
 	r.BornTime = block.Timestamp
@@ -533,6 +547,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		panic(err)
 	}
 	fmt.Printf("handleTransferTypeUTXO normal\n")
+	// todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+	infos.TotalTransferNumsM2S++
+	SaveInternalInfoForTest(ctx, *infos)
 	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}
 }
 
