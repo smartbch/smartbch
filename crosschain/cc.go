@@ -535,8 +535,8 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		fmt.Printf("handleTransferTypeUTXO amount.Lt(minAmount) and not lost\n")
 		//todo: for test
 		infos := LoadInternalInfoForTest(ctx)
-		infos.ToTalTransferByBurnAmount = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.ToTalTransferByBurnAmount[:]), amount).Bytes32()
-		infos.TotalTransferByBurnMums++
+		infos.TotalTransferByBurnAmount = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferByBurnAmount[:]), amount).Bytes32()
+		infos.TotalTransferByBurnNums++
 		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}
 	}

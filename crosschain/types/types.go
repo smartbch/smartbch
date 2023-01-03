@@ -58,8 +58,8 @@ type CCInternalInfosForTest struct {
 	TotalLostAndFoundNumsS2M   uint64   `msgp:"total_lost_and_found_nums_s2m"`
 	TotalTransferAmountM2S     [32]byte `msgp:"total_transfer_amount_m2s"`
 	TotalTransferNumsM2S       uint64   `msgp:"total_transfer_nums_m2s"`
-	ToTalTransferByBurnAmount  [32]byte `msgp:"total_transfer_by_burn_amount"`
-	TotalTransferByBurnMums    uint64   `msgp:"total_transfer_by_burn_nums"`
+	TotalTransferByBurnAmount  [32]byte `msgp:"total_transfer_by_burn_amount"`
+	TotalTransferByBurnNums    uint64   `msgp:"total_transfer_by_burn_nums"`
 }
 
 type CCInfosForTest struct {
@@ -79,8 +79,8 @@ type CCInfosForTest struct {
 	TotalLostAndFoundNumsS2M   uint64   `json:"totalLostAndFoundNumsS2M"`
 	TotalTransferAmountM2S     string   `json:"totalTransferAmountM2S"`
 	TotalTransferNumsM2S       uint64   `json:"totalTransferNumsM2S"`
-	ToTalTransferByBurnAmount  string   `json:"toTalTransferByBurnAmount"`
-	TotalTransferByBurnMums    uint64   `json:"totalTransferByBurnMums"`
+	TotalTransferByBurnAmount  string   `json:"totalTransferByBurnAmount"`
+	TotalTransferByBurnNums    uint64   `json:"totalTransferByBurnNums"`
 	MonitorsWithPauseCommand   []string `json:"monitorsWithPauseCommand"`
 	// fields for LostAndFound Test, recalculate every rpc call
 	AmountTriggerLostAndFound string `json:"amountTriggerLostAndFound"`

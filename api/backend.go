@@ -547,8 +547,8 @@ func (backend *apiBackend) GetCcInfosForTest() *cctypes.CCInfosForTest {
 		TotalLostAndFoundNumsS2M:   internalInfo.TotalLostAndFoundNumsS2M,
 		TotalTransferAmountM2S:     uint256.NewInt(0).SetBytes32(internalInfo.TotalTransferAmountM2S[:]).String(),
 		TotalTransferNumsM2S:       internalInfo.TotalTransferNumsM2S,
-		ToTalTransferByBurnAmount:  uint256.NewInt(0).SetBytes32(internalInfo.ToTalTransferByBurnAmount[:]).String(),
-		TotalTransferByBurnMums:    internalInfo.TotalTransferByBurnMums,
+		TotalTransferByBurnAmount:  uint256.NewInt(0).SetBytes32(internalInfo.TotalTransferByBurnAmount[:]).String(),
+		TotalTransferByBurnNums:    internalInfo.TotalTransferByBurnNums,
 	}
 	ccCtx := crosschain.LoadCCContext(ctx)
 	if ccCtx == nil {
