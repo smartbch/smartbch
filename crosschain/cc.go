@@ -424,6 +424,7 @@ func (c *CcContractExecutor) handleUTXOs(ctx *mevmtypes.Context, currBlock *mevm
 		outData = []byte(ErrUTXOAlreadyHandled.Error())
 		return
 	}
+	fmt.Println("enter handle utxos")
 	logs = append(logs, c.handleTransferInfos(ctx, currBlock, context)...)
 	SaveCCContext(ctx, *context)
 	status = StatusSuccess
