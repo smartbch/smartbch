@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -518,6 +519,8 @@ func TestCc(t *testing.T) {
 	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 	_api := createSbchAPI(_app)
+
+	fmt.Println("rpc priv key:", key2)
 	err := _api.SetRpcKey(key2)
 	require.Nil(t, err)
 	infos, _ := _api.GetRedeemingUtxosForMonitors()
@@ -527,6 +530,8 @@ func TestCc(t *testing.T) {
 	bz, _ := json.Marshal(infos.Infos)
 	hash := sha256.Sum256(bz)
 	pk, _ := hex.DecodeString(pubkey)
+	pkh := sha256.Sum256(pk)
+	fmt.Println("rpc pubkey hash:", hex.EncodeToString(pkh[:]))
 	success := crypto.VerifySignature(pk, hash[:], infos.Signature[:64])
 	require.True(t, success)
 
