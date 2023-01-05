@@ -548,11 +548,6 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.updateValidatorsAndStakingInfo()
 	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	appHash := app.refresh()
-	if app.currHeight == 787 {
-		fmt.Println("stuck at the height 787")
-		for {
-		}
-	}
 	go app.postCommit(app.syncBlockInfo())
 	return app.buildCommitResponse(appHash)
 }
