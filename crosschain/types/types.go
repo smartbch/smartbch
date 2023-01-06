@@ -73,15 +73,14 @@ type CCInfosForTest struct {
 	TotalMinerFeeForConvertTx string `json:"totalMinerFeeForConvertTx"`
 	TotalBurntOnMainChain     string `json:"totalBurntOnMainChain"`
 	// get in ads
-	TotalRedeemAmountS2M       string   `json:"totalRedeemAmountS2M"`
-	TotalRedeemNumsS2M         uint64   `json:"totalRedeemNumsS2M"`
-	TotalLostAndFoundAmountS2M string   `json:"totalLostAndFoundAmountS2M"`
-	TotalLostAndFoundNumsS2M   uint64   `json:"totalLostAndFoundNumsS2M"`
-	TotalTransferAmountM2S     string   `json:"totalTransferAmountM2S"`
-	TotalTransferNumsM2S       uint64   `json:"totalTransferNumsM2S"`
-	TotalTransferByBurnAmount  string   `json:"totalTransferByBurnAmount"`
-	TotalTransferByBurnNums    uint64   `json:"totalTransferByBurnNums"`
-	MonitorsWithPauseCommand   []string `json:"monitorsWithPauseCommand"`
+	TotalRedeemAmountS2M       string `json:"totalRedeemAmountS2M"`
+	TotalRedeemNumsS2M         uint64 `json:"totalRedeemNumsS2M"`
+	TotalLostAndFoundAmountS2M string `json:"totalLostAndFoundAmountS2M"`
+	TotalLostAndFoundNumsS2M   uint64 `json:"totalLostAndFoundNumsS2M"`
+	TotalTransferAmountM2S     string `json:"totalTransferAmountM2S"`
+	TotalTransferNumsM2S       uint64 `json:"totalTransferNumsM2S"`
+	TotalTransferByBurnAmount  string `json:"totalTransferByBurnAmount"`
+	TotalTransferByBurnNums    uint64 `json:"totalTransferByBurnNums"`
 	// fields for LostAndFound Test, recalculate every rpc call
 	AmountTriggerLostAndFound string `json:"amountTriggerLostAndFound"`
 }

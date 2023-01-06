@@ -363,6 +363,9 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 		info.UTXOAlreadyHandled = ctx.UTXOAlreadyHandled
 		info.LatestEpochHandled = ctx.LatestEpochHandled
 		info.CovenantAddrLastChangeTime = ctx.CovenantAddrLastChangeTime
+		for _, m := range ctx.MonitorsWithPauseCommand {
+			info.MonitorsWithPauseCommand = append(info.MonitorsWithPauseCommand, gethcmn.Address(m).String())
+		}
 	}
 
 	key := sbch.backend.GetRpcPrivateKey()
