@@ -378,7 +378,7 @@ func (c *CcContractExecutor) resume(ctx *mevmtypes.Context, tx *mevmtypes.TxToRu
 		if m == tx.From {
 			pauseBefore = true
 		} else {
-			newMonitors = append(newMonitors, tx.From)
+			newMonitors = append(newMonitors, m)
 		}
 	}
 	if !pauseBefore {
