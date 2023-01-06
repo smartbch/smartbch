@@ -629,3 +629,16 @@ func (backend *apiBackend) WaitRpcKeySet() {
 func (backend *apiBackend) GetWatcherHeight() int64 {
 	return backend.app.GetWatcherHeight()
 }
+
+// todo: for injection fault test
+func (backend *apiBackend) InjectRedeemFault() {
+	backend.app.InjectRedeemFault()
+}
+
+func (backend *apiBackend) InjectHandleUtxosFault() {
+	backend.app.InjectHandleUtxosFault()
+}
+
+func (backend *apiBackend) InjectTransferByBurnFault() {
+	backend.app.InjectTransferByBurnFault()
+}

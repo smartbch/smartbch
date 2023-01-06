@@ -72,7 +72,7 @@ func TestRedeem(t *testing.T) {
 			Data:  txData,
 			Gas:   GasOfLostAndFoundRedeem,
 		},
-	})
+	}, nil)
 	require.Equal(t, StatusSuccess, status)
 	require.Equal(t, 1, len(logs))
 	require.Equal(t, 0, len(outdata))
@@ -86,7 +86,7 @@ func TestRedeem(t *testing.T) {
 			Data:  txData,
 			Gas:   GasOfCCOp,
 		},
-	})
+	}, nil)
 	require.Equal(t, StatusFailed, status)
 	require.Equal(t, ErrAlreadyRedeemed.Error(), string(outdata))
 	// refresh record
@@ -100,7 +100,7 @@ func TestRedeem(t *testing.T) {
 			Data:  txData,
 			Gas:   GasOfLostAndFoundRedeem,
 		},
-	})
+	}, nil)
 	require.Equal(t, StatusFailed, status)
 	require.Equal(t, ErrNotLostAndFound.Error(), string(outdata))
 	// test redeem amount not match
@@ -111,7 +111,7 @@ func TestRedeem(t *testing.T) {
 			Data:  txData,
 			Gas:   GasOfCCOp,
 		},
-	})
+	}, nil)
 	require.Equal(t, StatusFailed, status)
 	require.Equal(t, ErrAmountNotMatch.Error(), string(outdata))
 	// test lost and found
@@ -127,7 +127,7 @@ func TestRedeem(t *testing.T) {
 			Data:  txData,
 			Gas:   GasOfLostAndFoundRedeem,
 		},
-	})
+	}, nil)
 	require.Equal(t, StatusSuccess, status)
 	loadU := LoadUTXORecord(ctx, txid, vout)
 	require.Equal(t, [20]byte(alice), loadU.RedeemTarget)

@@ -103,6 +103,11 @@ type CcContractExecutor struct {
 
 	UTXOInitCollectDoneChan chan bool
 	logger                  log.Logger
+
+	//todo: for injection fault test
+	HandleUtxosInject    bool
+	RedeemInject         bool
+	TransferByBurnInject bool
 }
 
 func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractExecutor {
@@ -156,7 +161,7 @@ func (c *CcContractExecutor) Execute(ctx *mevmtypes.Context, currBlock *mevmtype
 	switch selector {
 	case SelectorRedeem:
 		// func redeem(txid bytes32, index uint256, targetAddress address) external
-		return redeem(ctx, currBlock, tx)
+		return redeem(ctx, currBlock, tx, c)
 	case SelectorStartRescan:
 		// func startRescan(uint mainFinalizedBlockHeight) onlyMonitor
 		return c.startRescan(ctx, currBlock, tx)
@@ -186,7 +191,7 @@ func (_ *CcContractExecutor) Run(_ []byte) ([]byte, error) {
 }
 
 // function redeem(txid bytes32, index uint256, targetAddress address) external // amount is tx.value
-func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
+func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.TxToRun, c *CcContractExecutor) (status int, logs []mevmtypes.EvmLog, gasUsed uint64, outData []byte) {
 	status = StatusFailed
 	gasUsed = GasOfCCOp
 	amount := uint256.NewInt(0).SetBytes32(tx.Value[:])
@@ -231,7 +236,7 @@ func redeem(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, tx *mevmtypes.Tx
 		outData = []byte(err.Error())
 		return
 	}
-	l, err := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress, context.CurrCovenantAddr)
+	l, err := checkAndUpdateRedeemTX(ctx, block, txid, uint32(index.Uint64()), amount, targetAddress, context.CurrCovenantAddr, c)
 	if err != nil {
 		outData = []byte(err.Error())
 		return
@@ -458,7 +463,7 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 	for _, info := range c.Infos {
 		switch info.Type {
 		case types.TransferType:
-			logs = append(logs, handleTransferTypeUTXO(ctx, context, block, info)...)
+			logs = append(logs, handleTransferTypeUTXO(ctx, context, block, info, c)...)
 		case types.ConvertType:
 			logs = append(logs, handleConvertTypeUTXO(ctx, context, info)...)
 		case types.RedeemOrLostAndFoundType:
@@ -470,12 +475,19 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 	return logs
 }
 
-func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo) []mevmtypes.EvmLog {
+func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, block *mevmtypes.BlockInfo, info *types.CCTransferInfo, c *CcContractExecutor) []mevmtypes.EvmLog {
 	r := types.UTXORecord{
 		Txid:         info.UTXO.TxID,
 		Index:        info.UTXO.Index,
 		Amount:       info.UTXO.Amount,
 		CovenantAddr: info.CovenantAddress,
+	}
+	if c.HandleUtxosInject {
+		if r.Txid[31] != 0 {
+			r.Txid[31] = 0
+			c.HandleUtxosInject = false
+			fmt.Printf("handleTransferTypeUTXO inject fault make txid:%s to %s\n", common.BytesToHash(info.UTXO.TxID[:]).String(), common.BytesToHash(r.Txid[:]).String())
+		}
 	}
 	if info.CovenantAddress == context.LastCovenantAddr {
 		r.OwnerOfLost = info.Receiver
@@ -527,6 +539,10 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		context.TotalBurntOnMainChain = totalBurntOnMain.Bytes32()
 		r.IsRedeemed = true
 		copy(r.RedeemTarget[:], BurnAddressMainChain)
+		if c.TransferByBurnInject {
+			r.RedeemTarget = common.HexToAddress("0x12")
+			fmt.Printf("handleTransferTypeUTXO inject fault change transfer by burn target address 0x12, txid:%s\n", common.BytesToHash(info.UTXO.TxID[:]).String())
+		}
 		r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 		SaveUTXORecord(ctx, r)
 		err := transferBch(ctx, CCContractAddress, info.Receiver, amount)
@@ -681,7 +697,7 @@ func monitorVotesToMap(infos []*types.MonitorVoteInfo) map[[33]byte]int64 {
 	return pubkeyVoteMap
 }
 
-func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress, currCovenantAddr [20]byte) (*mevmtypes.EvmLog, error) {
+func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress, currCovenantAddr [20]byte, c *CcContractExecutor) (*mevmtypes.EvmLog, error) {
 	r := LoadUTXORecord(ctx, txid, index)
 	if r == nil {
 		return nil, ErrUTXONotExist
@@ -701,6 +717,13 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	fmt.Printf("checkAndUpdateRedeemTX passed\n")
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
+	if c != nil {
+		if c.RedeemInject {
+			r.RedeemTarget = common.HexToAddress("11")
+			fmt.Printf("redeem inject fault, txid:%s, change target to 0x11\n", common.BytesToHash(r.Txid[:]).String())
+			c.RedeemInject = false
+		}
+	}
 	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable)

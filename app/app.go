@@ -90,6 +90,9 @@ type IApp interface {
 	GetLostAndFoundUtxoIds() [][36]byte
 	GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte
 	GetWatcherHeight() int64
+	InjectHandleUtxosFault()
+	InjectRedeemFault()
+	InjectTransferByBurnFault()
 }
 
 type App struct {
@@ -156,6 +159,9 @@ type App struct {
 
 	// it shows how many tx remains in the mempool after committing a new block
 	recheckCounter int
+
+	// todo: for injection fault test
+	CcContractExecutor *crosschain.CcContractExecutor
 }
 
 // The value entry of signature cache. The Height helps in evicting old entries.
@@ -231,6 +237,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 	if ctx.IsShaGateFork() {
 		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+		app.CcContractExecutor = ccExecutor
 	}
 	/*------set watcher------*/
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
@@ -745,10 +752,14 @@ func (app *App) refresh() (appHash []byte) {
 		if ccExecutor == nil {
 			if app.watcher.CcContractExecutor != nil {
 				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, app.watcher.CcContractExecutor)
+				// todo: for injection fault test
+				app.CcContractExecutor = app.watcher.CcContractExecutor
 			} else {
 				executor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
 				app.watcher.SetCCExecutor(executor)
 				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, executor)
+				// todo: for injection fault test
+				app.CcContractExecutor = executor
 			}
 		}
 	}
@@ -1014,6 +1025,21 @@ func (app *App) GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte {
 
 func (app *App) GetWatcherHeight() int64 {
 	return app.watcher.GetLatestFinalizedHeight()
+}
+
+func (app *App) InjectHandleUtxosFault() {
+	app.CcContractExecutor.HandleUtxosInject = true
+	fmt.Println("app.CcContractExecutor.HandleUtxosInject = true")
+}
+
+func (app *App) InjectRedeemFault() {
+	app.CcContractExecutor.RedeemInject = true
+	fmt.Println("app.CcContractExecutor.RedeemInject = true")
+}
+
+func (app *App) InjectTransferByBurnFault() {
+	app.CcContractExecutor.TransferByBurnInject = true
+	fmt.Println("app.CcContractExecutor.TransferByBurnInject = true")
 }
 
 //nolint

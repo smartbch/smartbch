@@ -149,4 +149,9 @@ type BackendService interface {
 	GetRpcPrivateKey() *ecdsa.PrivateKey
 	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
 	WaitRpcKeySet()
+
+	// todo: for injection fault test
+	InjectRedeemFault()
+	InjectHandleUtxosFault()
+	InjectTransferByBurnFault()
 }
