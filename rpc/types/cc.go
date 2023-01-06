@@ -19,6 +19,7 @@ type MonitorInfo struct {
 }
 
 type CcInfo struct {
+	MonitorsWithPauseCommand   []string        `json:"monitorsWithPauseCommand"`
 	Operators                  []*OperatorInfo `json:"operators"`
 	Monitors                   []*MonitorInfo  `json:"monitors"`
 	OldOperators               []*OperatorInfo `json:"oldOperators"`

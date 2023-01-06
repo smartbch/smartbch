@@ -560,9 +560,6 @@ func (backend *apiBackend) GetCcInfosForTest() *cctypes.CCInfosForTest {
 	infos.TotalBurntOnMainChain = totalBurntOnMainChain.String()
 	infos.TotalConsumedOnMainChain = totalConsumedOnMainChain.String()
 	infos.AmountTriggerLostAndFound = uint256.NewInt(0).Sub(pendingBurning, uint256.NewInt(0).Add(uint256.NewInt(crosschain.MinPendingBurningLeft*1e4), uint256.NewInt(1e10))).String()
-	for _, m := range ccCtx.MonitorsWithPauseCommand {
-		infos.MonitorsWithPauseCommand = append(infos.MonitorsWithPauseCommand, common.Address(m).String())
-	}
 	return &infos
 }
 
