@@ -372,7 +372,7 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 
 tips: param_number + 20: cancel the param_number injection. for example: 21 cancel the 1.inject lostAndFound in redeemable if exist
 **/
-func (sbch sbchAPI) InjectFaultForTest(faultType hexutil.Uint64) string {
+func (sbch *sbchAPI) InjectFaultForTest(faultType hexutil.Uint64) string {
 	sbch.logger.Debug("sbch_injectFaultForTest")
 	switch faultType {
 	case 1:
