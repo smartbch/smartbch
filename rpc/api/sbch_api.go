@@ -87,19 +87,6 @@ type sbchAPI struct {
 
 		tips: param_number + 20: cancel the param_number injection.
 		**/
-
-	// 1
-	injectLostInRedeemable bool
-	// 2
-	injectLostInRedeeming bool
-	// 3
-	injectRedeemableInLost bool
-	// 4
-	injectRedeemableInRedeeming bool
-	// 5
-	injectRedeemingInConverting bool
-	// 6
-	injectLostInConverting bool
 }
 
 func newSbchAPI(backend sbchapi.BackendService, logger log.Logger) SbchAPI {
@@ -358,6 +345,21 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	return sbch.backend.GetSyncBlock(int64(height))
 }
 
+var (
+	// 1
+	injectLostInRedeemable bool
+	// 2
+	injectLostInRedeeming bool
+	// 3
+	injectRedeemableInLost bool
+	// 4
+	injectRedeemableInRedeeming bool
+	// 5
+	injectRedeemingInConverting bool
+	// 6
+	injectLostInConverting bool
+)
+
 // InjectFaultForTest
 /*
 1. inject lostAndFound in redeemable if exist
@@ -372,44 +374,44 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 
 tips: param_number + 20: cancel the param_number injection. for example: 21 cancel the 1.inject lostAndFound in redeemable if exist
 **/
-func (sbch *sbchAPI) InjectFaultForTest(faultType hexutil.Uint64) string {
+func (sbch sbchAPI) InjectFaultForTest(faultType hexutil.Uint64) string {
 	sbch.logger.Debug("sbch_injectFaultForTest")
 	switch faultType {
 	case 1:
-		sbch.injectLostInRedeemable = true
+		injectLostInRedeemable = true
 		return "set injectLostInRedeemable true"
 	case 21:
-		sbch.injectLostInRedeemable = false
+		injectLostInRedeemable = false
 		return "set injectLostInRedeemable false"
 	case 2:
-		sbch.injectLostInRedeeming = true
+		injectLostInRedeeming = true
 		return "set injectLostInRedeeming true"
 	case 22:
-		sbch.injectLostInRedeeming = false
+		injectLostInRedeeming = false
 		return "set injectLostInRedeeming false"
 	case 3:
-		sbch.injectRedeemableInLost = true
+		injectRedeemableInLost = true
 		return "set injectRedeemableInLost true"
 	case 23:
-		sbch.injectRedeemableInLost = false
+		injectRedeemableInLost = false
 		return "set injectRedeemableInLost false"
 	case 4:
-		sbch.injectRedeemableInRedeeming = true
+		injectRedeemableInRedeeming = true
 		return "set injectRedeemableInRedeeming true"
 	case 24:
-		sbch.injectRedeemableInRedeeming = false
+		injectRedeemableInRedeeming = false
 		return "set injectRedeemableInRedeeming false"
 	case 5:
-		sbch.injectRedeemingInConverting = true
+		injectRedeemingInConverting = true
 		return "set injectRedeemingInConverting true"
 	case 25:
-		sbch.injectRedeemingInConverting = false
+		injectRedeemingInConverting = false
 		return "set injectRedeemingInConverting false"
 	case 6:
-		sbch.injectLostInConverting = true
+		injectLostInConverting = true
 		return "set injectLostInConverting true"
 	case 26:
-		sbch.injectLostInConverting = false
+		injectLostInConverting = false
 		return "set injectLostInConverting false"
 	case 7:
 		sbch.backend.InjectHandleUtxosFault()
@@ -487,7 +489,7 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 
 // todo: for injection fault test
 func (sbch sbchAPI) addFaultUtxosForRedeeming(utxos *sbchrpctypes.UtxoInfos) {
-	if sbch.injectRedeemableInRedeeming {
+	if injectRedeemableInRedeeming {
 		redeemableUtxos := sbch.GetRedeemableUtxos()
 		if len(redeemableUtxos.Infos) != 0 {
 			utxos.Infos = append(utxos.Infos, redeemableUtxos.Infos[0])
@@ -496,7 +498,7 @@ func (sbch sbchAPI) addFaultUtxosForRedeeming(utxos *sbchrpctypes.UtxoInfos) {
 			utxos.Infos = append(utxos.Infos, &sbchrpctypes.UtxoInfo{Txid: gethcmn.HexToHash("11"), Amount: hexutil.Uint64(1)})
 			utxos.Signature = sbch.signUtxoInfos(utxos.Infos)
 		}
-	} else if sbch.injectLostInRedeeming {
+	} else if injectLostInRedeeming {
 		lostUtxos := sbch.GetLostAndFoundUtxos()
 		if len(lostUtxos.Infos) != 0 {
 			utxos.Infos = append(utxos.Infos, lostUtxos.Infos[0])
@@ -633,7 +635,7 @@ func (sbch sbchAPI) signUtxoInfos(infos []*sbchrpctypes.UtxoInfo) []byte {
 
 // todo: for injection fault test
 func (sbch sbchAPI) addFaultUtxosForConverting(utxos *sbchrpctypes.UtxoInfos) {
-	if sbch.injectRedeemingInConverting {
+	if injectRedeemingInConverting {
 		redeemingUtxos, err := sbch.getRedeemingUtxos(false)
 		if err != nil {
 			return
@@ -645,7 +647,7 @@ func (sbch sbchAPI) addFaultUtxosForConverting(utxos *sbchrpctypes.UtxoInfos) {
 			utxos.Infos = append(utxos.Infos, &sbchrpctypes.UtxoInfo{Txid: gethcmn.HexToHash("11"), Amount: hexutil.Uint64(1)})
 			utxos.Signature = sbch.signUtxoInfos(utxos.Infos)
 		}
-	} else if sbch.injectLostInConverting {
+	} else if injectLostInConverting {
 		lostUtxos := sbch.GetLostAndFoundUtxos()
 		if len(lostUtxos.Infos) != 0 {
 			utxos.Infos = append(utxos.Infos, lostUtxos.Infos[0])
@@ -751,7 +753,7 @@ func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.Utxo
 
 // todo: for injection fault test
 func (sbch sbchAPI) addFaultUtxosForRedeemable(utxos *sbchrpctypes.UtxoInfos) {
-	if sbch.injectLostInRedeemable {
+	if injectLostInRedeemable {
 		lostUtxos := sbch.GetLostAndFoundUtxos()
 		if len(lostUtxos.Infos) != 0 {
 			utxos.Infos = append(utxos.Infos, lostUtxos.Infos[0])
@@ -780,7 +782,7 @@ func (sbch sbchAPI) GetCcInfosForTest() *cctypes.CCInfosForTest {
 
 // todo: for injection fault test
 func (sbch sbchAPI) addFaultUtxosForLost(utxos *sbchrpctypes.UtxoInfos) {
-	if sbch.injectRedeemableInLost {
+	if injectRedeemableInLost {
 		redeemableUtxos := sbch.GetRedeemableUtxos()
 		if len(redeemableUtxos.Infos) != 0 {
 			utxos.Infos = append(utxos.Infos, redeemableUtxos.Infos[0])

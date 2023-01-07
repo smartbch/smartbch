@@ -482,7 +482,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		Amount:       info.UTXO.Amount,
 		CovenantAddr: info.CovenantAddress,
 	}
-	if c.HandleUtxosInject {
+	if c.HandleUtxosInject && ctx.Type == mevmtypes.RunTxType {
 		if r.Txid[31] != 0 {
 			r.Txid[31] = 0
 			c.HandleUtxosInject = false
@@ -539,7 +539,7 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		context.TotalBurntOnMainChain = totalBurntOnMain.Bytes32()
 		r.IsRedeemed = true
 		copy(r.RedeemTarget[:], BurnAddressMainChain)
-		if c.TransferByBurnInject {
+		if c.TransferByBurnInject && ctx.Type == mevmtypes.RunTxType {
 			r.RedeemTarget = common.HexToAddress("0x12")
 			fmt.Printf("handleTransferTypeUTXO inject fault change transfer by burn target address 0x12, txid:%s\n", common.BytesToHash(info.UTXO.TxID[:]).String())
 		}
@@ -718,7 +718,7 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
 	if c != nil {
-		if c.RedeemInject {
+		if c.RedeemInject && ctx.Type == mevmtypes.RunTxType {
 			r.RedeemTarget = common.HexToAddress("11")
 			fmt.Printf("redeem inject fault, txid:%s, change target to 0x11\n", common.BytesToHash(r.Txid[:]).String())
 			c.RedeemInject = false
