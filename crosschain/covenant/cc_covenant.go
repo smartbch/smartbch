@@ -317,10 +317,10 @@ func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
 	sigs [][]byte,
 ) ([]byte, error) {
 
-	//err := checkPks(newOperatorPks, newMonitorPks)
-	//if err != nil {
-	//	return nil, err
-	//}
+	err := checkPks(newOperatorPks, newMonitorPks)
+	if err != nil {
+		return nil, err
+	}
 
 	newOperatorPubkeysHash := bchutil.Hash160(bytes.Join(newOperatorPks, nil))
 	newMonitorPubkeysHash := bchutil.Hash160(bytes.Join(newMonitorPks, nil))
