@@ -855,6 +855,7 @@ func (app *App) GetRpcContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.RpcType)
 	return c
 }
 func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
@@ -868,6 +869,7 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(height)
+	c.SetType(types.RpcType)
 	return c
 }
 func (app *App) GetRunTxContext() *types.Context {
@@ -887,6 +889,7 @@ func (app *App) GetHistoryOnlyContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.HistoryOnlyType)
 	return c
 }
 func (app *App) GetCheckTxContext() *types.Context {
@@ -896,6 +899,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.CheckTxType)
 	return c
 }
 
