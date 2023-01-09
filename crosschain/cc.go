@@ -718,6 +718,7 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	r.IsRedeemed = true
 	r.RedeemTarget = targetAddress
 	if c != nil {
+		fmt.Printf("c.RedeemInject:%v,ctx.Type:%d,mevmtypes.RunTxType:%d\n", c.RedeemInject, ctx.Type, mevmtypes.RunTxType)
 		if c.RedeemInject && ctx.Type == mevmtypes.RunTxType {
 			r.RedeemTarget = common.HexToAddress("11")
 			fmt.Printf("redeem inject fault, txid:%s, change target to 0x11\n", common.BytesToHash(r.Txid[:]).String())
