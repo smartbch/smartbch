@@ -19,9 +19,11 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	motypes "github.com/smartbch/moeingevm/types"
+
 	sbchapi "github.com/smartbch/smartbch/api"
 	"github.com/smartbch/smartbch/crosschain"
 	"github.com/smartbch/smartbch/crosschain/covenant"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	rpctypes "github.com/smartbch/smartbch/rpc/internal/ethapi"
 	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
@@ -55,7 +57,9 @@ type SbchAPI interface {
 	GetToBeConvertedUtxosForMonitors() (*sbchrpctypes.UtxoInfos, error)
 	GetToBeConvertedUtxosForOperators() (*sbchrpctypes.UtxoInfos, error)
 	GetRedeemableUtxos() *sbchrpctypes.UtxoInfos
+	GetLostAndFoundUtxos() *sbchrpctypes.UtxoInfos
 	GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos
+	GetCcInfosForTest() *cctypes.CCInfosForTest
 	SetRpcKey(key string) error
 	GetRpcPubkey() (string, error)
 }
@@ -328,10 +332,10 @@ func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 	sbch.logger.Debug("sbch_getCcInfo")
 
+	info := sbchrpctypes.CcInfo{}
+
 	allOperatorsInfo := sbch.backend.GetAllOperatorsInfo()
 	allMonitorsInfo := sbch.backend.GetAllMonitorsInfo()
-
-	info := sbchrpctypes.CcInfo{}
 	for _, operatorInfo := range allOperatorsInfo {
 		if operatorInfo.ElectedTime.Uint64() > 0 {
 			info.Operators = append(info.Operators, castOperatorInfo(operatorInfo))
@@ -340,7 +344,6 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 			info.OldOperators = append(info.OldOperators, castOperatorInfo(operatorInfo))
 		}
 	}
-
 	for _, monitorInfo := range allMonitorsInfo {
 		if monitorInfo.ElectedTime.Uint64() > 0 {
 			info.Monitors = append(info.Monitors, castMonitorInfo(monitorInfo))
@@ -349,6 +352,7 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 			info.OldMonitors = append(info.OldMonitors, castMonitorInfo(monitorInfo))
 		}
 	}
+
 	ctx := sbch.backend.GetCcContext()
 	if ctx != nil {
 		info.CurrCovenantAddress = gethcmn.Address(ctx.CurrCovenantAddr).String()
@@ -357,7 +361,10 @@ func (sbch sbchAPI) GetCcInfo() *sbchrpctypes.CcInfo {
 		info.RescannedHeight = ctx.RescanHeight
 		info.RescanTime = ctx.RescanTime
 		info.UTXOAlreadyHandled = ctx.UTXOAlreadyHandled
+		info.LatestEpochHandled = ctx.LatestEpochHandled
+		info.CovenantAddrLastChangeTime = ctx.CovenantAddrLastChangeTime
 	}
+
 	key := sbch.backend.GetRpcPrivateKey()
 	if key != nil {
 		bz, _ := json.Marshal(info)
@@ -383,12 +390,34 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		return nil, errCrossChainPaused
 	}
 
+	utxoRecords := sbch.backend.GetRedeemingUTXOs()
+	if len(utxoRecords) == 0 {
+		infos := sbchrpctypes.UtxoInfos{}
+		infos.Signature = sbch.signUtxoInfos(infos.Infos)
+		return &infos, nil
+	}
+
 	operatorPubkeys, monitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
-	ccc, err := covenant.NewDefaultCcCovenant(operatorPubkeys, monitorPubkeys)
+	currCovenant, err := covenant.NewDefaultCcCovenant(operatorPubkeys, monitorPubkeys)
 	if err != nil {
 		sbch.logger.Error("failed to create CcCovenant", "err", err.Error())
 		return nil, err
 	}
+	currCovenantAddr, _ := currCovenant.GetP2SHAddress20()
+
+	oldOpPubkeys, oldMoPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
+	if len(oldOpPubkeys) == 0 {
+		oldOpPubkeys = operatorPubkeys
+	}
+	if len(oldMoPubkeys) == 0 {
+		oldMoPubkeys = monitorPubkeys
+	}
+	oldCovenant, err := covenant.NewDefaultCcCovenant(oldOpPubkeys, oldMoPubkeys)
+	if err != nil {
+		sbch.logger.Error("failed to create old CcCovenant", "err", err.Error())
+		return nil, err
+	}
+	oldCovenantAddr, _ := oldCovenant.GetP2SHAddress20()
 
 	var currTS int64
 	if forOperators {
@@ -401,7 +430,6 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		currTS = currBlock.Timestamp
 	}
 
-	utxoRecords := sbch.backend.GetRedeemingUTXOs()
 	utxoInfos := make([]*sbchrpctypes.UtxoInfo, 0, len(utxoRecords))
 	for _, utxoRecord := range utxoRecords {
 		if forOperators && utxoRecord.ExpectedSignTime > currTS {
@@ -413,16 +441,29 @@ func (sbch sbchAPI) getRedeemingUtxos(forOperators bool) (*sbchrpctypes.UtxoInfo
 		txid := utxoRecord.Txid[:]
 		vout := utxoRecord.Index
 
-		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], ccc.Net())
+		addr, err := bchutil.NewAddressPubKeyHash(utxoRecord.RedeemTarget[:], currCovenant.Net())
 		if err != nil {
 			sbch.logger.Error("failed to derive BCH address", "err", err)
 			continue
 		}
 
 		toAddr := addr.EncodeAddress()
-		_, sigHash, err := ccc.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
-		if err != nil {
-			sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+		var sigHash []byte
+		if utxoRecord.CovenantAddr == currCovenantAddr {
+			_, sigHash, err = currCovenant.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
+			if err != nil {
+				sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+				continue
+			}
+		} else if utxoRecord.CovenantAddr == oldCovenantAddr {
+			_, sigHash, err = oldCovenant.GetRedeemByUserTxSigHash(txid, vout, int64(amt), toAddr)
+			if err != nil {
+				sbch.logger.Error("failed to call GetRedeemByUserTxSigHash", "err", err)
+				continue
+			}
+		} else {
+			sbch.logger.Error("invalid covenant address", "covenantAddr",
+				hex.EncodeToString(utxoRecord.CovenantAddr[:]))
 			continue
 		}
 
@@ -484,11 +525,18 @@ func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.Utxo
 
 	oldOperatorPubkeys, oldMonitorPubkeys := sbch.backend.GetOldOperatorAndMonitorPubkeys()
 	newOperatorPubkeys, newMonitorPubkeys := sbch.backend.GetOperatorAndMonitorPubkeys()
-	if len(oldOperatorPubkeys) == 0 || len(oldMonitorPubkeys) == 0 {
-		sbch.logger.Error("no old operator or monitor pubkeys")
+	if len(oldOperatorPubkeys) == 0 && len(oldMonitorPubkeys) == 0 {
+		sbch.logger.Error("no old operator and monitor pubkeys")
 		infos := sbchrpctypes.UtxoInfos{}
 		infos.Signature = sbch.signUtxoInfos(infos.Infos)
 		return &infos, nil
+	}
+
+	if len(oldOperatorPubkeys) == 0 {
+		oldOperatorPubkeys = newOperatorPubkeys
+	}
+	if len(oldMonitorPubkeys) == 0 {
+		oldMonitorPubkeys = newMonitorPubkeys
 	}
 
 	ccc, err := covenant.NewDefaultCcCovenant(oldOperatorPubkeys, oldMonitorPubkeys)
@@ -523,7 +571,7 @@ func (sbch sbchAPI) getToBeConvertedUtxos(forOperators bool) (*sbchrpctypes.Utxo
 }
 
 func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
-	sbch.logger.Debug("sbch_getRedeemableUTXOs")
+	sbch.logger.Debug("sbch_getRedeemableUtxos")
 	utxoRecords := sbch.backend.GetRedeemableUtxos()
 	utxoInfos := castUtxoRecords(utxoRecords)
 	infos := sbchrpctypes.UtxoInfos{
@@ -533,8 +581,24 @@ func (sbch sbchAPI) GetRedeemableUtxos() *sbchrpctypes.UtxoInfos {
 	return &infos
 }
 
+func (sbch sbchAPI) GetCcInfosForTest() *cctypes.CCInfosForTest {
+	sbch.logger.Debug("sbch_getCcInfosForTest")
+	return sbch.backend.GetCcInfosForTest()
+}
+
+func (sbch sbchAPI) GetLostAndFoundUtxos() *sbchrpctypes.UtxoInfos {
+	sbch.logger.Debug("sbch_getLostAndFoundUtxos")
+	utxoRecords := sbch.backend.GetLostAndFoundUTXOs()
+	utxoInfos := castUtxoRecords(utxoRecords)
+	infos := sbchrpctypes.UtxoInfos{
+		Infos: utxoInfos,
+	}
+	infos.Signature = sbch.signUtxoInfos(infos.Infos)
+	return &infos
+}
+
 func (sbch sbchAPI) GetCcUtxo(txid hexutil.Bytes, idx uint32) *sbchrpctypes.UtxoInfos {
-	sbch.logger.Debug("sbch_getCcUTXO")
+	sbch.logger.Debug("sbch_getCcUtxo")
 
 	var utxoId [36]byte
 	copy(utxoId[:32], txid)

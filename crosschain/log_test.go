@@ -1,13 +1,13 @@
 package crosschain
 
 import (
-	"github.com/smartbch/smartbch/crosschain/types"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/smartbch/smartbch/crosschain/types"
 )
 
 func TestBuildNewRedeemable(t *testing.T) {

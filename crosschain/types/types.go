@@ -1,7 +1,7 @@
 package types
 
 //go:generate msgp
-//msgp:ignore typename UTXO CCTransferInfo
+//msgp:ignore typename UTXO CCTransferInfo CCInfosForTest
 
 type UTXO struct {
 	TxID   [32]byte
@@ -49,6 +49,41 @@ type CCContext struct {
 	CurrCovenantAddr           [20]byte   `msgp:"curr_covenant_addr"`             // init is genesis covenant address
 	LatestEpochHandled         int64      `msgp:"latest_epoch_handled"`           // init is zero, the latest epoch number handled for operator or monitor election
 	CovenantAddrLastChangeTime int64      `msgp:"covenant_addr_last_change_time"` // init is zero, the latest covenant addr change side chain block timestamp
+}
+
+type CCInternalInfosForTest struct {
+	TotalRedeemAmountS2M       [32]byte `msgp:"total_redeem_amount_s2m"`
+	TotalRedeemNumsS2M         uint64   `msgp:"total_redeem_nums_s2m"`
+	TotalLostAndFoundAmountS2M [32]byte `msgp:"total_lost_and_found_amount_s2m"`
+	TotalLostAndFoundNumsS2M   uint64   `msgp:"total_lost_and_found_nums_s2m"`
+	TotalTransferAmountM2S     [32]byte `msgp:"total_transfer_amount_m2s"`
+	TotalTransferNumsM2S       uint64   `msgp:"total_transfer_nums_m2s"`
+	TotalTransferByBurnAmount  [32]byte `msgp:"total_transfer_by_burn_amount"`
+	TotalTransferByBurnNums    uint64   `msgp:"total_transfer_by_burn_nums"`
+}
+
+type CCInfosForTest struct {
+	// fixed param
+	MaxAmount             string `json:"maxAmount"`
+	MinAmount             string `json:"minAmount"`
+	MinPendingBurningLeft string `json:"minPendingBurningLeft"`
+	// recalculate every rpc call
+	PendingBurning            string `json:"pendingBurning"`
+	TotalConsumedOnMainChain  string `json:"totalConsumedOnMainChain"`
+	TotalMinerFeeForConvertTx string `json:"totalMinerFeeForConvertTx"`
+	TotalBurntOnMainChain     string `json:"totalBurntOnMainChain"`
+	// get in ads
+	TotalRedeemAmountS2M       string   `json:"totalRedeemAmountS2M"`
+	TotalRedeemNumsS2M         uint64   `json:"totalRedeemNumsS2M"`
+	TotalLostAndFoundAmountS2M string   `json:"totalLostAndFoundAmountS2M"`
+	TotalLostAndFoundNumsS2M   uint64   `json:"totalLostAndFoundNumsS2M"`
+	TotalTransferAmountM2S     string   `json:"totalTransferAmountM2S"`
+	TotalTransferNumsM2S       uint64   `json:"totalTransferNumsM2S"`
+	TotalTransferByBurnAmount  string   `json:"totalTransferByBurnAmount"`
+	TotalTransferByBurnNums    uint64   `json:"totalTransferByBurnNums"`
+	MonitorsWithPauseCommand   []string `json:"monitorsWithPauseCommand"`
+	// fields for LostAndFound Test, recalculate every rpc call
+	AmountTriggerLostAndFound string `json:"amountTriggerLostAndFound"`
 }
 
 type SourceType uint8

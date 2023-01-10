@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	OperatorsSlot               = 0
+	OperatorsSlot               = 1 // _ownerSlot = 0
 	OperatorElectedTimeField    = 7
 	OperatorOldElectedTimeField = 8
 	OperatorWords               = 9
 
-	MonitorsLastElectionTimeSlot = 0
-	MonitorsSlot                 = 1
+	MonitorsLastElectionTimeSlot = 1 // _ownerSlot = 0
+	MonitorsSlot                 = 2
 	MonitorElectedTimeField      = 5
 	MonitorOldElectedTimeField   = 6
 	MonitorWords                 = 8
@@ -137,13 +137,12 @@ func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger 
 	operatorInfos := ReadOperatorInfos(ctx, seq)
 	logger.Info("allOperatorInfos", "json", toJSON(operatorInfos))
 
-	// get and sort current operators
-	currOperators := getCurrOperators(operatorInfos)
+	currOperators, newOperatorCandidates := getCurrOperatorsAndCandidates(operatorInfos)
+	// sort current operators
 	sortOperatorInfosDesc(currOperators)
 	logger.Info("currOperators", "json", toJSON(currOperators))
 
-	// get and sort eligible new candidates
-	newOperatorCandidates := getNewOperatorCandidates(operatorInfos)
+	// sort eligible new candidates
 	sortOperatorInfosDesc(newOperatorCandidates)
 	logger.Info("newOperatorCandidates", "json", toJSON(newOperatorCandidates))
 
@@ -183,28 +182,19 @@ func electOperators(ctx *mevmtypes.Context, seq uint64, blockTime int64, logger 
 	logger.Info("new operator set", "json", allCandidates)
 	return OperatorElectionOK
 }
-func getCurrOperators(allOperatorInfos []*OperatorInfo) []*OperatorInfo {
-	operators := make([]*OperatorInfo, 0, param.OperatorsCount)
+func getCurrOperatorsAndCandidates(allOperatorInfos []*OperatorInfo) (currOperators []*OperatorInfo, candidates []*OperatorInfo) {
+	currOperators = make([]*OperatorInfo, 0, param.OperatorsCount)
+	candidates = make([]*OperatorInfo, 0, len(allOperatorInfos))
 	for _, operatorInfo := range allOperatorInfos {
 		if operatorInfo.ElectedTime.GtUint64(0) {
-			operators = append(operators, operatorInfo)
-		}
-	}
-	return operators
-}
-func getNewOperatorCandidates(allOperatorInfos []*OperatorInfo) []*OperatorInfo {
-	candidates := make([]*OperatorInfo, 0, len(allOperatorInfos))
-	for _, operatorInfo := range allOperatorInfos {
-		if operatorInfo.ElectedTime.GtUint64(0) {
-			// skip current operators
-			continue
-		}
-		if isEligibleOperatorCandidate(operatorInfo) {
+			currOperators = append(currOperators, operatorInfo)
+		} else if isEligibleOperatorCandidate(operatorInfo) {
 			candidates = append(candidates, operatorInfo)
 		}
 	}
-	return candidates
+	return
 }
+
 func isEligibleOperatorCandidate(operatorInfo *OperatorInfo) bool {
 	return !operatorInfo.SelfStakedAmt.Lt(operatorMinStakedAmt)
 	// TODO: check more fields ?
@@ -364,13 +354,10 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	logger.Info("allMonitorInfos", "json", toJSON(monitorInfos))
 	logger.Info("allPowNominations", "json", toJSON(powNominations))
 
-	// get and sort current monitors
-	currMonitors := getCurrMonitors(monitorInfos, powNominations)
+	// get and sort current monitors and new candidates
+	currMonitors, newMonitorCandidates := getCurrMonitorsAndCandidates(monitorInfos, powNominations)
 	sortMonitorInfosDesc(currMonitors)
 	logger.Info("currMonitors", "json", toJSON(currMonitors))
-
-	// get and sort eligible new candidates
-	newMonitorCandidates := getNewMonitorCandidates(monitorInfos, powNominations)
 	sortMonitorInfosDesc(newMonitorCandidates)
 	logger.Info("newMonitorCandidates", "json", toJSON(newMonitorCandidates))
 
@@ -412,33 +399,24 @@ func electMonitors(ctx *mevmtypes.Context, seq uint64,
 	logger.Info("new monitor set", "json", allCandidates)
 	return MonitorElectionOK
 }
-func getCurrMonitors(allMonitorInfos []*MonitorInfo, powNominations map[[33]byte]int64) []*MonitorInfo {
-	monitors := make([]*MonitorInfo, 0, param.MonitorsCount)
+func getCurrMonitorsAndCandidates(allMonitorInfos []*MonitorInfo, powNominations map[[33]byte]int64,
+) (currMonitors []*MonitorInfo, candidates []*MonitorInfo) {
+
+	currMonitors = make([]*MonitorInfo, 0, param.MonitorsCount)
+	candidates = make([]*MonitorInfo, 0, len(allMonitorInfos))
 	for _, monitorInfo := range allMonitorInfos {
+		monitorInfo.powNominatedCount = getPowNomination(powNominations, monitorInfo)
 		if monitorInfo.ElectedTime.GtUint64(0) {
-			monitorInfo.powNominatedCount = getPowNomination(powNominations, monitorInfo)
-			monitors = append(monitors, monitorInfo)
-		}
-	}
-	return monitors
-}
-func getNewMonitorCandidates(allMonitorInfos []*MonitorInfo, powNominations map[[33]byte]int64) []*MonitorInfo {
-	candidates := make([]*MonitorInfo, 0, len(allMonitorInfos))
-	for _, monitorInfo := range allMonitorInfos {
-		if monitorInfo.ElectedTime.GtUint64(0) {
-			// skip current monitors
-			continue
-		}
-		powNominatedCount := getPowNomination(powNominations, monitorInfo)
-		if powNominatedCount > 0 && isEligibleMonitorCandidate(monitorInfo) {
-			monitorInfo.powNominatedCount = powNominatedCount
+			currMonitors = append(currMonitors, monitorInfo)
+		} else if isEligibleMonitorCandidate(monitorInfo) {
 			candidates = append(candidates, monitorInfo)
 		}
 	}
-	return candidates
+	return
 }
 func isEligibleMonitorCandidate(monitorInfo *MonitorInfo) bool {
-	return !monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) &&
+	return monitorInfo.powNominatedCount >= param.MonitorMinPowNomination &&
+		!monitorInfo.StakedAmt.Lt(monitorMinStakedAmt) &&
 		!monitorInfo.NominatedByOps.LtUint64(param.MonitorMinOpsNomination)
 	// TODO: check more fields ?
 }

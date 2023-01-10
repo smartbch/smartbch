@@ -261,15 +261,15 @@ func castOperatorInfo(ccOperatorInfo *crosschain.OperatorInfo) *sbchrpctypes.Ope
 	return &sbchrpctypes.OperatorInfo{
 		Address: ccOperatorInfo.Addr,
 		Pubkey:  ccOperatorInfo.Pubkey,
-		RpcUrl:  string(bytes.TrimLeft(ccOperatorInfo.RpcUrl, string([]byte{0}))),
-		Intro:   string(bytes.TrimLeft(ccOperatorInfo.Intro, string([]byte{0}))),
+		RpcUrl:  string(bytes.TrimRight(ccOperatorInfo.RpcUrl, string([]byte{0}))),
+		Intro:   string(bytes.TrimRight(ccOperatorInfo.Intro, string([]byte{0}))),
 	}
 }
 func castMonitorInfo(ccMonitorInfo *crosschain.MonitorInfo) *sbchrpctypes.MonitorInfo {
 	return &sbchrpctypes.MonitorInfo{
 		Address: ccMonitorInfo.Addr,
 		Pubkey:  ccMonitorInfo.Pubkey,
-		Intro:   string(bytes.TrimLeft(ccMonitorInfo.Intro, string([]byte{0}))),
+		Intro:   string(bytes.TrimRight(ccMonitorInfo.Intro, string([]byte{0}))),
 	}
 }
 

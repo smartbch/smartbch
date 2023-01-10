@@ -25,19 +25,19 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	StartMainnetHeightForCC = 1526600 // mainnet height which cc tx collected from
+	StartMainnetHeightForCC = 1533762 // mainnet height which cc tx collected from
 	StartEpochNumberForCC   = 0       // epoch number which cc enabled from
 	AlreadyBurntOnMainChain = 0       // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
 	MonitorElectionEpochs   = 2 // For test
 	OperatorElectionEpochs  = 2 // For test
-	MaxMonitorNumber        = 3 // For test
 
-	OperatorsGovSequence    = 0 // TODO
-	MonitorsGovSequence     = 0 // TODO
-	OperatorMinStakedBCH    = 10000
-	MonitorMinStakedBCH     = 100000
-	MonitorMinOpsNomination = 6
+	OperatorsGovSequence    = 0x170 // TODO: change this in production mode
+	MonitorsGovSequence     = 0x130 // TODO: change this in production mode
+	OperatorMinStakedBCH    = 1     // TODO: change this in production mode
+	MonitorMinStakedBCH     = 1     // TODO: change this in production mode
+	MonitorMinOpsNomination = 6     // TODO: change this in production mode
+	MonitorMinPowNomination = 0     // TODO: change this in production mode
 	OperatorsCount          = 10
 	OperatorsMaxChangeCount = 3
 	MonitorsCount           = 3
@@ -54,8 +54,8 @@ const (
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201
 	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,
-	StakingNumBlocksInEpoch                int64 = 100
-	StakingEpochSwitchDelay                int64 = 30 // 5% time of an epoch
+	StakingNumBlocksInEpoch                int64 = 60
+	StakingEpochSwitchDelay                int64 = 10 * 60 * 3 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
 
 	// network params

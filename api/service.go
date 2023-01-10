@@ -129,6 +129,7 @@ type BackendService interface {
 	IsCrossChainPaused() bool
 	GetAllOperatorsInfo() []*crosschain.OperatorInfo
 	GetAllMonitorsInfo() []*crosschain.MonitorInfo
+	GetLostAndFoundUTXOs() []*cctypes.UTXORecord
 	GetRedeemingUTXOs() []*cctypes.UTXORecord
 	GetRedeemableUtxos() []*cctypes.UTXORecord
 	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
@@ -136,6 +137,8 @@ type BackendService interface {
 	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
 	GetCcContext() *cctypes.CCContext
+	GetCcInfosForTest() *cctypes.CCInfosForTest
+	GetWatcherHeight() int64
 
 	//tendermint info
 	NodeInfo() Info

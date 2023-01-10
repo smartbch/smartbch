@@ -87,7 +87,9 @@ type IApp interface {
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
 	GetRedeemingUtxoIds() [][36]byte
+	GetLostAndFoundUtxoIds() [][36]byte
 	GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte
+	GetWatcherHeight() int64
 }
 
 type App struct {
@@ -240,7 +242,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.watcher.SetContextGetter(app)
 	go app.watcher.Run()
 	if ctx.IsShaGateFork() {
-		crosschain.WaitUTXOCollectDone(ctx, app.watcher.CcContractExecutor.UTXOCollectDoneChan)
+		crosschain.WaitUTXOCollectDone(ctx, app.watcher.CcContractExecutor.UTXOInitCollectDoneChan)
 	}
 	app.watcher.WaitCatchup()
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
@@ -998,12 +1000,20 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 	return
 }
 
+func (app *App) GetLostAndFoundUtxoIds() [][36]byte {
+	return app.historyStore.GetLostAndFoundUtxoIds()
+}
+
 func (app *App) GetRedeemingUtxoIds() [][36]byte {
 	return app.historyStore.GetRedeemingUtxoIds()
 }
 
 func (app *App) GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte {
 	return app.historyStore.GetRedeemableUtxoIdsByCovenantAddr(addr)
+}
+
+func (app *App) GetWatcherHeight() int64 {
+	return app.watcher.GetLatestFinalizedHeight()
 }
 
 //nolint

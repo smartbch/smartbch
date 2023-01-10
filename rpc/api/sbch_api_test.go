@@ -515,7 +515,7 @@ func TestGetSyncBlock(t *testing.T) {
 func TestCc(t *testing.T) {
 	key1, _ := testutils.GenKeyAndAddr()
 	key2, _ := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestAppWithSyncDB(key1)
+	_app := testutils.CreateTestApp(key1)
 	defer _app.Destroy()
 	_api := createSbchAPI(_app)
 	err := _api.SetRpcKey(key2)

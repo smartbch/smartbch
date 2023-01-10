@@ -73,14 +73,12 @@ func TestFilterOperators(t *testing.T) {
 	}
 	//shuffle(ops)
 
-	currOps := getCurrOperators(ops)
+	currOps, newCandidates := getCurrOperatorsAndCandidates(ops)
 	//sortOperatorInfosDesc(currOps)
 	require.Len(t, currOps, 3)
 	require.Equal(t, gethcmn.Address{0xA0}, currOps[0].Addr)
 	require.Equal(t, gethcmn.Address{0xA1}, currOps[1].Addr)
 	require.Equal(t, gethcmn.Address{0xA2}, currOps[2].Addr)
-
-	newCandidates := getNewOperatorCandidates(ops)
 	//sortOperatorInfosDesc(newCandidates)
 	require.Len(t, newCandidates, 2)
 	require.Equal(t, gethcmn.Address{0xA4}, newCandidates[0].Addr)
@@ -138,7 +136,7 @@ func TestFilterMonitors(t *testing.T) {
 		to33byte([]byte{0xB8}): 8,
 	}
 
-	currMonitors := getCurrMonitors(mis, powNominations)
+	currMonitors, _ := getCurrMonitorsAndCandidates(mis, powNominations)
 	//sortOperatorInfosDesc(currOps)
 	require.Len(t, currMonitors, 3)
 	require.Equal(t, gethcmn.Address{0xA0}, currMonitors[0].Addr)
@@ -148,7 +146,7 @@ func TestFilterMonitors(t *testing.T) {
 	require.Equal(t, gethcmn.Address{0xA2}, currMonitors[2].Addr)
 	require.Equal(t, int64(0), currMonitors[2].powNominatedCount)
 
-	newCandidates := getNewMonitorCandidates(mis, powNominations)
+	_, newCandidates := getCurrMonitorsAndCandidates(mis, powNominations)
 	//sortOperatorInfosDesc(newCandidates)
 	require.Len(t, newCandidates, 2)
 	require.Equal(t, gethcmn.Address{0xA6}, newCandidates[0].Addr)

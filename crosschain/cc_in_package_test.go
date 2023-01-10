@@ -13,7 +13,6 @@ import (
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
 	mtypes "github.com/smartbch/moeingevm/types"
-
 	ccabi "github.com/smartbch/smartbch/crosschain/abi"
 	"github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
@@ -269,7 +268,8 @@ func TestStartRescan(t *testing.T) {
 	ctx := mtypes.NewContext(&r, nil)
 	// prepare cc context
 	context := types.CCContext{
-		RescanHeight: 1,
+		RescanHeight:       1,
+		UTXOAlreadyHandled: true,
 	}
 	SaveCCContext(ctx, context)
 	staking.SaveStakingInfo(ctx, stakingtypes.StakingInfo{

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,11 +35,11 @@ const (
 )
 
 var (
-	MaxCCAmount           uint64 = 1000    // 0.1BCH
-	MinCCAmount           uint64 = 10      // 0.001BCH
-	MinPendingBurningLeft uint64 = 1       // 0.0001BCH
-	MatureTime            int64  = 1       // 24h
-	ForceTransferTime     int64  = 60 * 60 // 6m
+	MaxCCAmount           uint64 = 100              // 0.01BCH
+	MinCCAmount           uint64 = 10               // 0.001BCH
+	MinPendingBurningLeft uint64 = 1                // 0.0001BCH
+	MatureTime            int64  = 1                // 24h
+	ForceTransferTime     int64  = 60 * 60 * 24 * 3 // 3days
 )
 
 var (
@@ -96,18 +97,19 @@ var (
 type CcContractExecutor struct {
 	Voter IVoteContract
 
-	Lock  sync.RWMutex
-	Infos []*types.CCTransferInfo
+	Lock               sync.RWMutex
+	Infos              []*types.CCTransferInfo
+	LastEndRescanBlock uint64
 
-	UTXOCollectDoneChan chan bool
-	logger              log.Logger
+	UTXOInitCollectDoneChan chan bool
+	logger                  log.Logger
 }
 
 func NewCcContractExecutor(logger log.Logger, voter IVoteContract) *CcContractExecutor {
 	return &CcContractExecutor{
-		logger:              logger,
-		Voter:               voter,
-		UTXOCollectDoneChan: make(chan bool),
+		logger:                  logger,
+		Voter:                   voter,
+		UTXOInitCollectDoneChan: make(chan bool),
 	}
 }
 
@@ -124,21 +126,17 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	}
 	ccCtx := LoadCCContext(ctx)
 	if ccCtx == nil {
-		address, err := c.Voter.GetCCCovenantP2SHAddr(ctx)
-		if err != nil {
-			panic(err)
-		}
 		context := types.CCContext{
 			RescanTime:            math.MaxInt64,
 			RescanHeight:          uint64(param.StartMainnetHeightForCC),
 			LastRescannedHeight:   uint64(0),
 			UTXOAlreadyHandled:    true,
 			TotalBurntOnMainChain: uint256.NewInt(uint64(param.AlreadyBurntOnMainChain)).Bytes32(),
-			CurrCovenantAddr:      address,
+			CurrCovenantAddr:      common.HexToAddress(param.GenesisCovenantAddress),
 			LatestEpochHandled:    -1,
 		}
 		SaveCCContext(ctx, context)
-		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", address, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
+		c.logger.Debug("CcContractExecutor init", "CurrCovenantAddr", context.CurrCovenantAddr, "RescanHeight", context.RescanHeight, "TotalBurntOnMainChain", context.TotalBurntOnMainChain)
 	}
 }
 
@@ -434,8 +432,15 @@ func isPaused(context *types.CCContext) bool {
 
 func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, context *types.CCContext) (logs []mevmtypes.EvmLog) {
 	context.UTXOAlreadyHandled = true
-	c.Lock.RLock()
-	defer c.Lock.RUnlock()
+	for {
+		c.Lock.RLock()
+		if c.LastEndRescanBlock == context.RescanHeight {
+			break
+		}
+		fmt.Printf("cc want handle RescanHeight:%d, but watcher now is %d\n", context.RescanHeight, c.LastEndRescanBlock)
+		c.Lock.RUnlock()
+		time.Sleep(500 * time.Millisecond)
+	}
 	fmt.Printf("handleTransferInfos inofs:%d\n", len(c.Infos))
 	for _, info := range c.Infos {
 		fmt.Println("txid:", hex.EncodeToString(info.UTXO.TxID[:]))
@@ -456,6 +461,7 @@ func (c *CcContractExecutor) handleTransferInfos(ctx *mevmtypes.Context, block *
 		default:
 		}
 	}
+	c.Lock.RUnlock()
 	return logs
 }
 
@@ -470,6 +476,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
 		fmt.Printf("handleTransferTypeUTXO info.CovenantAddress == context.LastCovenantAddr\n")
+		// todo: for test
+		infos := LoadInternalInfoForTest(ctx)
+		infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+		infos.TotalTransferNumsM2S++
+		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	}
 	amount := uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])
@@ -481,16 +492,29 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		r.OwnerOfLost = info.Receiver
 		SaveUTXORecord(ctx, r)
 		fmt.Printf("handleTransferTypeUTXO amount.Gt(maxAmount)\n")
+		// todo: for test
+		infos := LoadInternalInfoForTest(ctx)
+		infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+		infos.TotalTransferNumsM2S++
+		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 	} else if amount.Lt(minAmount) {
-		pendingBurning, _, totalBurntOnMain := getBurningRelativeData(ctx, context)
+		pendingBurning, _, totalBurntOnMain, _ := GetBurningRelativeData(ctx, context)
 		//todo: change for test
 		//minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E17))
 		minPendingBurningLeft := uint256.NewInt(0).Mul(uint256.NewInt(MinPendingBurningLeft), uint256.NewInt(E14))
+		//todo: hack for test
+		//fmt.Printf("pending burning: %s, hack it to 0.0005BCH, and transfer amount should in (0.0006, 0.001)\n", pendingBurning.String())
+		//pendingBurning = uint256.NewInt(0).Mul(uint256.NewInt(5), uint256.NewInt(1e14))
 		if pendingBurning.Lt(uint256.NewInt(0).Add(minPendingBurningLeft, amount)) {
 			r.OwnerOfLost = info.Receiver
 			SaveUTXORecord(ctx, r)
 			fmt.Printf("handleTransferTypeUTXO amount.Lt(minAmount) and lost\n")
+			// todo: for test
+			infos := LoadInternalInfoForTest(ctx)
+			infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+			infos.TotalTransferNumsM2S++
+			SaveInternalInfoForTest(ctx, *infos)
 			return []mevmtypes.EvmLog{buildNewLostAndFound(r.Txid, r.Index, r.CovenantAddr)}
 		}
 		// add total burnt on main chain here, not waiting tx minted on main chain
@@ -505,6 +529,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 			panic(err)
 		}
 		fmt.Printf("handleTransferTypeUTXO amount.Lt(minAmount) and not lost\n")
+		//todo: for test
+		infos := LoadInternalInfoForTest(ctx)
+		infos.TotalTransferByBurnAmount = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferByBurnAmount[:]), amount).Bytes32()
+		infos.TotalTransferByBurnNums++
+		SaveInternalInfoForTest(ctx, *infos)
 		return []mevmtypes.EvmLog{buildRedeemLog(r.Txid, r.Index, context.CurrCovenantAddr, types.FromBurnRedeem)}
 	}
 	r.BornTime = block.Timestamp
@@ -514,6 +543,11 @@ func handleTransferTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, bl
 		panic(err)
 	}
 	fmt.Printf("handleTransferTypeUTXO normal\n")
+	// todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalTransferAmountM2S = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalTransferAmountM2S[:]), uint256.NewInt(0).SetBytes32(info.UTXO.Amount[:])).Bytes32()
+	infos.TotalTransferNumsM2S++
+	SaveInternalInfoForTest(ctx, *infos)
 	return []mevmtypes.EvmLog{buildNewRedeemable(r.Txid, r.Index, context.CurrCovenantAddr)}
 }
 
@@ -530,8 +564,8 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 		panic("wrong amount in convert utxo")
 	}
 	//deduct miner fee used for utxo convert
-	pendingBurning, totalMinerFeeForConvertTx, _ := getBurningRelativeData(ctx, context)
-	minerFee := originAmount.Sub(originAmount, newAmount)
+	pendingBurning, totalMinerFeeForConvertTx, _, _ := GetBurningRelativeData(ctx, context)
+	minerFee := uint256.NewInt(0).Sub(originAmount, newAmount)
 	if pendingBurning.Lt(minerFee) {
 		panic(ErrPendingBurningNotEnough.Error())
 	}
@@ -547,7 +581,7 @@ func handleConvertTypeUTXO(ctx *mevmtypes.Context, context *types.CCContext, inf
 	newR.BornTime = r.BornTime
 	SaveUTXORecord(ctx, newR)
 	DeleteUTXORecord(ctx, info.PrevUTXO.TxID, info.PrevUTXO.Index)
-	fmt.Printf("handleConvertTypeUTXO, totalMinerFeeForConvertTx:%s,prevTxid:%s,txid:%s,newAmount:%s,covenantAddre:%s\n", totalMinerFeeForConvertTx.String(),
+	fmt.Printf("handleConvertTypeUTXO, totalMinerFeeForConvertTx:%s,prevTxid:%s,txid:%s,newAmount:%s,covenantAddress:%s\n", totalMinerFeeForConvertTx.String(),
 		common.BytesToHash(info.PrevUTXO.TxID[:]).String(), common.BytesToHash(info.UTXO.TxID[:]).String(), newAmount.String(), common.BytesToAddress(info.CovenantAddress[:]).String())
 	return []mevmtypes.EvmLog{buildConvertLog(r.Txid, r.Index, r.CovenantAddr, newR.Txid, newR.Index, newR.CovenantAddr)}
 }
@@ -571,11 +605,11 @@ func handleRedeemOrLostAndFoundTypeUTXO(ctx *mevmtypes.Context, context *types.C
 	}
 }
 
-func getBurningRelativeData(ctx *mevmtypes.Context, context *types.CCContext) (pendingBurning *uint256.Int, totalMinerFeeForConvertTx *uint256.Int, totalBurntOnMainChain *uint256.Int) {
+func GetBurningRelativeData(ctx *mevmtypes.Context, context *types.CCContext) (pendingBurning, totalMinerFeeForConvertTx, totalBurntOnMainChain, totalConsumedOnMainChain *uint256.Int) {
 	blockHoleBalance := ebp.GetBlackHoleBalance(ctx)
 	totalBurntOnMainChain = uint256.NewInt(0).SetBytes32(context.TotalBurntOnMainChain[:])
 	totalMinerFeeForConvertTx = uint256.NewInt(0).SetBytes32(context.TotalMinerFeeForConvertTx[:])
-	totalConsumedOnMainChain := uint256.NewInt(0).Add(totalMinerFeeForConvertTx, totalBurntOnMainChain)
+	totalConsumedOnMainChain = uint256.NewInt(0).Add(totalMinerFeeForConvertTx, totalBurntOnMainChain)
 	if !blockHoleBalance.Gt(totalConsumedOnMainChain) {
 		panic(ErrPendingBurningNotEnough.Error())
 	}
@@ -595,20 +629,15 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 		return nil
 	}
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.OperatorElectionEpochs == 0 {
-		//ElectOperators(ctx, currBlock.Timestamp, c.logger)
+		ElectOperators(ctx, currBlock.Timestamp, c.logger)
 		context.LatestEpochHandled = currEpochNum
 		fmt.Printf("elect operators, current epoch number:%d\n", currEpochNum)
 	}
 	// todo: monitor should call startRescan at least once in every epoch to trigger this
 	if (currEpochNum-param.StartEpochNumberForCC+1)%param.MonitorElectionEpochs == 0 {
-		var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
-		for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
-			if i == 0 {
-				continue
-			}
-			infos = append(infos, LoadMonitorVoteInfo(ctx, i))
-		}
-		HandleMonitorVoteInfos(ctx, currBlock.Timestamp, infos, c.logger)
+		voteInfos := loadMonitorVotes(ctx, currEpochNum)
+		voteMaps := monitorVotesToMap(voteInfos)
+		ElectMonitors(ctx, voteMaps, currBlock.Timestamp, c.logger)
 		fmt.Printf("elect monitors, current epoch number:%d\n", currEpochNum)
 	}
 	changed, newAddress := c.Voter.IsOperatorOrMonitorChanged(ctx, context.CurrCovenantAddr)
@@ -621,6 +650,30 @@ func (c *CcContractExecutor) handleOperatorOrMonitorSetChanged(ctx *mevmtypes.Co
 	fmt.Printf("handleOperatorOrMonitorSetChanged changed:%v,lastCovenantAddr%s,CurrCovenantAddr:%s\n", changed, common.BytesToAddress(context.LastCovenantAddr[:]).String(), common.BytesToAddress(context.CurrCovenantAddr[:]).String())
 	logs = append(logs, buildChangeAddrLog(context.LastCovenantAddr, context.CurrCovenantAddr))
 	return
+}
+
+func loadMonitorVotes(ctx *mevmtypes.Context, currEpochNum int64) []*types.MonitorVoteInfo {
+	var infos = make([]*types.MonitorVoteInfo, 0, param.MonitorElectionEpochs)
+	for i := currEpochNum - param.MonitorElectionEpochs + 1; i <= currEpochNum; i++ {
+		if i == 0 {
+			continue
+		}
+		infos = append(infos, LoadMonitorVoteInfo(ctx, i))
+	}
+	return infos
+}
+func monitorVotesToMap(infos []*types.MonitorVoteInfo) map[[33]byte]int64 {
+	var pubkeyVoteMap = make(map[[33]byte]int64)
+	for _, info := range infos {
+		for _, n := range info.Nominations {
+			if _, ok := pubkeyVoteMap[n.Pubkey]; !ok {
+				pubkeyVoteMap[n.Pubkey] = n.NominatedCount
+				continue
+			}
+			pubkeyVoteMap[n.Pubkey] += n.NominatedCount
+		}
+	}
+	return pubkeyVoteMap
 }
 
 func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, txid [32]byte, index uint32, amount *uint256.Int, targetAddress, currCovenantAddr [20]byte) (*mevmtypes.EvmLog, error) {
@@ -646,6 +699,11 @@ func checkAndUpdateRedeemTX(ctx *mevmtypes.Context, block *mevmtypes.BlockInfo, 
 	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, r.Index, r.CovenantAddr, types.FromRedeemable)
+	//todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalRedeemAmountS2M = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalRedeemAmountS2M[:]), amount).Bytes32()
+	infos.TotalRedeemNumsS2M++
+	SaveInternalInfoForTest(ctx, *infos)
 	return &l, nil
 }
 
@@ -669,6 +727,11 @@ func checkAndUpdateLostAndFoundTX(ctx *mevmtypes.Context, block *mevmtypes.Block
 	r.ExpectedSignTime = block.Timestamp + ExpectedRedeemSignTimeDelay
 	SaveUTXORecord(ctx, *r)
 	l := buildRedeemLog(r.Txid, index, r.CovenantAddr, types.FromLostAndFound)
+	//todo: for test
+	infos := LoadInternalInfoForTest(ctx)
+	infos.TotalLostAndFoundAmountS2M = uint256.NewInt(0).Add(uint256.NewInt(0).SetBytes32(infos.TotalLostAndFoundAmountS2M[:]), uint256.NewInt(0).SetBytes32(r.Amount[:])).Bytes32()
+	infos.TotalLostAndFoundNumsS2M++
+	SaveInternalInfoForTest(ctx, *infos)
 	return &l, nil
 }
 
@@ -761,28 +824,26 @@ type IVoteContract interface {
 type VoteContract struct{}
 
 func (v VoteContract) IsMonitor(ctx *mevmtypes.Context, address common.Address) bool {
-	return true
-	//monitors := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
-	//for _, monitor := range monitors {
-	//	if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
-	//		return true
-	//	}
-	//}
-	//return false
+	monitors := ReadMonitorInfos(ctx, param.MonitorsGovSequence)
+	for _, monitor := range monitors {
+		if monitor.ElectedTime.Uint64() > 0 && monitor.Addr == address {
+			return true
+		}
+	}
+	return false
 }
 
 func (v VoteContract) IsOperatorOrMonitorChanged(ctx *mevmtypes.Context, currAddress [20]byte) (bool, common.Address) {
-	//newAddr, err := GetCCCovenantP2SHAddr(ctx)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//return currAddress != newAddr, newAddr
-	return false, common.HexToAddress("0000000000000000000000000000000000000000")
+	newAddr, err := GetCCCovenantP2SHAddr(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return currAddress != newAddr, newAddr
 }
 
+// todo:
 func (v VoteContract) GetCCCovenantP2SHAddr(ctx *mevmtypes.Context) ([20]byte, error) {
-	return common.HexToAddress(param.GenesisCovenantAddress), nil
-	//return GetCCCovenantP2SHAddr(ctx)
+	return GetCCCovenantP2SHAddr(ctx)
 }
 
 type MockVoteContract struct {

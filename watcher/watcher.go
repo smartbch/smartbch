@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"sort"
 	"sync/atomic"
@@ -45,7 +46,6 @@ type Watcher struct {
 	catchupChan chan bool
 
 	EpochChan chan *stakingtypes.Epoch
-	epochList []*stakingtypes.Epoch
 
 	MonitorVoteChan     chan *cctypes.MonitorVoteInfo
 	monitorVoteInfoList []*cctypes.MonitorVoteInfo
@@ -211,7 +211,6 @@ func (watcher *Watcher) speedup() {
 		watcher.lastEpochEndHeight = watcher.latestFinalizedHeight
 		watcher.logger.Debug("After speedup", "latestFinalizedHeight", watcher.latestFinalizedHeight)
 	}
-	return
 }
 
 func (watcher *Watcher) suspended(delayDuration time.Duration) {
@@ -330,6 +329,10 @@ func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
 	return watcher.currentMainnetBlockTimestamp
 }
 
+func (watcher *Watcher) GetLatestFinalizedHeight() int64 {
+	return watcher.latestFinalizedHeight
+}
+
 func (watcher *Watcher) CheckSanity(skipCheck bool) {
 	if !skipCheck {
 		latestHeight := watcher.rpcClient.GetLatestHeight(false)
@@ -395,8 +398,9 @@ func (watcher *Watcher) getUTXOCollectParam() *cctypes.UTXOCollectParam {
 func (watcher *Watcher) CollectCCTransferInfos() {
 	var latestEndHeight int64
 	var initCollect = true
+	collectInterval := int64(1)
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(collectInterval) * time.Second)
 		if watcher.latestFinalizedHeight < param.StartMainnetHeightForCC {
 			continue
 		}
@@ -410,6 +414,8 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 		if collectParam.EndHeight == latestEndHeight || collectParam.BeginHeight == 0 {
 			continue
 		}
+		watcher.CcContractExecutor.Lock.Lock()
+		fmt.Printf("new collect round, beign:%d,end:%d\n", collectParam.EndHeight, collectParam.EndHeight)
 		latestEndHeight = collectParam.EndHeight
 		var infos []*cctypes.CCTransferInfo
 		blocks := watcher.getFinalizedBCHBlockInfos(collectParam.BeginHeight, collectParam.EndHeight)
@@ -418,11 +424,11 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 			infos = append(infos, watcher.txParser.GetCCUTXOTransferInfo(bi)...)
 		}
 		watcher.logger.Debug("collect cc infos", "BeginHeight", collectParam.BeginHeight, "EndHeight", collectParam.EndHeight, "length", len(infos))
-		watcher.CcContractExecutor.Lock.Lock()
 		watcher.CcContractExecutor.Infos = infos
+		watcher.CcContractExecutor.LastEndRescanBlock = uint64(latestEndHeight)
 		watcher.CcContractExecutor.Lock.Unlock()
 		if initCollect {
-			close(watcher.CcContractExecutor.UTXOCollectDoneChan)
+			close(watcher.CcContractExecutor.UTXOInitCollectDoneChan)
 			initCollect = false
 		}
 	}
