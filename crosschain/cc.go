@@ -36,7 +36,7 @@ const (
 
 var (
 	MaxCCAmount           uint64 = 100              // 0.01BCH
-	MinCCAmount           uint64 = 10               // 0.001BCH
+	MinCCAmount           uint64 = 1                // 0.0001BCH
 	MinPendingBurningLeft uint64 = 1                // 0.0001BCH
 	MatureTime            int64  = 1                // 24h
 	ForceTransferTime     int64  = 60 * 60 * 24 * 3 // 3days
