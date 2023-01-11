@@ -869,6 +869,7 @@ func (app *App) GetRunTxContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.RunTxType)
 	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {
