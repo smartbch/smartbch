@@ -224,6 +224,10 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currValidators := staking.GetActiveValidators(ctx, stakingInfo.Validators)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
+	// hardcode for 8000000 staking fork come early bug, never change it
+	if app.currHeight == 8045000 {
+		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(nil, currValidators)
+	}
 	for _, val := range currValidators {
 		app.logger.Debug(fmt.Sprintf("Load validator in NewApp: address(%s), pubkey(%s), votingPower(%d)",
 			gethcmn.Address(val.Address).String(), ed25519.PubKey(val.Pubkey[:]).String(), val.VotingPower))
@@ -536,6 +540,14 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 }
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
+	// hardcode for 8000000 staking fork come early bug, never change this.
+	if app.currHeight >= 8000001 && app.currHeight <= 8045000 {
+		b, _ := hex.DecodeString("fbdc5c690ab36319d6a68ed50407a61d95d0ec6a6e9225a0c40d17bd8358010e") //mp
+		var val stakingtypes.Validator
+		copy(val.Pubkey[:], b)
+		val.VotingPower = 10
+		app.validatorUpdate = []*stakingtypes.Validator{&val}
+	}
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
 	for i, v := range app.validatorUpdate {
 		p, _ := cryptoenc.PubKeyToProto(ed25519.PubKey(v.Pubkey[:]))
@@ -685,6 +697,9 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		validatorsInfo := app.getValidatorsInfoFromCtx(ctx)
 		bz, _ := json.Marshal(validatorsInfo)
 		app.logger.Debug(fmt.Sprintf("ValidatorsInfo:%s", string(bz)))
+	}
+	if app.currHeight == 8045000 {
+		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(nil, newValidators)
 	}
 }
 

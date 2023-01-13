@@ -259,6 +259,7 @@ func GetUpdateValidatorSet(currentValidators, newValidators []*Validator) []*Val
 }
 
 type ValidatorOnlineInfos struct {
+	// todo: refresh StartHeight to the block height staking fork enabled!
 	StartHeight int64         `msgp:"start_height"`
 	OnlineInfos []*OnlineInfo `msgp:"online_infos"`
 }

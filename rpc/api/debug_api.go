@@ -140,7 +140,7 @@ func castValidatorOnlineInfos(infos stakingtypes.ValidatorOnlineInfos) Validator
 }
 
 func (api *debugAPI) ValidatorOnlineInfos() json.RawMessage {
-	api.logger.Debug("debug_validatorsOnlineInfo")
+	api.logger.Debug("debug_validatorOnlineInfos")
 	onlineInfos := api.ethAPI.backend.ValidatorOnlineInfos()
 	onlineInfosToMarshal := castValidatorOnlineInfos(onlineInfos)
 	bytes, _ := json.Marshal(onlineInfosToMarshal)

@@ -896,6 +896,14 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos types.ValidatorOnlineInfos,
 	return infos.StartHeight
 }
 
+func HandleOnlineInfosForBugFix(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, voters [][]byte) (slashValidators [][20]byte) {
+	var infos types.ValidatorOnlineInfos
+	activeValidators := make([]*types.Validator, 0, len(stakingInfo.Validators))
+	infos = *NewOnlineInfos(activeValidators, ctx.Height)
+	UpdateOnlineInfos(ctx, infos, voters)
+	return
+}
+
 func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, voters [][]byte) (slashValidators [][20]byte) {
 	var retireValidators = make(map[[20]byte]bool, len(voters))
 	infos := LoadOnlineInfo(ctx)
@@ -968,6 +976,9 @@ func SlashAndReward(ctx *mevmtypes.Context, duplicateSigSlashValidators [][20]by
 				Slash(ctx, &info, pubkey, slashAmount)
 			}
 		}
+	} else if ctx.Height == 8000000 {
+		// hardcode for 8000000 staking fork early come bug
+		HandleOnlineInfosForBugFix(ctx, &info, lastVoters)
 	}
 	voters := make([][32]byte, 0, len(lastVoters))
 	var tmpAddr [20]byte
