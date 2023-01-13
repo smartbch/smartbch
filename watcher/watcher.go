@@ -46,7 +46,7 @@ type Watcher struct {
 	catchupChan chan bool
 
 	EpochChan chan *stakingtypes.Epoch
-
+	// new monitor vote info always sent to app same time with epoch
 	MonitorVoteChan     chan *cctypes.MonitorVoteInfo
 	monitorVoteInfoList []*cctypes.MonitorVoteInfo
 
@@ -415,7 +415,7 @@ func (watcher *Watcher) CollectCCTransferInfos() {
 			continue
 		}
 		watcher.CcContractExecutor.Lock.Lock()
-		fmt.Printf("new collect round, beign:%d,end:%d\n", collectParam.EndHeight, collectParam.EndHeight)
+		fmt.Printf("new collect round, beign:%d,end:%d\n", collectParam.BeginHeight, collectParam.EndHeight)
 		latestEndHeight = collectParam.EndHeight
 		var infos []*cctypes.CCTransferInfo
 		blocks := watcher.getFinalizedBCHBlockInfos(collectParam.BeginHeight, collectParam.EndHeight)

@@ -120,7 +120,7 @@ func (c *CcContractExecutor) Init(ctx *mevmtypes.Context) {
 	if ccAcc == nil { // only executed at genesis
 		ccAcc = mevmtypes.ZeroAccountInfo()
 		ccAcc.UpdateSequence(ccContractSequence)
-		// init balance of cc address is 1000000sBCH
+		//todo: we need to transfer enough sbch to cc address
 		ccAcc.UpdateBalance(uint256.NewInt(0).Mul(uint256.NewInt(0).Mul(uint256.NewInt(1000_000), uint256.NewInt(1e8)), uint256.NewInt(1e10)))
 		ctx.SetAccount(CCContractAddress, ccAcc)
 	}
