@@ -549,7 +549,8 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 	if app.currHeight == customValidatorUpdateBeginHeight {
 		ctx := app.GetRunTxContext()
 		_, info := staking.LoadStakingAccAndInfo(ctx)
-		currValidators := staking.GetActiveValidators(ctx, info.Validators)
+		//currValidators := staking.GetActiveValidators(ctx, info.Validators)
+		currValidators := info.Validators
 		// build target validator pubkey
 		b, _ := hex.DecodeString("fbdc5c690ab36319d6a68ed50407a61d95d0ec6a6e9225a0c40d17bd8358010e") //mp
 		app.validatorUpdate = nil
