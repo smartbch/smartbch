@@ -67,7 +67,8 @@ var (
 )
 
 const (
-	customValidatorUpdateEndHeight = 8_039_000
+	customValidatorUpdateBeginHeight = 8_000_001
+	customValidatorUpdateEndHeight   = 8_039_000
 )
 
 type IApp interface {
@@ -545,7 +546,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	// hardcode for 8000000 staking fork come early bug, never change this.
-	if app.currHeight == 8000001 {
+	if app.currHeight == customValidatorUpdateBeginHeight {
 		ctx := app.GetRunTxContext()
 		_, info := staking.LoadStakingAccAndInfo(ctx)
 		currValidators := staking.GetActiveValidators(ctx, info.Validators)
@@ -563,7 +564,7 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			app.validatorUpdate = append(app.validatorUpdate, &validator)
 		}
 		ctx.Close(false)
-	} else if app.currHeight > 8000001 && app.currHeight <= customValidatorUpdateEndHeight {
+	} else if app.currHeight > customValidatorUpdateBeginHeight && app.currHeight <= customValidatorUpdateEndHeight {
 		app.validatorUpdate = nil
 	}
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
