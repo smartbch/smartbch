@@ -51,16 +51,16 @@ jobs:
           -t smartbch/smartbchd:$GIT_TAG \
           --platform linux/arm64,linux/amd64 .
 
-      - name: Build testnet image
-        env:
-          GIT_TAG: ${{ steps.previoustag.outputs.tag }}
-        run: |
-          echo "$GIT_TAG"-amber
-          docker buildx build --push \
-          --progress plain \
-          -f Dockerfile.optimized \
-          -t smartbch/smartbchd:"$GIT_TAG"-amber \
-          --build-arg SMARTBCH_BUILD_TAGS='cppbtree,params_amber' \
-          --build-arg CONFIG_VERSION=v0.0.5 \
-          --build-arg CHAIN_ID=0x2711  \
-          --platform linux/arm64,linux/amd64 .
+#      - name: Build testnet image
+#        env:
+#          GIT_TAG: ${{ steps.previoustag.outputs.tag }}
+#        run: |
+#          echo "$GIT_TAG"-amber
+#          docker buildx build --push \
+#          --progress plain \
+#          -f Dockerfile.optimized \
+#          -t smartbch/smartbchd:"$GIT_TAG"-amber \
+#          --build-arg SMARTBCH_BUILD_TAGS='cppbtree,params_amber' \
+#          --build-arg CONFIG_VERSION=v0.0.5 \
+#          --build-arg CHAIN_ID=0x2711  \
+#          --platform linux/arm64,linux/amd64 .
