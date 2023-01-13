@@ -3,6 +3,8 @@
 
 package param
 
+import "math"
+
 //FILE: consensus configurable params collected here!
 const (
 	/**app consensus params**/
@@ -48,7 +50,7 @@ const (
 	// fork params
 	XHedgeContractSequence uint64 = 0x13311
 	XHedgeForkBlock        int64  = 4106000
-	ShaGateForkBlock       int64  = 80000000
+	ShaGateForkBlock       int64  = math.MaxInt64
 	ShaGateSwitch          bool   = false
-	StakingForkHeight      int64  = 8000000
+	StakingForkHeight      int64  = math.MaxInt64
 )

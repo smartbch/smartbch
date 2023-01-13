@@ -641,6 +641,11 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			// make epoch switch delay in epoch 20th 50% longer.
 			epochSwitchDelay = param.StakingEpochSwitchDelay * 10
 		}
+		// this 37 is hardcode to fix the 20230113 StakingForkHeight hit error. don't modify it ever.
+		if currEpochNum == 37 {
+			// make epoch switch delay in epoch 37th 50% longer.
+			epochSwitchDelay = param.StakingEpochSwitchDelay * 10
+		}
 		if app.block.Timestamp > app.epochList[0].EndTime+epochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
