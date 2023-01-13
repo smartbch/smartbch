@@ -66,6 +66,10 @@ var (
 	errNoSyncBlock = errors.New("syncdb block is not ready")
 )
 
+const (
+	customValidatorUpdateEndHeight = 8039000
+)
+
 type IApp interface {
 	ChainID() *uint256.Int
 	GetRpcContext() *types.Context
@@ -225,7 +229,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	currValidators := staking.GetActiveValidators(ctx, stakingInfo.Validators)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
 	// hardcode for 8000000 staking fork come early bug, never change it
-	if app.currHeight == 8045000 {
+	if app.currHeight == customValidatorUpdateEndHeight {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(nil, currValidators)
 	}
 	for _, val := range currValidators {
@@ -541,7 +545,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	// hardcode for 8000000 staking fork come early bug, never change this.
-	if app.currHeight >= 8000001 && app.currHeight <= 8045000 {
+	if app.currHeight >= 8000001 && app.currHeight <= customValidatorUpdateEndHeight {
 		b, _ := hex.DecodeString("fbdc5c690ab36319d6a68ed50407a61d95d0ec6a6e9225a0c40d17bd8358010e") //mp
 		var val stakingtypes.Validator
 		copy(val.Pubkey[:], b)
@@ -698,7 +702,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		bz, _ := json.Marshal(validatorsInfo)
 		app.logger.Debug(fmt.Sprintf("ValidatorsInfo:%s", string(bz)))
 	}
-	if app.currHeight == 8045000 {
+	if app.currHeight == customValidatorUpdateEndHeight {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(nil, newValidators)
 	}
 }
