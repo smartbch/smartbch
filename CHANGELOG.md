@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.6-p1
+
+* Add some hot-fix code to the staking logic and tendermint to allow a three-day interim one-validator period for chain-restarting, and the normal validators will come back after this period
+
 ## v0.4.6
 
 * JSON-RPC
