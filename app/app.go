@@ -672,7 +672,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	// hardcode for sync block meet appHash error on 4435201 in amber.
 	if param.IsAmber && app.currHeight == 4435201 {
 		app.validatorUpdate = nil
-	} else if param.IsAmber {
+	} else if param.IsAmber || ctx.IsShaGateFork() {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(app.currValidators, newValidators)
 	} else {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(currValidators, newValidators)
