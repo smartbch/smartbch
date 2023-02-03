@@ -10,8 +10,11 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/holiman/uint256"
+
 	"github.com/smartbch/smartbch/internal/testutils"
 	"github.com/smartbch/smartbch/seps"
+	"github.com/smartbch/smartbch/param"
 )
 
 var (
@@ -149,6 +152,7 @@ func TestTransferFrom_drainBCH(t *testing.T) {
 	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, initAmt.ToBig())
 	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
 	_app.EnsureTxSuccess(tx2.Hash())
+
 	require.Equal(t, uint64(0), _app.GetBalance(ownerAddr).Uint64())
 }
 
@@ -274,6 +278,50 @@ func TestSEP206_archiveMode(t *testing.T) {
 	require.Equal(t, big.NewInt(12345), callViewMethodAtHeight(t, _app, 3, sep206Addr, "allowance", ownerAddr, spenderAddr))
 	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 2, sep206Addr, "allowance", ownerAddr, spenderAddr).(*big.Int).Uint64())
 	require.Equal(t, uint64(0), callViewMethodAtHeight(t, _app, 1, sep206Addr, "allowance", ownerAddr, spenderAddr).(*big.Int).Uint64())
+}
+
+func TestTransferFrom_overflow(t *testing.T) {
+	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
+	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
+	_, receiptAddr := testutils.GenKeyAndAddr()
+	
+	initAmt := testutils.HexToU256("0x38d7ea4c68000") // 0.001 BCH
+	startHeight := param.XHedgeForkBlock + 1
+	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
+	   StartHeight: &startHeight,
+	   InitAmt:     initAmt,
+	   PrivKeys:    []string{ownerKey, spenderKey},
+	})
+	defer _app.Destroy()
+	approveAmount, err := uint256.FromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	if err != nil {
+	   panic(err)
+	}
+	data1 := sep206ABI.MustPack("approve", spenderAddr, approveAmount.ToBig())
+	tx1, _ := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
+	_app.EnsureTxSuccess(tx1.Hash())
+	
+	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, approveAmount.ToBig())
+	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
+
+	// Original Bug:
+	//_app.EnsureTxSuccess(tx2.Hash())
+	//require.Equal(t, approveAmount.ToBig().String(), _app.GetBalance(receiptAddr).String()) //very large
+	//require.Equal(t, uint64(0x38d7ea4c68001), _app.GetBalance(ownerAddr).Uint64()) // deduct -1 == add 1
+
+	// With Golang protection
+	//tx := _app.GetTx(tx2.Hash())
+	//require.Equal(t, gethtypes.ReceiptStatusFailed, tx.Status)
+	//require.Equal(t, "internal-error", tx.StatusStr)
+	//require.Nil(t, _app.GetBalance(receiptAddr)) // account not created
+	//require.Equal(t, initAmt.Uint64(), _app.GetBalance(ownerAddr).Uint64()) // not changed
+
+	// With C++ protection
+	tx := _app.GetTx(tx2.Hash())
+	require.Equal(t, gethtypes.ReceiptStatusFailed, tx.Status)
+	require.Equal(t, "insufficient-balance", tx.StatusStr)
+	require.Nil(t, _app.GetBalance(receiptAddr)) // account not created
+	require.Equal(t, initAmt.Uint64(), _app.GetBalance(ownerAddr).Uint64()) // not changed
 }
 
 func callViewMethod(t *testing.T, _app *testutils.TestApp, selector string, args ...interface{}) interface{} {

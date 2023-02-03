@@ -1,8 +1,16 @@
 # Changelog
 
+## v0.4.7
+
+* Add protection for uint256 overflow
+* Library
+  * Upgrade moeingevm to v0.4.4
+
+
 ## v0.4.6-p1
 
 * Add some hot-fix code to the staking logic and tendermint to allow a three-day interim one-validator period for chain-restarting, and the normal validators will come back after this period
+
 
 ## v0.4.6
 

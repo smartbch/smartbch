@@ -25,7 +25,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/smartbch/moeingads v0.4.2
 	github.com/smartbch/moeingdb v0.4.3
-	github.com/smartbch/moeingevm v0.4.3
+	github.com/smartbch/moeingevm v0.4.4
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
@@ -43,6 +43,8 @@ require (
 )
 
 replace github.com/tendermint/tendermint v0.34.10 => github.com/smartbch/tendermint v0.34.10-p1
+
+replace github.com/holiman/uint256 => github.com/smartbch/uint256 v1.2.1-p1
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect

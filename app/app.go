@@ -377,6 +377,9 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		return abcitypes.ResponseCheckTx{Code: AccountNonceMismatch, Info: "bad nonce: " + types.ErrNonceTooSmall.Error()}
 	}
 	gasPrice, _ := uint256.FromBig(tx.GasPrice())
+	if gasPrice.GtUint64(ebp.MaxGasPrice) {
+		gasPrice = uint256.NewInt(ebp.MaxGasPrice)
+	}
 	gasFee := uint256.NewInt(0).Mul(gasPrice, uint256.NewInt(tx.Gas()))
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}

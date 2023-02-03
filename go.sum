@@ -364,8 +364,6 @@ github.com/hashicorp/memberlist v0.1.3/go.mod h1:ajVTdAv/9Im8oMAAj5G31PhhMCZJV2p
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/holiman/bloomfilter/v2 v2.0.3 h1:73e0e/V0tCydx14a0SCYS/EWCxgwLZ18CZcZKVu0fao=
 github.com/holiman/bloomfilter/v2 v2.0.3/go.mod h1:zpoh+gs7qcpqrHr3dB55AMiJwo0iURXE7ZOP9L9hSkA=
-github.com/holiman/uint256 v1.2.0 h1:gpSYcPLWGv4sG43I2mVLiDZCNDh/EpGjSk8tmtxitHM=
-github.com/holiman/uint256 v1.2.0/go.mod h1:y4ga/t+u+Xwd7CpDgZESaRcWy0I7XMlTMA25ApIH5Jw=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
 github.com/huin/goupnp v1.0.2 h1:RfGLP+h3mvisuWEyybxNq5Eft3NWhHLPeUN72kpKZoI=
@@ -635,10 +633,12 @@ github.com/smartbch/moeingads v0.4.2 h1:M9Qc/Gx9ZzL6yFYroRvpd1qTu95SmmbqWnKlQrIG
 github.com/smartbch/moeingads v0.4.2/go.mod h1:ItNDsGpUoDo/lNxd+EfQ0FbcoT/QsZ+T06kPdFlCm9g=
 github.com/smartbch/moeingdb v0.4.3 h1:GWDK11Q9V6iHgZH4/KfIgaoY8MYppLMEWjxzkkfORZg=
 github.com/smartbch/moeingdb v0.4.3/go.mod h1:qKlNffkyJ2+vDJPH1p4KyvrqFAdiWTnjQZdf6vmsoiM=
-github.com/smartbch/moeingevm v0.4.3 h1:QI6BPMXNt7u4/TgO+9FqMah2tXoO3VDRzUu6N57FJNs=
-github.com/smartbch/moeingevm v0.4.3/go.mod h1:daDcMDCBCA56gPhwDt9DG5wre9kp8xgMvmU5hRYfu4Q=
+github.com/smartbch/moeingevm v0.4.4 h1:wr+jK54BHFP+mJfHQRy6HPSpsPEuZ8IkGjNqPt1mAAU=
+github.com/smartbch/moeingevm v0.4.4/go.mod h1:daDcMDCBCA56gPhwDt9DG5wre9kp8xgMvmU5hRYfu4Q=
 github.com/smartbch/tendermint v0.34.10-p1 h1:0j/Uklmtp2HvEjX17anX2wTxNoJoa5bnhhpdAxq4OfQ=
 github.com/smartbch/tendermint v0.34.10-p1/go.mod h1:aeHL7alPh4uTBIJQ8mgFEE8VwJLXI1VD3rVOmH2Mcy0=
+github.com/smartbch/uint256 v1.2.1-p1 h1:FlcuzpMIkkhoUtRdMvLdahjIuzuLS4FPLnDFmhZnv2g=
+github.com/smartbch/uint256 v1.2.1-p1/go.mod h1:y4ga/t+u+Xwd7CpDgZESaRcWy0I7XMlTMA25ApIH5Jw=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d h1:zE9ykElWQ6/NYmHa3jpm/yHnI4xSofP+UP6SpjHcSeM=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
 github.com/smartystreets/goconvey v1.6.4 h1:fv0U8FUIMPNf1L9lnHLvLhgicrIVChEkdzIKYqbNC9s=
