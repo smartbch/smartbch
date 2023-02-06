@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/smartbch/moeingevm/types"
+
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
@@ -13,7 +15,6 @@ import (
 
 	"github.com/smartbch/moeingads/store"
 	"github.com/smartbch/moeingads/store/rabbit"
-	"github.com/smartbch/moeingevm/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 

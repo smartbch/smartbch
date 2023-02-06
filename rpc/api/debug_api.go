@@ -40,6 +40,7 @@ type DebugAPI interface {
 	GetSeq(addr gethcmn.Address) hexutil.Uint64
 	NodeInfo() json.RawMessage
 	ValidatorOnlineInfos() json.RawMessage
+	WatcherHeight() hexutil.Uint64
 }
 
 type debugAPI struct {
@@ -66,6 +67,11 @@ func (api *debugAPI) NodeInfo() json.RawMessage {
 	nodeInfo := api.ethAPI.backend.NodeInfo()
 	bytes, _ := json.Marshal(nodeInfo)
 	return bytes
+}
+
+func (api *debugAPI) WatcherHeight() hexutil.Uint64 {
+	h := api.ethAPI.backend.GetWatcherHeight()
+	return hexutil.Uint64(h)
 }
 
 func (api *debugAPI) GetStats() Stats {

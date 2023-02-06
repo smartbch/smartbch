@@ -36,6 +36,8 @@ import (
 	"github.com/smartbch/moeingevm/ebp"
 	"github.com/smartbch/moeingevm/types"
 
+	"github.com/smartbch/smartbch/crosschain"
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/internal/ethutils"
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
@@ -89,6 +91,10 @@ type IApp interface {
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
 	GetRpcMaxLogResults() int
+	GetRedeemingUtxoIds() [][36]byte
+	GetLostAndFoundUtxoIds() [][36]byte
+	GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte
+	GetWatcherHeight() int64
 }
 
 type App struct {
@@ -135,9 +141,9 @@ type App struct {
 	frontier    ebp.Frontier // recorded in Commit, used in next block's CheckTx
 
 	//watcher
-	watcher   *watcher.Watcher
-	epochList []*stakingtypes.Epoch // caches the epochs collected by the watcher
-	//ccEpochList []*cctypes.CCEpoch
+	watcher             *watcher.Watcher
+	epochList           []*stakingtypes.Epoch      // caches the epochs collected by the watcher
+	monitorVoteInfoList []*cctypes.MonitorVoteInfo // caches the monitor vote infos collected by the watcher
 
 	//util
 	signer gethtypes.Signer
@@ -165,18 +171,14 @@ type SenderAndHeight struct {
 
 func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeight, genesisCCHeight int64, logger log.Logger, skipSanityCheck bool) *App {
 	app := &App{}
-
 	/*------set config------*/
 	app.config = config
 	app.chainId = chainId
-
 	/*------signature cache------*/
 	app.sigCache = make(map[gethcmn.Hash]SenderAndHeight, config.AppConfig.SigCacheSize)
-
 	/*------set util------*/
 	app.signer = gethtypes.NewEIP155Signer(app.chainId.ToBig())
 	app.logger = logger.With("module", "app")
-
 	/*------set store------*/
 	app.root, app.mads = CreateRootStore(config.AppConfig.AppDataPath, config.AppConfig.ArchiveMode)
 	app.historyStore = CreateHistoryStore(config.AppConfig.ModbDataPath, config.AppConfig.UseLiteDB, config.AppConfig.RpcEthGetLogsMaxResults,
@@ -186,7 +188,6 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	}
 	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
-
 	/*------set engine------*/
 	app.txEngine = ebp.NewEbpTxExec(
 		param.EbpExeRoundCount,
@@ -197,9 +198,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.logger.With("module", "engine"))
 	//ebp.AdjustGasUsed = false
 
-	/*------set system contract------*/
+	// must refresh ctx.Height when app.currHeight set later
 	ctx := app.GetRunTxContext()
-
+	/*------set system contract------*/
 	ebp.RegisterPredefinedContract(ctx, staking.StakingContractAddress, staking.NewStakingContractExecutor(app.logger.With("module", "staking")))
 
 	// We assign empty maps to them just to avoid accessing nil-maps.
@@ -216,15 +217,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	} else {
 		app.block = &types.Block{}
 	}
+
 	ctx.SetCurrentHeight(app.currHeight)
-
 	app.root.SetHeight(app.currHeight)
+	ctx.SetCurrentHeight(app.currHeight)
 	app.txEngine.SetContext(app.GetRunTxContext())
-	if app.currHeight != 0 { // restart postCommit
-		app.mtx.Lock()
-		app.postCommit(app.syncBlockInfo())
-	}
-
 	/*------set stakingInfo------*/
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currValidators := staking.GetActiveValidators(ctx, stakingInfo.Validators)
@@ -241,16 +238,29 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		stakingInfo.GenesisMainnetBlockHeight = genesisWatcherHeight
 		staking.SaveStakingInfo(ctx, stakingInfo) // only executed at genesis
 	}
-
+	/*------set cc------*/
+	ccExecutor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
+	if ctx.IsShaGateFork() {
+		ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, ccExecutor)
+	}
 	/*------set watcher------*/
 	lastEpochEndHeight := stakingInfo.GenesisMainnetBlockHeight + param.StakingNumBlocksInEpoch*stakingInfo.CurrEpochNum
-	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, 0, stakingInfo.CurrEpochNum, app.config)
-	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
+	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), app.historyStore, lastEpochEndHeight, stakingInfo.CurrEpochNum, app.config)
+	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight:(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
+	app.watcher.SetCCExecutor(ccExecutor)
 	app.watcher.CheckSanity(skipSanityCheck)
+	app.watcher.SetContextGetter(app)
 	go app.watcher.Run()
+	if ctx.IsShaGateFork() {
+		crosschain.WaitUTXOCollectDone(ctx, app.watcher.CcContractExecutor.UTXOInitCollectDoneChan)
+	}
 	app.watcher.WaitCatchup()
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
+	if app.currHeight != 0 { // restart postCommit
+		app.mtx.Lock()
+		app.postCommit(app.syncBlockInfo())
+	}
 	ctx.Close(true)
 	return app
 }
@@ -364,7 +374,6 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		app.frontier.SetLatestBalance(sender, acc.Balance().Clone())
 		targetNonce = acc.Nonce()
 	}
-
 	app.logger.Debug("checkTxWithContext",
 		"isReCheckTx", txType == abcitypes.CheckTxType_Recheck,
 		"tx.nonce", tx.Nonce(),
@@ -384,7 +393,6 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 	if gasPrice.Cmp(uint256.NewInt(app.lastMinGasPrice)) < 0 {
 		return abcitypes.ResponseCheckTx{Code: InvalidMinGasPrice, Info: "gas price too small"}
 	}
-
 	balance, ok := app.frontier.GetLatestBalance(sender)
 	if !ok || balance.Cmp(gasFee) < 0 {
 		return abcitypes.ResponseCheckTx{Code: CannotPayGasFee, Info: "failed to deduct tx fee"}
@@ -397,7 +405,6 @@ func (app *App) checkTxWithContext(tx *gethtypes.Transaction, sender gethcmn.Add
 		return abcitypes.ResponseCheckTx{Code: GasLimitInvalid, Info: "send transaction too frequent"}
 	}
 	app.frontier.SetLatestTotalGas(sender, totalGasLimit)
-
 	//update frontier
 	app.frontier.SetLatestNonce(sender, tx.Nonce()+1)
 	balance.Sub(balance, gasFee)
@@ -429,29 +436,23 @@ func checkGasLimit(tx *gethtypes.Transaction) (ok bool, res abcitypes.ResponseCh
 
 func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInitChain {
 	app.logger.Debug("InitChain, id=", req.ChainId)
-
 	if len(req.AppStateBytes) == 0 {
 		panic("no AppStateBytes")
 	}
-
 	genesisData := GenesisData{}
 	err := json.Unmarshal(req.AppStateBytes, &genesisData)
 	if err != nil {
 		panic(err)
 	}
-
 	app.createGenesisAccounts(genesisData.Alloc)
 	genesisValidators := genesisData.StakingValidators()
-
 	if len(genesisValidators) == 0 {
 		panic("no genesis validator in genesis.json")
 	}
-
 	//store all genesis validators even if it is inactive
 	ctx := app.GetRunTxContext()
 	staking.AddGenesisValidatorsIntoStakingInfo(ctx, genesisValidators)
 	ctx.Close(true)
-
 	currValidators := staking.GetActiveValidators(ctx, genesisValidators)
 	valSet := make([]abcitypes.ValidatorUpdate, len(currValidators))
 	for i, v := range currValidators {
@@ -463,7 +464,6 @@ func (app *App) InitChain(req abcitypes.RequestInitChain) abcitypes.ResponseInit
 		app.logger.Debug(fmt.Sprintf("Active genesis validator: address(%s), pubkey(%s), votingPower(%d)\n",
 			gethcmn.Address(v.Address).String(), p.String(), v.VotingPower))
 	}
-
 	params := &abcitypes.ConsensusParams{
 		Block: &abcitypes.BlockParams{
 			MaxBytes: param.BlockMaxBytes,
@@ -480,9 +480,7 @@ func (app *App) createGenesisAccounts(alloc gethcore.GenesisAlloc) {
 	if len(alloc) == 0 {
 		return
 	}
-
 	rbt := rabbit.NewRabbitStore(app.trunk)
-
 	app.logger.Info("air drop", "accounts", len(alloc))
 	for addr, acc := range alloc {
 		amt, _ := uint256.FromBig(acc.Balance)
@@ -492,13 +490,11 @@ func (app *App) createGenesisAccounts(alloc gethcore.GenesisAlloc) {
 		rbt.Set(k, v.Bytes())
 		//app.logger.Info("Air drop " + amt.String() + " to " + addr.Hex())
 	}
-
 	rbt.Close()
 	rbt.WriteBack()
 }
 
 func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBeginBlock {
-	//app.randomPanic(5000, 7919)
 	for app.block.Timestamp > app.watcher.GetCurrMainnetBlockTimestamp()+12*3600 {
 		app.logger.Debug("waiting BCH node catchup...", "smartBCH block timestamp", app.block.Timestamp, "BCH block timestamp", app.watcher.GetCurrMainnetBlockTimestamp())
 		time.Sleep(30 * time.Second)
@@ -641,7 +637,8 @@ func (app *App) buildCommitResponse(appHash []byte) abcitypes.ResponseCommit {
 func (app *App) updateValidatorsAndStakingInfo() {
 	ctx := app.GetRunTxContext()
 	defer ctx.Close(true) // context must be written back such that txEngine can read it in 'Prepare'
-
+	blkBalance := ebp.GetBlackHoleBalance(ctx)
+	fmt.Printf("blackhole balance:%d\n", blkBalance)
 	currValidators, newValidators, currEpochNum := staking.SlashAndReward(ctx, app.slashValidators, app.block.Miner,
 		app.lastProposer, app.lastVoters, app.getBlockRewardAndUpdateSysAcc(ctx))
 	app.slashValidators = app.slashValidators[:0]
@@ -665,6 +662,15 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			app.logger.Debug(fmt.Sprintf("Get new epoch, epochNum(%d), startHeight(%d), epochListLens(%d)",
 				epoch.Number, epoch.StartHeight, len(app.epochList)))
 		default:
+		}
+		if ctx.IsShaGateFork() {
+			select {
+			case voteInfo := <-app.watcher.MonitorVoteChan:
+				app.monitorVoteInfoList = append(app.monitorVoteInfoList, voteInfo)
+				app.logger.Debug(fmt.Sprintf("Get new monitor vote info, infoNum(%d), startHeight(%d), infoListLens(%d)",
+					voteInfo.Number, voteInfo.StartHeight, len(app.monitorVoteInfoList)))
+			default:
+			}
 		}
 	}
 
@@ -690,10 +696,20 @@ func (app *App) updateValidatorsAndStakingInfo() {
 				//deploy xHedge contract before fork
 				posVotes = staking.GetAndClearPosVotes(ctx, xHedgeSequence)
 			}
-			newValidators = staking.SwitchEpoch(ctx, app.epochList[0], posVotes, app.logger)
+			newEpoch := app.epochList[0]
+			newValidators = staking.SwitchEpoch(ctx, newEpoch, posVotes, app.logger)
 			app.epochList = app.epochList[1:] // possible memory leak here, but the length would not be very large
 			if ctx.IsXHedgeFork() {
 				staking.CreateInitVotes(ctx, xHedgeSequence, newValidators)
+			}
+			if ctx.IsShaGateFork() {
+				if len(app.monitorVoteInfoList) != 0 {
+					info := app.monitorVoteInfoList[0]
+					info.Number = newEpoch.Number
+					app.logger.Debug("save new monitor info")
+					crosschain.SaveMonitorVoteInfo(ctx, *info)
+					app.monitorVoteInfoList = app.monitorVoteInfoList[1:]
+				}
 			}
 		}
 	}
@@ -701,7 +717,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	// hardcode for sync block meet appHash error on 4435201 in amber.
 	if param.IsAmber && app.currHeight == 4435201 {
 		app.validatorUpdate = nil
-	} else if param.IsAmber {
+	} else if param.IsAmber || ctx.IsShaGateFork() {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(app.currValidators, newValidators)
 	} else {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(currValidators, newValidators)
@@ -760,9 +776,7 @@ func (app *App) postCommit(bi *types.BlockInfo) {
 func (app *App) refresh() (appHash []byte) {
 	//close old
 	app.checkTrunk.Close(false)
-
 	ctx := app.GetRunTxContext()
-
 	prevBlkInfo := ctx.GetCurrBlockBasicInfo()
 	if prevBlkInfo == nil {
 		app.logger.Debug(fmt.Sprintf("prevBlkInfo is nil in height:%d", app.block.Number))
@@ -774,8 +788,19 @@ func (app *App) refresh() (appHash []byte) {
 	mGP := staking.LoadMinGasPrice(ctx, false) // load current block's gas price
 	staking.SaveMinGasPrice(ctx, mGP, true)    // save it as last block's gas price
 	app.lastMinGasPrice = mGP
+	if ctx.IsShaGateFork() {
+		ccExecutor := ebp.PredefinedContractManager[crosschain.CCContractAddress]
+		if ccExecutor == nil {
+			if app.watcher.CcContractExecutor != nil {
+				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, app.watcher.CcContractExecutor)
+			} else {
+				executor := crosschain.NewCcContractExecutor(app.logger.With("module", "crosschain"), crosschain.VoteContract{})
+				app.watcher.SetCCExecutor(executor)
+				ebp.RegisterPredefinedContract(ctx, crosschain.CCContractAddress, executor)
+			}
+		}
+	}
 	ctx.Close(true)
-
 	lastCacheSize := app.trunk.CacheSize() // predict the next truck's cache size with the last one
 	updateOfADS := app.trunk.GetCacheContent()
 	app.trunk.Close(true) //write cached KVs back to app.root
@@ -784,9 +809,7 @@ func (app *App) refresh() (appHash []byte) {
 		prevBlkInfo.Number > app.config.AppConfig.NumKeptBlocks {
 		app.mads.PruneBeforeHeight(prevBlkInfo.Number - app.config.AppConfig.NumKeptBlocks)
 	}
-
 	appHash = append([]byte{}, app.root.GetRootHash()...)
-
 	//jump block which prev height = 0
 	if prevBlkInfo != nil {
 		//use current block commit app hash as prev history block stateRoot
@@ -803,6 +826,9 @@ func (app *App) refresh() (appHash []byte) {
 		copy(prevBlk4MoDB.BlockHash[:], prevBlkInfo.Hash[:])
 		prevBlk4MoDB.BlockInfo = blkInfo
 		prevBlk4MoDB.TxList = app.txEngine.CommittedTxsForMoDB()
+		//if ctx.IsShaGateFork() {
+		app.historyStore.SetOpListsForCcUtxo(crosschain.CollectOpList(&prevBlk4MoDB))
+		//}
 		if app.config.AppConfig.NumKeptBlocksInMoDB > 0 && app.currHeight > app.config.AppConfig.NumKeptBlocksInMoDB {
 			app.historyStore.AddBlock(&prevBlk4MoDB, app.currHeight-app.config.AppConfig.NumKeptBlocksInMoDB, app.txid2sigMap)
 		} else {
@@ -811,7 +837,6 @@ func (app *App) refresh() (appHash []byte) {
 		if app.syncDB != nil {
 			app.syncDB.AddBlock(prevBlk4MoDB.Height, &prevBlk4MoDB, app.txid2sigMap, updateOfADS)
 		}
-
 		app.txid2sigMap = make(map[[32]byte][65]byte) // clear its content after flushing into historyStore
 		app.publishNewBlock(&prevBlk4MoDB)
 	}
@@ -868,13 +893,13 @@ func (app *App) GetRpcContext() *types.Context {
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.RpcType)
 	return c
 }
 func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	if !app.config.AppConfig.ArchiveMode || height < 0 {
 		return app.GetRpcContext()
 	}
-
 	c := types.NewContext(nil, nil)
 	r := rabbit.NewReadOnlyRabbitStoreAtHeight(app.root, uint64(height))
 	c = c.WithRbt(&r)
@@ -883,6 +908,7 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(height)
+	c.SetType(types.RpcType)
 	return c
 }
 func (app *App) GetRunTxContext() *types.Context {
@@ -894,6 +920,7 @@ func (app *App) GetRunTxContext() *types.Context {
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.RunTxType)
 	return c
 }
 func (app *App) GetHistoryOnlyContext() *types.Context {
@@ -903,6 +930,7 @@ func (app *App) GetHistoryOnlyContext() *types.Context {
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.HistoryOnlyType)
 	return c
 }
 func (app *App) GetCheckTxContext() *types.Context {
@@ -913,6 +941,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
 	c.SetCurrentHeight(app.currHeight)
+	c.SetType(types.CheckTxType)
 	return c
 }
 
@@ -947,7 +976,6 @@ func (app *App) RunTxForSbchRpc(gethTx *gethtypes.Transaction, sender gethcmn.Ad
 	if height < 1 {
 		return app.RunTxForRpc(gethTx, sender, false, height)
 	}
-
 	txToRun := &types.TxToRun{}
 	txToRun.FromGethTx(gethTx, sender, uint64(app.currHeight))
 	ctx := app.GetRpcContextAtHeight(height - 1)
@@ -1023,7 +1051,6 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 	if app.syncDB == nil {
 		return nil, errNoSyncDB
 	}
-
 	blk = app.syncDB.Get(height)
 	if blk == nil {
 		err = errNoSyncBlock
@@ -1033,6 +1060,22 @@ func (app *App) GetBlockForSync(height int64) (blk []byte, err error) {
 
 func (app *App) GetRpcMaxLogResults() int {
 	return app.config.AppConfig.RpcEthGetLogsMaxResults
+}
+
+func (app *App) GetLostAndFoundUtxoIds() [][36]byte {
+	return app.historyStore.GetLostAndFoundUtxoIds()
+}
+
+func (app *App) GetRedeemingUtxoIds() [][36]byte {
+	return app.historyStore.GetRedeemingUtxoIds()
+}
+
+func (app *App) GetRedeemableUtxoIdsByCovenantAddr(addr [20]byte) [][36]byte {
+	return app.historyStore.GetRedeemableUtxoIdsByCovenantAddr(addr)
+}
+
+func (app *App) GetWatcherHeight() int64 {
+	return app.watcher.GetLatestFinalizedHeight()
 }
 
 //nolint

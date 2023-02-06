@@ -1,6 +1,9 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"testing"
 
@@ -8,6 +11,7 @@ import (
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	gethrpc "github.com/ethereum/go-ethereum/rpc"
 
 	mdbtypes "github.com/smartbch/moeingdb/types"
@@ -506,6 +510,34 @@ func TestGetSyncBlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, dataLeft, 0)
 	require.Len(t, syncBlock2.Txid2sigMap, 1)
+}
+
+func TestCc(t *testing.T) {
+	key1, _ := testutils.GenKeyAndAddr()
+	key2, _ := testutils.GenKeyAndAddr()
+	_app := testutils.CreateTestApp(key1)
+	defer _app.Destroy()
+	_api := createSbchAPI(_app)
+	err := _api.SetRpcKey(key2)
+	require.Nil(t, err)
+	infos, _ := _api.GetRedeemingUtxosForMonitors()
+	require.NotNil(t, infos)
+	pubkey, err := _api.GetRpcPubkey()
+	require.Nil(t, err)
+	bz, _ := json.Marshal(infos.Infos)
+	hash := sha256.Sum256(bz)
+	pk, _ := hex.DecodeString(pubkey)
+	success := crypto.VerifySignature(pk, hash[:], infos.Signature[:64])
+	require.True(t, success)
+
+	info := _api.GetCcInfo()
+	require.NotNil(t, info)
+	sig := info.Signature
+	info.Signature = nil
+	bz, _ = json.Marshal(info)
+	hash = sha256.Sum256(bz)
+	success = crypto.VerifySignature(pk, hash[:], sig[:64])
+	require.True(t, success)
 }
 
 func createSbchAPI(_app *testutils.TestApp) SbchAPI {

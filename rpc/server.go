@@ -1,9 +1,16 @@
 package rpc
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmservice "github.com/tendermint/tendermint/libs/service"
@@ -116,16 +123,70 @@ func (server *Server) startHTTPAndHTTPS(apis []gethrpc.API) (err error) {
 		if err != nil {
 			return err
 		}
-		go func() {
-			err := tmrpcserver.ServeTLS(server.httpsListener, handler,
-				server.certFile, server.keyFile, server.logger,
-				server.serverConfig)
-			if err != nil {
-				server.logger.Error(err.Error())
-			}
-		}()
+		if server.certFile == "" {
+			go func() {
+				go func() {
+					time.Sleep(3 * time.Second)
+					server.backend.WaitRpcKeySet()
+					server.StopHttpsListener()
+				}()
+				err := ServeTLSWithSelfSignedCertificate(server.httpsListener, handler,
+					server.serverConfig, server.logger)
+				if err != nil {
+					server.logger.Error(err.Error())
+				}
+			}()
+		} else {
+			go func() {
+				err := tmrpcserver.ServeTLS(server.httpsListener, handler,
+					server.certFile, server.keyFile, server.logger,
+					server.serverConfig)
+				if err != nil {
+					server.logger.Error(err.Error())
+				}
+			}()
+		}
 	}
 	return nil
+}
+
+func ServeTLSWithSelfSignedCertificate(
+	listener net.Listener,
+	handler http.Handler,
+	config *tmrpcserver.Config,
+	logger tmlog.Logger,
+) error {
+	s := &http.Server{
+		Handler:        tmrpcserver.RecoverAndLogHandler(handler, logger),
+		ReadTimeout:    config.ReadTimeout,
+		WriteTimeout:   config.WriteTimeout,
+		MaxHeaderBytes: config.MaxHeaderBytes,
+		TLSConfig:      CreateCertificate("smartbch"),
+	}
+	err := s.ServeTLS(listener, "", "")
+
+	logger.Error("RPC HTTPS server stopped", "err", err)
+	return err
+}
+
+func CreateCertificate(serverName string) *tls.Config {
+	template := &x509.Certificate{
+		SerialNumber: &big.Int{},
+		Subject:      pkix.Name{CommonName: serverName},
+		NotAfter:     time.Now().Add(10 * 365 * 24 * time.Hour), // 10 years
+		DNSNames:     []string{serverName},
+	}
+	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
+	cert, _ := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
+	tlsCfg := tls.Config{
+		Certificates: []tls.Certificate{
+			{
+				Certificate: [][]byte{cert},
+				PrivateKey:  priv,
+			},
+		},
+	}
+	return &tlsCfg
 }
 
 func (server *Server) startWSAndWSS(apis []gethrpc.API) (err error) {
@@ -179,6 +240,13 @@ func (server *Server) stopHTTP() {
 	}
 	if server.httpListener != nil {
 		_ = server.httpListener.Close()
+
+	}
+	if server.httpsListener != nil {
+		_ = server.httpsListener.Close()
+	}
+	if server.httpsListener != nil {
+		_ = server.httpsListener.Close()
 	}
 	if server.httpsListener != nil {
 		_ = server.httpsListener.Close()
@@ -194,6 +262,12 @@ func (server *Server) stopWS() {
 	}
 	if server.wssListener != nil {
 		_ = server.wssListener.Close()
+	}
+}
+
+func (server *Server) StopHttpsListener() {
+	if server.httpsListener != nil {
+		_ = server.httpsListener.Close()
 	}
 }
 
