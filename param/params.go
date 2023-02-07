@@ -56,8 +56,8 @@ const (
 	// epoch params
 	StakingMinVotingPercentPerEpoch        int   = 10 //10 percent in StakingNumBlocksInEpoch, like 2016 / 10 = 201
 	StakingMinVotingPubKeysPercentPerEpoch int   = 34 //34 percent in active validators,
-	StakingNumBlocksInEpoch                int64 = 60
-	StakingEpochSwitchDelay                int64 = 10 * 60 * 3 // 5% time of an epoch
+	StakingNumBlocksInEpoch                int64 = 2016
+	StakingEpochSwitchDelay                int64 = 600 * 2016 / 20 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
 
 	// staking params
