@@ -27,12 +27,12 @@ const (
 	CollectorMintFeePercentage    uint64 = 15
 
 	// cc params
-	StartMainnetHeightForCC = 1534893 // mainnet height which cc tx collected from
+	StartMainnetHeightForCC = 1538803 // mainnet height which cc tx collected from
 	StartEpochNumberForCC   = 0       // epoch number which cc enabled from
 	AlreadyBurntOnMainChain = 0       // BCH already burnt on main chain when cc enabled
 	GenesisCovenantAddress  = "0x6ad3f81523c87aa17f1dfa08271cf57b6277c98e"
-	MonitorElectionEpochs   = 2 // For test
-	OperatorElectionEpochs  = 2 // For test
+	MonitorElectionEpochs   = 2       // For test
+	OperatorElectionEpochs  = 2       // For test
 
 	OperatorsGovSequence    = 0x170 // TODO: change this in production mode
 	MonitorsGovSequence     = 0x130 // TODO: change this in production mode
@@ -73,7 +73,7 @@ const (
 	// fork params
 	XHedgeContractSequence uint64 = 0x13311
 	XHedgeForkBlock        int64  = 4106000
-	ShaGateForkBlock       int64  = math.MaxInt64
+	ShaGateForkBlock       int64  = 2
 	ShaGateSwitch          bool   = false
 	StakingForkHeight      int64  = math.MaxInt64
 )
