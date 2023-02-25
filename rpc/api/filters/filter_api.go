@@ -301,7 +301,7 @@ func (api *filterAPI) GetLogs(crit gethfilters.FilterCriteria) ([]*gethtypes.Log
 
 func (api *filterAPI) getLogsByBlockNumberRange(begin, end int64) ([]*gethtypes.Log, error) {
 	maxLogResults := api.backend.GetRpcMaxLogResults()
-	var allLogs []*gethtypes.Log
+	allLogs := make([]*gethtypes.Log, 0, 10)
 
 	for i := begin; i < end; i++ {
 		txList, _, err := api.backend.GetTxListByHeight(uint32(i))

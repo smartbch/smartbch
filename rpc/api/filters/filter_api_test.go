@@ -626,6 +626,21 @@ func TestGetLogs_TooManyResults(t *testing.T) {
 	require.Equal(t, "too many potential results", err.Error())
 }
 
+// https://github.com/smartbch/smartbch/issues/67
+func TestGetLogs_NoResults(t *testing.T) {
+	_app := testutils.CreateTestApp()
+	_app.HistoryStore().SetMaxEntryCount(5)
+	_app.CfgCopy.AppConfig.RpcEthGetLogsMaxResults = 5
+	defer _app.Destroy()
+	_api := createFiltersAPI(_app)
+
+	f := testutils.NewFilterBuilder().BlockRange(1, 9).Build()
+	logs, err := _api.GetLogs(f)
+	require.NoError(t, err)
+	require.NotNil(t, logs)
+	require.Len(t, logs, 0)
+}
+
 func createFiltersAPI(_app *testutils.TestApp) PublicFilterAPI {
 	backend := api.NewBackend(nil, _app.App)
 	return NewAPI(backend, _app.Logger())
