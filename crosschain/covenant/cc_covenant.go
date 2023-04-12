@@ -164,15 +164,10 @@ func (c CcCovenant) BuildRedeemByUserUnsignedTx(
 	toAddr string, // output info
 ) (*wire.MsgTx, error) {
 
-	builder := newMsgTxBuilder(c.net)
-	if err := builder.addInput(txid, vout); err != nil {
-		return nil, err
-	}
-	if err := builder.addOutput(toAddr, inAmt-c.minerFee); err != nil {
-		return nil, err
-	}
-
-	return builder.msgTx, nil
+	return newMsgTxBuilder(c.net).
+		addInput(txid, vout).
+		addOutput(toAddr, inAmt-c.minerFee).
+		build()
 }
 
 func (c CcCovenant) GetRedeemByUserTxSigHash(
@@ -212,11 +207,11 @@ func (c CcCovenant) FinishRedeemByUserTx(
 	return signedTx, MsgTxToBytes(signedTx), nil
 }
 
-func (c *CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
+func (c CcCovenant) BuildRedeemByUserUnlockingScript(sigs [][]byte) ([]byte, error) {
 	return c.buildRedeemOrConvertUnlockingScript(nil, nil, sigs)
 }
 
-func (c *CcCovenant) buildRedeemOrConvertUnlockingScript(
+func (c CcCovenant) buildRedeemOrConvertUnlockingScript(
 	newOperatorPubkeysHash []byte,
 	newMonitorPubkeysHash []byte,
 	sigs [][]byte,
@@ -259,15 +254,10 @@ func (c CcCovenant) BuildConvertByOperatorsUnsignedTx(
 		return nil, err
 	}
 
-	builder := newMsgTxBuilder(c.net)
-	if err = builder.addInput(txid, vout); err != nil {
-		return nil, err
-	}
-	if err = builder.addOutput(toAddr, inAmt-c.minerFee); err != nil {
-		return nil, err
-	}
-
-	return builder.msgTx, nil
+	return newMsgTxBuilder(c.net).
+		addInput(txid, vout).
+		addOutput(toAddr, inAmt-c.minerFee).
+		build()
 }
 
 func (c CcCovenant) GetConvertByOperatorsTxSigHash(
@@ -311,7 +301,7 @@ func (c CcCovenant) FinishConvertByOperatorsTx(
 	return signedTx, MsgTxToBytes(signedTx), nil
 }
 
-func (c *CcCovenant) BuildConvertByOperatorsUnlockingScript(
+func (c CcCovenant) BuildConvertByOperatorsUnlockingScript(
 	newOperatorPks [][]byte,
 	newMonitorPks [][]byte,
 	sigs [][]byte,
@@ -340,16 +330,12 @@ func (c CcCovenant) BuildConvertByMonitorsUnsignedTx(
 		return nil, err
 	}
 
-	builder := newMsgTxBuilder(c.net)
-	if err = builder.addInput(txid, vout); err != nil {
-		return nil, err
-	}
-	builder.msgTx.TxIn[0].Sequence = c.monitorLockBlocks
-	if err = builder.addOutput(toAddr, inAmt); err != nil {
-		return nil, err
+	tx, err := newMsgTxBuilder(c.net).addInput(txid, vout).addOutput(toAddr, inAmt).build()
+	if err == nil {
+		tx.TxIn[0].Sequence = c.monitorLockBlocks
 	}
 
-	return builder.msgTx, nil
+	return tx, nil
 }
 
 func (c CcCovenant) GetConvertByMonitorsTxSigHash(
@@ -391,7 +377,7 @@ func (c CcCovenant) AddConvertByMonitorsTxMonitorSigs(
 	return unsignedTx, nil
 }
 
-func (c *CcCovenant) BuildConvertByMonitorsUnlockingScript(
+func (c CcCovenant) BuildConvertByMonitorsUnlockingScript(
 	newOperatorPks [][]byte,
 	sigs [][]byte,
 ) ([]byte, error) {
@@ -429,17 +415,10 @@ func AddConvertByMonitorsTxMinerFee(
 	net *chaincfg.Params,
 ) (*wire.MsgTx, error) {
 
-	builder := wrapMsgTx(signedTx, net)
-	if err := builder.addInput(txid, vout); err != nil {
-		return signedTx, err
-	}
-	if inAmt > minerFee {
-		if err := builder.addOutput(changeAddr, inAmt-minerFee); err != nil {
-			return signedTx, err
-		}
-	}
-
-	return signedTx, nil
+	return wrapMsgTx(signedTx, net).
+		addInput(txid, vout).
+		addChange(changeAddr, inAmt-minerFee).
+		build()
 }
 
 func GetConvertByMonitorsTxSigHash2(
