@@ -73,7 +73,7 @@ const (
 
 	// for 20230706 chain stuck fix
 	beginHeightFor0706 = 10_319_606
-	endHeightFor0706   = 10_587_446 // BeginHeightFor0706 + 267_840, about at 20230722.
+	endHeightFor0706   = 10_526_966 // BeginHeightFor0706 + 207_360, about at 20230718.
 )
 
 type IApp interface {
