@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.7-p1
+
+* Hot-fix of chain halt
+
+
 ## v0.4.7
 
 * Add protection for uint256 overflow
