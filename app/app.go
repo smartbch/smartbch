@@ -73,7 +73,7 @@ const (
 
 	// for 20230706 chain stuck fix
 	beginHeightFor0706 = 10_319_606
-	endHeightFor0706   = 10_590_606 // BeginHeightFor0706 + 271_000, 3 weeks about.
+	endHeightFor0706   = 10_587_446 // BeginHeightFor0706 + 267_840, about at 20230722.
 )
 
 type IApp interface {
@@ -694,7 +694,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		// this 50 is hardcode to fix the 20230706 chain stuck error. don't modify it ever.
 		if currEpochNum == 50 {
 			// make epoch switch delay in epoch 50th 2.4x longer.
-			epochSwitchDelay = param.StakingEpochSwitchDelay * 24
+			epochSwitchDelay = param.StakingEpochSwitchDelay * 17 // switch about at 20230723
 		}
 		if app.block.Timestamp > app.epochList[0].EndTime+epochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
