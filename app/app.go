@@ -657,7 +657,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	app.slashValidators = app.slashValidators[:0]
 
 	if param.IsAmber && ctx.IsXHedgeFork() {
-		//make fake epoch after xHedgeFork, change amber to pure pos
+		// make fake epoch after xHedgeFork, change amber to pure pos
 		if (app.currHeight%param.AmberBlocksInEpochAfterXHedgeFork == 0) && (app.currHeight > (ctx.XHedgeForkBlock + param.AmberBlocksInEpochAfterXHedgeFork/2)) {
 			e := &stakingtypes.Epoch{}
 			app.epochList = append(app.epochList, e)
@@ -665,6 +665,18 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			select {
 			case <-app.watcher.EpochChan:
 				app.logger.Debug("ignore epoch from watcher after xHedgeFork")
+			default:
+			}
+		}
+	} else if !param.IsAmber && ctx.IsStakingFork() {
+		// make epoch rely on smartbch self after staking fork, change to pure pos
+		if (app.currHeight%param.BlocksInEpochAfterStakingFork == 0) && (app.currHeight > (ctx.StakingForkBlock + param.BlocksInEpochAfterStakingFork/2)) {
+			e := &stakingtypes.Epoch{}
+			app.epochList = append(app.epochList, e)
+			app.logger.Debug("Get new pure pos epoch")
+			select {
+			case <-app.watcher.EpochChan:
+				app.logger.Debug("ignore epoch from watcher after staking upgrade")
 			default:
 			}
 		}

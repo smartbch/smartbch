@@ -5,7 +5,7 @@ package param
 
 import "math"
 
-//FILE: consensus configurable params collected here!
+// FILE: consensus configurable params collected here!
 const (
 	/**app consensus params**/
 	BlockMaxBytes      int64  = 4 * 1024 * 1024 // 4MB
@@ -32,6 +32,7 @@ const (
 	StakingNumBlocksInEpoch                int64 = 2016
 	StakingEpochSwitchDelay                int64 = 600 * 2016 / 20 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
+	BlocksInEpochAfterStakingFork          int64 = 2016 * 10 * 60 / 6
 
 	// ccEpoch params
 	BlocksInCCEpoch    int64 = 7
