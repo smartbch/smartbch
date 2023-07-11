@@ -67,8 +67,13 @@ var (
 )
 
 const (
+	// for height=8000000 chain stuck fix
 	customValidatorUpdateBeginHeight = 8_000_001
 	customValidatorUpdateEndHeight   = 8_039_000
+
+	// for 20230706 chain stuck fix
+	beginHeightFor0706 = 10_319_606
+	endHeightFor0706   = 10_527_000 // BeginHeightFor0706 + 207_393, about at 20230718.
 )
 
 type IApp interface {
@@ -229,8 +234,8 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	stakingInfo := staking.LoadStakingInfo(ctx)
 	currValidators := staking.GetActiveValidators(ctx, stakingInfo.Validators)
 	app.validatorUpdate = stakingInfo.ValidatorsUpdate
-	// hardcode for 8000000 staking fork come early bug, never change it
-	if app.currHeight == customValidatorUpdateEndHeight {
+	// hardcode for 8000000 staking fork come early bug, never change it; add endHeightFor0706 for 0706 chain stuck fix;
+	if app.currHeight == customValidatorUpdateEndHeight || app.currHeight == endHeightFor0706 {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(nil, currValidators)
 	}
 	for _, val := range currValidators {
@@ -549,7 +554,7 @@ func (app *App) DeliverTx(req abcitypes.RequestDeliverTx) abcitypes.ResponseDeli
 
 func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlock {
 	// hardcode for 8000000 staking fork come early bug, never change this.
-	if app.currHeight == customValidatorUpdateBeginHeight {
+	if app.currHeight == customValidatorUpdateBeginHeight || app.currHeight == beginHeightFor0706 {
 		ctx := app.GetRunTxContext()
 		_, info := staking.LoadStakingAccAndInfo(ctx)
 		//currValidators := staking.GetActiveValidators(ctx, info.Validators)
@@ -561,14 +566,19 @@ func (app *App) EndBlock(req abcitypes.RequestEndBlock) abcitypes.ResponseEndBlo
 			var validator stakingtypes.Validator
 			validator.Pubkey = val.Pubkey
 			if bytes.Equal(val.Pubkey[:], b) {
-				validator.VotingPower = 10
+				if app.currHeight == beginHeightFor0706 {
+					validator.VotingPower = 100
+				} else {
+					validator.VotingPower = 10
+				}
 			} else {
 				validator.VotingPower = 0
 			}
 			app.validatorUpdate = append(app.validatorUpdate, &validator)
 		}
 		ctx.Close(false)
-	} else if app.currHeight > customValidatorUpdateBeginHeight && app.currHeight <= customValidatorUpdateEndHeight {
+	} else if (app.currHeight > customValidatorUpdateBeginHeight && app.currHeight <= customValidatorUpdateEndHeight) ||
+		(app.currHeight > beginHeightFor0706 && app.currHeight <= endHeightFor0706) {
 		app.validatorUpdate = nil
 	}
 	valSet := make([]abcitypes.ValidatorUpdate, len(app.validatorUpdate))
@@ -681,6 +691,11 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			// make epoch switch delay in epoch 37th 50% longer.
 			epochSwitchDelay = param.StakingEpochSwitchDelay * 10
 		}
+		// this 50 is hardcode to fix the 20230706 chain stuck error. don't modify it ever.
+		if currEpochNum == 50 {
+			// make epoch switch delay in epoch 50th 2.4x longer.
+			epochSwitchDelay = param.StakingEpochSwitchDelay * 17 // switch about at 20230723
+		}
 		if app.block.Timestamp > app.epochList[0].EndTime+epochSwitchDelay {
 			app.logger.Debug(fmt.Sprintf("Switch epoch at block(%d), eppchNum(%d)",
 				app.block.Number, app.epochList[0].Number))
@@ -721,7 +736,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		bz, _ := json.Marshal(validatorsInfo)
 		app.logger.Debug(fmt.Sprintf("ValidatorsInfo:%s", string(bz)))
 	}
-	if app.currHeight == customValidatorUpdateEndHeight {
+	if app.currHeight == customValidatorUpdateEndHeight || app.currHeight == endHeightFor0706 {
 		app.validatorUpdate = stakingtypes.GetUpdateValidatorSet(nil, newValidators)
 	}
 }
@@ -1035,7 +1050,7 @@ func (app *App) GetRpcMaxLogResults() int {
 	return app.config.AppConfig.RpcEthGetLogsMaxResults
 }
 
-//nolint
+// nolint
 // for ((i=10; i<80000; i+=50)); do RANDPANICHEIGHT=$i ./smartbchd start; done | tee a.log
 func (app *App) randomPanic(baseNumber, primeNumber int64) { // breaks normal function, only used in test
 	heightStr := os.Getenv("RANDPANICHEIGHT")

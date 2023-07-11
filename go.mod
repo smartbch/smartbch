@@ -42,7 +42,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-replace github.com/tendermint/tendermint v0.34.10 => github.com/smartbch/tendermint v0.34.10-p1
+replace github.com/tendermint/tendermint v0.34.10 => github.com/smartbch/tendermint v0.34.10-p2
 
 replace github.com/holiman/uint256 => github.com/smartbch/uint256 v1.2.1-p1
 
