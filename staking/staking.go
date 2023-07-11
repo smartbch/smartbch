@@ -225,7 +225,7 @@ func (_ *StakingContractExecutor) RequiredGas(input []byte) uint64 {
 	return uint64(len(input))*SumVotingPowerGasPerByte + SumVotingPowerBaseGas
 }
 
-//   function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
+// function sumVotingPower(address[] calldata addrList) external override returns (uint summedPower, uint totalPower)
 func (_ *StakingContractExecutor) Run(input []byte) ([]byte, error) {
 	if len(input) < 4+32*2 || !bytes.Equal(input[:4], SelectorSumVotingPower[:]) {
 		return nil, InvalidArgument
@@ -883,6 +883,7 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos types.ValidatorOnlineInfos,
 	if ctx.Height == infos.StartHeight+param.OnlineWindowSize {
 		for _, info := range infos.OnlineInfos {
 			info.SignatureCount = 0
+			// todo: reset info.HeightOfLastSignature ?
 		}
 		infos.StartHeight = ctx.Height
 	}
@@ -892,6 +893,7 @@ func UpdateOnlineInfos(ctx *mevmtypes.Context, infos types.ValidatorOnlineInfos,
 			info.HeightOfLastSignature = ctx.Height
 		}
 	}
+	// todo: make sure if has the case: validator in voters but not in info.OnlineInfos
 	SaveOnlineInfo(ctx, infos)
 	return infos.StartHeight
 }
