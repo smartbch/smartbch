@@ -2,14 +2,9 @@ package api
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
-	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -18,7 +13,6 @@ import (
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/holiman/uint256"
 
 	"github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
@@ -27,7 +21,6 @@ import (
 	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
-	watchertypes "github.com/smartbch/smartbch/watcher/types"
 )
 
 var _ BackendService = &apiBackend{}
@@ -53,9 +46,6 @@ type apiBackend struct {
 	//logsFeed   event.Feed
 	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
-
-	rpcPrivateKeyLock sync.RWMutex
-	rpcPrivateKey     *ecdsa.PrivateKey
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
@@ -268,27 +258,19 @@ func (backend *apiBackend) GetCurrEpoch() *stakingtypes.Epoch {
 }
 
 //[start, end)
-func (backend *apiBackend) GetVoteInfos(start, end uint64) ([]*watchertypes.VoteInfo, error) {
+func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
 	if start >= end {
-		return nil, errors.New("invalid start or empty epoch numbers")
+		return nil, errors.New("invalid start or empty epochs")
 	}
 	ctx := backend.app.GetRpcContext()
 	defer ctx.Close(false)
 
-	result := make([]*watchertypes.VoteInfo, 0, end-start)
+	result := make([]*stakingtypes.Epoch, 0, end-start)
 	info := staking.LoadStakingInfo(ctx)
 	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
-		var voteInfo watchertypes.VoteInfo
 		epoch, ok := staking.LoadEpoch(ctx, epochNum)
 		if ok {
-			voteInfo.Epoch = epoch
-			if !param.IsAmber {
-				info := crosschain.LoadMonitorVoteInfo(ctx, epochNum)
-				if info != nil {
-					voteInfo.MonitorVote = *info
-				}
-			}
-			result = append(result, &voteInfo)
+			result = append(result, &epoch)
 		}
 	}
 	return result, nil
@@ -303,16 +285,27 @@ func (backend *apiBackend) GetEpochList(from string) ([]*stakingtypes.Epoch, err
 	case "storage":
 		fallthrough
 	default:
-		infos, err := backend.GetVoteInfos(0, 999)
-		if err != nil {
-			return nil, err
-		}
-		var epochs []*stakingtypes.Epoch
-		for _, info := range infos {
-			epochs = append(epochs, &info.Epoch)
-		}
-		return epochs, nil
+		return backend.GetEpochs(0, 999)
 	}
+}
+
+//[start, end)
+func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
+	if start >= end {
+		return nil, errors.New("invalid start or empty cc epochs")
+	}
+	ctx := backend.app.GetRpcContext()
+	defer ctx.Close(false)
+
+	result := make([]*cctypes.CCEpoch, 0, end-start)
+	info := crosschain.LoadCCInfo(ctx)
+	for epochNum := int64(start); epochNum < int64(end) && epochNum <= info.CurrEpochNum; epochNum++ {
+		epoch, ok := crosschain.LoadCCEpoch(ctx, epochNum)
+		if ok {
+			result = append(result, &epoch)
+		}
+	}
+	return result, nil
 }
 
 func (backend *apiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
@@ -469,170 +462,4 @@ func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
 
 func (backend *apiBackend) GetRpcMaxLogResults() int {
 	return backend.app.GetRpcMaxLogResults()
-}
-
-func (backend *apiBackend) IsCrossChainPaused() bool {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	ccCtx := crosschain.LoadCCContext(ctx)
-	return ccCtx == nil || len(ccCtx.MonitorsWithPauseCommand) != 0
-}
-
-func (backend *apiBackend) GetAllOperatorsInfo() []*crosschain.OperatorInfo {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	return crosschain.GetOperatorInfos(ctx)
-}
-func (backend *apiBackend) GetAllMonitorsInfo() []*crosschain.MonitorInfo {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	return crosschain.GetMonitorInfos(ctx)
-}
-
-func (backend *apiBackend) GetLostAndFoundUTXOs() []*cctypes.UTXORecord {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	utxoIds := backend.app.GetLostAndFoundUtxoIds()
-	return loadUtxoRecords(ctx, utxoIds)
-}
-
-func (backend *apiBackend) GetRedeemingUTXOs() []*cctypes.UTXORecord {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	utxoIds := backend.app.GetRedeemingUtxoIds()
-	return loadUtxoRecords(ctx, utxoIds)
-}
-
-func (backend *apiBackend) GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64) {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	ccCtx := crosschain.LoadCCContext(ctx)
-
-	utxoIds := backend.app.GetRedeemableUtxoIdsByCovenantAddr(ccCtx.LastCovenantAddr)
-	return loadUtxoRecords(ctx, utxoIds), ccCtx.CovenantAddrLastChangeTime
-}
-
-func (backend *apiBackend) GetRedeemableUtxos() []*cctypes.UTXORecord {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-	ccCtx := crosschain.LoadCCContext(ctx)
-	utxoIds := backend.app.GetRedeemableUtxoIdsByCovenantAddr(ccCtx.CurrCovenantAddr)
-	return loadUtxoRecords(ctx, utxoIds)
-}
-
-func (backend *apiBackend) GetUtxos(utxoIds [][36]byte) []*cctypes.UTXORecord {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-	return loadUtxoRecords(ctx, utxoIds)
-}
-
-func (backend *apiBackend) GetCcContext() *cctypes.CCContext {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	return crosschain.LoadCCContext(ctx)
-}
-
-func (backend *apiBackend) GetCcInfosForTest() *cctypes.CCInfosForTest {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-	internalInfo := crosschain.LoadInternalInfoForTest(ctx)
-	if internalInfo == nil {
-		return nil
-	}
-	infos := cctypes.CCInfosForTest{
-		MaxAmount:             fmt.Sprintf("%d", crosschain.MaxCCAmount*1e4),
-		MinAmount:             fmt.Sprintf("%d", crosschain.MinCCAmount*1e4),
-		MinPendingBurningLeft: fmt.Sprintf("%d", crosschain.MinPendingBurningLeft*1e4),
-
-		TotalRedeemAmountS2M:       uint256.NewInt(0).SetBytes32(internalInfo.TotalRedeemAmountS2M[:]).String(),
-		TotalRedeemNumsS2M:         internalInfo.TotalRedeemNumsS2M,
-		TotalLostAndFoundAmountS2M: uint256.NewInt(0).SetBytes32(internalInfo.TotalLostAndFoundAmountS2M[:]).String(),
-		TotalLostAndFoundNumsS2M:   internalInfo.TotalLostAndFoundNumsS2M,
-		TotalTransferAmountM2S:     uint256.NewInt(0).SetBytes32(internalInfo.TotalTransferAmountM2S[:]).String(),
-		TotalTransferNumsM2S:       internalInfo.TotalTransferNumsM2S,
-		TotalTransferByBurnAmount:  uint256.NewInt(0).SetBytes32(internalInfo.TotalTransferByBurnAmount[:]).String(),
-		TotalTransferByBurnNums:    internalInfo.TotalTransferByBurnNums,
-	}
-	ccCtx := crosschain.LoadCCContext(ctx)
-	if ccCtx == nil {
-		return nil
-	}
-	pendingBurning, totalMinerFeeForConvertTx, totalBurntOnMainChain, totalConsumedOnMainChain := crosschain.GetBurningRelativeData(ctx, ccCtx)
-	infos.PendingBurning = pendingBurning.String()
-	infos.TotalMinerFeeForConvertTx = totalMinerFeeForConvertTx.String()
-	infos.TotalBurntOnMainChain = totalBurntOnMainChain.String()
-	infos.TotalConsumedOnMainChain = totalConsumedOnMainChain.String()
-	infos.AmountTriggerLostAndFound = uint256.NewInt(0).Sub(pendingBurning, uint256.NewInt(0).Add(uint256.NewInt(crosschain.MinPendingBurningLeft*1e4), uint256.NewInt(1e10))).String()
-	return &infos
-}
-
-func loadUtxoRecords(ctx *types.Context, utxoIds [][36]byte) []*cctypes.UTXORecord {
-	utxoRecords := make([]*cctypes.UTXORecord, 0, len(utxoIds))
-	for _, utxoId := range utxoIds {
-		var txId [32]byte
-		copy(txId[:], utxoId[:32])
-		idx := binary.BigEndian.Uint32(utxoId[32:])
-
-		utxoRecord := crosschain.LoadUTXORecord(ctx, txId, idx)
-		if utxoRecord != nil {
-			utxoRecords = append(utxoRecords, utxoRecord)
-		}
-	}
-	return utxoRecords
-}
-
-func (backend *apiBackend) GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte) {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	operatorPubkeys = crosschain.GetOperatorPubkeySet(ctx)
-	monitorPubkeys = crosschain.GetMonitorPubkeySet(ctx)
-
-	return
-}
-
-func (backend *apiBackend) GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte) {
-	ctx := backend.app.GetRpcContext()
-	defer ctx.Close(false)
-
-	operatorPubkeys = crosschain.GetOldOperatorPubkeySet(ctx)
-	monitorPubkeys = crosschain.GetOldMonitorPubkeySet(ctx)
-	return
-}
-
-func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
-	return backend.rpcPrivateKey
-}
-
-func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
-	if backend.rpcPrivateKey == nil {
-		backend.rpcPrivateKeyLock.Lock()
-		backend.rpcPrivateKey = key
-		backend.rpcPrivateKeyLock.Unlock()
-		return true
-	}
-	return false
-}
-
-func (backend *apiBackend) WaitRpcKeySet() {
-	for {
-		backend.rpcPrivateKeyLock.RLock()
-		key := backend.rpcPrivateKey
-		backend.rpcPrivateKeyLock.RUnlock()
-		time.Sleep(3 * time.Second)
-		if key != nil {
-			break
-		}
-	}
-}
-
-func (backend *apiBackend) GetWatcherHeight() int64 {
-	return backend.app.GetWatcherHeight()
 }

@@ -1,19 +1,14 @@
 package api
 
 import (
-	"bytes"
-	"fmt"
-
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
-
 	"github.com/smartbch/moeingevm/ebp"
+
 	motypes "github.com/smartbch/moeingevm/types"
 	sbchapi "github.com/smartbch/smartbch/api"
-	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
-	sbchrpctypes "github.com/smartbch/smartbch/rpc/types"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -62,23 +57,43 @@ func castNominations(nominations []*stakingtypes.Nomination) []*Nomination {
 	return rpcNominations
 }
 
+// CCEpoch
+
+type CCEpoch struct {
+	Number        hexutil.Uint64    `json:"number"`
+	StartHeight   hexutil.Uint64    `json:"startHeight"`
+	EndTime       int64             `json:"endTime"`
+	TransferInfos []*CCTransferInfo `json:"transferInfos"`
+}
 type CCTransferInfo struct {
 	UTXO         hexutil.Bytes  `json:"utxo"`
 	Amount       hexutil.Uint64 `json:"amount"`
 	SenderPubkey hexutil.Bytes  `json:"senderPubkey"`
 }
 
-//func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
-//	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
-//	for i, ccTransferInfo := range ccTransferInfos {
-//		rpcTransferInfos[i] = &CCTransferInfo{
-//			UTXO:         ccTransferInfo.UTXO[:],
-//			Amount:       hexutil.Uint64(ccTransferInfo.Amount),
-//			SenderPubkey: ccTransferInfo.SenderPubkey[:],
-//		}
-//	}
-//	return rpcTransferInfos
-//}
+func castCCEpochs(ccEpochs []*cctypes.CCEpoch) []*CCEpoch {
+	rpcEpochs := make([]*CCEpoch, len(ccEpochs))
+	for i, ccEpoch := range ccEpochs {
+		rpcEpochs[i] = &CCEpoch{
+			Number:        hexutil.Uint64(ccEpoch.Number),
+			StartHeight:   hexutil.Uint64(ccEpoch.StartHeight),
+			EndTime:       ccEpoch.EndTime,
+			TransferInfos: castTransferInfos(ccEpoch.TransferInfos),
+		}
+	}
+	return rpcEpochs
+}
+func castTransferInfos(ccTransferInfos []*cctypes.CCTransferInfo) []*CCTransferInfo {
+	rpcTransferInfos := make([]*CCTransferInfo, len(ccTransferInfos))
+	for i, ccTransferInfo := range ccTransferInfos {
+		rpcTransferInfos[i] = &CCTransferInfo{
+			UTXO:         ccTransferInfo.UTXO[:],
+			Amount:       hexutil.Uint64(ccTransferInfo.Amount),
+			SenderPubkey: ccTransferInfo.SenderPubkey[:],
+		}
+	}
+	return rpcTransferInfos
+}
 
 // CallDetail
 
@@ -253,52 +268,4 @@ func castMoLogs(moLogs []motypes.Log) []*CallLog {
 		}
 	}
 	return callLogs
-}
-
-// Cross Chain
-
-func castOperatorInfo(ccOperatorInfo *crosschain.OperatorInfo) *sbchrpctypes.OperatorInfo {
-	return &sbchrpctypes.OperatorInfo{
-		Address: ccOperatorInfo.Addr,
-		Pubkey:  ccOperatorInfo.Pubkey,
-		RpcUrl:  string(bytes.TrimRight(ccOperatorInfo.RpcUrl, string([]byte{0}))),
-		Intro:   string(bytes.TrimRight(ccOperatorInfo.Intro, string([]byte{0}))),
-	}
-}
-func castMonitorInfo(ccMonitorInfo *crosschain.MonitorInfo) *sbchrpctypes.MonitorInfo {
-	return &sbchrpctypes.MonitorInfo{
-		Address: ccMonitorInfo.Addr,
-		Pubkey:  ccMonitorInfo.Pubkey,
-		Intro:   string(bytes.TrimRight(ccMonitorInfo.Intro, string([]byte{0}))),
-	}
-}
-
-func castUtxoRecords(utxoRecords []*cctypes.UTXORecord) []*sbchrpctypes.UtxoInfo {
-	infos := make([]*sbchrpctypes.UtxoInfo, len(utxoRecords))
-	for i, record := range utxoRecords {
-		infos[i] = castUtxoRecord(record)
-	}
-	return infos
-}
-
-func castUtxoRecord(utxoRecord *cctypes.UTXORecord) *sbchrpctypes.UtxoInfo {
-	if utxoRecord == nil {
-		fmt.Println("utxoRecord is nil")
-		return &sbchrpctypes.UtxoInfo{}
-	}
-	return &sbchrpctypes.UtxoInfo{
-		OwnerOfLost:      utxoRecord.OwnerOfLost,
-		CovenantAddr:     utxoRecord.CovenantAddr,
-		IsRedeemed:       utxoRecord.IsRedeemed,
-		RedeemTarget:     utxoRecord.RedeemTarget,
-		ExpectedSignTime: utxoRecord.ExpectedSignTime,
-		Txid:             utxoRecord.Txid,
-		Index:            utxoRecord.Index,
-		Amount:           hexutil.Uint64(getUtxoAmtInSatoshi(utxoRecord)),
-	}
-}
-
-func getUtxoAmtInSatoshi(utxoRecord *cctypes.UTXORecord) uint64 {
-	amtWei := uint256.NewInt(0).SetBytes32(utxoRecord.Amount[:])
-	return amtWei.Div(amtWei, uint256.NewInt(1e10)).Uint64()
 }

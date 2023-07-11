@@ -77,16 +77,6 @@ func CopyEpochs(list []*Epoch) []*Epoch {
 	}
 	return list2
 }
-
-func CopyEpoch(epoch Epoch) *Epoch {
-	return &Epoch{
-		Number:      epoch.Number,
-		StartHeight: epoch.StartHeight,
-		EndTime:     epoch.EndTime,
-		Nominations: copyNominations(epoch.Nominations),
-	}
-}
-
 func copyNominations(list []*Nomination) []*Nomination {
 	list2 := make([]*Nomination, len(list))
 	for i, nomination := range list {

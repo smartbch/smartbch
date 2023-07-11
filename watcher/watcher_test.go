@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
+	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
@@ -68,12 +69,7 @@ func buildMockBCHNodeWithReorg() *MockBCHNode {
 }
 
 type MockRpcClient struct {
-	node       *MockBCHNode
-	BlockInfos map[int64]*types.BlockInfo
-}
-
-func NewMockRpcClient() MockRpcClient {
-	return MockRpcClient{BlockInfos: make(map[int64]*types.BlockInfo)}
+	node *MockBCHNode
 }
 
 //nolint
@@ -90,17 +86,6 @@ func (m MockRpcClient) Close() {}
 
 func (m MockRpcClient) GetLatestHeight(retry bool) int64 { return m.node.height }
 
-func (m MockRpcClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
-	if info, ok := m.BlockInfos[height]; ok {
-		return info
-	}
-	return &types.BlockInfo{}
-}
-
-func (m *MockRpcClient) SetBlockInfoByHeight(height int64, info *types.BlockInfo) {
-	m.BlockInfos[height] = info
-}
-
 func (m MockRpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
 	if height > m.node.height {
 		return nil
@@ -116,8 +101,13 @@ func (m MockRpcClient) GetBlockByHash(hash [32]byte) *types.BCHBlock {
 	return m.node.blocks[height-1]
 }
 
-func (m MockRpcClient) GetVoteInfoByEpochNumber(start, end uint64) []*types.VoteInfo {
-	fmt.Printf("mock Rpc not support get vote info")
+func (m MockRpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
+	fmt.Printf("mock Rpc not support get Epoch")
+	return nil
+}
+
+func (m MockRpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
+	fmt.Printf("mock Rpc not support get cc Epoch")
 	return nil
 }
 
@@ -139,27 +129,24 @@ func (m *MockEpochConsumer) consume() {
 }
 
 func TestRun(t *testing.T) {
-	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
 	client := MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	w.rpcClient = client
-	blockFinalizeNumber = 9
-	w.SetNumBlocksInEpoch(90)
 	go w.Run()
 	w.WaitCatchup()
 	time.Sleep(1 * time.Second)
-	require.Equal(t, 1, len(w.voteInfoList))
+	require.Equal(t, int(100/param.StakingNumBlocksInEpoch), len(w.epochList))
 	require.Equal(t, 91, len(w.heightToFinalizedBlock))
 	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
 
 func TestRunWithNewEpoch(t *testing.T) {
-	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithOnlyValidator1()}
 	c := MockEpochConsumer{
 		w: w,
 	}
 	numBlocksInEpoch := 10
-	blockFinalizeNumber = 9
 	w.SetNumBlocksInEpoch(int64(numBlocksInEpoch))
 	go w.Run()
 	w.WaitCatchup()
@@ -168,7 +155,7 @@ func TestRunWithNewEpoch(t *testing.T) {
 	//test watcher clear
 	//require.Equal(t, 6*int(WatcherNumBlocksInEpoch)-1+10 /*bch finalize block num*/, len(w.hashToBlock))
 	require.Equal(t, 6*numBlocksInEpoch, len(w.heightToFinalizedBlock))
-	require.Equal(t, 5, len(w.voteInfoList))
+	require.Equal(t, 5, len(w.epochList))
 	require.Equal(t, int64(91), w.latestFinalizedHeight)
 	require.Equal(t, 9, len(c.epochList))
 	for i, e := range c.epochList {
@@ -177,14 +164,14 @@ func TestRunWithNewEpoch(t *testing.T) {
 }
 
 func TestRunWithFork(t *testing.T) {
-	w := NewWatcher(log.NewNopLogger(), nil, 0, 0, param.DefaultConfig())
+	w := NewWatcher(log.NewNopLogger(), 0, 0, 0, param.DefaultConfig())
 	w.rpcClient = MockRpcClient{node: buildMockBCHNodeWithReorg()}
-	blockFinalizeNumber = 9
+	w.SetNumBlocksToClearMemory(100)
 	w.SetNumBlocksInEpoch(1000)
 	go w.Run()
 	w.WaitCatchup()
 	time.Sleep(5 * time.Second)
-	require.Equal(t, 0, len(w.voteInfoList))
+	require.Equal(t, 0, len(w.epochList))
 	require.Equal(t, 91, len(w.heightToFinalizedBlock))
 	require.Equal(t, int64(91), w.latestFinalizedHeight)
 }
@@ -207,19 +194,5 @@ func TestEpochSort(t *testing.T) {
 			(epoch.Nominations[i].NominatedCount == epoch.Nominations[j].NominatedCount &&
 				bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0))
 		i++
-	}
-}
-
-func TestGetBCHBlocks(t *testing.T) {
-	w := Watcher{}
-	c := MockClient{BlockInfos: make(map[int64]*types.BlockInfo)}
-	w.rpcClient = c
-	for i := int64(0); i < 100; i++ {
-		c.SetBlockInfoByHeight(i, &types.BlockInfo{Height: i})
-	}
-	blks := w.getBCHBlockInfos(0, 30)
-	require.Equal(t, 30, len(blks))
-	for k, blk := range blks {
-		require.Equal(t, int64(k+1), blk.Height)
 	}
 }

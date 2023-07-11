@@ -3,8 +3,6 @@
 
 package param
 
-import "math"
-
 //FILE: consensus configurable params collected here!
 const (
 	/**app consensus params**/
@@ -33,6 +31,10 @@ const (
 	StakingEpochSwitchDelay                int64 = 9 * 2016 / 20 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
 
+	// ccEpoch params
+	BlocksInCCEpoch    int64 = 7
+	CCEpochSwitchDelay int64 = 3 * 20 / 20
+
 	// staking params
 	OnlineWindowSize               int64  = 500
 	MinOnlineSignatures            int32  = 400
@@ -46,7 +48,7 @@ const (
 	// fork params
 	XHedgeContractSequence uint64 = 0xc94 //0x943F4002b68365fCC8F62eC65c3003aEcd391c0e
 	XHedgeForkBlock        int64  = 3088100
-	ShaGateForkBlock       int64  = math.MaxInt64
+	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
-	StakingForkHeight      int64  = math.MaxInt64
+	StakingForkHeight      int64  = 80000000
 )

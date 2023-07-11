@@ -104,7 +104,6 @@ func TestStaking(t *testing.T) {
 	e.Init(ctx)
 
 	staking.InitialStakingAmount = uint256.NewInt(0)
-	staking.GasOfMinGasPriceOp = 0
 	staking.GasOfValidatorOp = 0
 
 	// test create validator

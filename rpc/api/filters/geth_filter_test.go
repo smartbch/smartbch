@@ -8,6 +8,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth/filters"
+
+	"github.com/smartbch/smartbch/internal/testutils"
 )
 
 func TestFilterCriteria1(t *testing.T) {
@@ -45,6 +47,6 @@ func TestFilterCriteria2(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, [][]common.Hash{
 		[]common.Hash(nil),
-		{common.HexToHash("0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b")},
+		{testutils.HexToHash32("0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b")},
 	}, fc.Topics)
 }

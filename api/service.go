@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,10 +13,9 @@ import (
 
 	motypes "github.com/smartbch/moeingevm/types"
 	"github.com/smartbch/smartbch/app"
-	"github.com/smartbch/smartbch/crosschain"
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
 	"github.com/smartbch/smartbch/staking/types"
-	watchertypes "github.com/smartbch/smartbch/watcher/types"
+	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
 type CallDetail struct {
@@ -120,35 +118,19 @@ type BackendService interface {
 	GetToAddressCount(addr common.Address) int64
 	GetSep20ToAddressCount(contract common.Address, addr common.Address) int64
 	GetSep20FromAddressCount(contract common.Address, addr common.Address) int64
-	GetVoteInfos(start, end uint64) ([]*watchertypes.VoteInfo, error)
+	GetEpochs(start, end uint64) ([]*types.Epoch, error)
 	GetEpochList(from string) ([]*types.Epoch, error)
 	GetCurrEpoch() *types.Epoch
+	GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error)
 	GetSeq(address common.Address) uint64
 	GetPosVotes() map[[32]byte]*big.Int
 	GetSyncBlock(height int64) (blk []byte, err error)
 	GetRpcMaxLogResults() int
-	IsCrossChainPaused() bool
-	GetAllOperatorsInfo() []*crosschain.OperatorInfo
-	GetAllMonitorsInfo() []*crosschain.MonitorInfo
-	GetLostAndFoundUTXOs() []*cctypes.UTXORecord
-	GetRedeemingUTXOs() []*cctypes.UTXORecord
-	GetRedeemableUtxos() []*cctypes.UTXORecord
-	GetToBeConvertedUTXOs() ([]*cctypes.UTXORecord, int64)
-	GetUtxos(utxoIds [][36]byte) []*cctypes.UTXORecord
-	GetOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
-	GetOldOperatorAndMonitorPubkeys() (operatorPubkeys, monitorPubkeys [][]byte)
-	GetCcContext() *cctypes.CCContext
-	GetCcInfosForTest() *cctypes.CCInfosForTest
-	GetWatcherHeight() int64
 
 	//tendermint info
 	NodeInfo() Info
 	ValidatorsInfo() app.ValidatorsInfo
-	ValidatorOnlineInfos() types.ValidatorOnlineInfos
+	ValidatorOnlineInfos() stakingtypes.ValidatorOnlineInfos
 
 	IsArchiveMode() bool
-
-	GetRpcPrivateKey() *ecdsa.PrivateKey
-	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
-	WaitRpcKeySet()
 }

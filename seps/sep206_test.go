@@ -13,8 +13,8 @@ import (
 	"github.com/holiman/uint256"
 
 	"github.com/smartbch/smartbch/internal/testutils"
-	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/seps"
+	"github.com/smartbch/smartbch/param"
 )
 
 var (
@@ -284,23 +284,23 @@ func TestTransferFrom_overflow(t *testing.T) {
 	ownerKey, ownerAddr := testutils.GenKeyAndAddr()
 	spenderKey, spenderAddr := testutils.GenKeyAndAddr()
 	_, receiptAddr := testutils.GenKeyAndAddr()
-
+	
 	initAmt := testutils.HexToU256("0x38d7ea4c68000") // 0.001 BCH
 	startHeight := param.XHedgeForkBlock + 1
 	_app := testutils.CreateTestAppWithArgs(testutils.TestAppInitArgs{
-		StartHeight: &startHeight,
-		InitAmt:     initAmt,
-		PrivKeys:    []string{ownerKey, spenderKey},
+	   StartHeight: &startHeight,
+	   InitAmt:     initAmt,
+	   PrivKeys:    []string{ownerKey, spenderKey},
 	})
 	defer _app.Destroy()
 	approveAmount, err := uint256.FromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 	if err != nil {
-		panic(err)
+	   panic(err)
 	}
 	data1 := sep206ABI.MustPack("approve", spenderAddr, approveAmount.ToBig())
 	tx1, _ := _app.MakeAndExecTxInBlock(ownerKey, sep206Addr, 0, data1)
 	_app.EnsureTxSuccess(tx1.Hash())
-
+	
 	data2 := sep206ABI.MustPack("transferFrom", ownerAddr, receiptAddr, approveAmount.ToBig())
 	tx2, _ := _app.MakeAndExecTxInBlock(spenderKey, sep206Addr, 0, data2)
 
@@ -320,7 +320,7 @@ func TestTransferFrom_overflow(t *testing.T) {
 	tx := _app.GetTx(tx2.Hash())
 	require.Equal(t, gethtypes.ReceiptStatusFailed, tx.Status)
 	require.Equal(t, "insufficient-balance", tx.StatusStr)
-	require.Nil(t, _app.GetBalance(receiptAddr))                            // account not created
+	require.Nil(t, _app.GetBalance(receiptAddr)) // account not created
 	require.Equal(t, initAmt.Uint64(), _app.GetBalance(ownerAddr).Uint64()) // not changed
 }
 

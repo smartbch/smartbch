@@ -13,7 +13,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	cctypes "github.com/smartbch/smartbch/crosschain/types"
-	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 	"github.com/smartbch/smartbch/watcher/types"
 )
@@ -22,9 +21,10 @@ const (
 	ReqStrBlockCount = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockcount", "params": [] }`
 	ReqStrBlockHash  = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblockhash", "params": [%d] }`
 	//verbose = 2, show all txs rawdata
-	ReqStrBlock     = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
-	ReqStrTx        = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
-	ReqStrVoteInfos = `{"jsonrpc": "2.0", "method": "sbch_getVoteInfos", "params": ["%s","%s"], "id":1}`
+	ReqStrBlock    = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getblock", "params": ["%s",2] }`
+	ReqStrTx       = `{"jsonrpc": "1.0", "id":"smartbch", "method": "getrawtransaction", "params": ["%s", true, "%s"] }`
+	ReqStrEpochs   = `{"jsonrpc": "2.0", "method": "sbch_getEpochs", "params": ["%s","%s"], "id":1}`
+	ReqStrCCEpochs = `{"jsonrpc": "2.0", "method": "sbch_getCCEpochs", "params": ["%s","%s"], "id":1}`
 )
 
 type RpcClient struct {
@@ -67,9 +67,6 @@ func (client *RpcClient) GetLatestHeight(retry bool) (height int64) {
 }
 
 func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
-	//if height == 1529565 {
-	//	return &types.BCHBlock{Height: height, Timestamp: 1670225100}
-	//}
 	var hash string
 	var err error
 	var blk *types.BCHBlock
@@ -100,50 +97,16 @@ func (client *RpcClient) GetBlockByHeight(height int64, retry bool) *types.BCHBl
 	return blk
 }
 
-func (client *RpcClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
-	//if height == 1529565 {
-	//	return &types.BlockInfo{}
-	//}
-	var hash string
-	var err error
-	var blk *types.BlockInfo
-	for hash == "" {
-		hash, err = client.getBlockHashOfHeight(height)
-		if err != nil {
-			if !retry {
-				return nil
-			}
-			client.logger.Debug(fmt.Sprintf("GetBlockInfoByHeight %d failed", height), err.Error())
-			time.Sleep(10 * time.Second)
-			continue
-		}
-		fmt.Printf("get bch block info hash\n")
-	}
-	for blk == nil {
-		blk, err = client.getBlock(hash)
-		if !retry {
-			return blk
-		}
-		if err != nil {
-			client.logger.Debug(fmt.Sprintf("getBCHBlockInfo %d failed", height), err.Error())
-			time.Sleep(10 * time.Second)
-			continue
-		}
-		fmt.Printf("get bch block info: %d\n", height)
-	}
-	return blk
-}
-
-func (client *RpcClient) GetVoteInfoByEpochNumber(start, end uint64) []*types.VoteInfo {
-	var infos []*types.VoteInfo
-	for infos == nil {
-		infos = client.getVoteInfos(start, end)
+func (client *RpcClient) GetEpochs(start, end uint64) []*stakingtypes.Epoch {
+	var epochs []*stakingtypes.Epoch
+	for epochs == nil {
+		epochs = client.getEpochs(start, end)
 		if client.err != nil {
-			client.logger.Debug("GetVoteInfoByEpochNumber failed", client.err.Error())
+			client.logger.Debug("GetEpochs failed", client.err.Error())
 			time.Sleep(10 * time.Second)
 		}
 	}
-	return infos
+	return epochs
 }
 
 func (client *RpcClient) sendRequest(reqStr string) ([]byte, error) {
@@ -193,13 +156,7 @@ func (client *RpcClient) getBCHBlock(hash string) (*types.BCHBlock, error) {
 		if nomination != nil {
 			bchBlock.Nominations = append(bchBlock.Nominations, *nomination)
 		}
-		if bi.Height >= param.StartMainnetHeightForCC {
-			ccNomination := getCCNomination(bi.Tx[0])
-			if ccNomination != nil {
-				client.logger.Debug("get new cc nomination", "pubkey", hex.EncodeToString(ccNomination.Pubkey[:]))
-				bchBlock.CCNominations = append(bchBlock.CCNominations, *ccNomination)
-			}
-		}
+		//bchBlock.CCTransferInfos = append(bchBlock.CCTransferInfos, client.getCCTransferInfos(bi)...)
 	}
 	return bchBlock, nil
 }
@@ -215,16 +172,13 @@ func getNomination(coinbase types.TxInfo) *stakingtypes.Nomination {
 	return nil
 }
 
-func getCCNomination(coinbase types.TxInfo) *cctypes.Nomination {
-	pubKey, ok := coinbase.GetMonitorPubKey()
-	if ok {
-		return &cctypes.Nomination{
-			Pubkey:         pubKey,
-			NominatedCount: 1,
-		}
-	}
-	return nil
-}
+//func (client *RpcClient) getCCTransferInfos(bi *types.BlockInfo) []*cctypes.CCTransferInfo {
+//	var ccInfos []*cctypes.CCTransferInfo
+//	for _, info := range bi.Tx {
+//		ccInfos = append(ccInfos, info.GetCCTransferInfos()...)
+//	}
+//	return ccInfos
+//}
 
 func (client *RpcClient) getCurrHeight() int64 {
 	var respData []byte
@@ -324,9 +278,9 @@ type smartBchJsonrpcMessage struct {
 	Result  json.RawMessage       `json:"result,omitempty"`
 }
 
-func (client *RpcClient) getVoteInfos(start, end uint64) []*types.VoteInfo {
+func (client *RpcClient) getEpochs(start, end uint64) []*stakingtypes.Epoch {
 	var respData []byte
-	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrVoteInfos, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
+	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
 	if client.err != nil {
 		return nil
 	}
@@ -335,12 +289,31 @@ func (client *RpcClient) getVoteInfos(start, end uint64) []*types.VoteInfo {
 	if client.err != nil {
 		return nil
 	}
-	var infos []*types.VoteInfo
-	client.err = json.Unmarshal(m.Result, &infos)
+	var epochsResp []*stakingtypes.Epoch
+	client.err = json.Unmarshal(m.Result, &epochsResp)
 	if client.err != nil {
 		return nil
 	}
-	return infos
+	return epochsResp
+}
+
+func (client *RpcClient) GetCCEpochs(start, end uint64) []*cctypes.CCEpoch {
+	var respData []byte
+	respData, client.err = client.sendRequest(fmt.Sprintf(ReqStrCCEpochs, hexutil.Uint64(start).String(), hexutil.Uint64(end).String()))
+	if client.err != nil {
+		return nil
+	}
+	var m smartBchJsonrpcMessage
+	client.err = json.Unmarshal(respData, &m)
+	if client.err != nil {
+		return nil
+	}
+	var epochsResp []*cctypes.CCEpoch
+	client.err = json.Unmarshal(m.Result, &epochsResp)
+	if client.err != nil {
+		return nil
+	}
+	return epochsResp
 }
 
 /***for tool*/
@@ -352,31 +325,4 @@ func (client *RpcClient) GetBlockInfo(hash string) (*types.BlockInfo, error) {
 }
 func (client *RpcClient) GetTxInfo(hash string, blockhash string) (*types.TxInfo, error) {
 	return client.getTx(hash, blockhash)
-}
-
-type MockClient struct {
-	BlockInfos map[int64]*types.BlockInfo
-}
-
-func (m MockClient) GetLatestHeight(retry bool) int64 {
-	return 0
-}
-
-func (m MockClient) GetBlockByHeight(height int64, retry bool) *types.BCHBlock {
-	return nil
-}
-
-func (m MockClient) GetVoteInfoByEpochNumber(start, end uint64) []*types.VoteInfo {
-	return nil
-}
-
-func (m MockClient) GetBlockInfoByHeight(height int64, retry bool) *types.BlockInfo {
-	if info, ok := m.BlockInfos[height]; ok {
-		return info
-	}
-	return &types.BlockInfo{}
-}
-
-func (m *MockClient) SetBlockInfoByHeight(height int64, info *types.BlockInfo) {
-	m.BlockInfos[height] = info
 }
