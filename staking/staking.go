@@ -936,8 +936,8 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, v
 		var address [20]byte
 		copy(address[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
 		if retireValidators[address] {
-			val.IsRetiring = true
-			val.VotingPower = 0
+			//val.IsRetiring = true
+			//val.VotingPower = 0
 			slashValidators = append(slashValidators, address)
 		}
 	}
@@ -1012,7 +1012,11 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 		coins.Sub(coins, amount)
 	}
 	val.StakedCoins = coins.Bytes32()
-
+	if ctx.IsStakingFork() {
+		// clear the voting power and set IsRetiring flag when validator slashed after staking fork
+		val.IsRetiring = true
+		val.VotingPower = 0
+	}
 	totalCleared := info.ClearRewardsOf(val.Address)
 	totalSlashed.Add(totalSlashed, totalCleared)
 

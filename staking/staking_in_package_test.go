@@ -55,7 +55,7 @@ func TestCalcMedian(t *testing.T) {
 	require.Equal(t, uint64(2), m)
 }
 
-//add gas consume
+// add gas consume
 func TestHandleMinGasPrice(t *testing.T) {
 	ctx := types.NewContext(nil, nil)
 	ctx.SetCurrentHeight(1)
@@ -235,6 +235,7 @@ func TestHandleOnlineInfos(t *testing.T) {
 	require.Equal(t, crypto.Address(validators[1]).String(), crypto.Address(slashValidators[0][:]).String())
 
 	stakingInfo = LoadStakingInfo(ctx)
-	require.Equal(t, int64(0), stakingInfo.Validators[1].VotingPower)
-	require.Equal(t, true, stakingInfo.Validators[1].IsRetiring)
+	// not clear val voting power in HandleOnlineInfos, clear in function: Slash
+	require.Equal(t, int64(1), stakingInfo.Validators[1].VotingPower)
+	require.Equal(t, false, stakingInfo.Validators[1].IsRetiring)
 }
