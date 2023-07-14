@@ -73,7 +73,8 @@ const (
 
 	// for 20230706 chain stuck fix
 	beginHeightFor0706 = 10_319_606
-	endHeightFor0706   = 10_527_000 // BeginHeightFor0706 + 207_393, about at 20230718.
+	// endHeightFor0706   = 10_527_000 // BeginHeightFor0706 + 207_393, about at 20230718.
+	endHeightFor0706 = param.StakingForkHeight + param.BlocksInEpochAfterStakingFork // height at the first epoch switch after staking upgrade
 )
 
 type IApp interface {
@@ -669,8 +670,12 @@ func (app *App) updateValidatorsAndStakingInfo() {
 			}
 		}
 	} else if !param.IsAmber && ctx.IsStakingFork() {
+		// clear old pow epochList
+		if app.currHeight == param.StakingForkHeight {
+			app.epochList = nil
+		}
 		// make epoch rely on smartbch self after staking fork, change to pure pos
-		if (app.currHeight%param.BlocksInEpochAfterStakingFork == 0) && (app.currHeight > (ctx.StakingForkBlock + param.BlocksInEpochAfterStakingFork/2)) {
+		if app.currHeight > ctx.StakingForkBlock && ((app.currHeight-ctx.StakingForkBlock)%param.BlocksInEpochAfterStakingFork == 0) {
 			e := &stakingtypes.Epoch{}
 			app.epochList = append(app.epochList, e)
 			app.logger.Debug("Get new pure pos epoch")
@@ -691,6 +696,10 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	}
 
 	if len(app.epochList) != 0 {
+		// make epoch 50th expand to staking upgrade, not allow switch epoch near staking upgrade
+		if !param.IsAmber && currEpochNum == 50 && app.currHeight <= param.StakingForkHeight {
+			return
+		}
 		//epoch switch delay time should bigger than 10 mainnet block interval as of block finalization need
 		epochSwitchDelay := param.StakingEpochSwitchDelay
 		// this 20 is hardcode to fix the 20220520 bch node not upgrade error. don't modify it ever.

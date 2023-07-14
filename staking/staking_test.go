@@ -2,6 +2,7 @@ package staking_test
 
 import (
 	"bytes"
+	"github.com/smartbch/smartbch/param"
 	"math/big"
 	"testing"
 	"time"
@@ -339,6 +340,8 @@ func TestSlashAndReward(t *testing.T) {
 	balance := uint256.NewInt(0).Mul(uint256.NewInt(1000), uint256.NewInt(staking.Uint64_1e18))
 	stakingAcc.UpdateBalance(balance)
 	ctx.SetAccount(staking.StakingContractAddress, stakingAcc)
+	receiver := common.HexToAddress(param.SlashReceiver)
+	ctx.SetAccount(receiver, types.ZeroAccountInfo())
 	ctx.SetCurrentHeight(100)
 	ctx.SetStakingForkBlock(90)
 
@@ -357,18 +360,21 @@ func TestSlashAndReward(t *testing.T) {
 	require.Equal(t, 2, len(onlineInfos.OnlineInfos))
 	require.Equal(t, valAddress1, onlineInfos.OnlineInfos[0].ValidatorConsensusAddress)
 
-	ctx.SetCurrentHeight(600)
+	ctx.SetCurrentHeight(7300)
 	currValidators, newValidators, _ = staking.SlashAndReward(ctx, nil, valAddress1, valAddress2, [][]byte{valAddress1[:], valAddress2[:]}, nil)
 	require.Equal(t, 2, len(currValidators))
 	require.Equal(t, 0, len(newValidators))
 	onlineInfos = staking.LoadOnlineInfo(ctx)
-	require.Equal(t, int64(600), onlineInfos.StartHeight)
+	require.Equal(t, int64(7300), onlineInfos.StartHeight)
 	require.Equal(t, 0, len(onlineInfos.OnlineInfos))
 
 	stakingAccLoaded := ctx.GetAccount(staking.StakingContractAddress)
-	require.Equal(t, stakingAcc.Balance().String(), uint256.NewInt(0).Add(stakingAccLoaded.Balance(), uint256.NewInt(0).Mul(uint256.NewInt(20), uint256.NewInt(staking.Uint64_1e18))).String())
+	require.Equal(t, stakingAcc.Balance().String(), uint256.NewInt(0).Add(stakingAccLoaded.Balance(), uint256.NewInt(0).Mul(uint256.NewInt(40), uint256.NewInt(staking.Uint64_1e18))).String())
 	blackHoleBalance := ebp.GetBlackHoleBalance(ctx)
-	require.Equal(t, blackHoleBalance, uint256.NewInt(0).Mul(uint256.NewInt(20), uint256.NewInt(staking.Uint64_1e18)))
+	require.Equal(t, blackHoleBalance, uint256.NewInt(0).Mul(uint256.NewInt(0), uint256.NewInt(staking.Uint64_1e18)))
+	receiverAcc := ctx.GetAccount(receiver)
+	receiverBalance := receiverAcc.Balance()
+	require.Equal(t, receiverBalance, uint256.NewInt(0).Mul(uint256.NewInt(40), uint256.NewInt(staking.Uint64_1e18)))
 }
 
 func TestLoadEpoch(t *testing.T) {

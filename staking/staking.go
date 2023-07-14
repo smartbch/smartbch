@@ -907,7 +907,7 @@ func HandleOnlineInfosForBugFix(ctx *mevmtypes.Context, stakingInfo *types.Staki
 }
 
 func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, voters [][]byte) (slashValidators [][20]byte) {
-	var retireValidators = make(map[[20]byte]bool, len(voters))
+	var lazyValidators = make(map[[20]byte]bool, len(voters))
 	infos := LoadOnlineInfo(ctx)
 	if infos.StartHeight == 0 {
 		activeValidators := GetActiveValidators(ctx, stakingInfo.Validators)
@@ -922,12 +922,12 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, v
 	var newInfos []*types.OnlineInfo
 	for _, info := range infos.OnlineInfos {
 		if info.SignatureCount < param.MinOnlineSignatures {
-			retireValidators[info.ValidatorConsensusAddress] = true
+			lazyValidators[info.ValidatorConsensusAddress] = true
 		} else {
 			newInfos = append(newInfos, info)
 		}
 	}
-	if len(retireValidators) == 0 {
+	if len(lazyValidators) == 0 {
 		UpdateOnlineInfos(ctx, infos, voters)
 		return
 	}
@@ -935,9 +935,7 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, v
 	for _, val := range stakingInfo.Validators {
 		var address [20]byte
 		copy(address[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
-		if retireValidators[address] {
-			//val.IsRetiring = true
-			//val.VotingPower = 0
+		if lazyValidators[address] && !val.IsRetiring {
 			slashValidators = append(slashValidators, address)
 		}
 	}
@@ -1017,12 +1015,27 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 		val.IsRetiring = true
 		val.VotingPower = 0
 	}
+
 	totalCleared := info.ClearRewardsOf(val.Address)
 	totalSlashed.Add(totalSlashed, totalCleared)
 
-	// deduct the totalSlashed from stakingAcc and burn them, must no error, not check
-	_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
-	incrAllBurnt(ctx, totalSlashed)
+	if ctx.IsStakingFork() {
+		slashReceiver := common.HexToAddress(param.SlashReceiver)
+		err := ebp.SubSenderAccBalance(ctx, StakingContractAddress, totalSlashed)
+		if err != nil {
+			// should never here
+			panic(err)
+		}
+		receiverAcc := ctx.GetAccount(slashReceiver)
+		balance := receiverAcc.Balance()
+		balance.Add(balance, totalSlashed)
+		receiverAcc.UpdateBalance(balance)
+		ctx.SetAccount(slashReceiver, receiverAcc)
+	} else {
+		// deduct the totalSlashed from stakingAcc and burn them, must no error, not check
+		_ = ebp.TransferFromSenderAccToBlackHoleAcc(ctx, StakingContractAddress, totalSlashed)
+		incrAllBurnt(ctx, totalSlashed)
+	}
 	return
 }
 
@@ -1198,7 +1211,7 @@ func deliverMintRewardInEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.Acco
 func checkEpoch(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (bool, map[[32]byte]int64, []*types.Validator) {
 	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger)
 	activeValidators := GetActiveValidators(ctx, info.Validators)
-	if !(param.IsAmber && ctx.IsXHedgeFork()) {
+	if !((param.IsAmber && ctx.IsXHedgeFork()) || (!param.IsAmber && ctx.IsStakingFork())) {
 		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
 			logger.Debug("PoWTotalNomination not big enough", "PoWTotalNomination", powTotalNomination)
 			return false, pubkey2power, activeValidators

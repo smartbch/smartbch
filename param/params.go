@@ -38,11 +38,12 @@ const (
 	BlocksInCCEpoch    int64 = 7
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
-	// staking params
-	OnlineWindowSize               int64  = 500
-	MinOnlineSignatures            int32  = 400
-	NotOnlineSlashAmountDivisor    uint64 = 10
-	DuplicateSigSlashAMountDivisor uint64 = 5
+	// staking and slash params
+	OnlineWindowSize               int64  = 7200 // 12 * 3600s / 6s
+	MinOnlineSignatures            int32  = 4320 // OnlineWindowSize * 0.6
+	NotOnlineSlashAmountDivisor    uint64 = 5    // 1/6 MinimumStakingAmountAfterStakingFork
+	DuplicateSigSlashAMountDivisor uint64 = 4    // 1/5 MinimumStakingAmountAfterStakingFork
+	SlashReceiver                  string = "0xad114243D2D61b78F76D63C1Fef6709219b2cd22"
 
 	// network params
 	IsAmber                           bool  = false
@@ -53,5 +54,5 @@ const (
 	XHedgeForkBlock        int64  = 4106000
 	ShaGateForkBlock       int64  = math.MaxInt64
 	ShaGateSwitch          bool   = false
-	StakingForkHeight      int64  = math.MaxInt64
+	StakingForkHeight      int64  = 11006000 // near 20230815
 )
