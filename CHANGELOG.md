@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0
+
+* Consensus
+  * Switch to full PoS
+  * Adjust minimum staking and slashing amounts of validators
+
 ## v0.4.7-p1
 
 * Hot-fix of chain halt

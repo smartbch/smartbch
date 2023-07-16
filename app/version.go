@@ -5,5 +5,5 @@ var (
 	ClientID  = "smartbchd"
 	GitCommit = ""
 	GitDate   = ""
-	GitTag    = "v0.4.7-p1"
+	GitTag    = "v0.5.0"
 )
