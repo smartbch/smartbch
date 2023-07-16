@@ -189,10 +189,10 @@ func (si *StakingInfo) GetValidatorByPubkey(pubkey [32]byte) *Validator {
 
 // Get useless validators who have zero voting power and no pending reward entries
 // there has two scenario one validator may be useless:
-// 1. retire itself with no pending reward
-// 2. inactive validator with no vote power and pending reward in prev epoch,
-//    which may escape slash if it votes nothing after double sign !!!
-//    maybe there should have more epoch not one.
+//  1. retire itself with no pending reward
+//  2. inactive validator with no vote power and pending reward in prev epoch,
+//     which may escape slash if it votes nothing after double sign !!!
+//     maybe there should have more epoch not one.
 func (si *StakingInfo) GetUselessValidators() map[[20]byte]struct{} {
 	res := make(map[[20]byte]struct{})
 	for _, val := range si.Validators {
@@ -268,4 +268,16 @@ type OnlineInfo struct {
 	ValidatorConsensusAddress [20]byte `msgp:"validator_consensus_address"`
 	SignatureCount            int32    `msgp:"signature_count"`
 	HeightOfLastSignature     int64    `msgp:"height_of_last_signature"`
+}
+
+type ValidatorWatchInfos struct {
+	StartHeight int64        `msgp:"start_height"`
+	WatchInfos  []*WatchInfo `msgp:"watch_infos"`
+}
+
+type WatchInfo struct {
+	ValidatorConsensusAddress [20]byte `msgp:"validator_consensus_address"`
+	SignatureCount            int32    `msgp:"signature_count"`
+	HeightOfLastSignature     int64    `msgp:"height_of_last_signature"`
+	Handled                   bool     `msgp:"handled"`
 }

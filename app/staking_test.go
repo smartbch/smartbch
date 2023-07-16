@@ -33,7 +33,7 @@ func TestStaking(t *testing.T) {
 		staking.MinimumStakingAmount = _min
 	}()
 	staking.InitialStakingAmount = uint256.NewInt(1)
-	staking.InitialStakingAmountAfterStakingFork = uint256.NewInt(1)
+	staking.MinimumStakingAmountAfterStakingFork = uint256.NewInt(1)
 	staking.MinimumStakingAmount = uint256.NewInt(0)
 
 	//test create validator through deliver tx
@@ -161,7 +161,7 @@ func TestCreateValidator(t *testing.T) {
 	_initAmt := staking.InitialStakingAmount
 	defer func() { staking.InitialStakingAmount = _initAmt }()
 	staking.InitialStakingAmount = uint256.NewInt(2000)
-	staking.InitialStakingAmountAfterStakingFork = uint256.NewInt(2000)
+	staking.MinimumStakingAmountAfterStakingFork = uint256.NewInt(2000)
 
 	data := make([]byte, 90)
 	copy(data, staking.SelectorCreateValidator[:])

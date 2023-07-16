@@ -39,10 +39,13 @@ const (
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
 	// staking and slash params
+	ValidatorWatchWindowSize       int64  = 100
+	ValidatorWatchMinSignatures    int32  = 5
+	VotingPowerDivider             int64  = 10
 	OnlineWindowSize               int64  = 7200 // 12 * 3600s / 6s
 	MinOnlineSignatures            int32  = 4320 // OnlineWindowSize * 0.6
-	NotOnlineSlashAmountDivisor    uint64 = 5    // 1/6 MinimumStakingAmountAfterStakingFork
-	DuplicateSigSlashAMountDivisor uint64 = 4    // 1/5 MinimumStakingAmountAfterStakingFork
+	NotOnlineSlashAmountDivisor    uint64 = 16   // 1/16 MinimumStakingAmountAfterStakingFork
+	DuplicateSigSlashAMountDivisor uint64 = 4    // 1/4 MinimumStakingAmountAfterStakingFork
 	SlashReceiver                  string = "0xad114243D2D61b78F76D63C1Fef6709219b2cd22"
 
 	// network params

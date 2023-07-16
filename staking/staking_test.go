@@ -369,12 +369,12 @@ func TestSlashAndReward(t *testing.T) {
 	require.Equal(t, 0, len(onlineInfos.OnlineInfos))
 
 	stakingAccLoaded := ctx.GetAccount(staking.StakingContractAddress)
-	require.Equal(t, stakingAcc.Balance().String(), uint256.NewInt(0).Add(stakingAccLoaded.Balance(), uint256.NewInt(0).Mul(uint256.NewInt(40), uint256.NewInt(staking.Uint64_1e18))).String())
+	require.Equal(t, stakingAcc.Balance().String(), uint256.NewInt(0).Add(stakingAccLoaded.Balance(), uint256.NewInt(0).Mul(uint256.NewInt(4), uint256.NewInt(staking.Uint64_1e18))).String())
 	blackHoleBalance := ebp.GetBlackHoleBalance(ctx)
 	require.Equal(t, blackHoleBalance, uint256.NewInt(0).Mul(uint256.NewInt(0), uint256.NewInt(staking.Uint64_1e18)))
 	receiverAcc := ctx.GetAccount(receiver)
 	receiverBalance := receiverAcc.Balance()
-	require.Equal(t, receiverBalance, uint256.NewInt(0).Mul(uint256.NewInt(40), uint256.NewInt(staking.Uint64_1e18)))
+	require.Equal(t, receiverBalance, uint256.NewInt(0).Mul(uint256.NewInt(4), uint256.NewInt(staking.Uint64_1e18)))
 }
 
 func TestLoadEpoch(t *testing.T) {

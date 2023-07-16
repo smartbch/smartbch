@@ -84,6 +84,7 @@ var (
 	SlotMinGasPriceProposalTarget = strings.Repeat(string([]byte{0}), 31) + string([]byte{4})
 	SlotVoters                    = strings.Repeat(string([]byte{0}), 31) + string([]byte{5})
 	SlotOnlineInfo                = strings.Repeat(string([]byte{0}), 31) + string([]byte{6})
+	SlotWatchInfo                 = strings.Repeat(string([]byte{0}), 31) + string([]byte{7})
 
 	// slot in hex
 	SlotMinGasPriceHex = hex.EncodeToString([]byte(SlotLastMinGasPrice))
@@ -96,8 +97,7 @@ var (
 	//staking
 	InitialStakingAmount                 = uint256.NewInt(0)
 	MinimumStakingAmount                 = uint256.NewInt(0)
-	InitialStakingAmountAfterStakingFork = uint256.NewInt(0).Mul(uint256.NewInt(120), uint256.NewInt(Uint64_1e18))
-	MinimumStakingAmountAfterStakingFork = uint256.NewInt(0).Mul(uint256.NewInt(100), uint256.NewInt(Uint64_1e18))
+	MinimumStakingAmountAfterStakingFork = uint256.NewInt(0).Mul(uint256.NewInt(32), uint256.NewInt(Uint64_1e18))
 	SlashedStakingAmount                 = uint256.NewInt(0)
 
 	GasOfValidatorOp   uint64 = 400_000
@@ -286,7 +286,7 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 
 	initialAmount := InitialStakingAmount
 	if ctx.IsStakingFork() {
-		initialAmount = InitialStakingAmountAfterStakingFork
+		initialAmount = MinimumStakingAmountAfterStakingFork
 	}
 	if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(initialAmount) <= 0 {
 		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
@@ -857,6 +857,26 @@ func SaveOnlineInfo(ctx *mevmtypes.Context, infos types.ValidatorOnlineInfos) {
 	ctx.SetStorageAt(StakingContractSequence, SlotOnlineInfo, bz)
 }
 
+func LoadValidatorWatchInfo(ctx *mevmtypes.Context) (infos types.ValidatorWatchInfos) {
+	bz := ctx.GetStorageAt(StakingContractSequence, SlotWatchInfo)
+	if len(bz) == 0 {
+		return
+	}
+	_, err := infos.UnmarshalMsg(bz)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func SaveValidatorWatchInfo(ctx *mevmtypes.Context, infos types.ValidatorWatchInfos) {
+	bz, err := infos.MarshalMsg(nil)
+	if err != nil {
+		panic(err)
+	}
+	ctx.SetStorageAt(StakingContractSequence, SlotWatchInfo, bz)
+}
+
 // =========================================================================================
 // Following staking functions cannot be invoked through smart contract calls
 
@@ -869,6 +889,19 @@ func NewOnlineInfos(activeValidators []*types.Validator, startHeight int64) *typ
 		onlineInfos = append(onlineInfos, &onlineInfo)
 	}
 	infos.OnlineInfos = onlineInfos
+	infos.StartHeight = startHeight
+	return &infos
+}
+
+func NewWatchInfos(activeValidators []*types.Validator, startHeight int64) *types.ValidatorWatchInfos {
+	var infos types.ValidatorWatchInfos
+	var watchInfos []*types.WatchInfo
+	for _, val := range activeValidators {
+		var watchInfo types.WatchInfo
+		copy(watchInfo.ValidatorConsensusAddress[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
+		watchInfos = append(watchInfos, &watchInfo)
+	}
+	infos.WatchInfos = watchInfos
 	infos.StartHeight = startHeight
 	return &infos
 }
@@ -904,6 +937,56 @@ func HandleOnlineInfosForBugFix(ctx *mevmtypes.Context, stakingInfo *types.Staki
 	infos = *NewOnlineInfos(activeValidators, ctx.Height)
 	UpdateOnlineInfos(ctx, infos, voters)
 	return
+}
+
+func HandleWatchInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, voters [][]byte) {
+	infos := LoadValidatorWatchInfo(ctx)
+	if infos.StartHeight == 0 {
+		activeValidators := GetActiveValidators(ctx, stakingInfo.Validators)
+		infos = *NewWatchInfos(activeValidators, ctx.Height)
+	}
+	if ctx.Height == infos.StartHeight+param.ValidatorWatchWindowSize {
+		decreaseVpValidatorMap := make(map[common.Address]bool)
+		recoveryVpValidatorMap := make(map[common.Address]bool)
+		for _, info := range infos.WatchInfos {
+			if info.SignatureCount < param.ValidatorWatchMinSignatures && !info.Handled {
+				decreaseVpValidatorMap[info.ValidatorConsensusAddress] = true
+				info.Handled = true
+			}
+			if info.SignatureCount >= param.ValidatorWatchMinSignatures && info.Handled {
+				info.Handled = false
+				recoveryVpValidatorMap[info.ValidatorConsensusAddress] = true
+			}
+			// reset
+			info.SignatureCount = 0
+		}
+		for _, val := range stakingInfo.Validators {
+			var address [20]byte
+			copy(address[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
+			if decreaseVpValidatorMap[address] {
+				val.VotingPower = val.VotingPower / param.VotingPowerDivider
+			}
+			if recoveryVpValidatorMap[address] {
+				val.VotingPower = val.VotingPower * param.VotingPowerDivider
+			}
+		}
+		// reset
+		infos.StartHeight = ctx.Height
+	} else {
+		voterMap := make(map[[20]byte]bool, len(voters))
+		for _, voter := range voters {
+			var v [20]byte
+			copy(v[:], voter)
+			voterMap[v] = true
+		}
+		for _, info := range infos.WatchInfos {
+			if voterMap[info.ValidatorConsensusAddress] {
+				info.SignatureCount++
+				info.HeightOfLastSignature = ctx.Height
+			}
+		}
+	}
+	SaveValidatorWatchInfo(ctx, infos)
 }
 
 func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, voters [][]byte) (slashValidators [][20]byte) {
@@ -969,6 +1052,7 @@ func SlashAndReward(ctx *mevmtypes.Context, duplicateSigSlashValidators [][20]by
 		}
 	}
 	if ctx.IsStakingFork() {
+		HandleWatchInfos(ctx, &info, lastVoters)
 		notOnlineSlashValidators := HandleOnlineInfos(ctx, &info, lastVoters)
 		for _, v := range notOnlineSlashValidators {
 			if pubkey, ok := pubkeyMapByConsAddr[v]; ok {
@@ -1168,6 +1252,7 @@ func SwitchEpoch(ctx *mevmtypes.Context, epoch *types.Epoch, posVotes map[[32]by
 	updatePendingRewardsInNewEpoch(activeValidators, &info, logger)
 	SaveStakingInfo(ctx, info)
 	if ctx.IsStakingFork() {
+		SaveValidatorWatchInfo(ctx, *NewWatchInfos(activeValidators, ctx.Height))
 		SaveOnlineInfo(ctx, *NewOnlineInfos(activeValidators, ctx.Height))
 	}
 	return activeValidators
@@ -1209,7 +1294,7 @@ func deliverMintRewardInEpoch(ctx *mevmtypes.Context, stakingAcc *mevmtypes.Acco
 }
 
 func checkEpoch(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (bool, map[[32]byte]int64, []*types.Validator) {
-	powTotalNomination, pubkey2power := getPubkey2Power(info, epoch, posVotes, logger)
+	powTotalNomination, pubkey2power := getPubkey2Power(ctx, info, epoch, posVotes, logger)
 	activeValidators := GetActiveValidators(ctx, info.Validators)
 	if !((param.IsAmber && ctx.IsXHedgeFork()) || (!param.IsAmber && ctx.IsStakingFork())) {
 		if powTotalNomination < param.StakingNumBlocksInEpoch*int64(param.StakingMinVotingPercentPerEpoch)/100 {
@@ -1224,7 +1309,7 @@ func checkEpoch(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epo
 	return true, pubkey2power, activeValidators
 }
 
-func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (powTotalNomination int64, pubkey2power map[[32]byte]int64) {
+func getPubkey2Power(ctx *mevmtypes.Context, info types.StakingInfo, epoch *types.Epoch, posVotes map[[32]byte]int64, logger log.Logger) (powTotalNomination int64, pubkey2power map[[32]byte]int64) {
 	validatorSet := make(map[[32]byte]bool, len(info.Validators))
 	for _, val := range info.Validators {
 		if !val.IsRetiring {
@@ -1278,7 +1363,11 @@ func getPubkey2Power(info types.StakingInfo, epoch *types.Epoch, posVotes map[[3
 	pubkey2power = make(map[[32]byte]int64, len(validNominations))
 	for i := 0; i < param.MaxActiveValidatorCount && len(nominationHeap) > 0; i++ {
 		n := heap.Pop(&nominationHeap).(*types.Nomination)
-		pubkey2power[n.Pubkey] = 1
+		if ctx.IsStakingFork() {
+			pubkey2power[n.Pubkey] = 10000
+		} else {
+			pubkey2power[n.Pubkey] = 1
+		}
 	}
 	return
 }
