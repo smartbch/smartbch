@@ -2,7 +2,6 @@ package staking_test
 
 import (
 	"bytes"
-	"github.com/smartbch/smartbch/param"
 	"math/big"
 	"testing"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/smartbch/moeingevm/types"
 
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 	"github.com/smartbch/smartbch/staking"
 	types2 "github.com/smartbch/smartbch/staking/types"
 )
