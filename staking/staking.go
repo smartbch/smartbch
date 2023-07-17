@@ -98,7 +98,6 @@ var (
 	InitialStakingAmount                 = uint256.NewInt(0)
 	MinimumStakingAmount                 = uint256.NewInt(0)
 	MinimumStakingAmountAfterStakingFork = uint256.NewInt(0).Mul(uint256.NewInt(32), uint256.NewInt(Uint64_1e18))
-	SlashedStakingAmount                 = uint256.NewInt(0)
 
 	GasOfValidatorOp   uint64 = 400_000
 	GasOfMinGasPriceOp uint64 = 50_000
