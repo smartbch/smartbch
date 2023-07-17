@@ -288,6 +288,7 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 	if ctx.IsStakingFork() {
 		initialAmount = MinimumStakingAmountAfterStakingFork
 	}
+	// need tx.value > 32bch
 	if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(initialAmount) <= 0 {
 		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
 		return

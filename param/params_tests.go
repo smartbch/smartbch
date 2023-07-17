@@ -3,7 +3,7 @@
 
 package param
 
-//FILE: consensus configurable params collected here!
+// FILE: consensus configurable params collected here!
 const (
 	/**app consensus params**/
 	BlockMaxBytes      int64  = 4 * 1024 * 1024 // 4MB
@@ -30,16 +30,21 @@ const (
 	StakingNumBlocksInEpoch                int64 = 30
 	StakingEpochSwitchDelay                int64 = 3*10 + 10
 	MaxActiveValidatorCount                int   = 50
+	BlocksInEpochAfterStakingFork          int64 = 2016 * 10 * 60 / 6
 
 	// ccEpoch param
 	BlocksInCCEpoch    int64 = 3
 	CCEpochSwitchDelay int64 = 3*10 + 10
 
 	// staking params
-	OnlineWindowSize               int64  = 500
-	MinOnlineSignatures            int32  = 400
-	NotOnlineSlashAmountDivisor    uint64 = 10
-	DuplicateSigSlashAMountDivisor uint64 = 5
+	ValidatorWatchWindowSize       int64  = 100
+	ValidatorWatchMinSignatures    int32  = 5
+	VotingPowerDivider             int64  = 10
+	OnlineWindowSize               int64  = 7200
+	MinOnlineSignatures            int32  = 4320
+	NotOnlineSlashAmountDivisor    uint64 = 16
+	DuplicateSigSlashAMountDivisor uint64 = 4
+	SlashReceiver                  string = ""
 
 	// network params
 	IsAmber                           bool  = false

@@ -90,7 +90,7 @@ func (db *BlockDB) LoadBlock(height uint32) *Block {
 	return &blk
 }
 
-//Replay the blocks stored in db onto _app
+// Replay the blocks stored in db onto _app
 func ReplayBlocks(_app *testutils.TestApp, db *BlockDB) {
 	h := uint32(_app.GetLatestBlockNum())
 	fmt.Printf("Start from Block Height: %d\n", h)
@@ -474,7 +474,7 @@ func RecordBlocks(db *BlockDB, rs randsrc.RandSrc, randBlocks int, keys []string
 	//ShowBalances(_app, keys, toAddrs)
 }
 
-//nolint
+// nolint
 func ShowBalances(_app *testutils.TestApp, fromKeys []string, toAddrs []common.Address) {
 	ctx := _app.GetRpcContext()
 	defer ctx.Close(false)
@@ -493,7 +493,7 @@ func ShowBalances(_app *testutils.TestApp, fromKeys []string, toAddrs []common.A
 	}
 }
 
-//nolint
+// nolint
 func ShowSlots(_app *testutils.TestApp, caller common.Address, contractAddrs []common.Address, fanoutSize int) {
 	for addrSN, addr := range contractAddrs {
 		for i := 0; i < fanoutSize*2; i++ {

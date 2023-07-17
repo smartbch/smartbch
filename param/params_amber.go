@@ -3,7 +3,7 @@
 
 package param
 
-//FILE: consensus configurable params collected here!
+// FILE: consensus configurable params collected here!
 const (
 	/**app consensus params**/
 	BlockMaxBytes      int64  = 4 * 1024 * 1024 // 4MB

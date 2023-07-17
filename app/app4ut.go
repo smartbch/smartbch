@@ -21,7 +21,7 @@ func (app *App) BlockNum() int64 {
 	return app.block.Number
 }
 
-//nolint
+// nolint
 func (app *App) WaitLock() { // wait for postCommit to finish
 	app.mtx.Lock()
 	app.mtx.Unlock()

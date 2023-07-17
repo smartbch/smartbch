@@ -35,7 +35,7 @@ type BCHBlock struct {
 	CCTransferInfos []*cctypes.CCTransferInfo
 }
 
-//not check Nominations
+// not check Nominations
 func (b *BCHBlock) Equal(o *BCHBlock) bool {
 	return b.Height == o.Height && b.Timestamp == o.Timestamp &&
 		b.HashId == o.HashId && b.ParentBlk == o.ParentBlk

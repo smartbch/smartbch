@@ -306,8 +306,8 @@ func (watcher *Watcher) CheckSanity(skipCheck bool) {
 	}
 }
 
-//sort by pubkey (small to big) first; then sort by nominationCount;
-//so nominations sort by NominationCount, if count is equal, smaller pubkey stand front
+// sort by pubkey (small to big) first; then sort by nominationCount;
+// so nominations sort by NominationCount, if count is equal, smaller pubkey stand front
 func sortEpochNominations(epoch *stakingtypes.Epoch) {
 	sort.Slice(epoch.Nominations, func(i, j int) bool {
 		return bytes.Compare(epoch.Nominations[i].Pubkey[:], epoch.Nominations[j].Pubkey[:]) < 0

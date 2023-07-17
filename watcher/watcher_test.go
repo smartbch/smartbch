@@ -72,7 +72,7 @@ type MockRpcClient struct {
 	node *MockBCHNode
 }
 
-//nolint
+// nolint
 func (m MockRpcClient) start() {
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -118,7 +118,7 @@ type MockEpochConsumer struct {
 	epochList []*stakingtypes.Epoch
 }
 
-//nolint
+// nolint
 func (m *MockEpochConsumer) consume() {
 	for {
 		select {

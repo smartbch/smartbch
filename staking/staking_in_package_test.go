@@ -145,21 +145,21 @@ func TestUpdateOnlineInfos(t *testing.T) {
 	require.Equal(t, int32(1), infosLoaded.OnlineInfos[1].SignatureCount)
 	require.Equal(t, int64(100), infosLoaded.OnlineInfos[1].HeightOfLastSignature)
 
-	// meet the 500 block
-	ctx.SetCurrentHeight(600)
-	infosLoaded.OnlineInfos[0].SignatureCount = 450
+	// meet the 7200 block
+	ctx.SetCurrentHeight(7300)
+	infosLoaded.OnlineInfos[0].SignatureCount = 4320
 	SaveOnlineInfo(ctx, infosLoaded)
 	startHeight = UpdateOnlineInfos(ctx, infosLoaded, [][]byte{validators[0]})
-	require.Equal(t, int64(600), startHeight)
+	require.Equal(t, int64(7300), startHeight)
 	infosLoaded = LoadOnlineInfo(ctx)
-	require.Equal(t, int64(600), infosLoaded.StartHeight)
+	require.Equal(t, int64(7300), infosLoaded.StartHeight)
 	require.Equal(t, 2, len(infosLoaded.OnlineInfos))
 	for i, info := range infosLoaded.OnlineInfos {
 		require.Equal(t, crypto.Address(validators[i]).String(), crypto.Address(info.ValidatorConsensusAddress[:]).String())
 	}
 	require.Equal(t, int32(1), infosLoaded.OnlineInfos[0].SignatureCount)
 	require.Equal(t, int32(0), infosLoaded.OnlineInfos[1].SignatureCount)
-	require.Equal(t, int64(600), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
+	require.Equal(t, int64(7300), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
 	require.Equal(t, int64(100), infosLoaded.OnlineInfos[1].HeightOfLastSignature)
 }
 
@@ -217,21 +217,21 @@ func TestHandleOnlineInfos(t *testing.T) {
 	}
 
 	infosLoaded = LoadOnlineInfo(ctx)
-	infosLoaded.OnlineInfos[0].SignatureCount = 450
+	infosLoaded.OnlineInfos[0].SignatureCount = 7000
 	SaveOnlineInfo(ctx, infosLoaded)
 
-	ctx.SetCurrentHeight(600)
+	ctx.SetCurrentHeight(7300)
 	stakingInfo = LoadStakingInfo(ctx)
 	slashValidators = HandleOnlineInfos(ctx, &stakingInfo, validators)
 	SaveStakingInfo(ctx, stakingInfo)
 	require.Equal(t, 1, len(slashValidators))
 	infosLoaded = LoadOnlineInfo(ctx)
-	require.Equal(t, int64(600), infosLoaded.StartHeight)
+	require.Equal(t, int64(7300), infosLoaded.StartHeight)
 	require.Equal(t, 1, len(infosLoaded.OnlineInfos))
 
 	require.Equal(t, crypto.Address(validators[0]).String(), crypto.Address(infosLoaded.OnlineInfos[0].ValidatorConsensusAddress[:]).String())
 	require.Equal(t, int32(1), infosLoaded.OnlineInfos[0].SignatureCount)
-	require.Equal(t, int64(600), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
+	require.Equal(t, int64(7300), infosLoaded.OnlineInfos[0].HeightOfLastSignature)
 	require.Equal(t, crypto.Address(validators[1]).String(), crypto.Address(slashValidators[0][:]).String())
 
 	stakingInfo = LoadStakingInfo(ctx)

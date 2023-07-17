@@ -257,7 +257,7 @@ func (backend *apiBackend) GetCurrEpoch() *stakingtypes.Epoch {
 	return backend.app.GetCurrEpoch()
 }
 
-//[start, end)
+// [start, end)
 func (backend *apiBackend) GetEpochs(start, end uint64) ([]*stakingtypes.Epoch, error) {
 	if start >= end {
 		return nil, errors.New("invalid start or empty epochs")
@@ -289,7 +289,7 @@ func (backend *apiBackend) GetEpochList(from string) ([]*stakingtypes.Epoch, err
 	}
 }
 
-//[start, end)
+// [start, end)
 func (backend *apiBackend) GetCCEpochs(start, end uint64) ([]*cctypes.CCEpoch, error) {
 	if start >= end {
 		return nil, errors.New("invalid start or empty cc epochs")
