@@ -1,10 +1,17 @@
 # Changelog
 
-## v0.5.0
+## v0.5.0-pre2
+
+* BCH Watcher
+  * Remove watcher run after beginHeightFor0706
+
+
+## v0.5.0-pre1
 
 * Consensus
   * Switch to full PoS
   * Adjust minimum staking and slashing amounts of validators
+
 
 ## v0.4.7-p1
 
