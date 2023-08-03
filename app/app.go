@@ -253,11 +253,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.watcher = watcher.NewWatcher(app.logger.With("module", "watcher"), lastEpochEndHeight, 0, stakingInfo.CurrEpochNum, app.config)
 	app.logger.Debug(fmt.Sprintf("New watcher: mainnet url(%s), epochNum(%d), lastEpochEndHeight(%d), speedUp(%v)\n",
 		config.AppConfig.MainnetRPCUrl, stakingInfo.CurrEpochNum, lastEpochEndHeight, config.AppConfig.Speedup))
-	if app.currHeight < beginHeightFor0706 {
-		app.watcher.CheckSanity(skipSanityCheck)
-		go app.watcher.Run()
-		app.watcher.WaitCatchup()
-	}
+	app.watcher.CheckSanity(config.AppConfig.DisableBchClient, skipSanityCheck)
+	go app.watcher.Run()
+	app.watcher.WaitCatchup()
 	app.lastMinGasPrice = staking.LoadMinGasPrice(ctx, true)
 	ctx.Close(true)
 	return app
@@ -673,9 +671,7 @@ func (app *App) updateValidatorsAndStakingInfo() {
 		}
 	} else if !param.IsAmber && ctx.IsStakingFork() {
 		// clear old pow epochList
-		if app.currHeight == param.StakingForkHeight {
-			app.epochList = nil
-		}
+		app.epochList = nil
 		// make epoch rely on smartbch self after staking fork, change to pure pos
 		if app.currHeight > ctx.StakingForkBlock && ((app.currHeight-ctx.StakingForkBlock)%param.BlocksInEpochAfterStakingFork == 0) {
 			e := &stakingtypes.Epoch{}

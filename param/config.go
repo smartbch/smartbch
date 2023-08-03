@@ -58,6 +58,8 @@ type AppConfig struct {
 	ArchiveMode bool `mapstructure:"archive-mode"`
 
 	WithSyncDB bool `mapstructure:"with-syncdb"`
+
+	DisableBchClient bool `mapstructure:"disable-bch-client"`
 }
 
 type ChainConfig struct {

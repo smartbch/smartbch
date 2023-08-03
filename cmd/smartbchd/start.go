@@ -53,6 +53,7 @@ const (
 	flagArchiveMode            = "archive-mode"
 	flagSkipSanityCheck        = "skip-sanity-check"
 	flagWithSyncDB             = "with-syncdb"
+	flagNoBchClient            = "no-bch-client"
 )
 
 func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
@@ -100,6 +101,7 @@ func StartCmd(ctx *Context, appCreator AppCreator) *cobra.Command {
 	cmd.Flags().Bool(flagArchiveMode, false, "enable archive-mode")
 	cmd.Flags().Bool(flagSkipSanityCheck, false, "skip sanity check when node start")
 	cmd.Flags().Bool(flagWithSyncDB, false, "enable syncdb")
+	cmd.Flags().Bool(flagNoBchClient, false, "disable bch client")
 
 	return cmd
 }
@@ -113,6 +115,7 @@ func startInProcess(ctx *Context, appCreator AppCreator) (*node.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	ctx.Config.AppConfig.DisableBchClient = viper.GetBool(flagNoBchClient)
 	_app := appCreator(ctx.Logger, chainID, ctx.Config)
 	appImpl := _app.(*app.App)
 

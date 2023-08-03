@@ -60,10 +60,8 @@ type Watcher struct {
 }
 
 func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastKnownEpochNum int64, chainConfig *param.ChainConfig) *Watcher {
-	return &Watcher{
-		logger: logger,
-
-		rpcClient:         NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", logger),
+	w := &Watcher{
+		logger:            logger,
 		smartBchRpcClient: NewRpcClient(chainConfig.AppConfig.SmartBchRPCUrl, "", "", "application/json", logger),
 
 		lastEpochEndHeight:    lastHeight,
@@ -91,6 +89,10 @@ func NewWatcher(logger log.Logger, lastHeight, lastCCEpochEndHeight int64, lastK
 		// set big enough for single node startup when no BCH node connected. it will be updated when mainnet block finalize.
 		currentMainnetBlockTimestamp: math.MaxInt64 - 14*24*3600,
 	}
+	if !chainConfig.AppConfig.DisableBchClient {
+		w.rpcClient = NewRpcClient(chainConfig.AppConfig.MainnetRPCUrl, chainConfig.AppConfig.MainnetRPCUsername, chainConfig.AppConfig.MainnetRPCPassword, "text/plain;", logger)
+	}
+	return w
 }
 
 func (watcher *Watcher) SetNumBlocksInEpoch(n int64) {
@@ -113,7 +115,15 @@ func (watcher *Watcher) WaitCatchup() {
 func (watcher *Watcher) Run() {
 	if watcher.rpcClient == (*RpcClient)(nil) {
 		//for ut
-		watcher.catchupChan <- true
+		if !watcher.chainConfig.AppConfig.DisableBchClient {
+			watcher.catchupChan <- true
+			return
+		}
+	}
+	if watcher.chainConfig.AppConfig.DisableBchClient {
+		// must connect a smartbchd client which tip height higher than staking upgrade,
+		// which has all epochs in pow + pos mode.
+		watcher.speedupInBchClientDisableMode()
 		return
 	}
 	watcher.speedup()
@@ -165,6 +175,38 @@ func (watcher *Watcher) parallelFetchBlocks(heightStart, heightEnd int64) {
 		watcher.addFinalizedBlock(blk)
 	}
 	watcher.logger.Debug("Get bch mainnet blocks parallel", "latestFinalizedHeight", watcher.latestFinalizedHeight)
+}
+
+func (watcher *Watcher) speedupInBchClientDisableMode() {
+	// no need get epochs if lastKnownCCEpochNum >= 50
+	if watcher.lastKnownCCEpochNum >= 50 {
+		return
+	}
+	if watcher.smartBchRpcClient == (*RpcClient)(nil) {
+		panic("must provide valid smartbchd node info for epoch fetch")
+	}
+	start := uint64(watcher.lastKnownEpochNum) + 1
+	for {
+		epochs := watcher.smartBchRpcClient.GetEpochs(start, start+100)
+		watcher.epochList = append(watcher.epochList, epochs...)
+		watcher.lastKnownEpochNum += int64(len(epochs))
+		for _, e := range epochs {
+			if e.EndTime != 0 {
+				watcher.EpochChan <- e
+			}
+			out, _ := json.Marshal(e)
+			fmt.Println(string(out))
+		}
+		if len(epochs) < 100 {
+			break
+		}
+		start = start + 100
+	}
+	watcher.logger.Debug("After speedup in bchClientDisabled mode", "lastKnownEpochNum", watcher.lastKnownEpochNum)
+	if watcher.lastKnownEpochNum < 50 { // todo: param 50
+		panic("must get epoch 50 when run in bchClientDisabled mode, please try to connect another smartbchd node")
+	}
+	close(watcher.catchupChan)
 }
 
 func (watcher *Watcher) speedup() {
@@ -293,16 +335,17 @@ func (watcher *Watcher) GetCurrMainnetBlockTimestamp() int64 {
 	return watcher.currentMainnetBlockTimestamp
 }
 
-func (watcher *Watcher) CheckSanity(skipCheck bool) {
-	if !skipCheck {
-		latestHeight := watcher.rpcClient.GetLatestHeight(false)
-		if latestHeight <= 0 {
-			panic("Watcher GetLatestHeight failed in Sanity Check")
-		}
-		blk := watcher.rpcClient.GetBlockByHeight(latestHeight, false)
-		if blk == nil {
-			panic("Watcher GetBlockByHeight failed in Sanity Check")
-		}
+func (watcher *Watcher) CheckSanity(disableBchClient, skipCheck bool) {
+	if disableBchClient || skipCheck {
+		return
+	}
+	latestHeight := watcher.rpcClient.GetLatestHeight(false)
+	if latestHeight <= 0 {
+		panic("Watcher GetLatestHeight failed in Sanity Check")
+	}
+	blk := watcher.rpcClient.GetBlockByHeight(latestHeight, false)
+	if blk == nil {
+		panic("Watcher GetBlockByHeight failed in Sanity Check")
 	}
 }
 
