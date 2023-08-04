@@ -55,5 +55,5 @@ const (
 	XHedgeForkBlock        int64  = 3088100
 	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
-	StakingForkHeight      int64  = 80000000
+	StakingForkHeight      int64  = 11006000
 )

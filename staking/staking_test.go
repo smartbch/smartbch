@@ -342,7 +342,7 @@ func TestSlashAndReward(t *testing.T) {
 	ctx.SetAccount(staking.StakingContractAddress, stakingAcc)
 	receiver := common.HexToAddress(param.SlashReceiver)
 	ctx.SetAccount(receiver, types.ZeroAccountInfo())
-	ctx.SetCurrentHeight(100)
+	ctx.SetCurrentHeight(param.StakingForkHeight + param.BlocksInEpochAfterStakingFork + 1)
 	ctx.SetStakingForkBlock(90)
 
 	validator1 := [32]byte{0x01}
@@ -356,16 +356,16 @@ func TestSlashAndReward(t *testing.T) {
 	require.Equal(t, 2, len(currValidators))
 	require.Equal(t, 2, len(newValidators))
 	onlineInfos := staking.LoadOnlineInfo(ctx)
-	require.Equal(t, int64(100), onlineInfos.StartHeight)
+	require.Equal(t, int64(11207601), onlineInfos.StartHeight)
 	require.Equal(t, 2, len(onlineInfos.OnlineInfos))
 	require.Equal(t, valAddress1, onlineInfos.OnlineInfos[0].ValidatorConsensusAddress)
 
-	ctx.SetCurrentHeight(7300)
+	ctx.SetCurrentHeight(11207601 + 7200)
 	currValidators, newValidators, _ = staking.SlashAndReward(ctx, nil, valAddress1, valAddress2, [][]byte{valAddress1[:], valAddress2[:]}, nil)
 	require.Equal(t, 2, len(currValidators))
 	require.Equal(t, 0, len(newValidators))
 	onlineInfos = staking.LoadOnlineInfo(ctx)
-	require.Equal(t, int64(7300), onlineInfos.StartHeight)
+	require.Equal(t, int64(11207601+7200), onlineInfos.StartHeight)
 	require.Equal(t, 0, len(onlineInfos.OnlineInfos))
 
 	stakingAccLoaded := ctx.GetAccount(staking.StakingContractAddress)
