@@ -1051,7 +1051,7 @@ func SlashAndReward(ctx *mevmtypes.Context, duplicateSigSlashValidators [][20]by
 			Slash(ctx, &info, pubkey, slashAmount)
 		}
 	}
-	if ctx.IsStakingFork() {
+	if ctx.Height > param.StakingForkHeight+param.BlocksInEpochAfterStakingFork { // not handle online info and watch info before first pos epoch switch height
 		HandleWatchInfos(ctx, &info, lastVoters)
 		notOnlineSlashValidators := HandleOnlineInfos(ctx, &info, lastVoters)
 		for _, v := range notOnlineSlashValidators {
