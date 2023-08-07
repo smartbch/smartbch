@@ -1006,6 +1006,7 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, v
 	for _, info := range infos.OnlineInfos {
 		if info.SignatureCount < param.MinOnlineSignatures {
 			lazyValidators[info.ValidatorConsensusAddress] = true
+			fmt.Printf("validator %s sig %d, not enough for online sig require\n", hex.EncodeToString(info.ValidatorConsensusAddress[:]), info.SignatureCount)
 		} else {
 			newInfos = append(newInfos, info)
 		}
@@ -1019,6 +1020,7 @@ func HandleOnlineInfos(ctx *mevmtypes.Context, stakingInfo *types.StakingInfo, v
 		var address [20]byte
 		copy(address[:], ed25519.PubKey(val.Pubkey[:]).Address().Bytes())
 		if lazyValidators[address] && !val.IsRetiring {
+			fmt.Printf("slash %s, %s for not online\n", hex.EncodeToString(val.Pubkey[:]), hex.EncodeToString(address[:]))
 			slashValidators = append(slashValidators, address)
 		}
 	}
@@ -1081,6 +1083,7 @@ func SlashAndReward(ctx *mevmtypes.Context, duplicateSigSlashValidators [][20]by
 
 // Slash 'amount' of coins from the validator with 'pubkey'. These coins are burnt and booked on BlackHole acc.
 func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amount *uint256.Int) (totalSlashed *uint256.Int) {
+	fmt.Printf("slash %s %s\n", hex.EncodeToString(pubkey[:]), amount.String())
 	val := info.GetValidatorByPubkey(pubkey)
 	if val == nil {
 		return // If tendermint works fine, we'll never reach here
