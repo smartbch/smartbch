@@ -11,6 +11,7 @@ import (
 	"github.com/mackerelio/go-osstat/memory"
 	"github.com/tendermint/tendermint/libs/log"
 
+	"github.com/smartbch/smartbch/param"
 	stakingtypes "github.com/smartbch/smartbch/staking/types"
 )
 
@@ -40,6 +41,7 @@ type DebugAPI interface {
 	GetSeq(addr gethcmn.Address) hexutil.Uint64
 	NodeInfo() json.RawMessage
 	ValidatorOnlineInfos() json.RawMessage
+	ValidatorWatchInfos() json.RawMessage
 }
 
 type debugAPI struct {
@@ -114,8 +116,10 @@ func toMB(n uint64) uint64 {
 /* Validator Online Info */
 
 type ValidatorOnlineInfosToMarshal struct {
-	StartHeight int64                  `json:"start_height"`
-	OnlineInfos []*OnlineInfoToMarshal `json:"online_infos"`
+	StartHeight            int64                  `json:"start_height"`
+	EndHeight              int64                  `json:"end_height"`
+	OnlineInfos            []*OnlineInfoToMarshal `json:"online_infos"`
+	ValidatorsMaybeSlashed []gethcmn.Address      `json:"validators_maybe_slashed"`
 }
 
 type OnlineInfoToMarshal struct {
@@ -124,9 +128,10 @@ type OnlineInfoToMarshal struct {
 	HeightOfLastSignature     int64           `json:"height_of_last_signature"`
 }
 
-func castValidatorOnlineInfos(infos stakingtypes.ValidatorOnlineInfos) ValidatorOnlineInfosToMarshal {
+func castValidatorOnlineInfos(latestHeight int64, infos stakingtypes.ValidatorOnlineInfos) ValidatorOnlineInfosToMarshal {
 	infosToMarshal := ValidatorOnlineInfosToMarshal{
 		StartHeight: infos.StartHeight,
+		EndHeight:   infos.StartHeight + param.OnlineWindowSize,
 		OnlineInfos: make([]*OnlineInfoToMarshal, len(infos.OnlineInfos)),
 	}
 	for i, onlineInfo := range infos.OnlineInfos {
@@ -135,14 +140,58 @@ func castValidatorOnlineInfos(infos stakingtypes.ValidatorOnlineInfos) Validator
 			SignatureCount:            onlineInfo.SignatureCount,
 			HeightOfLastSignature:     onlineInfo.HeightOfLastSignature,
 		}
+		blockNumsSinceStartHeight := latestHeight - infos.StartHeight
+		if blockNumsSinceStartHeight > param.OnlineWindowSize/5 {
+			if int64(onlineInfo.SignatureCount) < blockNumsSinceStartHeight*int64(param.MinOnlineSignatures)/param.OnlineWindowSize {
+				infosToMarshal.ValidatorsMaybeSlashed = append(infosToMarshal.ValidatorsMaybeSlashed, onlineInfo.ValidatorConsensusAddress)
+			}
+		}
 	}
 	return infosToMarshal
 }
 
 func (api *debugAPI) ValidatorOnlineInfos() json.RawMessage {
 	api.logger.Debug("debug_validatorOnlineInfos")
-	onlineInfos := api.ethAPI.backend.ValidatorOnlineInfos()
-	onlineInfosToMarshal := castValidatorOnlineInfos(onlineInfos)
+	latestHeight, onlineInfos := api.ethAPI.backend.ValidatorOnlineInfos()
+	onlineInfosToMarshal := castValidatorOnlineInfos(latestHeight, onlineInfos)
+	bytes, _ := json.Marshal(onlineInfosToMarshal)
+	return bytes
+}
+
+type ValidatorWatchInfosToMarshal struct {
+	StartHeight int64                 `json:"start_height"`
+	EndHeight   int64                 `json:"end_height"`
+	WatchInfos  []*WatchInfoToMarshal `json:"online_infos"`
+}
+
+type WatchInfoToMarshal struct {
+	ValidatorConsensusAddress gethcmn.Address `json:"validator_consensus_address"`
+	SignatureCount            int32           `json:"signature_count"`
+	HeightOfLastSignature     int64           `json:"height_of_last_signature"`
+	VotingPowerBeDecreased    bool            `json:"voting_power_be_decreased"`
+}
+
+func castValidatorWatchInfos(infos stakingtypes.ValidatorWatchInfos) ValidatorWatchInfosToMarshal {
+	infosToMarshal := ValidatorWatchInfosToMarshal{
+		StartHeight: infos.StartHeight,
+		EndHeight:   infos.StartHeight + param.ValidatorWatchWindowSize,
+		WatchInfos:  make([]*WatchInfoToMarshal, len(infos.WatchInfos)),
+	}
+	for i, watchInfo := range infos.WatchInfos {
+		infosToMarshal.WatchInfos[i] = &WatchInfoToMarshal{
+			ValidatorConsensusAddress: watchInfo.ValidatorConsensusAddress,
+			SignatureCount:            watchInfo.SignatureCount,
+			HeightOfLastSignature:     watchInfo.HeightOfLastSignature,
+			VotingPowerBeDecreased:    watchInfo.Handled,
+		}
+	}
+	return infosToMarshal
+}
+
+func (api *debugAPI) ValidatorWatchInfos() json.RawMessage {
+	api.logger.Debug("debug_validatorWatchInfos")
+	watchInfos := api.ethAPI.backend.ValidatorWatchInfos()
+	onlineInfosToMarshal := castValidatorWatchInfos(watchInfos)
 	bytes, _ := json.Marshal(onlineInfosToMarshal)
 	return bytes
 }

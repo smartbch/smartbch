@@ -130,7 +130,8 @@ type BackendService interface {
 	//tendermint info
 	NodeInfo() Info
 	ValidatorsInfo() app.ValidatorsInfo
-	ValidatorOnlineInfos() stakingtypes.ValidatorOnlineInfos
+	ValidatorOnlineInfos() (int64, stakingtypes.ValidatorOnlineInfos)
+	ValidatorWatchInfos() stakingtypes.ValidatorWatchInfos
 
 	IsArchiveMode() bool
 }
