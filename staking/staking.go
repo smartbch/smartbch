@@ -1114,6 +1114,9 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 			panic(err)
 		}
 		receiverAcc := ctx.GetAccount(slashReceiver)
+		if receiverAcc == nil {
+			receiverAcc = mevmtypes.ZeroAccountInfo()
+		}
 		balance := receiverAcc.Balance()
 		balance.Add(balance, totalSlashed)
 		receiverAcc.UpdateBalance(balance)
