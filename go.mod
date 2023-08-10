@@ -46,7 +46,7 @@ replace github.com/tendermint/tendermint v0.34.10 => github.com/smartbch/tenderm
 
 replace github.com/holiman/uint256 => github.com/smartbch/uint256 v1.2.1-p1
 
-replace github.com/smartbch/moeingads v0.4.2 => github.com/wangkui0508/moeingads v0.4.2-0.20230810025646-488ffcdf0fbc
+replace github.com/smartbch/moeingads v0.4.2 => github.com/wangkui0508/moeingads v0.0.0-20230810074414-3b6e9644b73a
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect

@@ -32,18 +32,18 @@ const (
 	StakingNumBlocksInEpoch                int64 = 2016
 	StakingEpochSwitchDelay                int64 = 600 * 2016 / 20 // 5% time of an epoch
 	MaxActiveValidatorCount                int   = 50
-	BlocksInEpochAfterStakingFork          int64 = 12 * 10 * 60 / 6 // 2h
+	BlocksInEpochAfterStakingFork          int64 = 3 * 10 * 60 / 6 // 0.5h
 
 	// ccEpoch params:
 	BlocksInCCEpoch    int64 = 7
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
 	// staking and slash params
-	ValidatorWatchWindowSize       int64  = 50
+	ValidatorWatchWindowSize       int64  = 30
 	ValidatorWatchMinSignatures    int32  = 10
 	VotingPowerDivider             int64  = 10
-	OnlineWindowSize               int64  = 300 // 0.5h = 1 * 3600s / 6s
-	MinOnlineSignatures            int32  = 180 // OnlineWindowSize * 0.6
+	OnlineWindowSize               int64  = 100 // 0.5h = 1 * 3600s / 6s
+	MinOnlineSignatures            int32  = 60  // OnlineWindowSize * 0.6
 	NotOnlineSlashAmountDivisor    uint64 = 16  // 1/16 MinimumStakingAmountAfterStakingFork
 	DuplicateSigSlashAMountDivisor uint64 = 4   // 1/4 MinimumStakingAmountAfterStakingFork
 	SlashReceiver                  string = "0xad114243D2D61b78F76D63C1Fef6709219b2cd22"
@@ -57,5 +57,5 @@ const (
 	XHedgeForkBlock        int64  = 4106000
 	ShaGateForkBlock       int64  = math.MaxInt64
 	ShaGateSwitch          bool   = false
-	StakingForkHeight      int64  = 10870248 // near 202308071610
+	StakingForkHeight      int64  = 10861298 // near 202308071610
 )

@@ -1370,7 +1370,11 @@ func getPubkey2Power(ctx *mevmtypes.Context, info types.StakingInfo, epoch *type
 	for i := 0; i < param.MaxActiveValidatorCount && len(nominationHeap) > 0; i++ {
 		n := heap.Pop(&nominationHeap).(*types.Nomination)
 		if ctx.IsStakingFork() {
-			pubkey2power[n.Pubkey] = 10000
+			if i == 0 {
+				pubkey2power[n.Pubkey] = 10000
+			} else {
+				pubkey2power[n.Pubkey] = 1000
+			}
 		} else {
 			pubkey2power[n.Pubkey] = 1
 		}

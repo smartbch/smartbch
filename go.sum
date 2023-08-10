@@ -721,8 +721,8 @@ github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtX
 github.com/urfave/cli/v2 v2.3.0/go.mod h1:LJmUH05zAU44vOAcrfzZQKsZbVcdbOG8rtL3/XcUArI=
 github.com/vechain/go-ecvrf v0.0.0-20200326080414-5b7e9ee61906 h1:llHjJ24ov25y8DtT+Aw5uJl7HCRWoJHRmhH7Y9/TYQI=
 github.com/vechain/go-ecvrf v0.0.0-20200326080414-5b7e9ee61906/go.mod h1:HM7kygiu1D0CdotRa2u8z4I8AW9sRShPSjpLuIw0kyE=
-github.com/wangkui0508/moeingads v0.4.2-0.20230810025646-488ffcdf0fbc h1:KpIAqlGhOoEVaarjpJgfOoIM1hkdZGl1/ctEpmBbaDs=
-github.com/wangkui0508/moeingads v0.4.2-0.20230810025646-488ffcdf0fbc/go.mod h1:ItNDsGpUoDo/lNxd+EfQ0FbcoT/QsZ+T06kPdFlCm9g=
+github.com/wangkui0508/moeingads v0.0.0-20230810074414-3b6e9644b73a h1:3W9DtOu4MeXKK8zEJ9kBCCCI4wQRUw4UBmQsOmwuG10=
+github.com/wangkui0508/moeingads v0.0.0-20230810074414-3b6e9644b73a/go.mod h1:ItNDsGpUoDo/lNxd+EfQ0FbcoT/QsZ+T06kPdFlCm9g=
 github.com/willf/bitset v1.1.3/go.mod h1:RjeCKbqT1RxIR/KWY6phxZiaY1IyutSBfGjNPySAYV4=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
