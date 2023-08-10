@@ -42,10 +42,10 @@ const (
 	ValidatorWatchWindowSize       int64  = 100
 	ValidatorWatchMinSignatures    int32  = 5
 	VotingPowerDivider             int64  = 10
-	OnlineWindowSize               int64  = 7200 // 12 * 3600s / 6s
-	MinOnlineSignatures            int32  = 4320 // OnlineWindowSize * 0.6
-	NotOnlineSlashAmountDivisor    uint64 = 16   // 1/16 MinimumStakingAmountAfterStakingFork
-	DuplicateSigSlashAMountDivisor uint64 = 4    // 1/4 MinimumStakingAmountAfterStakingFork
+	OnlineWindowSize               int64  = 14400 // 24 * 3600s / 6s
+	MinOnlineSignatures            int32  = 8640  // OnlineWindowSize * 0.6
+	NotOnlineSlashAmountDivisor    uint64 = 16    // 1/16 MinimumStakingAmountAfterStakingFork
+	DuplicateSigSlashAMountDivisor uint64 = 4     // 1/4 MinimumStakingAmountAfterStakingFork
 	SlashReceiver                  string = "0xad114243D2D61b78F76D63C1Fef6709219b2cd22"
 
 	// network params
