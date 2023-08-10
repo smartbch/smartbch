@@ -660,17 +660,9 @@ func (app *App) updateValidatorsAndStakingInfo() {
 	if ctx.Height == param.StakingForkHeight {
 		testAddr := gethcmn.HexToAddress("0x9a6DD2f7CEb71788de691844d16b6b6852f07aA3")
 		testAcc := ctx.GetAccount(testAddr)
-		testAcc.UpdateBalance(uint256.NewInt(0).Add(testAcc.Balance(), uint256.NewInt(10_000_000)))
-		ctx.SetAccount(testAddr, testAcc)
-		fmt.Println("staking upgrade now!!!, send 10000000 bch to testAcc")
-	}
-
-	if ctx.Height == 10870365 {
-		testAddr := gethcmn.HexToAddress("0x9a6DD2f7CEb71788de691844d16b6b6852f07aA3")
-		testAcc := ctx.GetAccount(testAddr)
 		testAcc.UpdateBalance(uint256.NewInt(0).Mul(uint256.NewInt(10_000_000), uint256.NewInt(1000_000_000_000_000_000)))
 		ctx.SetAccount(testAddr, testAcc)
-		fmt.Println("send 10000000 bch to testAcc again")
+		fmt.Println("send 10000000 bch to testAcc")
 	}
 
 	if param.IsAmber && ctx.IsXHedgeFork() {

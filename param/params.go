@@ -39,8 +39,8 @@ const (
 	CCEpochSwitchDelay int64 = 3 * 20 / 20
 
 	// staking and slash params
-	ValidatorWatchWindowSize       int64  = 100
-	ValidatorWatchMinSignatures    int32  = 5
+	ValidatorWatchWindowSize       int64  = 50
+	ValidatorWatchMinSignatures    int32  = 10
 	VotingPowerDivider             int64  = 10
 	OnlineWindowSize               int64  = 300 // 0.5h = 1 * 3600s / 6s
 	MinOnlineSignatures            int32  = 180 // OnlineWindowSize * 0.6
