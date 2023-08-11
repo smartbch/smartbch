@@ -1,5 +1,12 @@
 # Changelog
 
+
+## v0.5.1
+
+* Library
+  * Upgrade moeingads to v0.4.3
+
+
 ## v0.5.0-pre2
 
 * BCH Watcher
