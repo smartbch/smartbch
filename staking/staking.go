@@ -287,10 +287,16 @@ func createValidator(ctx *mevmtypes.Context, tx *mevmtypes.TxToRun) (status int,
 	if ctx.IsStakingFork() {
 		initialAmount = MinimumStakingAmountAfterStakingFork
 	}
-	// need tx.value > 32bch
-	if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(initialAmount) <= 0 {
-		outData = []byte(CreateValidatorCoinLtInitAmount.Error())
-		return
+	if ctx.IsStakingFork() {
+		if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(initialAmount) < 0 {
+			outData = []byte(CreateValidatorCoinLtInitAmount.Error())
+			return
+		}
+	} else {
+		if uint256.NewInt(0).SetBytes(tx.Value[:]).Cmp(initialAmount) <= 0 {
+			outData = []byte(CreateValidatorCoinLtInitAmount.Error())
+			return
+		}
 	}
 
 	stakingAcc, info := LoadStakingAccAndInfo(ctx)
@@ -1111,6 +1117,9 @@ func Slash(ctx *mevmtypes.Context, info *types.StakingInfo, pubkey [32]byte, amo
 			panic(err)
 		}
 		receiverAcc := ctx.GetAccount(slashReceiver)
+		if receiverAcc == nil {
+			receiverAcc = mevmtypes.ZeroAccountInfo()
+		}
 		balance := receiverAcc.Balance()
 		balance.Add(balance, totalSlashed)
 		receiverAcc.UpdateBalance(balance)

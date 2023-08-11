@@ -179,7 +179,8 @@ func (watcher *Watcher) parallelFetchBlocks(heightStart, heightEnd int64) {
 
 func (watcher *Watcher) speedupInBchClientDisableMode() {
 	// no need get epochs if lastKnownCCEpochNum >= 50
-	if watcher.lastKnownCCEpochNum >= 50 {
+	if watcher.lastKnownEpochNum >= 50 {
+		close(watcher.catchupChan)
 		return
 	}
 	if watcher.smartBchRpcClient == (*RpcClient)(nil) {
