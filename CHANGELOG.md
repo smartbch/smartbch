@@ -3,9 +3,13 @@
 
 ## v0.5.1
 
+* Staking
+  * A validator must stake no less than 32 BCH
+  * The PoW hashrate election be disabled
+  * Add Double-sign Slashing and Offline slashing for validator
+  * Add Offline guard for network liveness
 * Library
   * Upgrade moeingads to v0.4.3
-
 
 ## v0.5.0-pre2
 
