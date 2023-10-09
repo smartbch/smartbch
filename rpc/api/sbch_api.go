@@ -40,7 +40,7 @@ type SbchAPI interface {
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
-	ValidatorsInfo() json.RawMessage
+	ValidatorsInfo(blockNr gethrpc.BlockNumberOrHash) json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
 }
 
@@ -211,7 +211,7 @@ func (sbch sbchAPI) GetEpochList(from string) ([]*StakingEpoch, error) {
 }
 func (sbch sbchAPI) GetCurrEpoch(includesPosVotes *bool) (*StakingEpoch, error) {
 	epoch := sbch.backend.GetCurrEpoch()
-	epoch.Number = sbch.backend.ValidatorsInfo().CurrEpochNum
+	epoch.Number = sbch.backend.ValidatorsInfo(-1).CurrEpochNum
 	ret := castStakingEpoch(epoch)
 
 	if includesPosVotes != nil && *includesPosVotes {
@@ -307,9 +307,14 @@ func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHa
 	return toRpcCallDetail(callDetail), nil
 }
 
-func (sbch sbchAPI) ValidatorsInfo() json.RawMessage {
+func (sbch sbchAPI) ValidatorsInfo(blockNr gethrpc.BlockNumberOrHash) json.RawMessage {
 	sbch.logger.Debug("sbch_validatorsInfo")
-	info := sbch.backend.ValidatorsInfo()
+
+	height, err := getHeightArg(sbch.backend, blockNr)
+	if err != nil {
+		return []byte(err.Error())
+	}
+	info := sbch.backend.ValidatorsInfo(height)
 	bytes, _ := json.Marshal(info)
 	return bytes
 }
