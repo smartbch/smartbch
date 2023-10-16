@@ -91,7 +91,7 @@ type IApp interface {
 	SubscribeChainEvent(ch chan<- types.ChainEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*gethtypes.Log) event.Subscription
 	LoadBlockInfo() *types.BlockInfo
-	GetValidatorsInfo() ValidatorsInfo
+	GetValidatorsInfo(height int64) ValidatorsInfo
 	IsArchiveMode() bool
 	GetBlockForSync(height int64) (blk []byte, err error)
 	GetRpcMaxLogResults() int
@@ -1023,8 +1023,8 @@ func (app *App) ChainID() *uint256.Int {
 	return app.chainId
 }
 
-func (app *App) GetValidatorsInfo() ValidatorsInfo {
-	ctx := app.GetRpcContext()
+func (app *App) GetValidatorsInfo(height int64) ValidatorsInfo {
+	ctx := app.GetRpcContextAtHeight(height)
 	defer ctx.Close(false)
 	return app.getValidatorsInfoFromCtx(ctx)
 }

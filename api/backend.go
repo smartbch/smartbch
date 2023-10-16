@@ -425,8 +425,8 @@ func (backend *apiBackend) NodeInfo() Info {
 	return i
 }
 
-func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
-	return backend.app.GetValidatorsInfo()
+func (backend *apiBackend) ValidatorsInfo(height int64) app.ValidatorsInfo {
+	return backend.app.GetValidatorsInfo(height)
 }
 
 func (backend *apiBackend) ValidatorOnlineInfos() (int64, stakingtypes.ValidatorOnlineInfos) {
