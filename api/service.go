@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -134,4 +135,8 @@ type BackendService interface {
 	ValidatorWatchInfos() stakingtypes.ValidatorWatchInfos
 
 	IsArchiveMode() bool
+
+	GetRpcPrivateKey() *ecdsa.PrivateKey
+	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
+	WaitRpcKeySet()
 }

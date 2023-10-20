@@ -1,8 +1,12 @@
 package api
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/smartbch/smartbch/internal/ethutils"
 	"math/big"
 	"time"
 
@@ -42,6 +46,8 @@ type SbchAPI interface {
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo(blockNr gethrpc.BlockNumberOrHash) json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
+	SetRpcKey(key string) error
+	GetRpcPubkey() (string, error)
 }
 
 type sbchAPI struct {
@@ -322,4 +328,27 @@ func (sbch sbchAPI) ValidatorsInfo(blockNr gethrpc.BlockNumberOrHash) json.RawMe
 func (sbch sbchAPI) GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error) {
 	sbch.logger.Debug("sbch_getSyncBlock")
 	return sbch.backend.GetSyncBlock(int64(height))
+}
+
+func (sbch sbchAPI) SetRpcKey(key string) error {
+	sbch.logger.Debug("sbch_setRpcKey")
+	ecdsaKey, _, err := ethutils.HexToPrivKey(key)
+	if err != nil {
+		return err
+	}
+	success := sbch.backend.SetRpcPrivateKey(ecdsaKey)
+	if !success {
+		return errors.New("already set rpc key")
+	}
+	return nil
+}
+
+func (sbch sbchAPI) GetRpcPubkey() (string, error) {
+	sbch.logger.Debug("sbch_getRpcPubkey")
+	key := sbch.backend.GetRpcPrivateKey()
+	if key != nil {
+		pubkey := crypto.FromECDSAPub(&key.PublicKey)
+		return hex.EncodeToString(pubkey), nil
+	}
+	return "", errors.New("rpc pubkey not set")
 }
