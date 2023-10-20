@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -43,6 +44,7 @@ type SbchAPI interface {
 	GetCCEpochs2(start, end hexutil.Uint64) ([]*CCEpoch, error) // result is more human-readable
 	HealthCheck(latestBlockTooOldAge hexutil.Uint64) map[string]interface{}
 	GetTransactionReceipt(hash gethcmn.Hash) (map[string]interface{}, error)
+	GetTransactionReceiptWithSig(hash gethcmn.Hash) (map[string]interface{}, error)
 	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error)
 	ValidatorsInfo(blockNr gethrpc.BlockNumberOrHash) json.RawMessage
 	GetSyncBlock(height hexutil.Uint64) (hexutil.Bytes, error)
@@ -300,6 +302,22 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 	return ret, nil
 }
 
+func (sbch sbchAPI) GetTransactionReceiptWithSig(hash gethcmn.Hash) (map[string]interface{}, error) {
+	sbch.logger.Debug("sbch_getTransactionReceipt")
+	tx, _, err := sbch.backend.GetTransaction(hash)
+	if err != nil {
+		// the transaction is not yet available
+		return nil, nil
+	}
+	ret := txToReceiptWithInternalTxs(tx)
+	bytes, _ := json.Marshal(ret)
+	resp := map[string]interface{}{
+		"resp": string(bytes),
+		"sig":  hex.EncodeToString(sbch.signResponse(bytes)),
+	}
+	return resp, nil
+}
+
 func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumberOrHash) (*CallDetail, error) {
 	sbch.logger.Debug("sbch_call")
 
@@ -351,4 +369,14 @@ func (sbch sbchAPI) GetRpcPubkey() (string, error) {
 		return hex.EncodeToString(pubkey), nil
 	}
 	return "", errors.New("rpc pubkey not set")
+}
+
+func (sbch sbchAPI) signResponse(resp []byte) []byte {
+	key := sbch.backend.GetRpcPrivateKey()
+	if key != nil {
+		hash := sha256.Sum256(resp)
+		sig, _ := crypto.Sign(hash[:], key)
+		return sig
+	}
+	return nil
 }
