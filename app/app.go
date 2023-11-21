@@ -601,6 +601,17 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectedTxsCount())
 	app.mtx.Lock()
 	app.updateValidatorsAndStakingInfo()
+	// something should be executed in block, not tx, leave it here:
+	if app.currHeight == param.SBCHForkHeight {
+		ctx := app.GetRunTxContext()
+		acc := ctx.GetAccount(ebp.BlockedAddress)
+		if acc == nil {
+			panic("block address should have valid account here")
+		}
+		_ = ebp.SubSenderAccBalance(ctx, ebp.BlockedAddress, acc.Balance())
+		ctx.Close(true)
+	}
+
 	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	appHash := app.refresh()
 	go app.postCommit(app.syncBlockInfo())
