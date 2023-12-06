@@ -56,4 +56,5 @@ const (
 	ShaGateForkBlock       int64  = 80000000
 	ShaGateSwitch          bool   = false
 	StakingForkHeight      int64  = 11006000
+	SymbolSbchForkHeight   int64  = 13480000
 )
