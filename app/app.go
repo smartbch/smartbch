@@ -602,7 +602,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 	app.updateValidatorsAndStakingInfo()
 	// something should be executed in block, not tx, leave it here:
-	if app.currHeight == param.SBCHForkHeight {
+	if app.currHeight == param.SymbolSbchForkHeight {
 		ctx := app.GetRunTxContext()
 		acc := ctx.GetAccount(ebp.BlockedAddress)
 		if acc == nil {
@@ -911,6 +911,7 @@ func (app *App) GetRpcContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -926,6 +927,7 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(height)
 	return c
 }
@@ -937,6 +939,7 @@ func (app *App) GetRunTxContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -946,6 +949,7 @@ func (app *App) GetHistoryOnlyContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -956,6 +960,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
