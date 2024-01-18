@@ -202,7 +202,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.signer,
 		app.logger.With("module", "engine"))
 	//ebp.AdjustGasUsed = false
-
+	app.txEngine.SetCheckRWInLoading(true)
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
 

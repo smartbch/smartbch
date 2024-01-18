@@ -58,5 +58,5 @@ const (
 	ShaGateForkBlock       int64  = math.MaxInt64
 	ShaGateSwitch          bool   = false
 	StakingForkHeight      int64  = 11006000 // near 20230815
-	SymbolSbchForkHeight   int64  = 13480000
+	SymbolSbchForkHeight   int64  = 16480000
 )

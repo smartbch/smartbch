@@ -303,7 +303,7 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 }
 
 func (sbch sbchAPI) GetTransactionReceiptWithSig(hash gethcmn.Hash) (map[string]interface{}, error) {
-	sbch.logger.Debug("sbch_getTransactionReceipt")
+	sbch.logger.Debug("sbch_getTransactionReceiptWithSig")
 	tx, _, err := sbch.backend.GetTransaction(hash)
 	if err != nil {
 		// the transaction is not yet available
