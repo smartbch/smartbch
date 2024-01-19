@@ -202,7 +202,7 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.signer,
 		app.logger.With("module", "engine"))
 	//ebp.AdjustGasUsed = false
-	app.txEngine.SetCheckRWInLoading(true)
+
 	/*------set system contract------*/
 	ctx := app.GetRunTxContext()
 
@@ -223,9 +223,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.block = &types.Block{}
 	}
 	ctx.SetCurrentHeight(app.currHeight)
-
 	app.root.SetHeight(app.currHeight)
 	app.txEngine.SetContext(app.GetRunTxContext())
+	if app.currHeight >= param.SymbolSbchForkHeight {
+		app.txEngine.SetCheckRWInLoading(true)
+	}
 	if app.currHeight != 0 { // restart postCommit
 		app.mtx.Lock()
 		app.postCommit(app.syncBlockInfo())
@@ -531,6 +533,9 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash)
 	app.currHeight = req.Header.Height
+	if app.currHeight >= param.SymbolSbchForkHeight {
+		app.txEngine.SetCheckRWInLoading(true)
+	}
 	// collect slash info, currently only double signing is slashed
 	var addr [20]byte
 	for _, val := range req.ByzantineValidators {
