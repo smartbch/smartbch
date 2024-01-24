@@ -633,8 +633,8 @@ github.com/smartbch/moeingads v0.4.3 h1:dJ2wkhsyGMaH96ab4VGJ07ixbhMWhgTDV5/B4IXp
 github.com/smartbch/moeingads v0.4.3/go.mod h1:ItNDsGpUoDo/lNxd+EfQ0FbcoT/QsZ+T06kPdFlCm9g=
 github.com/smartbch/moeingdb v0.4.3 h1:GWDK11Q9V6iHgZH4/KfIgaoY8MYppLMEWjxzkkfORZg=
 github.com/smartbch/moeingdb v0.4.3/go.mod h1:qKlNffkyJ2+vDJPH1p4KyvrqFAdiWTnjQZdf6vmsoiM=
-github.com/smartbch/moeingevm v0.0.0-20240118070914-8f3463283614 h1:a6GElSModZWdz73IOdozw/5MoyEPKK+Z2TKe4aQv1yE=
-github.com/smartbch/moeingevm v0.0.0-20240118070914-8f3463283614/go.mod h1:daDcMDCBCA56gPhwDt9DG5wre9kp8xgMvmU5hRYfu4Q=
+github.com/smartbch/moeingevm v0.0.0-20240124020500-821896676560 h1:mX3pZOpNKKJSSjztNGzl9V0zscazZpPSQLK/cOQZKR8=
+github.com/smartbch/moeingevm v0.0.0-20240124020500-821896676560/go.mod h1:daDcMDCBCA56gPhwDt9DG5wre9kp8xgMvmU5hRYfu4Q=
 github.com/smartbch/tendermint v0.34.10-p2 h1:Ngn8x5HvJ++FigSJU2Z1/z7dTb/3ZU8ZXeffQnHOLF8=
 github.com/smartbch/tendermint v0.34.10-p2/go.mod h1:aeHL7alPh4uTBIJQ8mgFEE8VwJLXI1VD3rVOmH2Mcy0=
 github.com/smartbch/uint256 v1.2.1-p1 h1:FlcuzpMIkkhoUtRdMvLdahjIuzuLS4FPLnDFmhZnv2g=
