@@ -533,9 +533,6 @@ func (app *App) BeginBlock(req abcitypes.RequestBeginBlock) abcitypes.ResponseBe
 	copy(app.block.Hash[:], req.Hash) // Just use tendermint's block hash
 	copy(app.block.StateRoot[:], req.Header.AppHash)
 	app.currHeight = req.Header.Height
-	if app.currHeight >= param.SymbolSbchForkHeight {
-		app.txEngine.SetCheckRWInLoading(true)
-	}
 	// collect slash info, currently only double signing is slashed
 	var addr [20]byte
 	for _, val := range req.ByzantineValidators {
@@ -616,9 +613,11 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 		_ = ebp.SubSenderAccBalance(ctx, ebp.BlockedAddress, acc.Balance())
 		ctx.Close(true)
 	}
-
 	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	appHash := app.refresh()
+	if app.currHeight >= param.SymbolSbchForkHeight {
+		app.txEngine.SetCheckRWInLoading(true)
+	}
 	go app.postCommit(app.syncBlockInfo())
 	return app.buildCommitResponse(appHash)
 }
