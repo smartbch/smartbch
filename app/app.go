@@ -223,9 +223,11 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 		app.block = &types.Block{}
 	}
 	ctx.SetCurrentHeight(app.currHeight)
-
 	app.root.SetHeight(app.currHeight)
 	app.txEngine.SetContext(app.GetRunTxContext())
+	if app.currHeight >= param.SymbolSbchForkHeight {
+		app.txEngine.SetCheckRWInLoading(true)
+	}
 	if app.currHeight != 0 { // restart postCommit
 		app.mtx.Lock()
 		app.postCommit(app.syncBlockInfo())
@@ -601,8 +603,21 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectedTxsCount())
 	app.mtx.Lock()
 	app.updateValidatorsAndStakingInfo()
+	// something should be executed in block, not tx, leave it here:
+	if app.currHeight == param.SymbolSbchForkHeight {
+		ctx := app.GetRunTxContext()
+		acc := ctx.GetAccount(ebp.BlockedAddress)
+		if acc == nil {
+			panic("block address should have valid account here")
+		}
+		_ = ebp.SubSenderAccBalance(ctx, ebp.BlockedAddress, acc.Balance())
+		ctx.Close(true)
+	}
 	app.frontier = app.txEngine.Prepare(app.reorderSeed, 0, param.MaxTxGasLimit)
 	appHash := app.refresh()
+	if app.currHeight >= param.SymbolSbchForkHeight {
+		app.txEngine.SetCheckRWInLoading(true)
+	}
 	go app.postCommit(app.syncBlockInfo())
 	return app.buildCommitResponse(appHash)
 }
@@ -900,6 +915,7 @@ func (app *App) GetRpcContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -915,6 +931,7 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(height)
 	return c
 }
@@ -926,6 +943,7 @@ func (app *App) GetRunTxContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -935,6 +953,7 @@ func (app *App) GetHistoryOnlyContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
@@ -945,6 +964,7 @@ func (app *App) GetCheckTxContext() *types.Context {
 	c.SetShaGateForkBlock(param.ShaGateForkBlock)
 	c.SetStakingForkBlock(param.StakingForkHeight)
 	c.SetXHedgeForkBlock(param.XHedgeForkBlock)
+	c.SetSymbolSbchBlock(param.SymbolSbchForkHeight)
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
