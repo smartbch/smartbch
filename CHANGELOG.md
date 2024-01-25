@@ -1,6 +1,15 @@
 # Changelog
 
 
+## v0.6.0
+
+* SEP206
+  * Change symbol to SBCH and change name to SmartBCH
+  * Change the totalSupply to 68313.420483504311319128 SBCH
+  * Clear the SBCH balance of 0x8c4F85ec71C966e45A6F4291f5271f8114a7Ba15
+* TxEngine
+  * Optimized the performance of the transaction engine in the case of transactions access storage conflicts
+  
 ## v0.5.1
 
 * Staking
