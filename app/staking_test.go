@@ -172,7 +172,7 @@ func TestCreateValidator(t *testing.T) {
 	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 123, data)
 	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", staking.CreateValidatorCoinLtInitAmount.Error())
 
-	vals := _app.GetValidatorsInfo()
+	vals := _app.GetValidatorsInfo(-1)
 	require.Len(t, vals.Validators, 1)
 	data = staking.PackCreateValidator(addr1, [32]byte{}, vals.Validators[0].Pubkey)
 	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
@@ -186,7 +186,7 @@ func TestCreateValidator(t *testing.T) {
 	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 2001, data)
 	_app.EnsureTxFailedWithOutData(tx.Hash(), "failure", types.ValidatorAddressAlreadyExists.Error())
 
-	vals = _app.GetValidatorsInfo()
+	vals = _app.GetValidatorsInfo(-1)
 	require.Len(t, vals.CurrValidators, 1)
 	require.Len(t, vals.Validators, 2)
 	require.Equal(t, addr1, vals.Validators[1].Address)
@@ -223,7 +223,7 @@ func TestEditValidator(t *testing.T) {
 	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 456, data)
 	_app.EnsureTxSuccess(tx.Hash())
 
-	vals := _app.GetValidatorsInfo()
+	vals := _app.GetValidatorsInfo(-1)
 	require.Len(t, vals.CurrValidators, 1)
 	require.Len(t, vals.Validators, 2)
 	require.Equal(t, addr1, vals.Validators[1].Address)
@@ -254,7 +254,7 @@ func TestRetireValidator(t *testing.T) {
 	tx, _ = _app.MakeAndExecTxInBlock(key1, staking.StakingContractAddress, 0, data)
 	_app.EnsureTxSuccess(tx.Hash())
 
-	vals := _app.GetValidatorsInfo()
+	vals := _app.GetValidatorsInfo(-1)
 	require.Len(t, vals.CurrValidators, 1)
 	require.Len(t, vals.Validators, 2)
 	require.Equal(t, true, vals.Validators[1].IsRetiring)
@@ -382,7 +382,7 @@ func TestSumVotingPower(t *testing.T) {
 	})
 	_app.ExecTxsInBlock()
 
-	vals := _app.GetValidatorsInfo()
+	vals := _app.GetValidatorsInfo(-1)
 	require.Len(t, vals.Validators, 4)
 	require.Len(t, vals.CurrValidators, 3)
 	require.Equal(t, int64(0), vals.Validators[0].VotingPower)
@@ -497,7 +497,7 @@ func TestStakingDetermination(t *testing.T) {
 		tx, _ = _app.MakeAndExecTxInBlock(key3, staking.StakingContractAddress, 2001, data)
 		_app.EnsureTxSuccess(tx.Hash())
 
-		vals := _app.GetValidatorsInfo()
+		vals := _app.GetValidatorsInfo(-1)
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 1)
 		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
@@ -515,7 +515,7 @@ func TestStakingDetermination(t *testing.T) {
 		})
 		_app.ExecTxsInBlock()
 
-		vals = _app.GetValidatorsInfo()
+		vals = _app.GetValidatorsInfo(-1)
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 4)
 		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
@@ -531,7 +531,7 @@ func TestStakingDetermination(t *testing.T) {
 		tx, _ = _app.MakeAndExecTxInBlock(key2, staking.StakingContractAddress, 0, data)
 		_app.EnsureTxSuccess(tx.Hash())
 
-		vals = _app.GetValidatorsInfo()
+		vals = _app.GetValidatorsInfo(-1)
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 3)
 		require.Equal(t, int64(1), vals.Validators[0].VotingPower)
@@ -548,7 +548,7 @@ func TestStakingDetermination(t *testing.T) {
 		})
 		_app.ExecTxsInBlock()
 
-		vals = _app.GetValidatorsInfo()
+		vals = _app.GetValidatorsInfo(-1)
 		require.Len(t, vals.Validators, 4)
 		require.Len(t, vals.CurrValidators, 3)
 		require.Equal(t, int64(1), vals.Validators[0].VotingPower)

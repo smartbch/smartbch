@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -129,9 +130,13 @@ type BackendService interface {
 
 	//tendermint info
 	NodeInfo() Info
-	ValidatorsInfo() app.ValidatorsInfo
+	ValidatorsInfo(height int64) app.ValidatorsInfo
 	ValidatorOnlineInfos() (int64, stakingtypes.ValidatorOnlineInfos)
 	ValidatorWatchInfos() stakingtypes.ValidatorWatchInfos
 
 	IsArchiveMode() bool
+
+	GetRpcPrivateKey() *ecdsa.PrivateKey
+	SetRpcPrivateKey(key *ecdsa.PrivateKey) bool
+	WaitRpcKeySet()
 }

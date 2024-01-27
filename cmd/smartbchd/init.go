@@ -15,11 +15,13 @@ import (
 
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/cli"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/smartbch/smartbch/app"
 	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/smartbch/smartbch/internal/testutils"
+	"github.com/smartbch/smartbch/param"
 )
 
 const (
@@ -28,6 +30,74 @@ const (
 	flagTestKeys     = "test-keys"
 	flagTestKeysFile = "test-keys-file"
 	flagInitBal      = "init-balance"
+	flagMainnet      = "mainnet"
+)
+
+const (
+	mainnetChainId      = "0x2710"
+	mainnetSbchRPCUrl   = "https://rpc.smartbch.org"
+	mainnetDefaultSeeds = "d96aafcbdc92dcb295ee28b050b47104a1749e23@13.229.211.167:26656"
+	mainnetGenesisJSON  = `{
+  "genesis_time": "2021-07-30T04:28:16.955082878Z",
+  "chain_id": "0x2710",
+  "initial_height": "1",
+  "consensus_params": {
+    "block": {
+      "max_bytes": "22020096",
+      "max_gas": "-1",
+      "time_iota_ms": "1000"
+    },
+    "evidence": {
+      "max_age_num_blocks": "100000",
+      "max_age_duration": "172800000000000",
+      "max_bytes": "1048576"
+    },
+    "validator": {
+      "pub_key_types": [
+        "ed25519"
+      ]
+    },
+    "version": {}
+  },
+  "app_hash": "",
+  "app_state": {
+    "validators": [
+      {
+        "address": "0x9a6dd2f7ceb71788de691844d16b6b6852f07aa3",
+        "pubkey": "0xfbdc5c690ab36319d6a68ed50407a61d95d0ec6a6e9225a0c40d17bd8358010e",
+        "reward_to": "0x9a6dd2f7ceb71788de691844d16b6b6852f07aa3",
+        "voting_power": 10,
+        "introduction": "matrixport",
+        "staked_coins": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "is_retiring": false
+      },
+      {
+        "address": "0x7dd41d92235cbbe0d2fe4ebd548cdd29f9befe5e",
+        "pubkey": "0x45caa8b683a1838f6cf8c3de60ef826ceaac27351843bc9f8c84cedb7da9a8a0",
+        "reward_to": "0x7dd41d92235cbbe0d2fe4ebd548cdd29f9befe5e",
+        "voting_power": 1,
+        "introduction": "btccom",
+        "staked_coins": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "is_retiring": false
+      },
+      {
+        "address": "0xde5ddf2a1101d9501aa3db39750acb1764aa5c5b",
+        "pubkey": "0xfc609736388585e77dc106885dd401b1dab7be87e61a3597239db9d0483e9a46",
+        "reward_to": "0xde5ddf2a1101d9501aa3db39750acb1764aa5c5b",
+        "voting_power": 1,
+        "introduction": "viabtc",
+        "staked_coins": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "is_retiring": false
+      }
+    ],
+    "alloc": {
+      "0x9a6dd2f7ceb71788de691844d16b6b6852f07aa3": {
+        "balance": "0x115eec47f6cf7e35000000"
+      }
+    }
+  }
+}
+`
 )
 
 type printInfo struct {
@@ -91,6 +161,25 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 				return err
 			}
 
+			if viper.GetBool(flagMainnet) {
+				// load mainnet genesis file
+				chainID = mainnetChainId
+				err = tmjson.Unmarshal([]byte(mainnetGenesisJSON), genDoc)
+				if err != nil {
+					return fmt.Errorf("failed to load mainnet genesis JSON file: %w", err)
+				}
+
+				// update config/config.toml
+				config.P2P.Seeds = mainnetDefaultSeeds
+
+				// update config/app.toml
+				ctx.Config.AppConfig.SmartBchRPCUrl = mainnetSbchRPCUrl
+				appCfgPath := filepath.Join(config.RootDir, "config", "app.toml")
+				param.WriteConfigFile(appCfgPath, ctx.Config.AppConfig)
+
+				fmt.Println("home:", config.RootDir)
+			}
+
 			fmt.Println("saving genesis file ...")
 			if err := ExportGenesisFile(genDoc, genFile); err != nil {
 				return err
@@ -106,6 +195,7 @@ func InitCmd(ctx *Context, defaultNodeHome string) *cobra.Command { // nolint: g
 	cmd.Flags().String(flagTestKeys, "", "comma separated list of hex private keys used for test")
 	cmd.Flags().String(flagTestKeysFile, "", "file contains hex private keys, one key per line")
 	cmd.Flags().String(flagInitBal, "1000000000000000000", "initial balance for test accounts")
+	cmd.Flags().Bool(flagMainnet, false, "init for mainent node")
 	return cmd
 }
 

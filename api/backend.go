@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"math"
 	"math/big"
+	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -46,6 +49,9 @@ type apiBackend struct {
 	//logsFeed   event.Feed
 	rmLogsFeed event.Feed
 	//pendingLogsFeed event.Feed
+
+	rpcPrivateKeyLock sync.RWMutex
+	rpcPrivateKey     *ecdsa.PrivateKey
 }
 
 func NewBackend(node ITmNode, app app.IApp) BackendService {
@@ -425,8 +431,8 @@ func (backend *apiBackend) NodeInfo() Info {
 	return i
 }
 
-func (backend *apiBackend) ValidatorsInfo() app.ValidatorsInfo {
-	return backend.app.GetValidatorsInfo()
+func (backend *apiBackend) ValidatorsInfo(height int64) app.ValidatorsInfo {
+	return backend.app.GetValidatorsInfo(height)
 }
 
 func (backend *apiBackend) ValidatorOnlineInfos() (int64, stakingtypes.ValidatorOnlineInfos) {
@@ -468,4 +474,30 @@ func (backend *apiBackend) GetSyncBlock(height int64) (blk []byte, err error) {
 
 func (backend *apiBackend) GetRpcMaxLogResults() int {
 	return backend.app.GetRpcMaxLogResults()
+}
+
+func (backend *apiBackend) GetRpcPrivateKey() *ecdsa.PrivateKey {
+	return backend.rpcPrivateKey
+}
+
+func (backend *apiBackend) SetRpcPrivateKey(key *ecdsa.PrivateKey) (success bool) {
+	if backend.rpcPrivateKey == nil {
+		backend.rpcPrivateKeyLock.Lock()
+		backend.rpcPrivateKey = key
+		backend.rpcPrivateKeyLock.Unlock()
+		return true
+	}
+	return false
+}
+
+func (backend *apiBackend) WaitRpcKeySet() {
+	for {
+		backend.rpcPrivateKeyLock.RLock()
+		key := backend.rpcPrivateKey
+		backend.rpcPrivateKeyLock.RUnlock()
+		time.Sleep(3 * time.Second)
+		if key != nil {
+			break
+		}
+	}
 }
