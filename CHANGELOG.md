@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.1
+
+* Library
+  * Upgrade tendermint to v0.34.10-p3
 
 ## v0.6.0
 
